@@ -460,6 +460,23 @@ input, select { color: var(--ink); }
   line-height: 1.72;
 }
 
+.tiptap-editor {
+  width: 100%;
+  white-space: pre-wrap;
+}
+
+.tiptap-editor:focus {
+  outline: 0;
+}
+
+.tiptap-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+
 .block-content.preview {
   color: var(--muted);
   white-space: nowrap;
@@ -498,8 +515,51 @@ input, select { color: var(--ink); }
 .block-content ol,
 .composer ul,
 .composer ol { margin: 6px 0; padding-left: 28px; }
+.block-content ul[data-type="taskList"],
+.composer ul[data-type="taskList"] {
+  padding-left: 0;
+  list-style: none;
+}
 .block-content li,
 .composer li { margin: 4px 0; padding-left: 4px; }
+
+.block-content li[data-checked],
+.composer li[data-checked] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 9px;
+  padding-left: 0;
+}
+
+.block-content li[data-checked] > label,
+.composer li[data-checked] > label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border-radius: 999px;
+  background: rgba(213, 232, 190, 0.62);
+  padding: 2px 7px 2px 5px;
+  color: var(--accent);
+}
+
+.block-content li[data-checked] > label::after,
+.composer li[data-checked] > label::after {
+  content: "【】";
+  margin-left: 4px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.block-content li[data-checked] > div,
+.composer li[data-checked] > div {
+  min-width: 0;
+}
+
+.block-content li[data-checked] p,
+.composer li[data-checked] p {
+  margin: 0 0 8px;
+}
 
 .block-content li::marker,
 .composer li::marker { color: var(--accent); }
@@ -523,10 +583,21 @@ input, select { color: var(--ink); }
   position: relative;
 }
 
+.block-content li[data-checked]:has(> div > ul),
+.block-content li[data-checked]:has(> div > ol),
+.composer li[data-checked]:has(> div > ul),
+.composer li[data-checked]:has(> div > ol) {
+  position: relative;
+}
+
 .block-content li:has(> ul)::before,
 .block-content li:has(> ol)::before,
 .composer li:has(> ul)::before,
-.composer li:has(> ol)::before {
+.composer li:has(> ol)::before,
+.block-content li[data-checked]:has(> div > ul)::before,
+.block-content li[data-checked]:has(> div > ol)::before,
+.composer li[data-checked]:has(> div > ul)::before,
+.composer li[data-checked]:has(> div > ol)::before {
   position: absolute;
   left: -24px;
   top: 0.18em;
@@ -540,21 +611,33 @@ input, select { color: var(--ink); }
 .block-content li.is-collapsed-list:has(> ul)::before,
 .block-content li.is-collapsed-list:has(> ol)::before,
 .composer li.is-collapsed-list:has(> ul)::before,
-.composer li.is-collapsed-list:has(> ol)::before {
+.composer li.is-collapsed-list:has(> ol)::before,
+.block-content li.is-collapsed-list[data-checked]:has(> div > ul)::before,
+.block-content li.is-collapsed-list[data-checked]:has(> div > ol)::before,
+.composer li.is-collapsed-list[data-checked]:has(> div > ul)::before,
+.composer li.is-collapsed-list[data-checked]:has(> div > ol)::before {
   transform: rotate(0deg);
 }
 
 .block-content li:not(.is-collapsed-list):has(> ul)::before,
 .block-content li:not(.is-collapsed-list):has(> ol)::before,
 .composer li:not(.is-collapsed-list):has(> ul)::before,
-.composer li:not(.is-collapsed-list):has(> ol)::before {
+.composer li:not(.is-collapsed-list):has(> ol)::before,
+.block-content li:not(.is-collapsed-list)[data-checked]:has(> div > ul)::before,
+.block-content li:not(.is-collapsed-list)[data-checked]:has(> div > ol)::before,
+.composer li:not(.is-collapsed-list)[data-checked]:has(> div > ul)::before,
+.composer li:not(.is-collapsed-list)[data-checked]:has(> div > ol)::before {
   transform: rotate(90deg);
 }
 
 .block-content li.is-collapsed-list > ul,
 .block-content li.is-collapsed-list > ol,
 .composer li.is-collapsed-list > ul,
-.composer li.is-collapsed-list > ol {
+.composer li.is-collapsed-list > ol,
+.block-content li.is-collapsed-list[data-checked] > div > ul,
+.block-content li.is-collapsed-list[data-checked] > div > ol,
+.composer li.is-collapsed-list[data-checked] > div > ul,
+.composer li.is-collapsed-list[data-checked] > div > ol {
   display: none;
 }
 
@@ -649,8 +732,6 @@ input, select { color: var(--ink); }
   min-height: 118px;
   padding: 16px 18px;
 }
-
-.composer:empty::before { content: attr(data-placeholder); color: var(--muted); }
 
 .composer-footer {
   display: flex;

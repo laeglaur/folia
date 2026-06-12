@@ -7,12 +7,20 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
     "preview": "vite preview --host 127.0.0.1",
+    "test:editor": "node scripts/editor-smoke.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },
   "dependencies": {
     "@tauri-apps/api": "latest",
+    "@tiptap/core": "^3.26.1",
+    "@tiptap/extension-highlight": "^3.26.1",
+    "@tiptap/extension-placeholder": "^3.26.1",
+    "@tiptap/extension-task-item": "^3.26.1",
+    "@tiptap/extension-task-list": "^3.26.1",
+    "@tiptap/react": "^3.26.1",
+    "@tiptap/starter-kit": "^3.26.1",
     "@vitejs/plugin-react": "latest",
     "lucide-react": "latest",
     "react": "latest",
@@ -21,6 +29,7 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tauri-apps/cli": "latest",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3"

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bold,
   Braces,
@@ -22,6 +22,13 @@ import {
   Type,
   Upload
 } from 'lucide-react';
+import { EditorContent, useEditor, type Editor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Highlight from '@tiptap/extension-highlight';
+import Placeholder from '@tiptap/extension-placeholder';
+import TaskItem from '@tiptap/extension-task-item';
+import TaskList from '@tiptap/extension-task-list';
+import { Extension, InputRule } from '@tiptap/core';
 import type { AppState, Block, Page, ThemeId } from './types';
 import {
   appendOperation,
@@ -37,17 +44,41 @@ import { isTauri } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 type EditorTarget = { kind: 'composer' } | { kind: 'block'; blockId: string };
+type ToolbarCommand =
+  | 'bold'
+  | 'italic'
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'inlineCode'
+  | 'codeBlock'
+  | 'bulletList'
+  | 'orderedList'
+  | 'indent'
+  | 'outdent';
 
 type RichEditorProps = {
   className: string;
   html?: string;
   placeholder?: string;
-  onFocus: () => void;
-  onInput: (element: HTMLDivElement) => void;
-  onMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void;
-  onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
-  onBlur?: (element: HTMLDivElement) => void;
-  editorRef: (node: HTMLDivElement | null) => void;
+  onFocus: (editor: Editor) => void;
+  onUpdate?: (html: string, plainText: string) => void;
+  onBlur?: (html: string, plainText: string) => void;
+  onShiftEnter?: (editor: Editor) => boolean;
+  onMoveBlock?: (direction: -1 | 1) => boolean;
+  editorRef: (editor: Editor | null) => void;
+};
+
+const toggleCollapsibleListItem = (event: React.MouseEvent<HTMLDivElement>) => {
+  const target = event.target as HTMLElement;
+  const editorRoot = event.currentTarget;
+  const listItem = target.closest('li');
+  if (!listItem || !editorRoot.contains(listItem)) return;
+  if (!listItem.querySelector(':scope > ul, :scope > ol, :scope > div > ul, :scope > div > ol')) return;
+  const rect = listItem.getBoundingClientRect();
+  if (event.clientX - rect.left > 28) return;
+  event.preventDefault();
+  listItem.classList.toggle('is-collapsed-list');
 };
 
 const themes: Array<{ id: ThemeId; label: string }> = [
@@ -66,149 +97,117 @@ const firstLines = (text: string, lines = 2) => {
   return blockTextPreview(parts.slice(0, lines).join(' / '), 76);
 };
 
-const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const todoInputRegex = /^\s*(\[\]|【】)\s$/;
+const codeBlockInputRegex = /^\s*(```|\/code)\s$/;
 
-const normalizeTriggerText = (value: string) => value.replace(/\u00a0/g, ' ').trim();
+const BracketTodoInput = Extension.create({
+  name: 'bracketTodoInput',
 
-const getTextBeforeCaret = (root: HTMLElement) => {
-  const selection = window.getSelection();
-  if (!selection?.rangeCount) return '';
-  const range = selection.getRangeAt(0);
-  if (!root.contains(range.endContainer)) return '';
-  const before = range.cloneRange();
-  before.selectNodeContents(root);
-  before.setEnd(range.endContainer, range.endOffset);
-  return before.toString();
-};
-
-const locateTextPosition = (root: HTMLElement, offset: number) => {
-  const walker = document.createTreeWalker(root, window.NodeFilter.SHOW_TEXT);
-  let currentOffset = 0;
-  let node = walker.nextNode();
-
-  while (node) {
-    const text = node.textContent ?? '';
-    const nextOffset = currentOffset + text.length;
-    if (offset <= nextOffset) {
-      return { node, offset: Math.max(0, offset - currentOffset) };
-    }
-    currentOffset = nextOffset;
-    node = walker.nextNode();
+  addInputRules() {
+    return [
+      new InputRule({
+        find: todoInputRegex,
+        handler: ({ range, commands }) => {
+          commands.deleteRange(range);
+          commands.toggleTaskList();
+        }
+      }),
+      new InputRule({
+        find: codeBlockInputRegex,
+        handler: ({ range, commands }) => {
+          commands.deleteRange(range);
+          commands.setCodeBlock();
+        }
+      })
+    ];
   }
+});
 
-  return { node: root, offset: root.childNodes.length };
-};
+const NotebookShortcuts = Extension.create<{
+  onShiftEnter?: (editor: Editor) => boolean;
+  onMoveBlock?: (direction: -1 | 1) => boolean;
+}>({
+  name: 'notebookShortcuts',
 
-const insertHtmlAtRange = (range: Range, html: string, root: HTMLElement) => {
-  const markerId = `caret_${crypto.randomUUID()}`;
-  const marker = `<span data-caret-marker="${markerId}"></span>`;
-  const template = document.createElement('template');
-  template.innerHTML = html.includes('{{caret}}') ? html.replace('{{caret}}', marker) : `${html}${marker}`;
-  const fragment = template.content;
+  addKeyboardShortcuts() {
+    return {
+      'Mod-h': () => this.editor.commands.toggleHighlight(),
+      Enter: () => {
+        const { state } = this.editor;
+        const { $from } = state.selection;
+        const text = $from.parent.textContent.trim();
+        if ($from.parent.type.name !== 'paragraph' || !['```', '/code'].includes(text)) return false;
+        return this.editor
+          .chain()
+          .deleteRange({ from: $from.start(), to: $from.end() })
+          .setCodeBlock()
+          .run();
+      },
+      'Shift-Enter': () => this.options.onShiftEnter?.(this.editor) ?? false,
+      'Mod-ArrowUp': () => this.options.onMoveBlock?.(-1) ?? false,
+      'Mod-ArrowDown': () => this.options.onMoveBlock?.(1) ?? false,
+      Tab: () => this.editor.commands.sinkListItem('listItem') || this.editor.commands.sinkListItem('taskItem'),
+      'Shift-Tab': () => this.editor.commands.liftListItem('listItem') || this.editor.commands.liftListItem('taskItem')
+    };
+  }
+});
 
-  range.deleteContents();
-  range.insertNode(fragment);
-
-  const caretMarker = root.querySelector(`[data-caret-marker="${markerId}"]`);
-  if (!caretMarker) return;
-
-  const nextRange = document.createRange();
-  nextRange.setStartBefore(caretMarker);
-  nextRange.collapse(true);
-  caretMarker.remove();
-
-  const selection = window.getSelection();
-  selection?.removeAllRanges();
-  selection?.addRange(nextRange);
-};
-
-const insertHtmlAtSelection = (root: HTMLElement | null, html: string) => {
-  const selection = window.getSelection();
-  if (!root || !selection?.rangeCount) return false;
-  const range = selection.getRangeAt(0);
-  if (!root.contains(range.commonAncestorContainer)) return false;
-  insertHtmlAtRange(range, html, root);
-  return true;
-};
-
-const replacePreviousCharacters = (root: HTMLElement, count: number, html: string) => {
-  const selection = window.getSelection();
-  if (!selection?.rangeCount) return false;
-
-  const activeRange = selection.getRangeAt(0);
-  if (!root.contains(activeRange.endContainer)) return false;
-
-  const endOffset = getTextBeforeCaret(root).length;
-  const startOffset = Math.max(0, endOffset - count);
-  const start = locateTextPosition(root, startOffset);
-  const end = locateTextPosition(root, endOffset);
-  const range = document.createRange();
-  range.setStart(start.node, start.offset);
-  range.setEnd(end.node, end.offset);
-  insertHtmlAtRange(range, html, root);
-  return true;
-};
-
-const unwrapElement = (element: HTMLElement) => {
-  const parent = element.parentNode;
-  if (!parent) return;
-  while (element.firstChild) parent.insertBefore(element.firstChild, element);
-  element.remove();
-  parent.normalize();
-};
+const createEditorExtensions = (
+  placeholder?: string,
+  onShiftEnter?: (editor: Editor) => boolean,
+  onMoveBlock?: (direction: -1 | 1) => boolean
+) => [
+  StarterKit.configure({
+    heading: { levels: [1, 2, 3] }
+  }),
+  Highlight,
+  TaskList,
+  TaskItem.configure({ nested: true }),
+  BracketTodoInput,
+  NotebookShortcuts.configure({ onShiftEnter, onMoveBlock }),
+  Placeholder.configure({ placeholder: placeholder ?? '' })
+];
 
 function RichEditor({
   className,
   html,
   placeholder,
   onFocus,
-  onInput,
-  onMouseDown,
-  onKeyDown,
+  onUpdate,
   onBlur,
+  onShiftEnter,
+  onMoveBlock,
   editorRef
 }: RichEditorProps) {
-  const localRef = useRef<HTMLDivElement | null>(null);
-  const lastHtmlRef = useRef(html ?? '');
+  const externalHtmlRef = useRef(html ?? '');
+  const editor = useEditor({
+    extensions: createEditorExtensions(placeholder, onShiftEnter, onMoveBlock),
+    content: html || '',
+    editorProps: {
+      attributes: {
+        class: `${className} tiptap-editor`
+      }
+    },
+    onFocus: ({ editor }) => onFocus(editor),
+    onUpdate: ({ editor }) => onUpdate?.(editor.getHTML(), editor.getText()),
+    onBlur: ({ editor }) => onBlur?.(editor.getHTML(), editor.getText())
+  });
 
-  useLayoutEffect(() => {
-    const node = localRef.current;
-    if (!node) return;
+  useEffect(() => {
+    editorRef(editor);
+    return () => editorRef(null);
+  }, [editor, editorRef]);
+
+  useEffect(() => {
+    if (!editor) return;
     const nextHtml = html ?? '';
-    const isFocused = document.activeElement === node;
-    if (!isFocused && nextHtml !== lastHtmlRef.current) {
-      node.innerHTML = nextHtml;
-      lastHtmlRef.current = nextHtml;
+    if (!editor.isFocused && nextHtml !== externalHtmlRef.current && nextHtml !== editor.getHTML()) {
+      editor.commands.setContent(nextHtml, { emitUpdate: false });
     }
-  }, [html]);
+    externalHtmlRef.current = nextHtml;
+  }, [editor, html]);
 
-  return (
-    <div
-      ref={(node) => {
-        localRef.current = node;
-        editorRef(node);
-        if (node && document.activeElement !== node && !node.innerHTML && html) {
-          node.innerHTML = html;
-          lastHtmlRef.current = html;
-        }
-      }}
-      className={className}
-      contentEditable
-      suppressContentEditableWarning
-      data-placeholder={placeholder}
-      onFocus={onFocus}
-      onInput={(event) => {
-        lastHtmlRef.current = event.currentTarget.innerHTML;
-        onInput(event.currentTarget);
-      }}
-      onMouseDown={onMouseDown}
-      onKeyDown={onKeyDown}
-      onBlur={(event) => {
-        lastHtmlRef.current = event.currentTarget.innerHTML;
-        onBlur?.(event.currentTarget);
-      }}
-    />
-  );
+  return <div onMouseDown={toggleCollapsibleListItem}><EditorContent editor={editor} /></div>;
 }
 
 export function App() {
@@ -219,8 +218,8 @@ export function App() {
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [showToolbar, setShowToolbar] = useState(true);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
-  const editorRef = useRef<HTMLDivElement>(null);
-  const editorRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const composerEditorRef = useRef<Editor | null>(null);
+  const blockEditorRefs = useRef<Record<string, Editor | null>>({});
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme;
@@ -252,17 +251,9 @@ export function App() {
     return map;
   }, [activeNotebook.id, state.pages]);
 
-  const getActiveElement = () => {
-    const selection = window.getSelection();
-    if (selection?.rangeCount) {
-      const container = selection.getRangeAt(0).commonAncestorContainer;
-      const element = container instanceof HTMLElement ? container : container.parentElement;
-      const selectedEditor = element?.closest<HTMLElement>('.editable, .composer');
-      if (selectedEditor) return selectedEditor;
-    }
-
-    if (activeEditor.kind === 'composer') return editorRef.current;
-    return editorRefs.current[activeEditor.blockId] ?? null;
+  const getActiveTiptapEditor = () => {
+    if (activeEditor.kind === 'composer') return composerEditorRef.current;
+    return blockEditorRefs.current[activeEditor.blockId] ?? null;
   };
 
   const activateEditor = (target: EditorTarget) => {
@@ -274,43 +265,37 @@ export function App() {
     });
   };
 
-  const applyCommand = (command: string, value?: string) => {
-    const target = getActiveElement();
-    target?.focus();
-    document.execCommand(command, false, value);
+  const runEditorCommand = (command: ToolbarCommand) => {
+    const editor = getActiveTiptapEditor();
+    if (!editor) return;
+    const chain = editor.chain().focus();
+    if (command === 'bold') chain.toggleBold().run();
+    if (command === 'italic') chain.toggleItalic().run();
+    if (command === 'h1') chain.toggleHeading({ level: 1 }).run();
+    if (command === 'h2') chain.toggleHeading({ level: 2 }).run();
+    if (command === 'h3') chain.toggleHeading({ level: 3 }).run();
+    if (command === 'inlineCode') chain.toggleCode().run();
+    if (command === 'codeBlock') chain.toggleCodeBlock().run();
+    if (command === 'bulletList') chain.toggleBulletList().run();
+    if (command === 'orderedList') chain.toggleOrderedList().run();
+    if (command === 'indent') {
+      if (!chain.sinkListItem('listItem').run()) editor.chain().focus().sinkListItem('taskItem').run();
+    }
+    if (command === 'outdent') {
+      if (!chain.liftListItem('listItem').run()) editor.chain().focus().liftListItem('taskItem').run();
+    }
   };
 
   const insertTodo = () => {
-    insertHtmlAtSelection(getActiveElement(), '<span class="todo-item bracket-todo" contenteditable="false"><input type="checkbox"><span>【】</span></span>&nbsp;{{caret}}');
+    getActiveTiptapEditor()?.chain().focus().toggleTaskList().run();
   };
 
   const applyHighlight = () => {
-    const selection = window.getSelection();
-    const target = getActiveElement();
-    if (!target || !selection?.rangeCount) return;
-
-    const range = selection.getRangeAt(0);
-    const touchedMarks = Array.from(target.querySelectorAll('mark')).filter((mark) => range.intersectsNode(mark));
-    if (touchedMarks.length) {
-      touchedMarks.forEach((mark) => unwrapElement(mark));
-      return;
-    }
-
-    const anchor = selection?.anchorNode;
-    const anchorElement = anchor instanceof HTMLElement ? anchor : anchor?.parentElement;
-    const activeMark = anchorElement?.closest('mark');
-    if (activeMark) {
-      unwrapElement(activeMark);
-      return;
-    }
-    const selected = selection?.toString() || 'highlight';
-    insertHtmlAtSelection(target, `<mark>${escapeHtml(selected)}</mark>{{caret}}`);
+    getActiveTiptapEditor()?.chain().focus().toggleHighlight().run();
   };
 
   const applyInlineCode = () => {
-    const selection = window.getSelection();
-    const selected = selection?.toString() || 'code';
-    insertHtmlAtSelection(getActiveElement(), `<code>${escapeHtml(selected)}</code>{{caret}}`);
+    getActiveTiptapEditor()?.chain().focus().toggleCode().run();
   };
 
   const blockIndex = (blockId: string) => activePage.blockIds.indexOf(blockId);
@@ -328,122 +313,10 @@ export function App() {
     }));
   };
 
-  const maybeConvertTrigger = (element: HTMLDivElement, nextKey: string) => {
-    const line = normalizeTriggerText(getTextBeforeCaret(element).split('\n').pop() ?? '');
-
-    if ((line === '[]' || line === '【】') && (nextKey === ' ' || nextKey === 'Enter')) {
-      return replacePreviousCharacters(element, line.length, '<span class="todo-item bracket-todo" contenteditable="false"><input type="checkbox"><span>【】</span></span>&nbsp;{{caret}}');
-    }
-    if ((line === '```' || line === '/code') && (nextKey === 'Enter' || nextKey === ' ')) {
-      return replacePreviousCharacters(element, line.length, '<pre><code>{{caret}}<br></code></pre>');
-    }
-    if (/^#{1,3}$/.test(line) && nextKey === ' ') {
-      return replacePreviousCharacters(element, line.length, `<h${line.length}>{{caret}}<br></h${line.length}>`);
-    }
-    if ((line === '-' || line === '*') && nextKey === ' ') {
-      return replacePreviousCharacters(element, line.length, '<ul><li>{{caret}}<br></li></ul>');
-    }
-    if (/^\d+[.)]$/.test(line) && nextKey === ' ') {
-      return replacePreviousCharacters(element, line.length, '<ol><li>{{caret}}<br></li></ol>');
-    }
-    return false;
-  };
-
-  const maybeAutoformat = (element: HTMLDivElement) => {
-    const before = getTextBeforeCaret(element);
-    const highlightMatch = before.match(/==([^=]+)==$/);
-    if (highlightMatch) {
-      replacePreviousCharacters(element, highlightMatch[0].length, `<mark>${escapeHtml(highlightMatch[1])}</mark>{{caret}}`);
-      return;
-    }
-    const codeMatch = before.match(/`([^`]+)`$/);
-    if (codeMatch) {
-      replacePreviousCharacters(element, codeMatch[0].length, `<code>${escapeHtml(codeMatch[1])}</code>{{caret}}`);
-      return;
-    }
-    const boldMatch = before.match(/\*\*([^*]+)\*\*$/);
-    if (boldMatch) {
-      replacePreviousCharacters(element, boldMatch[0].length, `<strong>${escapeHtml(boldMatch[1])}</strong>{{caret}}`);
-    }
-  };
-
-  const toggleListItemCollapse = (event: React.MouseEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement;
-    const listItem = target.closest('li');
-    if (!listItem || !event.currentTarget.contains(listItem)) return;
-    if (!listItem.querySelector('ul, ol')) return;
-    const rect = listItem.getBoundingClientRect();
-    if (event.clientX - rect.left > 28) return;
-    event.preventDefault();
-    listItem.classList.toggle('is-collapsed-list');
-  };
-
-  const handleEditorKeys = (event: React.KeyboardEvent<HTMLDivElement>, target: EditorTarget) => {
-    if ((event.metaKey || event.ctrlKey) && ['a', 'c', 'v', 'x', 'z', 'y'].includes(event.key.toLowerCase())) {
-      return;
-    }
-
-    if ((event.key === ' ' || event.key === 'Enter') && maybeConvertTrigger(event.currentTarget, event.key)) {
-      event.preventDefault();
-      return;
-    }
-
-    if (event.key === 'Tab') {
-      event.preventDefault();
-      applyCommand(event.shiftKey ? 'outdent' : 'indent');
-      return;
-    }
-
-    if (event.shiftKey && event.key === 'Enter' && target.kind === 'composer') {
-      event.preventDefault();
-      commitDraft();
-      return;
-    }
-
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
-      event.preventDefault();
-      applyCommand('bold');
-      return;
-    }
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'i') {
-      event.preventDefault();
-      applyCommand('italic');
-      return;
-    }
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'h') {
-      event.preventDefault();
-      applyHighlight();
-      return;
-    }
-    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === '7') {
-      event.preventDefault();
-      applyCommand('insertOrderedList');
-      return;
-    }
-    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === '8') {
-      event.preventDefault();
-      applyCommand('insertUnorderedList');
-      return;
-    }
-    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && target.kind === 'composer') {
-      event.preventDefault();
-      commitDraft();
-      return;
-    }
-    if ((event.metaKey || event.ctrlKey) && target.kind === 'block' && event.key === 'ArrowUp') {
-      event.preventDefault();
-      moveBlockByKeyboard(target.blockId, -1);
-      return;
-    }
-    if ((event.metaKey || event.ctrlKey) && target.kind === 'block' && event.key === 'ArrowDown') {
-      event.preventDefault();
-      moveBlockByKeyboard(target.blockId, 1);
-    }
-  };
-
   const commitDraft = () => {
-    const html = editorRef.current?.innerHTML.trim() ?? '';
-    const plainText = editorRef.current?.innerText.trim() ?? '';
+    const editor = composerEditorRef.current;
+    const html = editor?.getHTML().trim() ?? '';
+    const plainText = editor?.getText().trim() ?? '';
     if (!plainText && !html.replace(/<br\s*\/?>/g, '').trim()) return;
 
     const block = createBlock(activePage.id, html, plainText);
@@ -456,10 +329,8 @@ export function App() {
       operations: appendOperation(current, { entity: 'block', entityId: block.id, kind: 'block.create', payload: block })
     }));
     setDraft('');
-    if (editorRef.current) {
-      editorRef.current.innerHTML = '';
-      editorRef.current.focus();
-    }
+    editor?.commands.clearContent();
+    editor?.commands.focus();
   };
 
   const updateBlock = (blockId: string, html: string, plainText: string) => {
@@ -762,18 +633,19 @@ export function App() {
                 </div>
                 <div className="block-body">
                   {showToolbar && activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
-                    <Toolbar applyCommand={applyCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
+                    <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
                   )}
                   {!block.collapsed ? (
                     <RichEditor
-                      editorRef={(node) => { editorRefs.current[block.id] = node; }}
+                      editorRef={(editor) => { blockEditorRefs.current[block.id] = editor; }}
                       className="block-content editable"
                       html={block.content.html}
                       onFocus={() => activateEditor({ kind: 'block', blockId: block.id })}
-                      onInput={maybeAutoformat}
-                      onMouseDown={toggleListItemCollapse}
-                      onKeyDown={(event) => handleEditorKeys(event, { kind: 'block', blockId: block.id })}
-                      onBlur={(element) => updateBlock(block.id, element.innerHTML, element.innerText)}
+                      onMoveBlock={(direction) => {
+                        moveBlockByKeyboard(block.id, direction);
+                        return true;
+                      }}
+                      onBlur={(html, plainText) => updateBlock(block.id, html, plainText)}
                     />
                   ) : (
                     <div className="block-content preview">{firstLines(block.content.plainText)}</div>
@@ -790,19 +662,20 @@ export function App() {
 
           <div className="composer-card">
             {showToolbar && activeEditor.kind === 'composer' && (
-              <Toolbar applyCommand={applyCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
+              <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
             )}
             <RichEditor
-              editorRef={(node) => { editorRef.current = node; }}
+              editorRef={(editor) => { composerEditorRef.current = editor; }}
               className="composer"
               placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
               onFocus={() => activateEditor({ kind: 'composer' })}
-              onInput={(element) => {
-                setDraft(element.innerHTML);
-                maybeAutoformat(element);
+              onUpdate={(html) => {
+                setDraft(html);
               }}
-              onMouseDown={toggleListItemCollapse}
-              onKeyDown={(event) => handleEditorKeys(event, { kind: 'composer' })}
+              onShiftEnter={() => {
+                commitDraft();
+                return true;
+              }}
             />
             {showComposerFooter && (
               <div className="composer-footer">
@@ -856,33 +729,33 @@ export function App() {
 }
 
 function Toolbar({
-  applyCommand,
+  runCommand,
   insertTodo,
   applyHighlight,
   applyInlineCode
 }: {
-  applyCommand: (command: string, value?: string) => void;
+  runCommand: (command: ToolbarCommand) => void;
   insertTodo: () => void;
   applyHighlight: () => void;
   applyInlineCode: () => void;
 }) {
   return (
     <div className="format-toolbar" aria-label="Formatting toolbar">
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('bold')} title="Bold: Command B"><Bold size={16} /></button>
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('italic')} title="Italic: Command I"><Italic size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('bold')} title="Bold: Command B"><Bold size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('italic')} title="Italic: Command I"><Italic size={16} /></button>
       <button className="tool-button highlight-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={applyHighlight} title="Highlight: Command H"><Highlighter size={16} /></button>
-      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('formatBlock', 'h1')} title="Heading 1">H1</button>
-      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('formatBlock', 'h2')} title="Heading 2">H2</button>
-      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('formatBlock', 'h3')} title="Heading 3">H3</button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('h1')} title="Heading 1">H1</button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('h2')} title="Heading 2">H2</button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('h3')} title="Heading 3">H3</button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={applyInlineCode} title="Inline code"><Type size={16} /></button>
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('formatBlock', 'pre')} title="Code block"><Braces size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('codeBlock')} title="Code block"><Braces size={16} /></button>
       <span className="toolbar-divider" />
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('insertUnorderedList')} title="Bullet list"><List size={16} /></button>
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('insertOrderedList')} title="Numbered list"><ListOrdered size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('bulletList')} title="Bullet list"><List size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('orderedList')} title="Numbered list"><ListOrdered size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={insertTodo} title="Todo"><CheckSquare size={16} /></button>
       <span className="toolbar-divider" />
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('indent')} title="Indent: Tab"><Indent size={16} /></button>
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('outdent')} title="Outdent: Shift Tab"><Outdent size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('indent')} title="Indent: Tab"><Indent size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('outdent')} title="Outdent: Shift Tab"><Outdent size={16} /></button>
     </div>
   );
 }
