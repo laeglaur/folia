@@ -435,6 +435,14 @@ input, select { color: var(--ink); }
 .block-actions { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .block-rail { cursor: grab; }
 .block-rail:active { cursor: grabbing; }
+.block-rail .fold-button {
+  background: transparent;
+  box-shadow: none;
+  color: color-mix(in srgb, var(--accent) 58%, var(--muted));
+}
+.block:not(.is-collapsed) .block-rail .fold-button svg {
+  transform: rotate(90deg);
+}
 .block-content,
 .composer,
 .floating-card-body,
@@ -512,6 +520,35 @@ input, select { color: var(--ink); }
 .composer li:has(> ul),
 .composer li:has(> ol) {
   cursor: default;
+  position: relative;
+}
+
+.block-content li:has(> ul)::before,
+.block-content li:has(> ol)::before,
+.composer li:has(> ul)::before,
+.composer li:has(> ol)::before {
+  position: absolute;
+  left: -24px;
+  top: 0.18em;
+  color: color-mix(in srgb, var(--accent) 70%, var(--muted));
+  content: ">";
+  font-family: var(--ui-font);
+  font-size: 0.86em;
+  line-height: 1;
+}
+
+.block-content li.is-collapsed-list:has(> ul)::before,
+.block-content li.is-collapsed-list:has(> ol)::before,
+.composer li.is-collapsed-list:has(> ul)::before,
+.composer li.is-collapsed-list:has(> ol)::before {
+  transform: rotate(0deg);
+}
+
+.block-content li:not(.is-collapsed-list):has(> ul)::before,
+.block-content li:not(.is-collapsed-list):has(> ol)::before,
+.composer li:not(.is-collapsed-list):has(> ul)::before,
+.composer li:not(.is-collapsed-list):has(> ol)::before {
+  transform: rotate(90deg);
 }
 
 .block-content li.is-collapsed-list > ul,
