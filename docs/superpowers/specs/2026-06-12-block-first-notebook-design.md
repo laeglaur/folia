@@ -15,6 +15,7 @@ This is not a Notion clone and not a freeform OneNote canvas. The product is a l
 - Sync strategy: multi-device sync is designed from day one through operation logs, but full sync transport can be phased in.
 - Product shape: a unified notebook system. Desktop cards are a feature of the same block model, not a separate app.
 - Scope: v1 focuses on the core notebook and desktop card experience. Database, full kanban/calendar, Apple Pencil, and advanced sync are deferred.
+- Visual priority: the app must feel beautiful and comfortable for daily writing. CSS themes are a core product feature, not an afterthought.
 
 ## Mental Model
 
@@ -51,7 +52,7 @@ Required v1 editing capabilities:
 - drag-and-drop block reordering
 - block folding and expansion
 - outline navigation and block positioning
-- fast theme switching through CSS, similar to Typora's theme model
+- fast aesthetic theme switching through CSS, similar to Typora's theme model
 
 Markdown syntax may be accepted as an input shortcut where convenient, but the rendered view is the primary interface.
 
@@ -99,13 +100,15 @@ On mobile or narrow screens, layout groups should stack into a readable vertical
 
 ## Theme CSS System
 
-The app should support fast visual theme switching similar to Typora.
+The app should support fast visual theme switching similar to Typora. The goal is not merely light/dark mode; the goal is for the notebook to feel beautiful, calm, and pleasant enough to write in every day.
 
-The editing surface should render with stable semantic classes so themes can change typography, spacing, colors, block borders, code styles, table styles, highlights, and page width without changing stored content.
+The editing surface should render with stable semantic classes so themes can change typography, spacing, colors, block borders, code styles, table styles, highlights, callouts, cards, and page width without changing stored content.
+
+The default visual direction should avoid the feeling of a heavy productivity dashboard. It should be more polished and expressive than typical Notion or Obsidian defaults, while staying structured and readable.
 
 V1 should support:
 
-- built-in light and dark themes
+- several built-in polished writing themes, not just one light theme and one dark theme
 - quick theme switching from the app UI
 - importing or selecting custom CSS theme files
 - applying the selected theme to the editor and rendered page/card previews where practical
