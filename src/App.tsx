@@ -107,14 +107,95 @@ export function App() {
   };
 
   const insertTodo = () => {
-    applyCommand('insertHTML', '<label class="todo-item"><input type="checkbox"> <span>Todo</span></label>');
+    applyCommand('insertHTML', '<label class="todo-item"><input type="checkbox"><span>&nbsp;</span></label>');
+  };
+
+  const applyHighlight = () => applyCommand('backColor', '#ffe88a');
+
+  const applyInlineCode = () => {
+    const selection = window.getSelection();
+    const selected = selection?.toString() || 'code';
+    const escaped = selected.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    applyCommand('insertHTML', `<code>${escaped}</code>`);
+  };
+
+  const blockIndex = (blockId: string) => activePage.blockIds.indexOf(blockId);
+
+  const moveBlockByKeyboard = (blockId: string, direction: -1 | 1) => {
+    const index = blockIndex(blockId);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= activePage.blockIds.length) return;
+    const nextIds = [...activePage.blockIds];
+    [nextIds[index], nextIds[targetIndex]] = [nextIds[targetIndex], nextIds[index]];
+    setState((current) => ({
+      ...current,
+      pages: current.pages.map((page) => (page.id === activePage.id ? { ...page, blockIds: nextIds } : page)),
+      operations: appendOperation(current, { entity: 'page', entityId: activePage.id, kind: 'page.keyboard_move_block', payload: { blockIds: nextIds } })
+    }));
+  };
+
+  const maybeAutoformat = (element: HTMLDivElement) => {
+    const text = element.innerText;
+    const trimmed = text.trim();
+    if (trimmed === '[]') {
+      element.innerHTML = '<label class="todo-item"><input type="checkbox"><span>&nbsp;</span></label>';
+      const range = document.createRange();
+      const selection = window.getSelection();
+      range.selectNodeContents(element);
+      range.collapse(false);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      return;
+    }
+    if (trimmed === '```' || trimmed === '/code') {
+      element.innerHTML = '<pre><code><br></code></pre>';
+      return;
+    }
+    if (/^\d+[.)]\s$/.test(text)) {
+      element.innerHTML = '';
+      applyCommand('insertOrderedList');
+      return;
+    }
+    if (/^[-*]\s$/.test(text)) {
+      element.innerHTML = '';
+      applyCommand('insertUnorderedList');
+      return;
+    }
+    const highlightMatch = text.match(/==([^=]+)==$/);
+    if (highlightMatch) {
+      element.innerHTML = element.innerHTML.replace(/==([^=]+)==$/, '<mark>$1</mark>');
+    }
+    if (/`[^`]+`$/.test(text)) {
+      element.innerHTML = element.innerHTML.replace(/`([^`]+)`$/, '<code>$1</code>');
+    }
+  };
+
+  const toggleListItemCollapse = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    const listItem = target.closest('li');
+    if (!listItem || !event.currentTarget.contains(listItem)) return;
+    if (!listItem.querySelector('ul, ol')) return;
+    listItem.classList.toggle('is-collapsed-list');
   };
 
   const handleEditorKeys = (event: React.KeyboardEvent<HTMLDivElement>, target: EditorTarget) => {
+    setActiveEditor(target);
+
     if (event.key === 'Tab') {
       event.preventDefault();
       applyCommand(event.shiftKey ? 'outdent' : 'indent');
       return;
+    }
+
+    if (event.key === 'Enter') {
+      const selection = window.getSelection();
+      const anchor = selection?.anchorNode;
+      const anchorElement = anchor instanceof HTMLElement ? anchor : anchor?.parentElement;
+      if (anchorElement?.closest('.todo-item')) {
+        event.preventDefault();
+        applyCommand('insertHTML', '<br>');
+        return;
+      }
     }
 
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
@@ -127,9 +208,9 @@ export function App() {
       applyCommand('italic');
       return;
     }
-    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'h') {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'h') {
       event.preventDefault();
-      applyCommand('backColor', '#fff1a8');
+      applyHighlight();
       return;
     }
     if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === '7') {
@@ -145,6 +226,16 @@ export function App() {
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && target.kind === 'composer') {
       event.preventDefault();
       commitDraft();
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && target.kind === 'block' && event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveBlockByKeyboard(target.blockId, -1);
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && target.kind === 'block' && event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveBlockByKeyboard(target.blockId, 1);
     }
   };
 
@@ -236,6 +327,32 @@ export function App() {
     }));
   };
 
+  const togglePageExpanded = (pageId: string) => {
+    setState((current) => ({
+      ...current,
+      expandedPageIds: current.expandedPageIds.includes(pageId)
+        ? current.expandedPageIds.filter((id) => id !== pageId)
+        : [...current.expandedPageIds, pageId]
+    }));
+  };
+
+  const movePageUnder = (pageId: string, parentId: string | null) => {
+    if (pageId === parentId) return;
+    let cursor = parentId;
+    while (cursor) {
+      const parent = state.pages.find((page) => page.id === cursor);
+      if (!parent) break;
+      if (parent.parentId === pageId) return;
+      cursor = parent.parentId;
+    }
+    setState((current) => ({
+      ...current,
+      pages: current.pages.map((page) => (page.id === pageId ? { ...page, parentId, updatedAt: new Date().toISOString() } : page)),
+      expandedPageIds: parentId && !current.expandedPageIds.includes(parentId) ? [...current.expandedPageIds, parentId] : current.expandedPageIds,
+      operations: appendOperation(current, { entity: 'page', entityId: pageId, kind: 'page.move', payload: { parentId } })
+    }));
+  };
+
   const renamePage = (title: string) => {
     setState((current) => ({
       ...current,
@@ -278,22 +395,39 @@ export function App() {
   };
 
   const renderPageTree = (parentId: string | null = null, depth = 0): React.ReactNode =>
-    (childPages.get(parentId) ?? []).map((page) => (
-      <div className="page-tree-row" key={page.id} style={{ '--depth': depth } as React.CSSProperties}>
-        <button
-          className={`page-button ${page.id === activePage.id ? 'active' : ''}`}
-          onClick={() => setState((current) => ({ ...current, activePageId: page.id }))}
-          type="button"
-        >
-          <ChevronRight size={13} />
-          <span>{page.title}</span>
-        </button>
-        <button className="mini-button" type="button" onClick={() => addPage(page.id)} title="New child page">
-          <Plus size={13} />
-        </button>
-        <div className="page-tree-children">{renderPageTree(page.id, depth + 1)}</div>
-      </div>
-    ));
+    (childPages.get(parentId) ?? []).map((page) => {
+      const hasChildren = Boolean(childPages.get(page.id)?.length);
+      const expanded = state.expandedPageIds.includes(page.id);
+      return (
+        <div className="page-tree-row" key={page.id} style={{ '--depth': depth } as React.CSSProperties}>
+          <button
+            className={`page-button ${page.id === activePage.id ? 'active' : ''}`}
+            draggable
+            onDragStart={(event) => event.dataTransfer.setData('application/page-id', page.id)}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              const draggedId = event.dataTransfer.getData('application/page-id');
+              if (draggedId) movePageUnder(draggedId, page.id);
+            }}
+            onClick={() => setState((current) => ({ ...current, activePageId: page.id }))}
+            type="button"
+          >
+            <span
+              className="page-disclosure"
+              onClick={(event) => {
+                event.stopPropagation();
+                if (hasChildren) togglePageExpanded(page.id);
+              }}
+            >
+              {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
+            </span>
+            <span>{page.title}</span>
+          </button>
+          {hasChildren && expanded && <div className="page-tree-children">{renderPageTree(page.id, depth + 1)}</div>}
+        </div>
+      );
+    });
 
   if (cardModeBlock) {
     return (
@@ -342,7 +476,16 @@ export function App() {
             <div className="section-label">Pages</div>
             <button className="mini-button" type="button" onClick={() => addPage(null)} aria-label="New page"><FilePlus size={14} /></button>
           </div>
-          <div className="page-tree">{renderPageTree(null)}</div>
+          <div
+            className="page-tree"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              const draggedId = event.dataTransfer.getData('application/page-id');
+              if (draggedId && event.currentTarget === event.target) movePageUnder(draggedId, null);
+            }}
+          >
+            {renderPageTree(null)}
+          </div>
         </section>
 
         <section className="sidebar-note">
@@ -373,20 +516,12 @@ export function App() {
         <section className="page-surface">
           <input className="page-title" value={activePage.title} onChange={(event) => renamePage(event.target.value)} aria-label="Page title" />
 
-          <Toolbar applyCommand={applyCommand} insertTodo={insertTodo} />
-
           <div className="block-list">
             {visibleBlocks.map((block) => (
               <article
                 className={`block ${block.collapsed ? 'is-collapsed' : ''} ${draggingBlockId === block.id ? 'is-dragging' : ''}`}
                 key={block.id}
                 id={block.id}
-                draggable
-                onDragStart={(event) => {
-                  setDraggingBlockId(block.id);
-                  event.dataTransfer.setData('text/plain', block.id);
-                }}
-                onDragEnd={() => setDraggingBlockId(null)}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
                   event.preventDefault();
@@ -394,13 +529,24 @@ export function App() {
                   setDraggingBlockId(null);
                 }}
               >
-                <div className="block-rail">
+                <div
+                  className="block-rail"
+                  draggable
+                  onDragStart={(event) => {
+                    setDraggingBlockId(block.id);
+                    event.dataTransfer.setData('text/plain', block.id);
+                  }}
+                  onDragEnd={() => setDraggingBlockId(null)}
+                >
                   <button className="fold-button" onClick={() => toggleBlock(block.id, 'collapsed')} aria-label="Collapse block" type="button">
                     {block.collapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
                   </button>
-                  <GripVertical className="drag-grip" size={16} />
+                  <GripVertical className="drag-grip" size={15} />
                 </div>
                 <div className="block-body">
+                  {activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
+                    <Toolbar applyCommand={applyCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
+                  )}
                   {!block.collapsed ? (
                     <div
                       ref={(node) => { editorRefs.current[block.id] = node; }}
@@ -409,6 +555,8 @@ export function App() {
                       suppressContentEditableWarning
                       dangerouslySetInnerHTML={{ __html: block.content.html }}
                       onFocus={() => setActiveEditor({ kind: 'block', blockId: block.id })}
+                      onInput={(event) => maybeAutoformat(event.currentTarget)}
+                      onDoubleClick={toggleListItemCollapse}
                       onKeyDown={(event) => handleEditorKeys(event, { kind: 'block', blockId: block.id })}
                       onBlur={(event) => updateBlock(block.id, event.currentTarget.innerHTML, event.currentTarget.innerText)}
                     />
@@ -420,20 +568,15 @@ export function App() {
                   <button className={`icon-button ghost ${block.pinned ? 'active' : ''}`} onClick={() => toggleBlock(block.id, 'pinned')} aria-label="Pin block" type="button">
                     <MapPin size={15} />
                   </button>
-                  <button
-                    className="icon-button ghost"
-                    onClick={() => openPinnedWindow(block.id)}
-                    aria-label="Open card window"
-                    type="button"
-                  >
-                    <PanelTop size={15} />
-                  </button>
                 </div>
               </article>
             ))}
           </div>
 
           <div className="composer-card">
+            {activeEditor.kind === 'composer' && (
+              <Toolbar applyCommand={applyCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
+            )}
             <div
               ref={editorRef}
               className="composer"
@@ -441,7 +584,11 @@ export function App() {
               suppressContentEditableWarning
               data-placeholder="写点什么。按 Command Enter 变成 block，Tab 缩进。"
               onFocus={() => setActiveEditor({ kind: 'composer' })}
-              onInput={(event) => setDraft(event.currentTarget.innerHTML)}
+              onInput={(event) => {
+                setDraft(event.currentTarget.innerHTML);
+                maybeAutoformat(event.currentTarget);
+              }}
+              onDoubleClick={toggleListItemCollapse}
               onKeyDown={(event) => handleEditorKeys(event, { kind: 'composer' })}
             />
             <div className="composer-footer">
@@ -493,13 +640,26 @@ export function App() {
   );
 }
 
-function Toolbar({ applyCommand, insertTodo }: { applyCommand: (command: string, value?: string) => void; insertTodo: () => void }) {
+function Toolbar({
+  applyCommand,
+  insertTodo,
+  applyHighlight,
+  applyInlineCode
+}: {
+  applyCommand: (command: string, value?: string) => void;
+  insertTodo: () => void;
+  applyHighlight: () => void;
+  applyInlineCode: () => void;
+}) {
   return (
     <div className="format-toolbar" aria-label="Formatting toolbar">
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('bold')} title="Bold: Command B"><Bold size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('italic')} title="Italic: Command I"><Italic size={16} /></button>
-      <button className="tool-button highlight-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('backColor', '#fff1a8')} title="Highlight: Command Shift H"><Highlighter size={16} /></button>
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('fontSize', '4')} title="Larger text"><Type size={16} /></button>
+      <button className="tool-button highlight-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={applyHighlight} title="Highlight: Command H"><Highlighter size={16} /></button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('formatBlock', 'h1')} title="Heading 1">H1</button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('formatBlock', 'h2')} title="Heading 2">H2</button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('formatBlock', 'h3')} title="Heading 3">H3</button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={applyInlineCode} title="Inline code"><Type size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('formatBlock', 'pre')} title="Code block"><Braces size={16} /></button>
       <span className="toolbar-divider" />
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('insertUnorderedList')} title="Bullet list"><List size={16} /></button>

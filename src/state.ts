@@ -60,6 +60,7 @@ export const createInitialState = (): AppState => ({
   activePageId: starterPageId,
   theme: 'fish',
   openCardWindowBlockId: null,
+  expandedPageIds: [starterPageId],
   operations: []
 });
 
@@ -75,6 +76,7 @@ const normalizeState = (state: AppState): AppState => ({
   })),
   theme: state.theme ?? 'fish',
   openCardWindowBlockId: state.openCardWindowBlockId ?? null,
+  expandedPageIds: state.expandedPageIds ?? state.pages.map((page) => page.id),
   operations: state.operations ?? []
 });
 

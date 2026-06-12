@@ -48,5 +48,6 @@ export interface AppState {
   activePageId: string;
   theme: ThemeId;
   openCardWindowBlockId: string | null;
+  expandedPageIds: string[];
   operations: OperationLogEntry[];
 }
