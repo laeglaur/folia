@@ -1,4 +1,4 @@
-export type ThemeId = 'paper' | 'atelier' | 'garden';
+export type ThemeId = 'fish' | 'paper' | 'atelier';
 
 export interface Notebook {
   id: string;
@@ -9,6 +9,7 @@ export interface Notebook {
 export interface Page {
   id: string;
   notebookId: string;
+  parentId: string | null;
   title: string;
   blockIds: string[];
   createdAt: string;
@@ -46,5 +47,6 @@ export interface AppState {
   activeNotebookId: string;
   activePageId: string;
   theme: ThemeId;
+  openCardWindowBlockId: string | null;
   operations: OperationLogEntry[];
 }

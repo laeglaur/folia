@@ -7,90 +7,160 @@ import {
   ChevronRight,
   Download,
   FilePlus,
+  GripVertical,
   Highlighter,
+  Indent,
   Italic,
   List,
   ListOrdered,
   MapPin,
-  MoonStar,
+  NotebookTabs,
+  Outdent,
   PanelRight,
   Plus,
   Search,
   Sparkles,
   Type,
-  Upload
+  Upload,
+  PanelTop
 } from 'lucide-react';
-import type { AppState, Block, ThemeId } from './types';
+import type { AppState, Block, Page, ThemeId } from './types';
 import {
   appendOperation,
   createBlock,
+  createNotebook,
   createPage,
   downloadTextFile,
   htmlToMarkdown,
   loadState,
   saveState
 } from './state';
+import { isTauri } from '@tauri-apps/api/core';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+
+type EditorTarget = { kind: 'composer' } | { kind: 'block'; blockId: string };
 
 const themes: Array<{ id: ThemeId; label: string }> = [
-  { id: 'paper', label: 'Paper' },
-  { id: 'atelier', label: 'Atelier' },
-  { id: 'garden', label: 'Garden' }
+  { id: 'fish', label: 'Fish cosmos' },
+  { id: 'paper', label: 'Soft paper' },
+  { id: 'atelier', label: 'Atelier' }
 ];
 
-const toolbarActions = [
-  { command: 'bold', icon: Bold, label: 'Bold' },
-  { command: 'italic', icon: Italic, label: 'Italic' },
-  { command: 'backColor', value: '#fff1a8', icon: Highlighter, label: 'Highlight' },
-  { command: 'formatBlock', value: 'h2', icon: Type, label: 'Heading' },
-  { command: 'insertUnorderedList', icon: List, label: 'Bullet list' },
-  { command: 'insertOrderedList', icon: ListOrdered, label: 'Numbered list' },
-  { command: 'formatBlock', value: 'pre', icon: Braces, label: 'Code block' }
-];
+const blockTextPreview = (text: string, max = 56) => {
+  const compact = text.replace(/\s+/g, ' ').trim();
+  return compact.length > max ? `${compact.slice(0, max)}...` : compact || 'Untitled block';
+};
+
+const firstLines = (text: string, lines = 2) => {
+  const parts = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  return blockTextPreview(parts.slice(0, lines).join(' / '), 76);
+};
 
 export function App() {
   const [state, setState] = useState<AppState>(() => loadState());
   const [draft, setDraft] = useState('');
   const [query, setQuery] = useState('');
+  const [activeEditor, setActiveEditor] = useState<EditorTarget>({ kind: 'composer' });
+  const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const editorRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme;
     saveState(state);
   }, [state]);
 
-  const activeNotebook = state.notebooks.find((notebook) => notebook.id === state.activeNotebookId);
+  const activeNotebook = state.notebooks.find((notebook) => notebook.id === state.activeNotebookId) ?? state.notebooks[0];
   const activePage = state.pages.find((page) => page.id === state.activePageId) ?? state.pages[0];
   const pageBlocks = useMemo(
     () => activePage.blockIds.map((blockId) => state.blocks.find((block) => block.id === blockId)).filter(Boolean) as Block[],
     [activePage.blockIds, state.blocks]
   );
   const pinnedBlocks = state.blocks.filter((block) => block.pinned);
+  const openCardBlock = state.blocks.find((block) => block.id === state.openCardWindowBlockId) ?? null;
+  const cardModeBlockId = new URLSearchParams(window.location.search).get('card');
+  const cardModeBlock = state.blocks.find((block) => block.id === cardModeBlockId) ?? null;
   const visibleBlocks = query.trim()
     ? pageBlocks.filter((block) => block.content.plainText.toLowerCase().includes(query.trim().toLowerCase()))
     : pageBlocks;
 
+  const childPages = useMemo(() => {
+    const map = new Map<string | null, Page[]>();
+    state.pages
+      .filter((page) => page.notebookId === activeNotebook.id)
+      .forEach((page) => {
+        const key = page.parentId ?? null;
+        map.set(key, [...(map.get(key) ?? []), page]);
+      });
+    return map;
+  }, [activeNotebook.id, state.pages]);
+
+  const getActiveElement = () => {
+    if (activeEditor.kind === 'composer') return editorRef.current;
+    return editorRefs.current[activeEditor.blockId] ?? null;
+  };
+
+  const applyCommand = (command: string, value?: string) => {
+    const target = getActiveElement();
+    target?.focus();
+    document.execCommand(command, false, value);
+  };
+
+  const insertTodo = () => {
+    applyCommand('insertHTML', '<label class="todo-item"><input type="checkbox"> <span>Todo</span></label>');
+  };
+
+  const handleEditorKeys = (event: React.KeyboardEvent<HTMLDivElement>, target: EditorTarget) => {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      applyCommand(event.shiftKey ? 'outdent' : 'indent');
+      return;
+    }
+
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
+      event.preventDefault();
+      applyCommand('bold');
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'i') {
+      event.preventDefault();
+      applyCommand('italic');
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'h') {
+      event.preventDefault();
+      applyCommand('backColor', '#fff1a8');
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === '7') {
+      event.preventDefault();
+      applyCommand('insertOrderedList');
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === '8') {
+      event.preventDefault();
+      applyCommand('insertUnorderedList');
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && target.kind === 'composer') {
+      event.preventDefault();
+      commitDraft();
+    }
+  };
+
   const commitDraft = () => {
     const html = editorRef.current?.innerHTML.trim() ?? '';
     const plainText = editorRef.current?.innerText.trim() ?? '';
-    if (!plainText && !html.replace(/<br\s*\/?>/g, '').trim()) {
-      return;
-    }
+    if (!plainText && !html.replace(/<br\s*\/?>/g, '').trim()) return;
 
     const block = createBlock(activePage.id, html, plainText);
     setState((current) => ({
       ...current,
       blocks: [...current.blocks, block],
       pages: current.pages.map((page) =>
-        page.id === activePage.id
-          ? { ...page, blockIds: [...page.blockIds, block.id], updatedAt: new Date().toISOString() }
-          : page
+        page.id === activePage.id ? { ...page, blockIds: [...page.blockIds, block.id], updatedAt: new Date().toISOString() } : page
       ),
-      operations: appendOperation(current, {
-        entity: 'block',
-        entityId: block.id,
-        kind: 'block.create',
-        payload: block
-      })
+      operations: appendOperation(current, { entity: 'block', entityId: block.id, kind: 'block.create', payload: block })
     }));
     setDraft('');
     if (editorRef.current) {
@@ -103,9 +173,7 @@ export function App() {
     setState((current) => ({
       ...current,
       blocks: current.blocks.map((block) =>
-        block.id === blockId
-          ? { ...block, content: { html, plainText }, updatedAt: new Date().toISOString() }
-          : block
+        block.id === blockId ? { ...block, content: { html, plainText }, updatedAt: new Date().toISOString() } : block
       ),
       operations: appendOperation(current, {
         entity: 'block',
@@ -122,39 +190,41 @@ export function App() {
       blocks: current.blocks.map((block) =>
         block.id === blockId ? { ...block, [key]: !block[key], updatedAt: new Date().toISOString() } : block
       ),
-      operations: appendOperation(current, {
-        entity: 'block',
-        entityId: blockId,
-        kind: `block.toggle_${key}`,
-        payload: { key }
-      })
+      operations: appendOperation(current, { entity: 'block', entityId: blockId, kind: `block.toggle_${key}`, payload: { key } })
     }));
   };
 
-  const moveBlock = (blockId: string, direction: -1 | 1) => {
-    const currentIndex = activePage.blockIds.indexOf(blockId);
-    const nextIndex = currentIndex + direction;
-    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= activePage.blockIds.length) {
-      return;
-    }
+  const reorderBlock = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const sourceIndex = activePage.blockIds.indexOf(sourceId);
+    const targetIndex = activePage.blockIds.indexOf(targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
 
     const nextIds = [...activePage.blockIds];
-    [nextIds[currentIndex], nextIds[nextIndex]] = [nextIds[nextIndex], nextIds[currentIndex]];
-
+    nextIds.splice(sourceIndex, 1);
+    nextIds.splice(targetIndex, 0, sourceId);
     setState((current) => ({
       ...current,
       pages: current.pages.map((page) => (page.id === activePage.id ? { ...page, blockIds: nextIds } : page)),
-      operations: appendOperation(current, {
-        entity: 'page',
-        entityId: activePage.id,
-        kind: 'page.reorder_blocks',
-        payload: { blockIds: nextIds }
-      })
+      operations: appendOperation(current, { entity: 'page', entityId: activePage.id, kind: 'page.reorder_blocks', payload: { blockIds: nextIds } })
     }));
   };
 
-  const addPage = () => {
-    const page = createPage(state.activeNotebookId, 'Untitled page');
+  const addNotebook = () => {
+    const notebook = createNotebook(`Notebook ${state.notebooks.length + 1}`);
+    const page = createPage(notebook.id, 'Inbox');
+    setState((current) => ({
+      ...current,
+      notebooks: [...current.notebooks, { ...notebook, pageIds: [page.id] }],
+      pages: [...current.pages, page],
+      activeNotebookId: notebook.id,
+      activePageId: page.id,
+      operations: appendOperation(current, { entity: 'notebook', entityId: notebook.id, kind: 'notebook.create', payload: notebook })
+    }));
+  };
+
+  const addPage = (parentId: string | null = null) => {
+    const page = createPage(state.activeNotebookId, parentId ? 'Nested page' : 'Untitled page', parentId);
     setState((current) => ({
       ...current,
       pages: [...current.pages, page],
@@ -162,12 +232,7 @@ export function App() {
         notebook.id === current.activeNotebookId ? { ...notebook, pageIds: [...notebook.pageIds, page.id] } : notebook
       ),
       activePageId: page.id,
-      operations: appendOperation(current, {
-        entity: 'page',
-        entityId: page.id,
-        kind: 'page.create',
-        payload: page
-      })
+      operations: appendOperation(current, { entity: 'page', entityId: page.id, kind: 'page.create', payload: page })
     }));
   };
 
@@ -175,18 +240,8 @@ export function App() {
     setState((current) => ({
       ...current,
       pages: current.pages.map((page) => (page.id === activePage.id ? { ...page, title } : page)),
-      operations: appendOperation(current, {
-        entity: 'page',
-        entityId: activePage.id,
-        kind: 'page.rename',
-        payload: { title }
-      })
+      operations: appendOperation(current, { entity: 'page', entityId: activePage.id, kind: 'page.rename', payload: { title } })
     }));
-  };
-
-  const runCommand = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    editorRef.current?.focus();
   };
 
   const exportMarkdown = () => {
@@ -198,57 +253,101 @@ export function App() {
     downloadTextFile('notebook-backup.json', JSON.stringify(state, null, 2), 'application/json;charset=utf-8');
   };
 
+  const openPinnedWindow = async (blockId: string) => {
+    setState((current) => ({ ...current, openCardWindowBlockId: blockId }));
+    if (!isTauri()) return;
+
+    const label = `card_${blockId.replace(/[^a-zA-Z0-9_:-]/g, '_')}`;
+    const existing = await WebviewWindow.getByLabel(label);
+    if (existing) {
+      await existing.setFocus();
+      return;
+    }
+    new WebviewWindow(label, {
+      url: `${window.location.pathname}?card=${encodeURIComponent(blockId)}`,
+      title: 'Notebook card',
+      width: 360,
+      height: 260,
+      minWidth: 260,
+      minHeight: 160,
+      decorations: true,
+      alwaysOnTop: true,
+      skipTaskbar: false,
+      resizable: true
+    });
+  };
+
+  const renderPageTree = (parentId: string | null = null, depth = 0): React.ReactNode =>
+    (childPages.get(parentId) ?? []).map((page) => (
+      <div className="page-tree-row" key={page.id} style={{ '--depth': depth } as React.CSSProperties}>
+        <button
+          className={`page-button ${page.id === activePage.id ? 'active' : ''}`}
+          onClick={() => setState((current) => ({ ...current, activePageId: page.id }))}
+          type="button"
+        >
+          <ChevronRight size={13} />
+          <span>{page.title}</span>
+        </button>
+        <button className="mini-button" type="button" onClick={() => addPage(page.id)} title="New child page">
+          <Plus size={13} />
+        </button>
+        <div className="page-tree-children">{renderPageTree(page.id, depth + 1)}</div>
+      </div>
+    ));
+
+  if (cardModeBlock) {
+    return (
+      <main className="card-window-page">
+        <div className="floating-card-body card-mode" dangerouslySetInnerHTML={{ __html: cardModeBlock.content.html }} />
+      </main>
+    );
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark"><Sparkles size={18} /></div>
-          <div>
-            <div className="brand-title">Notebook</div>
-            <div className="brand-subtitle">block-first</div>
-          </div>
+        <div className="brand-block">
+          <p className="eyebrow">fish cosmos</p>
+          <div className="brand-mark"><Sparkles size={20} /></div>
+          <h1>Notebook</h1>
+          <p className="profile-id">block-first</p>
         </div>
 
         <section className="sidebar-section">
-          <div className="section-label">Notebook</div>
-          <button className="notebook-button active">{activeNotebook?.name ?? 'Notebook'}</button>
+          <div className="section-row">
+            <div className="section-label">Notebooks</div>
+            <button className="mini-button" type="button" onClick={addNotebook} aria-label="New notebook"><Plus size={14} /></button>
+          </div>
+          <div className="notebook-list">
+            {state.notebooks.map((notebook) => (
+              <button
+                className={`notebook-button ${notebook.id === activeNotebook.id ? 'active' : ''}`}
+                key={notebook.id}
+                type="button"
+                onClick={() => setState((current) => ({
+                  ...current,
+                  activeNotebookId: notebook.id,
+                  activePageId: notebook.pageIds[0] ?? current.activePageId
+                }))}
+              >
+                <NotebookTabs size={15} />
+                {notebook.name}
+              </button>
+            ))}
+          </div>
         </section>
 
         <section className="sidebar-section pages-section">
           <div className="section-row">
             <div className="section-label">Pages</div>
-            <button className="icon-button" type="button" onClick={addPage} aria-label="New page">
-              <FilePlus size={16} />
-            </button>
+            <button className="mini-button" type="button" onClick={() => addPage(null)} aria-label="New page"><FilePlus size={14} /></button>
           </div>
-          {state.pages
-            .filter((page) => page.notebookId === state.activeNotebookId)
-            .map((page) => (
-              <button
-                className={`page-button ${page.id === activePage.id ? 'active' : ''}`}
-                key={page.id}
-                onClick={() => setState((current) => ({ ...current, activePageId: page.id }))}
-              >
-                {page.title}
-              </button>
-            ))}
+          <div className="page-tree">{renderPageTree(null)}</div>
         </section>
 
-        <section className="sidebar-section theme-section">
-          <div className="section-label">Themes</div>
-          <div className="theme-list">
-            {themes.map((theme) => (
-              <button
-                key={theme.id}
-                className={`theme-chip ${state.theme === theme.id ? 'active' : ''}`}
-                onClick={() => setState((current) => ({ ...current, theme: theme.id }))}
-                type="button"
-              >
-                <span className={`swatch swatch-${theme.id}`} />
-                {theme.label}
-              </button>
-            ))}
-          </div>
+        <section className="sidebar-note">
+          <strong>今天也要</strong>
+          <span>记录美好的一天哦~</span>
         </section>
       </aside>
 
@@ -256,65 +355,78 @@ export function App() {
         <header className="topbar">
           <div className="search-box">
             <Search size={16} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this page" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="正文、block、todo" />
           </div>
           <div className="topbar-actions">
-            <button className="secondary-button" type="button" onClick={exportMarkdown}>
-              <Download size={15} /> Markdown
-            </button>
-            <button className="secondary-button" type="button" onClick={exportJson}>
-              <Upload size={15} /> Backup
-            </button>
+            <select
+              className="theme-select"
+              value={state.theme}
+              onChange={(event) => setState((current) => ({ ...current, theme: event.target.value as ThemeId }))}
+            >
+              {themes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
+            </select>
+            <button className="secondary-button" type="button" onClick={exportMarkdown}><Download size={15} /> Markdown</button>
+            <button className="secondary-button" type="button" onClick={exportJson}><Upload size={15} /> Backup</button>
           </div>
         </header>
 
         <section className="page-surface">
-          <input
-            className="page-title"
-            value={activePage.title}
-            onChange={(event) => renamePage(event.target.value)}
-            aria-label="Page title"
-          />
+          <input className="page-title" value={activePage.title} onChange={(event) => renamePage(event.target.value)} aria-label="Page title" />
+
+          <Toolbar applyCommand={applyCommand} insertTodo={insertTodo} />
 
           <div className="block-list">
-            {visibleBlocks.map((block, index) => (
-              <article className={`block ${block.collapsed ? 'is-collapsed' : ''}`} key={block.id} id={block.id}>
+            {visibleBlocks.map((block) => (
+              <article
+                className={`block ${block.collapsed ? 'is-collapsed' : ''} ${draggingBlockId === block.id ? 'is-dragging' : ''}`}
+                key={block.id}
+                id={block.id}
+                draggable
+                onDragStart={(event) => {
+                  setDraggingBlockId(block.id);
+                  event.dataTransfer.setData('text/plain', block.id);
+                }}
+                onDragEnd={() => setDraggingBlockId(null)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  reorderBlock(event.dataTransfer.getData('text/plain'), block.id);
+                  setDraggingBlockId(null);
+                }}
+              >
                 <div className="block-rail">
-                  <button className="icon-button ghost" onClick={() => toggleBlock(block.id, 'collapsed')} aria-label="Collapse block">
+                  <button className="fold-button" onClick={() => toggleBlock(block.id, 'collapsed')} aria-label="Collapse block" type="button">
                     {block.collapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
                   </button>
-                  <button className="drag-handle" onClick={() => moveBlock(block.id, -1)} disabled={index === 0} aria-label="Move block up">
-                    ↑
-                  </button>
-                  <button
-                    className="drag-handle"
-                    onClick={() => moveBlock(block.id, 1)}
-                    disabled={index === pageBlocks.length - 1}
-                    aria-label="Move block down"
-                  >
-                    ↓
-                  </button>
+                  <GripVertical className="drag-grip" size={16} />
                 </div>
                 <div className="block-body">
                   {!block.collapsed ? (
                     <div
+                      ref={(node) => { editorRefs.current[block.id] = node; }}
                       className="block-content editable"
                       contentEditable
                       suppressContentEditableWarning
                       dangerouslySetInnerHTML={{ __html: block.content.html }}
+                      onFocus={() => setActiveEditor({ kind: 'block', blockId: block.id })}
+                      onKeyDown={(event) => handleEditorKeys(event, { kind: 'block', blockId: block.id })}
                       onBlur={(event) => updateBlock(block.id, event.currentTarget.innerHTML, event.currentTarget.innerText)}
                     />
                   ) : (
-                    <div className="block-content preview">{block.content.plainText.slice(0, 120)}</div>
+                    <div className="block-content preview">{firstLines(block.content.plainText)}</div>
                   )}
                 </div>
                 <div className="block-actions">
-                  <button
-                    className={`icon-button ghost ${block.pinned ? 'active' : ''}`}
-                    onClick={() => toggleBlock(block.id, 'pinned')}
-                    aria-label="Pin to desktop card"
-                  >
+                  <button className={`icon-button ghost ${block.pinned ? 'active' : ''}`} onClick={() => toggleBlock(block.id, 'pinned')} aria-label="Pin block" type="button">
                     <MapPin size={15} />
+                  </button>
+                  <button
+                    className="icon-button ghost"
+                    onClick={() => openPinnedWindow(block.id)}
+                    aria-label="Open card window"
+                    type="button"
+                  >
+                    <PanelTop size={15} />
                   </button>
                 </div>
               </article>
@@ -322,44 +434,19 @@ export function App() {
           </div>
 
           <div className="composer-card">
-            <div className="format-toolbar" aria-label="Formatting toolbar">
-              {toolbarActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <button
-                    key={`${action.command}-${action.label}`}
-                    className="icon-button"
-                    type="button"
-                    onClick={() => runCommand(action.command, action.value)}
-                    title={action.label}
-                  >
-                    <Icon size={16} />
-                  </button>
-                );
-              })}
-              <button className="icon-button" type="button" onClick={() => runCommand('insertHTML', '<input type="checkbox" /> ')} title="Todo">
-                <CheckSquare size={16} />
-              </button>
-            </div>
             <div
               ref={editorRef}
               className="composer"
               contentEditable
               suppressContentEditableWarning
-              data-placeholder="Write a block. Press Command Enter to commit."
+              data-placeholder="写点什么。按 Command Enter 变成 block，Tab 缩进。"
+              onFocus={() => setActiveEditor({ kind: 'composer' })}
               onInput={(event) => setDraft(event.currentTarget.innerHTML)}
-              onKeyDown={(event) => {
-                if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-                  event.preventDefault();
-                  commitDraft();
-                }
-              }}
+              onKeyDown={(event) => handleEditorKeys(event, { kind: 'composer' })}
             />
             <div className="composer-footer">
               <span>{draft ? 'Ready to become a block' : 'Waiting for a thought'}</span>
-              <button className="primary-button" type="button" onClick={commitDraft}>
-                <Plus size={16} /> Add block
-              </button>
+              <button className="primary-button" type="button" onClick={commitDraft}><Plus size={16} /> Add block</button>
             </div>
           </div>
         </section>
@@ -372,25 +459,55 @@ export function App() {
             {pageBlocks.map((block, index) => (
               <a href={`#${block.id}`} key={block.id}>
                 <span>{index + 1}</span>
-                {block.content.plainText || 'Untitled block'}
+                {firstLines(block.content.plainText)}
               </a>
             ))}
           </div>
         </section>
 
         <section className="panel-card desktop-preview">
-          <div className="panel-title"><MoonStar size={16} /> Desktop cards</div>
-          {pinnedBlocks.length ? (
-            pinnedBlocks.map((block) => (
-              <div className="desktop-card" key={block.id}>
-                <div dangerouslySetInnerHTML={{ __html: block.content.html }} />
-              </div>
-            ))
-          ) : (
-            <p className="muted">Pin blocks to preview desktop cards here.</p>
-          )}
+          <div className="panel-title"><MapPin size={16} /> Pinned</div>
+          {pinnedBlocks.length ? pinnedBlocks.map((block) => (
+            <button
+              className="desktop-card"
+              key={block.id}
+              type="button"
+              onClick={() => openPinnedWindow(block.id)}
+            >
+              <div dangerouslySetInnerHTML={{ __html: block.content.html }} />
+            </button>
+          )) : <p className="muted">Pin blocks to keep them close.</p>}
         </section>
       </aside>
+
+      {openCardBlock && (
+        <div className="floating-card-window">
+          <div className="floating-card-head">
+            <span>Desktop card</span>
+            <button type="button" onClick={() => setState((current) => ({ ...current, openCardWindowBlockId: null }))}>×</button>
+          </div>
+          <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: openCardBlock.content.html }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Toolbar({ applyCommand, insertTodo }: { applyCommand: (command: string, value?: string) => void; insertTodo: () => void }) {
+  return (
+    <div className="format-toolbar" aria-label="Formatting toolbar">
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('bold')} title="Bold: Command B"><Bold size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('italic')} title="Italic: Command I"><Italic size={16} /></button>
+      <button className="tool-button highlight-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('backColor', '#fff1a8')} title="Highlight: Command Shift H"><Highlighter size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('fontSize', '4')} title="Larger text"><Type size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('formatBlock', 'pre')} title="Code block"><Braces size={16} /></button>
+      <span className="toolbar-divider" />
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('insertUnorderedList')} title="Bullet list"><List size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('insertOrderedList')} title="Numbered list"><ListOrdered size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={insertTodo} title="Todo"><CheckSquare size={16} /></button>
+      <span className="toolbar-divider" />
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('indent')} title="Indent: Tab"><Indent size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand('outdent')} title="Outdent: Shift Tab"><Outdent size={16} /></button>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { AppState, Block, OperationLogEntry, Page } from './types';
+import type { AppState, Block, Notebook, OperationLogEntry, Page } from './types';
 
 const STORAGE_KEY = 'block-first-notebook.state.v1';
 
@@ -23,6 +23,7 @@ export const createInitialState = (): AppState => ({
     {
       id: starterPageId,
       notebookId: starterNotebookId,
+      parentId: null,
       title: 'Inbox',
       blockIds: [starterBlockOne, starterBlockTwo],
       createdAt: now(),
@@ -57,8 +58,24 @@ export const createInitialState = (): AppState => ({
   ],
   activeNotebookId: starterNotebookId,
   activePageId: starterPageId,
-  theme: 'paper',
+  theme: 'fish',
+  openCardWindowBlockId: null,
   operations: []
+});
+
+const normalizeState = (state: AppState): AppState => ({
+  ...state,
+  notebooks: state.notebooks.map((notebook) => ({
+    ...notebook,
+    pageIds: notebook.pageIds ?? state.pages.filter((page) => page.notebookId === notebook.id).map((page) => page.id)
+  })),
+  pages: state.pages.map((page) => ({
+    ...page,
+    parentId: page.parentId ?? null
+  })),
+  theme: state.theme ?? 'fish',
+  openCardWindowBlockId: state.openCardWindowBlockId ?? null,
+  operations: state.operations ?? []
 });
 
 export const loadState = (): AppState => {
@@ -68,7 +85,7 @@ export const loadState = (): AppState => {
   }
 
   try {
-    return JSON.parse(raw) as AppState;
+    return normalizeState(JSON.parse(raw) as AppState);
   } catch {
     return createInitialState();
   }
@@ -90,9 +107,16 @@ export const appendOperation = (
   }
 ];
 
-export const createPage = (notebookId: string, title = 'Untitled'): Page => ({
+export const createNotebook = (name = 'New notebook'): Notebook => ({
+  id: createId('notebook'),
+  name,
+  pageIds: []
+});
+
+export const createPage = (notebookId: string, title = 'Untitled', parentId: string | null = null): Page => ({
   id: createId('page'),
   notebookId,
+  parentId,
   title,
   blockIds: [],
   createdAt: now(),
