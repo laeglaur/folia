@@ -100,6 +100,21 @@ const firstLines = (text: string, lines = 2) => {
 const todoInputRegex = /^\s*(\[\]|【】)\s$/;
 const codeBlockInputRegex = /^\s*(```|\/code)\s$/;
 
+const NotebookTaskItem = TaskItem.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      todoStyle: {
+        default: 'plain',
+        parseHTML: (element) => element.getAttribute('data-todo-style') ?? 'plain',
+        renderHTML: (attributes) => ({
+          'data-todo-style': attributes.todoStyle === 'bracket' ? 'bracket' : 'plain'
+        })
+      }
+    };
+  }
+});
+
 const BracketTodoInput = Extension.create({
   name: 'bracketTodoInput',
 
@@ -107,9 +122,13 @@ const BracketTodoInput = Extension.create({
     return [
       new InputRule({
         find: todoInputRegex,
-        handler: ({ range, commands }) => {
-          commands.deleteRange(range);
-          commands.toggleTaskList();
+        handler: ({ range, match, chain }) => {
+          const todoStyle = match[1] === '【】' ? 'bracket' : 'plain';
+          chain()
+            .deleteRange(range)
+            .toggleTaskList()
+            .updateAttributes('taskItem', { todoStyle })
+            .run();
         }
       }),
       new InputRule({
@@ -162,7 +181,7 @@ const createEditorExtensions = (
   }),
   Highlight,
   TaskList,
-  TaskItem.configure({ nested: true }),
+  NotebookTaskItem.configure({ nested: true }),
   BracketTodoInput,
   NotebookShortcuts.configure({ onShiftEnter, onMoveBlock }),
   Placeholder.configure({ placeholder: placeholder ?? '' })

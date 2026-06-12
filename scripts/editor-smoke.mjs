@@ -40,6 +40,7 @@ const checks = {
   heading: html.includes('<h1'),
   bullet: html.includes('<ul') && html.includes('<li'),
   task: html.includes('data-type="taskList"') && html.includes('data-checked="false"'),
+  plainTodo: html.includes('data-todo-style="plain"') && html.includes('todo item'),
   highlight: html.includes('<mark'),
   inlineCode: html.includes('<code>inline</code>'),
   codeBlock: html.includes('<pre><code>') || html.includes('<pre><code class=')
@@ -51,7 +52,7 @@ const freshComposer = page.locator('.composer').last();
 await freshComposer.click();
 await page.keyboard.type('【】 中文 todo');
 const cnTodoHtml = await freshComposer.evaluate((node) => node.innerHTML);
-checks.cnTodo = cnTodoHtml.includes('data-type="taskList"') && cnTodoHtml.includes('中文 todo');
+checks.cnTodo = cnTodoHtml.includes('data-type="taskList"') && cnTodoHtml.includes('data-todo-style="bracket"') && cnTodoHtml.includes('中文 todo');
 
 await page.evaluate(() => localStorage.clear());
 await page.reload();
