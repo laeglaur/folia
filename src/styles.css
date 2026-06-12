@@ -435,17 +435,6 @@ input, select { color: var(--ink); }
 .block-actions { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .block-rail { cursor: grab; }
 .block-rail:active { cursor: grabbing; }
-.drag-strip {
-  width: 3px;
-  min-height: 20px;
-  border-radius: 999px;
-  background: rgba(128, 176, 145, 0.34);
-  opacity: 0;
-  transition: opacity 140ms ease;
-}
-
-.block:hover .drag-strip { opacity: 1; }
-
 .block-content,
 .composer,
 .floating-card-body,
@@ -480,11 +469,22 @@ input, select { color: var(--ink); }
 .composer p { margin: 0 0 10px; }
 
 .block-content h1,
-.composer h1 { margin: 10px 0 8px; font-size: 1.78em; line-height: 1.22; font-weight: 520; font-family: var(--editor-font); color: var(--ink); }
+.composer h1,
 .block-content h2,
-.composer h2 { margin: 9px 0 7px; font-size: 1.38em; line-height: 1.28; font-weight: 520; font-family: var(--editor-font); color: var(--ink); }
+.composer h2,
 .block-content h3,
-.composer h3 { margin: 8px 0 6px; font-size: 1.14em; line-height: 1.32; font-weight: 520; font-family: var(--editor-font); color: var(--ink); }
+.composer h3 {
+  font-family: "Hannotate SC", "Klee", "Yuanti SC", var(--ui-font);
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.block-content h1,
+.composer h1 { margin: 10px 0 8px; font-size: 1.78em; line-height: 1.22; }
+.block-content h2,
+.composer h2 { margin: 9px 0 7px; font-size: 1.38em; line-height: 1.28; }
+.block-content h3,
+.composer h3 { margin: 8px 0 6px; font-size: 1.14em; line-height: 1.32; }
 
 .block-content ul,
 .block-content ol,

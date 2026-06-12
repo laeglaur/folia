@@ -69,6 +69,28 @@ const placeCaretAtEnd = (element: HTMLElement) => {
 
 const normalizeTriggerText = (value: string) => value.replace(/\u00a0/g, ' ').trim();
 
+const getTextBeforeCaret = (root: HTMLElement) => {
+  const selection = window.getSelection();
+  if (!selection?.rangeCount) return '';
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.endContainer)) return '';
+  const before = range.cloneRange();
+  before.selectNodeContents(root);
+  before.setEnd(range.endContainer, range.endOffset);
+  return before.toString();
+};
+
+const replacePreviousCharacters = (count: number, html: string) => {
+  const selection = window.getSelection();
+  if (!selection?.rangeCount || typeof selection.modify !== 'function') return false;
+  selection.collapseToEnd();
+  for (let index = 0; index < count; index += 1) {
+    selection.modify('extend', 'backward', 'character');
+  }
+  document.execCommand('insertHTML', false, html);
+  return true;
+};
+
 export function App() {
   const [state, setState] = useState<AppState>(() => loadState());
   const [draft, setDraft] = useState('');
@@ -115,6 +137,15 @@ export function App() {
     return editorRefs.current[activeEditor.blockId] ?? null;
   };
 
+  const activateEditor = (target: EditorTarget) => {
+    setActiveEditor((current) => {
+      if (current.kind !== target.kind) return target;
+      if (current.kind === 'composer') return current;
+      if (target.kind === 'composer') return target;
+      return current.blockId === target.blockId ? current : target;
+    });
+  };
+
   const applyCommand = (command: string, value?: string) => {
     const target = getActiveElement();
     target?.focus();
@@ -126,7 +157,16 @@ export function App() {
   };
 
   const applyHighlight = () => {
-    const selected = window.getSelection()?.toString() || 'highlight';
+    const selection = window.getSelection();
+    const anchor = selection?.anchorNode;
+    const anchorElement = anchor instanceof HTMLElement ? anchor : anchor?.parentElement;
+    const activeMark = anchorElement?.closest('mark');
+    if (activeMark) {
+      const text = document.createTextNode(activeMark.textContent ?? '');
+      activeMark.replaceWith(text);
+      return;
+    }
+    const selected = selection?.toString() || 'highlight';
     applyCommand('insertHTML', `<mark>${escapeHtml(selected)}</mark>`);
   };
 
@@ -151,49 +191,42 @@ export function App() {
     }));
   };
 
-  const replaceEditorHtml = (element: HTMLDivElement, html: string) => {
-    element.innerHTML = html;
-    placeCaretAtEnd(element);
-  };
-
   const maybeConvertTrigger = (element: HTMLDivElement, nextKey: string) => {
-    const text = normalizeTriggerText(element.innerText);
-    const withNext = normalizeTriggerText(`${text}${nextKey === ' ' ? ' ' : ''}`);
+    const line = normalizeTriggerText(getTextBeforeCaret(element).split('\n').pop() ?? '');
 
-    if ((text === '[]' || text === '【】') && (nextKey === ' ' || nextKey === 'Enter')) {
-      replaceEditorHtml(element, '<label class="todo-item bracket-todo"><input type="checkbox"><span>【】</span></label>&nbsp;');
-      return true;
+    if ((line === '[]' || line === '【】') && (nextKey === ' ' || nextKey === 'Enter')) {
+      return replacePreviousCharacters(line.length, '<label class="todo-item bracket-todo"><input type="checkbox"><span>【】</span></label>&nbsp;');
     }
-    if ((text === '```' || text === '/code') && (nextKey === 'Enter' || nextKey === ' ')) {
-      replaceEditorHtml(element, '<pre><code><br></code></pre>');
-      return true;
+    if ((line === '```' || line === '/code') && (nextKey === 'Enter' || nextKey === ' ')) {
+      return replacePreviousCharacters(line.length, '<pre><code><br></code></pre>');
     }
-    if (/^#{1,3}$/.test(text) && nextKey === ' ') {
-      const level = text.length;
-      replaceEditorHtml(element, `<h${level}><br></h${level}>`);
-      return true;
+    if (/^#{1,3}$/.test(line) && nextKey === ' ') {
+      return replacePreviousCharacters(line.length, `<h${line.length}><br></h${line.length}>`);
     }
-    if ((text === '-' || text === '*') && nextKey === ' ') {
-      replaceEditorHtml(element, '<ul><li><br></li></ul>');
-      return true;
+    if ((line === '-' || line === '*') && nextKey === ' ') {
+      return replacePreviousCharacters(line.length, '<ul><li><br></li></ul>');
     }
-    if (/^\d+[.)]$/.test(text) && nextKey === ' ') {
-      replaceEditorHtml(element, '<ol><li><br></li></ol>');
-      return true;
+    if (/^\d+[.)]$/.test(line) && nextKey === ' ') {
+      return replacePreviousCharacters(line.length, '<ol><li><br></li></ol>');
     }
     return false;
   };
 
   const maybeAutoformat = (element: HTMLDivElement) => {
-    const html = element.innerHTML;
-    if (/==([^=]+)==$/.test(element.innerText)) {
-      element.innerHTML = html.replace(/==([^=]+)==$/, '<mark>$1</mark>');
-      placeCaretAtEnd(element);
+    const before = getTextBeforeCaret(element);
+    const highlightMatch = before.match(/==([^=]+)==$/);
+    if (highlightMatch) {
+      replacePreviousCharacters(highlightMatch[0].length, `<mark>${escapeHtml(highlightMatch[1])}</mark>`);
       return;
     }
-    if (/`[^`]+`$/.test(element.innerText)) {
-      element.innerHTML = html.replace(/`([^`]+)`$/, '<code>$1</code>');
-      placeCaretAtEnd(element);
+    const codeMatch = before.match(/`([^`]+)`$/);
+    if (codeMatch) {
+      replacePreviousCharacters(codeMatch[0].length, `<code>${escapeHtml(codeMatch[1])}</code>`);
+      return;
+    }
+    const boldMatch = before.match(/\*\*([^*]+)\*\*$/);
+    if (boldMatch) {
+      replacePreviousCharacters(boldMatch[0].length, `<strong>${escapeHtml(boldMatch[1])}</strong>`);
     }
   };
 
@@ -208,7 +241,7 @@ export function App() {
   };
 
   const handleEditorKeys = (event: React.KeyboardEvent<HTMLDivElement>, target: EditorTarget) => {
-    setActiveEditor(target);
+    activateEditor(target);
 
     if ((event.key === ' ' || event.key === 'Enter') && maybeConvertTrigger(event.currentTarget, event.key)) {
       event.preventDefault();
@@ -597,7 +630,6 @@ export function App() {
                   <button className="fold-button" onClick={() => toggleBlock(block.id, 'collapsed')} aria-label="Collapse block" type="button">
                     {block.collapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
                   </button>
-                  <span className="drag-strip" aria-hidden="true" />
                 </div>
                 <div className="block-body">
                   {showToolbar && activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
@@ -615,7 +647,7 @@ export function App() {
                           window.setTimeout(() => placeCaretAtEnd(event.currentTarget), 0);
                         }
                       }}
-                      onFocus={() => setActiveEditor({ kind: 'block', blockId: block.id })}
+                      onFocus={() => activateEditor({ kind: 'block', blockId: block.id })}
                       onInput={(event) => maybeAutoformat(event.currentTarget)}
                       onDoubleClick={toggleListItemCollapse}
                       onKeyDown={(event) => handleEditorKeys(event, { kind: 'block', blockId: block.id })}
@@ -644,7 +676,7 @@ export function App() {
               contentEditable
               suppressContentEditableWarning
               data-placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
-              onFocus={() => setActiveEditor({ kind: 'composer' })}
+              onFocus={() => activateEditor({ kind: 'composer' })}
               onInput={(event) => {
                 setDraft(event.currentTarget.innerHTML);
                 maybeAutoformat(event.currentTarget);
