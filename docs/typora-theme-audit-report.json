@@ -1,10 +1,15 @@
 {
-  "generatedAt": "2026-06-13T12:37:36.235Z",
+  "generatedAt": "2026-06-13T13:03:36.875Z",
   "results": [
     {
       "name": "Inkwell",
       "slug": "Inkwell",
       "importId": null,
+      "userPreference": {
+        "rating": 3,
+        "direction": "adapt later",
+        "note": "Liked, but not first wave."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/toxic-19/typora-theme-inkwell",
       "pageUrl": "https://theme.typora.io/theme/Inkwell/",
@@ -106,6 +111,11 @@
       "name": "Salamander",
       "slug": "Salamander",
       "importId": null,
+      "userPreference": {
+        "rating": 4,
+        "direction": "adapt with recolor",
+        "note": "Interesting design; replace the brown sugar palette."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/mariusw/salamander-typora-theme",
       "pageUrl": "https://theme.typora.io/theme/Salamander/",
@@ -210,6 +220,11 @@
       "name": "Maodie",
       "slug": "Maodie",
       "importId": null,
+      "userPreference": {
+        "rating": 0,
+        "direction": "reference only",
+        "note": "Borrow the image/cat-head bullet idea; do not adapt the whole theme."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/Lei285714/Maodie-Typora-theme",
       "pageUrl": "https://theme.typora.io/theme/Maodie/",
@@ -312,6 +327,11 @@
       "name": "Crisp",
       "slug": "Crisp",
       "importId": null,
+      "userPreference": {
+        "rating": 0,
+        "direction": "reference only",
+        "note": "Borrow spacing only; do not adapt the whole theme."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/nitaking/typora-crisp-theme",
       "pageUrl": "https://theme.typora.io/theme/Crisp/",
@@ -410,6 +430,11 @@
       "name": "Folio",
       "slug": "Folio",
       "importId": "typora-folio",
+      "userPreference": {
+        "rating": 3.5,
+        "direction": "special mode",
+        "note": "Design is liked, but likely better for literary/non-note writing after modification."
+      },
       "sourceStatus": "verified installed",
       "sourceUrl": "https://raw.githubusercontent.com/liyoulu/typora-folio-theme/main/folio.css",
       "cssVariants": [
@@ -507,6 +532,11 @@
       "name": "Swiss",
       "slug": "Swiss",
       "importId": null,
+      "userPreference": {
+        "rating": 4,
+        "direction": "adapt",
+        "note": "Sharp box design is promising."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/ChivaLryCieux/swiss-theme",
       "pageUrl": "https://theme.typora.io/theme/Swiss/",
@@ -606,6 +636,11 @@
       "name": "Blue Topaz",
       "slug": "Blue-Topaz",
       "importId": null,
+      "userPreference": {
+        "rating": 0,
+        "direction": "skip",
+        "note": "Colorful reference only; no adaptation."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/LingJingMaster/typora-theme-blue-topaz",
       "pageUrl": "https://theme.typora.io/theme/Blue-Topaz/",
@@ -707,6 +742,11 @@
       "name": "LaTeX Typora",
       "slug": "LaTeX-Typora",
       "importId": null,
+      "userPreference": {
+        "rating": 3,
+        "direction": "adapt later",
+        "note": "Academic style is liked."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/shamsghi/LatexTypora",
       "pageUrl": "https://theme.typora.io/theme/LaTeX-Typora/",
@@ -817,6 +857,11 @@
       "name": "Paperglow Theme",
       "slug": "Paperglow-Theme",
       "importId": null,
+      "userPreference": {
+        "rating": 3.5,
+        "direction": "adapt later",
+        "note": "Compact and rounded feeling is acceptable."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/cloudy-liu/Paperglow-Theme",
       "pageUrl": "https://theme.typora.io/theme/Paperglow/",
@@ -919,6 +964,11 @@
       "name": "Gruvbox",
       "slug": "Gruvbox",
       "importId": null,
+      "userPreference": {
+        "rating": 4,
+        "direction": "adapt",
+        "note": "Dark theme candidate."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/TwinklerG/typora-gruvbox-theme",
       "pageUrl": "https://theme.typora.io/theme/Gruvbox/",
@@ -1022,6 +1072,11 @@
       "name": "Zeus",
       "slug": "Zeus",
       "importId": "typora-zeus",
+      "userPreference": {
+        "rating": 5,
+        "direction": "adapt first",
+        "note": "Dashed styling is highly preferred."
+      },
       "sourceStatus": "verified installed",
       "sourceUrl": "https://raw.githubusercontent.com/zmtsikriteas/zeus-typora-theme/main/zeus.css",
       "cssVariants": [
@@ -1123,6 +1178,11 @@
       "name": "Bit Clean",
       "slug": "Bit-Clean",
       "importId": null,
+      "userPreference": {
+        "rating": 4,
+        "direction": "adapt",
+        "note": "Blue style is liked."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/bitbonsai/typora-bit-clean",
       "pageUrl": "https://theme.typora.io/theme/Bit-Clean/",
@@ -1222,6 +1282,11 @@
       "name": "Bonne nouvelle",
       "slug": "Bonne-nouvelle",
       "importId": "typora-bonne-nouvelle",
+      "userPreference": {
+        "rating": 5,
+        "direction": "special mode",
+        "note": "Typewriter writing feeling is highly preferred, but likely better for non-note writing after modification."
+      },
       "sourceStatus": "verified installed",
       "sourceUrl": "https://raw.githubusercontent.com/senges/typora-bonne-nouvelle/main/bonne-nouvelle.css",
       "cssVariants": [
@@ -1316,6 +1381,11 @@
       "name": "Print",
       "slug": "Print",
       "importId": null,
+      "userPreference": {
+        "rating": 3,
+        "direction": "adapt later",
+        "note": "Print/export reference."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/semi72/typora-print-theme",
       "pageUrl": "https://theme.typora.io/theme/Print/",
@@ -1420,6 +1490,11 @@
       "name": "Konayuki",
       "slug": "Konayuki",
       "importId": "typora-konayuki",
+      "userPreference": {
+        "rating": 5,
+        "direction": "adapt first",
+        "note": "Must-copy light ocean/sun feeling."
+      },
       "sourceStatus": "verified installed",
       "sourceUrl": "https://raw.githubusercontent.com/aerandirsf/Konayuki/main/konayuki-light.css",
       "cssVariants": [
@@ -1518,6 +1593,11 @@
       "name": "Neon",
       "slug": "Neon",
       "importId": null,
+      "userPreference": {
+        "rating": 3,
+        "direction": "adapt later",
+        "note": "Theme family is attractive; Neon itself needs polish."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/channingwalton/typora-themes",
       "pageUrl": "https://theme.typora.io/theme/Neon/",
@@ -1621,6 +1701,11 @@
       "name": "Everforest",
       "slug": "Everforest",
       "importId": null,
+      "userPreference": {
+        "rating": 3.5,
+        "direction": "adapt later",
+        "note": "Pleasant palette."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/YuxBao/everforest-typora",
       "pageUrl": "https://theme.typora.io/theme/Everforest/",
@@ -1722,6 +1807,11 @@
       "name": "Screenplay",
       "slug": "Screenplay",
       "importId": null,
+      "userPreference": {
+        "rating": 4,
+        "direction": "special mode",
+        "note": "Typewriter/screenplay feeling, likely only suitable for non-note writing."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/pranavgn/Typora-Screenplay-Theme",
       "pageUrl": "https://theme.typora.io/theme/Screenplay/",
@@ -1833,6 +1923,11 @@
       "name": "Flexoki Light",
       "slug": "Flexoki-Light",
       "importId": "typora-flexoki-light",
+      "userPreference": {
+        "rating": 3.5,
+        "direction": "adapt later",
+        "note": "Soft colors and spacing."
+      },
       "sourceStatus": "verified installed",
       "sourceUrl": "https://raw.githubusercontent.com/guidovicino/flexoki-typora/main/flexoki-light.css",
       "cssVariants": [
@@ -1926,6 +2021,11 @@
       "name": "mdmdt",
       "slug": "Mdmdt",
       "importId": null,
+      "userPreference": {
+        "rating": 3.5,
+        "direction": "adapt later",
+        "note": "Light purple and breathable."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/cayxc/Mdmdt",
       "pageUrl": "https://theme.typora.io/theme/Mdmdt/",
@@ -2031,6 +2131,11 @@
       "name": "Ravel",
       "slug": "Ravel",
       "importId": null,
+      "userPreference": {
+        "rating": 4,
+        "direction": "adapt",
+        "note": "Pale and elegant."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/isunjn/ravel",
       "pageUrl": "https://theme.typora.io/theme/Ravel/",
@@ -2134,6 +2239,11 @@
       "name": "Ceylon",
       "slug": "Ceylon",
       "importId": null,
+      "userPreference": {
+        "rating": 0,
+        "direction": "reference only",
+        "note": "Borrow image presentation only; do not adapt the whole theme."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/tdarshana/typora-ceylon-theme",
       "pageUrl": "https://theme.typora.io/theme/Ceylon/",
@@ -2244,6 +2354,11 @@
       "name": "Blackout",
       "slug": "Blackout",
       "importId": null,
+      "userPreference": {
+        "rating": 4,
+        "direction": "adapt",
+        "note": "Quote block is liked."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/obscurefreeman/typora_theme_blackout/releases",
       "pageUrl": "https://theme.typora.io/theme/Blackout/",
@@ -2350,6 +2465,11 @@
       "name": "Whitelines",
       "slug": "Whitelines",
       "importId": null,
+      "userPreference": {
+        "rating": 3.5,
+        "direction": "adapt later",
+        "note": "Printed style reference."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/TEParsons/Whitelines",
       "pageUrl": "https://theme.typora.io/theme/Whitelines/",
@@ -2453,6 +2573,11 @@
       "name": "LCARS",
       "slug": "LCARS",
       "importId": null,
+      "userPreference": {
+        "rating": 3,
+        "direction": "adapt later",
+        "note": "Not personally loved, but highly stylized."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/TEParsons/LCARS",
       "pageUrl": "https://theme.typora.io/theme/LCARS/",
@@ -2553,6 +2678,11 @@
       "name": "Valve",
       "slug": "Valve",
       "importId": null,
+      "userPreference": {
+        "rating": 0,
+        "direction": "reference only",
+        "note": "Borrow gray-green palette only; do not adapt the whole theme."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/obscurefreeman/typora_theme_valve",
       "pageUrl": "https://theme.typora.io/theme/Valve/",
@@ -2657,6 +2787,11 @@
       "name": "Alise",
       "slug": "Alise",
       "importId": null,
+      "userPreference": {
+        "rating": 4,
+        "direction": "adapt with font swap",
+        "note": "Distinctive Shanhaijing-like palette; replace fonts."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/linklinco/Typora-Theme-Alise",
       "pageUrl": "https://theme.typora.io/theme/Alise/",
@@ -2756,6 +2891,11 @@
       "name": "Torillic",
       "slug": "Torillic",
       "importId": null,
+      "userPreference": {
+        "rating": 4.5,
+        "direction": "adapt",
+        "note": "Medieval style is strongly liked."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/TEParsons/torillic/releases/latest",
       "pageUrl": "https://theme.typora.io/theme/Torillic/",
@@ -2863,6 +3003,11 @@
       "name": "Chocolate Box",
       "slug": "Chocolate-Box",
       "importId": null,
+      "userPreference": {
+        "rating": 4.5,
+        "direction": "adapt",
+        "note": "Vivid and eye-catching."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/Beanie127/typora-ChocolateBox-theme",
       "pageUrl": "https://theme.typora.io/theme/ChocolateBox/",
@@ -2962,6 +3107,11 @@
       "name": "Eloquent",
       "slug": "Eloquent",
       "importId": null,
+      "userPreference": {
+        "rating": 4,
+        "direction": "adapt",
+        "note": "Distinctive code treatment is liked."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/jianmin-chen/eloquent",
       "pageUrl": "https://theme.typora.io/theme/Eloquent/",
@@ -3064,6 +3214,11 @@
       "name": "Inside",
       "slug": "Inside",
       "importId": null,
+      "userPreference": {
+        "rating": 0,
+        "direction": "reference only",
+        "note": "Borrow inline image behavior only; do not adapt the whole theme."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/FishionYu/typora-inside-theme",
       "pageUrl": "https://theme.typora.io/theme/Inside/",
@@ -3174,6 +3329,11 @@
       "name": "Law",
       "slug": "Law",
       "importId": null,
+      "userPreference": {
+        "rating": 4,
+        "direction": "adapt",
+        "note": "Clear document style."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/lloyd094/Typora-Law-School",
       "pageUrl": "https://theme.typora.io/theme/Law/",
@@ -3295,6 +3455,11 @@
       "name": "Minimalism",
       "slug": "Minimalism",
       "importId": null,
+      "userPreference": {
+        "rating": 3.5,
+        "direction": "adapt later",
+        "note": "Clean and legible."
+      },
       "sourceStatus": "verified gallery",
       "sourceUrl": "https://github.com/zissoo/typora-theme-gallery",
       "pageUrl": "https://theme.typora.io/theme/Minimalism/",

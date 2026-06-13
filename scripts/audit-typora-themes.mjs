@@ -74,6 +74,42 @@ const targets = [
   ['Minimalism', 'Minimalism']
 ].map(([name, slug]) => ({ name, slug, installed: installedThemes.get(name) ?? null }));
 
+const userPreferences = new Map([
+  ['Inkwell', { rating: 3, direction: 'adapt later', note: 'Liked, but not first wave.' }],
+  ['Salamander', { rating: 4, direction: 'adapt with recolor', note: 'Interesting design; replace the brown sugar palette.' }],
+  ['Maodie', { rating: 0, direction: 'reference only', note: 'Borrow the image/cat-head bullet idea; do not adapt the whole theme.' }],
+  ['Crisp', { rating: 0, direction: 'reference only', note: 'Borrow spacing only; do not adapt the whole theme.' }],
+  ['Folio', { rating: 3.5, direction: 'special mode', note: 'Design is liked, but likely better for literary/non-note writing after modification.' }],
+  ['Swiss', { rating: 4, direction: 'adapt', note: 'Sharp box design is promising.' }],
+  ['Blue Topaz', { rating: 0, direction: 'skip', note: 'Colorful reference only; no adaptation.' }],
+  ['LaTeX Typora', { rating: 3, direction: 'adapt later', note: 'Academic style is liked.' }],
+  ['Paperglow Theme', { rating: 3.5, direction: 'adapt later', note: 'Compact and rounded feeling is acceptable.' }],
+  ['Gruvbox', { rating: 4, direction: 'adapt', note: 'Dark theme candidate.' }],
+  ['Zeus', { rating: 5, direction: 'adapt first', note: 'Dashed styling is highly preferred.' }],
+  ['Bit Clean', { rating: 4, direction: 'adapt', note: 'Blue style is liked.' }],
+  ['Bonne nouvelle', { rating: 5, direction: 'special mode', note: 'Typewriter writing feeling is highly preferred, but likely better for non-note writing after modification.' }],
+  ['Print', { rating: 3, direction: 'adapt later', note: 'Print/export reference.' }],
+  ['Konayuki', { rating: 5, direction: 'adapt first', note: 'Must-copy light ocean/sun feeling.' }],
+  ['Neon', { rating: 3, direction: 'adapt later', note: 'Theme family is attractive; Neon itself needs polish.' }],
+  ['Everforest', { rating: 3.5, direction: 'adapt later', note: 'Pleasant palette.' }],
+  ['Screenplay', { rating: 4, direction: 'special mode', note: 'Typewriter/screenplay feeling, likely only suitable for non-note writing.' }],
+  ['Flexoki Light', { rating: 3.5, direction: 'adapt later', note: 'Soft colors and spacing.' }],
+  ['mdmdt', { rating: 3.5, direction: 'adapt later', note: 'Light purple and breathable.' }],
+  ['Ravel', { rating: 4, direction: 'adapt', note: 'Pale and elegant.' }],
+  ['Ceylon', { rating: 0, direction: 'reference only', note: 'Borrow image presentation only; do not adapt the whole theme.' }],
+  ['Blackout', { rating: 4, direction: 'adapt', note: 'Quote block is liked.' }],
+  ['Whitelines', { rating: 3.5, direction: 'adapt later', note: 'Printed style reference.' }],
+  ['LCARS', { rating: 3, direction: 'adapt later', note: 'Not personally loved, but highly stylized.' }],
+  ['Valve', { rating: 0, direction: 'reference only', note: 'Borrow gray-green palette only; do not adapt the whole theme.' }],
+  ['Alise', { rating: 4, direction: 'adapt with font swap', note: 'Distinctive Shanhaijing-like palette; replace fonts.' }],
+  ['Torillic', { rating: 4.5, direction: 'adapt', note: 'Medieval style is strongly liked.' }],
+  ['Chocolate Box', { rating: 4.5, direction: 'adapt', note: 'Vivid and eye-catching.' }],
+  ['Eloquent', { rating: 4, direction: 'adapt', note: 'Distinctive code treatment is liked.' }],
+  ['Inside', { rating: 0, direction: 'reference only', note: 'Borrow inline image behavior only; do not adapt the whole theme.' }],
+  ['Law', { rating: 4, direction: 'adapt', note: 'Clear document style.' }],
+  ['Minimalism', { rating: 3.5, direction: 'adapt later', note: 'Clean and legible.' }]
+]);
+
 const categoryPatterns = {
   base: [/\bhtml\b/, /\bbody\b/, /#write\b/, /\bp\b/, /\bh[1-6]\b/],
   code: [/\bcode\b/, /\bpre\b/, /\.md-fences\b/, /\.CodeMirror\b/, /\.cm-/, /#typora-source\b/],
@@ -726,6 +762,21 @@ const cap = (result, key) => result.capabilities?.[key] ?? 'no';
 const capabilitySummary = (result, keys) => keys.map((key) => `${key}:${cap(result, key)}`).join(', ');
 const tierOrder = { none: 0, light: 1, medium: 2, heavy: 3, unknown: 4 };
 const byAdaptationTier = (a, b) => (tierOrder[a.offload] ?? 9) - (tierOrder[b.offload] ?? 9) || a.name.localeCompare(b.name);
+const ratingText = (result) => result.userPreference?.rating ?? '';
+const directionText = (result) => result.userPreference?.direction ?? '';
+
+const adaptationRecommendation = (result) => {
+  const preference = result.userPreference;
+  if (!preference) return 'unrated';
+  if (preference.rating === 0) return 'reference only';
+  if (preference.direction === 'special mode') return preference.rating >= 5 ? 'special first wave' : 'special later';
+  if (preference.direction === 'adapt first') return 'first wave';
+  if (preference.rating >= 4 && (result.offload === 'none' || result.offload === 'light')) return 'first wave';
+  if (preference.rating >= 4.5) return 'second wave';
+  if (preference.rating >= 4) return 'second wave';
+  if (preference.rating >= 3.5) return 'later';
+  return 'low priority';
+};
 
 const buildCapabilityTable = (results, title, columns) => [
   `## ${title}`,
@@ -747,6 +798,27 @@ const buildMarkdownAudit = (results) => {
   ];
 
   lines.push(
+    '## User Preference And Adaptation Priority',
+    '',
+    '| Theme | Rating | Direction | Adaptation Cost | Recommendation | Personal Note |',
+    '| --- | ---: | --- | --- | --- | --- |',
+    ...results.map((result) => `| ${markdownCell(result.name)} | ${markdownCell(ratingText(result))} | ${markdownCell(directionText(result))} | ${markdownCell(result.offload)} | ${markdownCell(adaptationRecommendation(result))} | ${markdownCell(result.userPreference?.note ?? '')} |`),
+    '',
+    '## First Adaptation Shortlist',
+    '',
+    'These are normal notebook themes to adapt first. `special first wave` themes are tracked separately because they likely need a writing-mode treatment rather than the default note surface.',
+    '',
+    ...results
+      .filter((result) => adaptationRecommendation(result) === 'first wave')
+      .sort((a, b) => (b.userPreference?.rating ?? 0) - (a.userPreference?.rating ?? 0) || byAdaptationTier(a, b))
+      .map((result) => `- ${result.name}: rating ${result.userPreference.rating}, ${result.offload}; ${result.userPreference.note}`),
+    '',
+    '## Reference-Only Sources',
+    '',
+    ...results
+      .filter((result) => adaptationRecommendation(result) === 'reference only')
+      .map((result) => `- ${result.name}: ${result.userPreference.note}`),
+    '',
     ...buildCapabilityTable(results, 'Inline Formatting', [
       { key: 'cjk', label: 'CJK' },
       { key: 'bold', label: 'Bold' },
@@ -775,10 +847,10 @@ const buildMarkdownAudit = (results) => {
       { key: 'mermaid', label: 'Mermaid' }
     ]),
     '',
-    '## Light Adaptation Candidates',
+    '## Light Adaptation Candidates By Capability',
     '',
     ...results
-      .filter((result) => result.offload === 'none' || result.offload === 'light')
+      .filter((result) => (result.offload === 'none' || result.offload === 'light') && result.userPreference?.rating !== 0)
       .sort(byAdaptationTier)
       .map((result) => `- ${result.name}: ${result.offload}; inline [${capabilitySummary(result, ['cjk', 'bold', 'italic', 'mark', 'inlineCode'])}]; blocks [${capabilitySummary(result, ['codeFence', 'table', 'unorderedList', 'orderedList', 'task', 'image'])}]`),
     '',
@@ -806,9 +878,9 @@ const updateTargetsDoc = async (results) => {
     '',
     'Generated by `pnpm audit:typora-themes`. Source links are discovered from the Typora Theme Gallery when possible; installed pilot themes are audited from local raw CSS. Download responses are cached under `.cache/typora-theme-audit/`; pass `--refresh` to force a fresh download pass.',
     '',
-    '| Theme | Source Status | CSS Variants | Inline | Blocks | Advanced | UI Leakage | Layout Risks | Adaptation |',
-    '| --- | --- | ---: | --- | --- | --- | ---: | ---: | --- |',
-    ...results.map((result) => `| ${markdownCell(result.name)} | ${markdownCell(result.sourceStatus)} | ${result.cssVariants.length} | ${markdownCell(capabilitySummary(result, ['cjk', 'bold', 'italic', 'mark', 'inlineCode']))} | ${markdownCell(capabilitySummary(result, ['codeFence', 'table', 'unorderedList', 'orderedList', 'task', 'image']))} | ${markdownCell(capabilitySummary(result, ['toc', 'footnote', 'math', 'mermaid']))} | ${result.counts.typoraUi} | ${result.layoutRisk.length} | ${markdownCell(result.offload)} |`),
+    '| Theme | Rating | Direction | Source Status | CSS Variants | Inline | Blocks | Advanced | UI Leakage | Layout Risks | Adaptation | Recommendation |',
+    '| --- | ---: | --- | --- | ---: | --- | --- | --- | ---: | ---: | --- | --- |',
+    ...results.map((result) => `| ${markdownCell(result.name)} | ${markdownCell(ratingText(result))} | ${markdownCell(directionText(result))} | ${markdownCell(result.sourceStatus)} | ${result.cssVariants.length} | ${markdownCell(capabilitySummary(result, ['cjk', 'bold', 'italic', 'mark', 'inlineCode']))} | ${markdownCell(capabilitySummary(result, ['codeFence', 'table', 'unorderedList', 'orderedList', 'task', 'image']))} | ${markdownCell(capabilitySummary(result, ['toc', 'footnote', 'math', 'mermaid']))} | ${result.counts.typoraUi} | ${result.layoutRisk.length} | ${markdownCell(result.offload)} | ${markdownCell(adaptationRecommendation(result))} |`),
     '',
     markerEnd
   ].join('\n');
@@ -831,13 +903,14 @@ const main = async () => {
         const audit = target.installed
           ? await auditInstalledTheme(target.installed)
           : await auditGalleryTheme(target, tempDir, galleryIndex);
-        results.push({ name: target.name, slug: target.slug, importId: target.installed?.id ?? null, ...audit });
+        results.push({ name: target.name, slug: target.slug, importId: target.installed?.id ?? null, userPreference: userPreferences.get(target.name) ?? null, ...audit });
         process.stdout.write(`${audit.grade} / ${audit.offload}\n`);
       } catch (error) {
         results.push({
           name: target.name,
           slug: target.slug,
           importId: target.installed?.id ?? null,
+          userPreference: userPreferences.get(target.name) ?? null,
           sourceStatus: 'verification failed',
           sourceUrl: resolveThemePageUrl(target, galleryIndex),
           cssVariants: [],
