@@ -212,6 +212,10 @@
   --media-radius: 4px;
   --media-border: 1px solid rgba(36, 45, 39, 0.14);
   --media-shadow: none;
+  --table-margin: 10px 0;
+  --table-radius: 4px;
+  --table-cell-padding: 7px 9px;
+  --table-font-size: 0.9em;
 
   --composer-card-margin-top: 14px;
   --composer-card-border: 1px solid rgba(36, 45, 39, 0.14);

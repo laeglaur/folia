@@ -658,6 +658,54 @@ input, select { color: var(--ink); }
   box-shadow: var(--media-shadow);
 }
 
+.block-content table,
+.composer table,
+.floating-card-body table,
+.desktop-card table {
+  width: 100%;
+  margin: var(--table-margin);
+  border: var(--table-border);
+  border-collapse: separate;
+  border-radius: var(--table-radius);
+  border-spacing: 0;
+  font-size: var(--table-font-size);
+  overflow: hidden;
+}
+
+.block-content th,
+.block-content td,
+.composer th,
+.composer td,
+.floating-card-body th,
+.floating-card-body td,
+.desktop-card th,
+.desktop-card td {
+  border-right: var(--table-border);
+  border-bottom: var(--table-border);
+  padding: var(--table-cell-padding);
+  text-align: left;
+  vertical-align: top;
+}
+
+.block-content th,
+.composer th,
+.floating-card-body th,
+.desktop-card th {
+  background: var(--table-header-background);
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.block-content tr > :last-child,
+.composer tr > :last-child,
+.floating-card-body tr > :last-child,
+.desktop-card tr > :last-child { border-right: 0; }
+
+.block-content tbody tr:last-child > *,
+.composer tbody tr:last-child > *,
+.floating-card-body tbody tr:last-child > *,
+.desktop-card tbody tr:last-child > * { border-bottom: 0; }
+
 .todo-item {
   display: inline-flex;
   align-items: center;

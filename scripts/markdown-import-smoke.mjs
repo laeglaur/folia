@@ -17,6 +17,10 @@ await writeFile(markdownPath, [
   '- [ ] open task',
   '- [x] done task',
   '',
+  '| Name | Value |',
+  '| --- | --- |',
+  '| table row | 42 |',
+  '',
   '```',
   'const imported = true;',
   '```'
@@ -36,13 +40,16 @@ const pageTitle = await page.locator('.page-title').inputValue();
 const pageTreeText = await page.locator('.page-tree').innerText();
 const pageText = await page.locator('.page-surface').innerText();
 const pageHtml = await page.locator('.page-surface').evaluate((node) => node.innerHTML);
+const blockCount = await page.locator('.block').count();
 
 const checks = {
   title: pageTitle === 'Imported Smoke',
+  singleBlock: blockCount === 1,
   pageTree: pageTreeText.includes('Imported Smoke'),
   paragraph: pageText.includes('A paragraph with bold'),
   bullet: pageHtml.includes('<ul') && pageText.includes('first bullet'),
   task: pageHtml.includes('data-type="taskList"') && pageHtml.includes('open task') && pageHtml.includes('done task'),
+  table: pageHtml.includes('<table') && pageText.includes('table row') && pageText.includes('42'),
   link: pageHtml.includes('href="https://example.com"'),
   image: pageHtml.includes('src="https://example.com/diagram.png"') && pageHtml.includes('alt="diagram"'),
   inlineCode: pageHtml.includes('<code>inline</code>'),

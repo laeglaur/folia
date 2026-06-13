@@ -1,5 +1,6 @@
 import type { AppState, Block, Notebook, OperationLogEntry, Page, ThemeId } from './types';
 import { invoke, isTauri } from '@tauri-apps/api/core';
+import { marked } from 'marked';
 
 const STORAGE_KEY = 'block-first-notebook.state.v1';
 
@@ -171,17 +172,6 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-const markdownInlineToHtml = (value: string) => {
-  let html = escapeHtml(value);
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  html = html.replace(/==([^=]+)==/g, '<mark>$1</mark>');
-  return html;
-};
-
 const htmlToPlainText = (html: string) => {
   const container = document.createElement('div');
   container.innerHTML = html;
@@ -190,90 +180,44 @@ const htmlToPlainText = (html: string) => {
 
 const blockFromHtml = (pageId: string, html: string) => createBlock(pageId, html, htmlToPlainText(html));
 
-const listItemsToHtml = (lines: string[]) => {
-  const taskItems = lines
-    .map((line) => line.match(/^\s*[-*+]\s+\[([ xX])\]\s+(.*)$/))
-    .filter(Boolean) as RegExpMatchArray[];
-  if (taskItems.length === lines.length) {
-    const items = taskItems.map((match) => {
-      const checked = match[1].toLowerCase() === 'x';
-      return `<li data-type="taskItem" data-checked="${checked ? 'true' : 'false'}" data-todo-style="plain"><label><input type="checkbox" ${checked ? 'checked="checked"' : ''}><span></span></label><div><p>${markdownInlineToHtml(match[2])}</p></div></li>`;
-    });
-    return `<ul data-type="taskList">${items.join('')}</ul>`;
-  }
-
-  const ordered = lines.every((line) => /^\s*\d+[.)]\s+/.test(line));
-  const items = lines.map((line) => {
-    const text = line.replace(/^\s*(?:[-*+]|\d+[.)])\s+/, '');
-    return `<li>${markdownInlineToHtml(text)}</li>`;
+const markdownInlineToHtml = (value: string) => {
+  const html = marked.parseInline(value.replace(/==([^=\n][\s\S]*?[^=\n])==/g, '<mark>$1</mark>'), {
+    async: false,
+    gfm: true
   });
-  return ordered ? `<ol>${items.join('')}</ol>` : `<ul>${items.join('')}</ul>`;
+  return typeof html === 'string' ? html : escapeHtml(value);
+};
+
+const normalizeMarkdownForMarked = (markdown: string) =>
+  markdown
+    .replace(/!\[([^\]]*)\]\(([^)\n]+)\)/g, (_match, alt: string, src: string) => `<img src="${escapeHtml(src.trim())}" alt="${escapeHtml(alt)}">`)
+    .replace(/==([^=\n][\s\S]*?[^=\n])==/g, '<mark>$1</mark>')
+    .replace(/^\s*【】\s+(.+)$/gm, '- [ ] <mark>$1</mark>')
+    .replace(/(?:^\s*[-*+]\s+\[[ xX]\]\s+.+(?:\n|$))+/gm, (block) => {
+      const items = block
+        .trimEnd()
+        .split('\n')
+        .map((line) => line.match(/^\s*[-*+]\s+\[([ xX])\]\s+(.+)$/))
+        .filter(Boolean) as RegExpMatchArray[];
+      if (!items.length) return block;
+      return `<ul data-type="taskList">${items.map((match) => {
+        const checked = match[1].toLowerCase() === 'x';
+        return `<li data-type="taskItem" data-checked="${checked ? 'true' : 'false'}" data-todo-style="plain"><label><input type="checkbox" ${checked ? 'checked="checked"' : ''}><span></span></label><div><p>${markdownInlineToHtml(match[2])}</p></div></li>`;
+      }).join('')}</ul>\n`;
+    });
+
+const markdownToHtml = (markdown: string) => {
+  const html = marked.parse(normalizeMarkdownForMarked(markdown), {
+    async: false,
+    breaks: false,
+    gfm: true
+  });
+  return typeof html === 'string' ? html.trim() : '';
 };
 
 export const markdownToBlocks = (pageId: string, markdown: string): Block[] => {
-  const blocks: Block[] = [];
-  const paragraph: string[] = [];
-  const list: string[] = [];
-  const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
-
-  const flushParagraph = () => {
-    if (!paragraph.length) return;
-    const text = paragraph.join(' ').trim();
-    if (text) blocks.push(blockFromHtml(pageId, `<p>${markdownInlineToHtml(text)}</p>`));
-    paragraph.length = 0;
-  };
-
-  const flushList = () => {
-    if (!list.length) return;
-    blocks.push(blockFromHtml(pageId, listItemsToHtml(list)));
-    list.length = 0;
-  };
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    const trimmed = line.trim();
-
-    if (trimmed.startsWith('```')) {
-      flushParagraph();
-      flushList();
-      const codeLines: string[] = [];
-      index += 1;
-      while (index < lines.length && !lines[index].trim().startsWith('```')) {
-        codeLines.push(lines[index]);
-        index += 1;
-      }
-      blocks.push(blockFromHtml(pageId, `<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`));
-      continue;
-    }
-
-    if (!trimmed) {
-      flushParagraph();
-      flushList();
-      continue;
-    }
-
-    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
-    if (heading) {
-      flushParagraph();
-      flushList();
-      blocks.push(blockFromHtml(pageId, `<h${heading[1].length}>${markdownInlineToHtml(heading[2])}</h${heading[1].length}>`));
-      continue;
-    }
-
-    if (/^\s*(?:[-*+]|\d+[.)])\s+/.test(line)) {
-      flushParagraph();
-      list.push(line);
-      continue;
-    }
-
-    flushList();
-    paragraph.push(trimmed);
-  }
-
-  flushParagraph();
-  flushList();
-
-  return blocks.length ? blocks : [blockFromHtml(pageId, '<p></p>')];
+  const html = markdownToHtml(markdown);
+  return [blockFromHtml(pageId, html || '<p></p>')];
 };
 
 export const createPageFromMarkdown = (notebookId: string, filename: string, markdown: string) => {
