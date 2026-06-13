@@ -23,6 +23,8 @@ await writeFile(markdownPath, [
   '',
   'A paragraph with **bold**, *italic*, ~~strike~~, ==mark==, `inline`, and [link](https://example.com).',
   '',
+  'A sentence with a footnote.[^note]',
+  '',
   '> A quote that Typora themes should be able to shape.',
   '',
   '---',
@@ -54,7 +56,9 @@ await writeFile(markdownPath, [
   '  ┌────┬────┐',
   '  │ P0 │ OK │',
   '  └────┴────┘',
-  '  ```'
+  '  ```',
+  '',
+  '[^note]: Footnote content with **bold** text.'
 ].join('\n'));
 
 const browser = await chromium.launch({ headless: true });
@@ -78,9 +82,12 @@ const metadataText = await page.locator('.page-metadata').innerText();
 const blockCount = await page.locator('.block').count();
 const storedState = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
 const storedPage = storedState.pages?.find((storedPage) => storedPage.id === storedState.activePageId);
+const storedBlock = storedState.blocks?.find((block) => block.id === storedPage?.blockIds?.[0]);
 const hasNestedBulletDom = await page.locator('.page-surface li > ul li').evaluateAll((items) =>
   items.some((item) => item.textContent?.includes('nested bullet'))
 );
+const footnoteReferenceCount = await page.locator('.page-surface .md-footnote').count();
+const footnoteDefinitionText = await page.locator('.page-surface .md-def-footnote').innerText();
 
 const checks = {
   title: pageTitle === 'Frontmatter Smoke',
@@ -91,6 +98,7 @@ const checks = {
   metadataUi: metadataText.includes('2026-05-02') && metadataText.includes('draft') && metadataText.includes('#travel') && metadataText.includes('#literature') && metadataText.includes('Hengdian notes') && metadataText.includes('Qin palace'),
   metadataState: storedPage?.metadata?.sourceFilename?.endsWith('.md') && storedPage.metadata.tags.includes('travel') && storedPage.metadata.tags.includes('literature') && storedPage.metadata.date === '2026-05-02' && storedPage.metadata.status === 'draft' && storedPage.metadata.aliases.includes('Hengdian notes') && storedPage.metadata.frontmatter.title === 'Frontmatter Smoke',
   paragraph: pageText.includes('A paragraph with bold'),
+  footnote: footnoteReferenceCount === 1 && footnoteDefinitionText.includes('Footnote content with bold text') && storedBlock?.content?.html?.includes('data-type="footnotes"'),
   bullet: pageHtml.includes('<ul') && pageText.includes('first bullet'),
   nestedBullet: hasNestedBulletDom,
   blockquote: pageHtml.includes('<blockquote') && pageText.includes('A quote that Typora themes should be able to shape.'),

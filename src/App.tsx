@@ -328,6 +328,94 @@ const NotebookEmbed = Node.create({
   }
 });
 
+const FootnoteReference = Node.create({
+  name: 'footnoteReference',
+  group: 'inline',
+  inline: true,
+  atom: true,
+
+  addAttributes() {
+    return {
+      footnoteId: { default: '' },
+      label: { default: '' }
+    };
+  },
+
+  parseHTML() {
+    return [{
+      tag: 'sup.md-footnote[data-footnote-id]',
+      getAttrs: (element) => {
+        const footnote = element as HTMLElement;
+        return {
+          footnoteId: footnote.getAttribute('data-footnote-id') ?? '',
+          label: footnote.textContent?.replace(/^\[|\]$/g, '') ?? ''
+        };
+      }
+    }];
+  },
+
+  renderHTML({ node }) {
+    const footnoteId = node.attrs.footnoteId || node.attrs.label;
+    const label = node.attrs.label || footnoteId;
+    return ['sup', mergeAttributes({
+      class: 'md-footnote',
+      'data-footnote-id': footnoteId
+    }), ['a', {
+      href: `#fn-${footnoteId}`,
+      id: `fnref-${footnoteId}`,
+      contenteditable: 'false'
+    }, `[${label}]`]];
+  }
+});
+
+const FootnoteItem = Node.create({
+  name: 'footnoteItem',
+  group: 'block',
+  content: 'block+',
+
+  addAttributes() {
+    return {
+      footnoteId: { default: '' }
+    };
+  },
+
+  parseHTML() {
+    return [{
+      tag: '[data-type="footnote-item"][data-footnote-id]',
+      getAttrs: (element) => ({
+        footnoteId: (element as HTMLElement).getAttribute('data-footnote-id') ?? ''
+      })
+    }];
+  },
+
+  renderHTML({ node }) {
+    const footnoteId = node.attrs.footnoteId;
+    return ['div', mergeAttributes({
+      class: 'md-def-footnote',
+      'data-type': 'footnote-item',
+      'data-footnote-id': footnoteId,
+      id: `fn-${footnoteId}`
+    }), 0];
+  }
+});
+
+const FootnoteSection = Node.create({
+  name: 'footnoteSection',
+  group: 'block',
+  content: 'footnoteItem+',
+
+  parseHTML() {
+    return [{ tag: 'section[data-type="footnotes"]' }];
+  },
+
+  renderHTML() {
+    return ['section', {
+      class: 'footnotes',
+      'data-type': 'footnotes'
+    }, 0];
+  }
+});
+
 const BracketTodoInput = Extension.create({
   name: 'bracketTodoInput',
 
@@ -416,6 +504,9 @@ const createEditorExtensions = (
   NotebookVideo,
   NotebookAudio,
   NotebookEmbed,
+  FootnoteReference,
+  FootnoteItem,
+  FootnoteSection,
   BracketTodoInput,
   NotebookShortcuts.configure({ onShiftEnter, onMoveBlock }),
   Placeholder.configure({ placeholder: placeholder ?? '' })

@@ -301,6 +301,35 @@ const markdownInlineToHtml = (value: string) => {
   return typeof html === 'string' ? html : escapeHtml(value);
 };
 
+const slugAttribute = (value: string) => escapeHtml(value.replace(/[^a-zA-Z0-9_-]/g, '-'));
+
+const normalizeFootnotes = (markdown: string) => {
+  const footnotes: Array<{ id: string; html: string }> = [];
+  const withoutDefinitions = markdown
+    .replace(/(?:^|\n)\[\^([^\]\n]+)\]:[^\S\r\n]*(.+(?:\n[ \t]{2,}.+)*)/g, (match, id: string, body: string) => {
+      const content = body
+        .split('\n')
+        .map((line) => line.replace(/^[ \t]{2,}/, ''))
+        .join('\n')
+        .trim();
+      footnotes.push({ id, html: markdownInlineToHtml(content) });
+      return match.startsWith('\n') ? '\n' : '';
+    });
+
+  if (!footnotes.length) return withoutDefinitions;
+
+  const referenced = withoutDefinitions.replace(/\[\^([^\]\n]+)\]/g, (_match, id: string) => {
+    const safeId = slugAttribute(id);
+    return `<sup class="md-footnote" data-footnote-id="${safeId}"><a href="#fn-${safeId}" id="fnref-${safeId}">[${escapeHtml(id)}]</a></sup>`;
+  });
+  const section = `<section class="footnotes" data-type="footnotes">${footnotes.map(({ id, html }) => {
+    const safeId = slugAttribute(id);
+    return `<div class="md-def-footnote" data-type="footnote-item" data-footnote-id="${safeId}" id="fn-${safeId}"><p><span class="footnote-label">[${escapeHtml(id)}]</span> ${html}</p></div>`;
+  }).join('')}</section>`;
+
+  return `${referenced.trimEnd()}\n\n${section}`;
+};
+
 const urlWithoutQuery = (url: string) => url.split(/[?#]/)[0] ?? url;
 const isVideoUrl = (url: string) => /\.(mp4|mov|webm|m4v)$/i.test(urlWithoutQuery(url));
 const isAudioUrl = (url: string) => /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(urlWithoutQuery(url));
@@ -336,7 +365,7 @@ const mediaHtmlForUrl = (url: string, label = '') => {
 };
 
 const normalizeMarkdownForMarked = (markdown: string) =>
-  normalizeMarkdownWhitespace(markdown)
+  normalizeFootnotes(normalizeMarkdownWhitespace(markdown))
     .replace(/!\[([^\]]*)\]\(([^)\n]+)\)/g, (_match, alt: string, src: string) => `<img src="${escapeHtml(src.trim())}" alt="${escapeHtml(alt)}">`)
     .replace(/^[^\S\r\n]*\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)[^\S\r\n]*$/gm, (match, label: string, url: string) => mediaHtmlForUrl(url, label) ?? match)
     .replace(/^[^\S\r\n]*(https?:\/\/\S+\.(?:mp4|mov|webm|m4v|mp3|wav|m4a|aac|ogg|flac)(?:[?#]\S*)?)[^\S\r\n]*$/gim, (_match, url: string) => mediaHtmlForUrl(url) ?? _match)

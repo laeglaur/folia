@@ -746,6 +746,53 @@ input, select { color: var(--ink); }
   text-underline-offset: var(--link-underline-offset);
 }
 
+.block-content .md-footnote,
+.composer .md-footnote,
+.floating-card-body .md-footnote,
+.desktop-card .md-footnote {
+  margin-left: 1px;
+  font-size: 0.72em;
+  line-height: 0;
+}
+
+.block-content .md-footnote a,
+.composer .md-footnote a,
+.floating-card-body .md-footnote a,
+.desktop-card .md-footnote a {
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--accent);
+  padding: 0 4px;
+  text-decoration: none;
+}
+
+.block-content .footnotes,
+.composer .footnotes,
+.floating-card-body .footnotes,
+.desktop-card .footnotes {
+  margin: 22px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 0.92em;
+}
+
+.block-content .md-def-footnote,
+.composer .md-def-footnote,
+.floating-card-body .md-def-footnote,
+.desktop-card .md-def-footnote {
+  margin: 5px 0;
+}
+
+.block-content .footnote-label,
+.composer .footnote-label,
+.floating-card-body .footnote-label,
+.desktop-card .footnote-label {
+  color: var(--accent);
+  font-family: var(--ui-font);
+  font-size: 0.86em;
+}
+
 .block-content img,
 .composer img,
 .floating-card-body img,
