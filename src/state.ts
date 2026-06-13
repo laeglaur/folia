@@ -65,9 +65,8 @@ export const createInitialState = (): AppState => ({
 });
 
 const normalizeTheme = (theme?: string): ThemeId => {
-  if (theme === 'fish') return 'garden';
-  if (theme === 'atelier') return 'studio';
-  if (theme === 'garden' || theme === 'paper' || theme === 'studio' || theme === 'archive') return theme;
+  if (theme === 'archive') return 'ledger';
+  if (theme === 'garden' || theme === 'ledger') return theme;
   return 'garden';
 };
 

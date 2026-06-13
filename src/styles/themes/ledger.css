@@ -1,0 +1,248 @@
+:root[data-theme="ledger"] {
+  --theme-bg: #f2f4f1;
+  --theme-surface: rgba(250, 251, 247, 0.96);
+  --theme-surface-solid: #fbfcf7;
+  --theme-surface-tint: rgba(222, 229, 224, 0.9);
+  --theme-ink: #202722;
+  --theme-muted: #657069;
+  --theme-line: rgba(36, 45, 39, 0.18);
+  --theme-line-soft: rgba(36, 45, 39, 0.1);
+  --theme-accent: #2f6f64;
+  --theme-accent-2: #a64a3a;
+  --theme-chip: rgba(226, 229, 218, 0.9);
+  --theme-chip-primary: rgba(207, 223, 215, 0.9);
+  --theme-star: #a64a3a;
+  --theme-highlight: #e9eee2;
+  --theme-highlight-ink: #345f52;
+  --theme-highlight-edge: rgba(47, 111, 100, 0.22);
+  --theme-bracket-todo: #f0e2cf;
+  --theme-bracket-todo-ink: #704636;
+  --theme-bracket-todo-edge: rgba(166, 74, 58, 0.24);
+  --theme-code-bg: #e7ece8;
+  --theme-code-ink: #23443e;
+  --theme-shadow: 0 10px 24px rgba(29, 34, 31, 0.08);
+  --theme-surface-shadow: none;
+  --theme-body-background:
+    linear-gradient(90deg, rgba(32, 39, 34, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(32, 39, 34, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, #f6f7f2 0%, #eef1ec 100%);
+  --theme-app-aura: linear-gradient(180deg, rgba(47, 111, 100, 0.1), transparent);
+  --theme-panel-background: linear-gradient(180deg, rgba(250, 251, 247, 0.98), rgba(241, 244, 239, 0.96));
+  --theme-brand-mark-background: linear-gradient(135deg, #dce8df, #f4e7d6);
+  --theme-nav-active-background: linear-gradient(90deg, rgba(47, 111, 100, 0.14), rgba(166, 74, 58, 0.07));
+  --theme-nav-active-ink: #244f48;
+  --theme-note-background: linear-gradient(180deg, #fbf7ed, #f2e7d8);
+  --theme-note-ink: #56463e;
+
+  --layout-sidebar-width: 276px;
+  --layout-right-panel-width: 318px;
+  --layout-shell-gap: 12px;
+  --layout-shell-padding: 14px;
+  --layout-aura-width: 100vw;
+  --layout-aura-height: 1px;
+  --layout-sidebar-top: 14px;
+  --layout-sidebar-max-offset: 28px;
+  --layout-sidebar-padding: 10px;
+  --layout-right-panel-top: 14px;
+  --layout-right-panel-gap: 10px;
+  --layout-right-panel-padding: 10px;
+  --layout-right-panel-max-offset: 28px;
+  --layout-page-width: 980px;
+  --layout-page-gutter: 18px;
+  --layout-page-margin: 0 auto 58px;
+  --layout-page-padding: 28px 34px 34px;
+
+  --shape-panel-radius: 7px;
+  --shape-page-radius: 5px;
+  --panel-border: 1px solid rgba(36, 45, 39, 0.14);
+  --panel-backdrop-filter: none;
+  --page-border: 1px solid rgba(36, 45, 39, 0.14);
+  --page-background: rgba(250, 251, 247, 0.97);
+  --page-backdrop-filter: none;
+
+  --brand-gap: 3px;
+  --brand-padding: 4px 6px 10px;
+  --brand-eyebrow-size: 11px;
+  --brand-mark-size: 42px;
+  --brand-mark-radius: 8px;
+  --brand-mark-shadow: inset 0 0 0 1px rgba(36, 45, 39, 0.12);
+  --brand-title-size: 18px;
+  --brand-title-line-height: 1.08;
+  --brand-title-weight: 650;
+  --brand-title-letter-spacing: 0;
+  --profile-radius: 3px;
+  --profile-background: rgba(36, 45, 39, 0.06);
+  --profile-padding: 2px 7px;
+  --profile-font-size: 10.5px;
+
+  --nav-section-gap: 11px;
+  --nav-section-row-gap: 6px;
+  --nav-section-row-padding: 0 3px;
+  --nav-section-label-size: 10.5px;
+  --nav-list-gap: 2px;
+  --nav-list-margin-top: 5px;
+  --nav-item-min-height: 28px;
+  --nav-item-radius: 4px;
+  --nav-item-padding: 4px 7px;
+  --nav-item-grid: 18px minmax(0, 1fr);
+  --nav-item-gap: 6px;
+  --nav-item-font-size: 12.5px;
+  --nav-tree-row-gap: 2px;
+  --nav-depth-indent: 16px;
+  --nav-active-shadow: inset 3px 0 0 var(--accent);
+  --nav-disclosure-size: 15px;
+
+  --control-size: 26px;
+  --control-radius: 4px;
+  --control-background: rgba(255, 255, 255, 0.68);
+  --control-hover-background: rgba(47, 111, 100, 0.12);
+  --control-hover-ink: var(--accent);
+
+  --note-margin: 14px 0 0;
+  --note-width: 100%;
+  --note-min-height: 82px;
+  --note-border: 1px solid rgba(166, 74, 58, 0.18);
+  --note-radius: 5px;
+  --note-shadow: none;
+  --note-padding: 14px 14px 12px;
+  --note-font: "Avenir Next", "PingFang SC", "Hiragino Sans GB", var(--ui-font);
+  --note-font-size: 12px;
+  --note-line-height: 1.5;
+  --note-pin-size: 0;
+  --note-pin-radius: 0;
+  --note-pin-background: transparent;
+
+  --topbar-gap: 10px;
+  --topbar-padding: 0 0 10px;
+  --topbar-control-height: 32px;
+  --topbar-control-radius: 5px;
+  --topbar-actions-gap: 6px;
+  --search-width: 360px;
+  --search-padding: 0 10px;
+  --view-toggle-height: 30px;
+  --view-toggle-padding: 0 7px;
+  --view-toggle-font-size: 11.5px;
+  --button-gap: 6px;
+  --button-padding: 0 10px;
+  --primary-button-height: 32px;
+  --primary-button-radius: 5px;
+
+  --title-font: "Avenir Next", "PingFang SC", "Hiragino Sans GB", var(--ui-font);
+  --title-size: clamp(28px, 4vw, 40px);
+  --title-line-height: 1.08;
+  --title-weight: 680;
+  --title-margin-bottom: 12px;
+
+  --toolbar-gap: 3px;
+  --toolbar-margin: 0 0 8px;
+  --toolbar-padding: 3px;
+  --toolbar-radius: 5px;
+  --toolbar-background: rgba(246, 248, 243, 0.98);
+  --toolbar-backdrop-filter: none;
+  --tool-font-size: 10.5px;
+  --tool-font-weight: 720;
+  --text-tool-width: 28px;
+  --highlight-tool-ink: #8a5631;
+  --toolbar-divider-height: 16px;
+
+  --block-list-gap: 4px;
+  --block-grid-columns: 24px minmax(0, 1fr) 28px;
+  --block-gap: 6px;
+  --block-padding: 6px 5px;
+  --block-radius: 4px;
+  --block-hover-background: rgba(255, 255, 255, 0.66);
+  --block-hover-shadow: inset 0 0 0 1px rgba(36, 45, 39, 0.08);
+  --block-rail-gap: 3px;
+  --block-focus-min-height: 104px;
+  --block-focus-padding-bottom: 30px;
+  --block-content-min-height: 28px;
+  --block-content-padding: 3px 2px;
+  --block-preview-min-height: 26px;
+
+  --editor-font-size: 15.5px;
+  --editor-line-height: 1.62;
+  --heading-font: "Avenir Next", "PingFang SC", "Hiragino Sans GB", var(--ui-font);
+  --h1-margin: 8px 0 7px;
+  --h1-size: 1.62em;
+  --h1-line-height: 1.18;
+  --h2-margin: 7px 0 6px;
+  --h2-size: 1.3em;
+  --h2-line-height: 1.22;
+  --h3-margin: 6px 0 5px;
+  --h3-size: 1.1em;
+  --h3-line-height: 1.28;
+  --list-margin: 4px 0;
+  --list-padding-left: 24px;
+  --list-item-margin: 3px 0;
+  --list-item-padding-left: 2px;
+  --list-fold-left: -20px;
+  --list-fold-top: 0.36em;
+  --list-fold-size: 0.82em;
+
+  --todo-gap: 7px;
+  --todo-label-min-height: 25px;
+  --todo-label-padding: 0;
+  --todo-paragraph-margin: 0 0 6px;
+  --todo-bracket-radius: 5px;
+  --todo-bracket-padding: 1px 10px 1px 6px;
+  --todo-checkbox-size: 15px;
+  --todo-checkbox-margin: 0 2px 0 0;
+
+  --highlight-radius: 5px;
+  --highlight-padding: 1px 6px;
+
+  --code-block-margin: 8px 0;
+  --code-block-padding: 10px 12px;
+  --code-block-radius: 5px;
+  --code-block-border: 1px solid rgba(36, 45, 39, 0.14);
+  --code-block-background:
+    linear-gradient(90deg, rgba(166, 74, 58, 0.14), transparent 4px),
+    linear-gradient(180deg, #eef2ed, #e4ebe7);
+  --code-block-font-size: 12.5px;
+  --code-block-line-height: 1.55;
+  --code-block-shadow: none;
+  --inline-code-radius: 4px;
+  --inline-code-padding: 0.08em 0.32em;
+
+  --composer-card-margin-top: 14px;
+  --composer-card-border: 1px solid rgba(36, 45, 39, 0.14);
+  --composer-card-radius: 5px;
+  --composer-card-background: rgba(246, 248, 243, 0.95);
+  --composer-min-height: 104px;
+  --composer-padding: 13px 14px;
+  --composer-footer-gap: 8px;
+  --composer-footer-padding: 8px 10px;
+  --composer-footer-font-size: 12px;
+
+  --panel-card-radius: 5px;
+  --panel-card-background: rgba(250, 251, 247, 0.96);
+  --panel-card-padding: 11px;
+  --panel-title-gap: 6px;
+  --panel-title-font-size: 12.5px;
+  --panel-title-margin-bottom: 8px;
+  --outline-list-gap: 4px;
+  --outline-grid: 20px minmax(0, 1fr);
+  --outline-gap: 5px;
+  --outline-font-size: 12px;
+  --outline-line-height: 1.32;
+
+  --desktop-preview-gap: 7px;
+  --desktop-card-padding: 10px;
+  --desktop-card-border: 1px solid rgba(36, 45, 39, 0.14);
+  --desktop-card-radius: 4px;
+  --desktop-card-background: #fbf7ed;
+  --desktop-card-ink: #51483f;
+  --desktop-card-shadow: none;
+  --desktop-card-max-height: 128px;
+  --desktop-card-font-size: 12.5px;
+
+  --floating-card-right: 24px;
+  --floating-card-bottom: 24px;
+  --floating-card-width: 390px;
+  --floating-card-border: 1px solid rgba(36, 45, 39, 0.18);
+  --floating-card-radius: 6px;
+  --floating-card-background: #fbf7ed;
+  --floating-card-shadow: 0 16px 34px rgba(29, 34, 31, 0.16);
+  --floating-card-mode-radius: 5px;
+  --floating-card-body-ink: #51483f;
+}

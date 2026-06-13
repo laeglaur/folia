@@ -22,7 +22,7 @@
   --theme-code-bg: #eef7f1;
   --theme-code-ink: #24534c;
   --theme-shadow: 0 14px 32px rgba(74, 103, 86, 0.13);
-  --theme-paper-shadow: 0 7px 18px rgba(83, 112, 89, 0.11), 0 1px 0 rgba(255, 255, 255, 0.92) inset;
+  --theme-surface-shadow: 0 7px 18px rgba(83, 112, 89, 0.11), 0 1px 0 rgba(255, 255, 255, 0.92) inset;
   --theme-body-background:
     radial-gradient(circle at 20% 8%, rgba(231, 243, 207, 0.46) 0 170px, transparent 171px),
     radial-gradient(circle at 76% 78%, rgba(255, 241, 219, 0.4) 0 230px, transparent 231px),
@@ -40,6 +40,253 @@
   --theme-nav-active-ink: #2f735f;
   --theme-note-background: linear-gradient(180deg, rgba(255, 251, 238, 0.9), rgba(252, 246, 225, 0.72));
   --theme-note-ink: #486962;
+
+  --layout-sidebar-width: 232px;
+  --layout-right-panel-width: 286px;
+  --layout-shell-gap: 22px;
+  --layout-shell-padding: 22px 22px 20px 20px;
+  --layout-aura-width: 310px;
+  --layout-aura-height: 250px;
+  --layout-sidebar-top: 18px;
+  --layout-sidebar-max-offset: 36px;
+  --layout-sidebar-padding: 12px 13px 14px;
+  --layout-right-panel-top: 22px;
+  --layout-right-panel-gap: 16px;
+  --layout-right-panel-padding: 14px;
+  --layout-right-panel-max-offset: 44px;
+  --layout-page-width: 840px;
+  --layout-page-gutter: 28px;
+  --layout-page-margin: 10px auto 80px;
+  --layout-page-padding: 26px 30px 30px;
+
+  --shape-panel-radius: 18px;
+  --shape-page-radius: 20px;
+  --panel-border: 1px solid rgba(218, 210, 190, 0.54);
+  --panel-backdrop-filter: blur(18px);
+  --page-border: 1px solid rgba(218, 210, 190, 0.52);
+  --page-background: rgba(255, 253, 247, 0.82);
+  --page-backdrop-filter: blur(18px);
+
+  --brand-gap: 5px;
+  --brand-padding: 8px 10px 14px;
+  --brand-eyebrow-size: 18px;
+  --brand-mark-size: 72px;
+  --brand-mark-radius: 50%;
+  --brand-mark-shadow: 0 10px 22px rgba(49, 127, 121, 0.14);
+  --brand-title-size: 21px;
+  --brand-title-line-height: 1.1;
+  --brand-title-weight: 400;
+  --brand-title-letter-spacing: 0.02em;
+  --profile-radius: 999px;
+  --profile-background: rgba(241, 237, 224, 0.42);
+  --profile-padding: 2px 8px;
+  --profile-font-size: 10px;
+  --profile-line-height: 1.25;
+
+  --nav-section-gap: 14px;
+  --nav-section-row-gap: 8px;
+  --nav-section-row-padding: 0 6px;
+  --nav-section-label-size: 11.5px;
+  --nav-list-gap: 4px;
+  --nav-list-margin-top: 6px;
+  --nav-item-min-height: 34px;
+  --nav-item-radius: 999px;
+  --nav-item-padding: 6px 10px;
+  --nav-item-grid: 20px minmax(0, 1fr);
+  --nav-item-gap: 7px;
+  --nav-item-font-size: 13px;
+  --nav-tree-row-gap: 3px;
+  --nav-depth-indent: 14px;
+  --nav-active-shadow: inset 0 0 0 1px rgba(118, 160, 105, 0.12), 0 8px 15px rgba(77, 119, 82, 0.08);
+  --nav-disclosure-size: 16px;
+
+  --control-size: 28px;
+  --control-radius: 999px;
+  --control-background: rgba(255, 253, 247, 0.68);
+  --control-hover-background: var(--chip-primary);
+  --control-hover-ink: var(--accent);
+
+  --note-margin: 18px auto 2px;
+  --note-width: 162px;
+  --note-min-height: 108px;
+  --note-border: 1px solid rgba(220, 207, 177, 0.58);
+  --note-radius: 8px;
+  --note-shadow: 0 10px 20px rgba(83, 112, 89, 0.08);
+  --note-padding: 22px 18px 18px 22px;
+  --note-font-size: 12.5px;
+  --note-line-height: 1.52;
+  --note-pin-size: 28px;
+  --note-pin-radius: 50%;
+  --note-pin-background: radial-gradient(circle, #b8e8dc 0 36%, #317f79 37% 42%, transparent 43%);
+  --note-pin-left: 12px;
+  --note-pin-top: -12px;
+  --note-font: "Hannotate SC", "Klee", "Yuanti SC", var(--ui-font);
+
+  --topbar-gap: 16px;
+  --topbar-padding: 4px 2px 14px;
+  --topbar-control-height: 36px;
+  --topbar-control-radius: 999px;
+  --topbar-actions-gap: 8px;
+  --search-gap: 8px;
+  --search-width: 420px;
+  --search-padding: 0 13px;
+  --view-toggle-height: 32px;
+  --view-toggle-padding: 0 8px;
+  --view-toggle-font-size: 12px;
+  --button-gap: 7px;
+  --button-padding: 0 13px;
+  --primary-button-height: 34px;
+  --primary-button-radius: 999px;
+
+  --title-font: "Hannotate SC", "Klee", "Yuanti SC", var(--ui-font);
+  --title-size: clamp(32px, 5vw, 48px);
+  --title-line-height: 1.08;
+  --title-weight: 400;
+  --title-margin-bottom: 16px;
+
+  --toolbar-gap: 6px;
+  --toolbar-margin: 0 0 7px;
+  --toolbar-padding: 5px;
+  --toolbar-radius: 999px;
+  --toolbar-background: rgba(255, 253, 247, 0.92);
+  --toolbar-backdrop-filter: blur(14px);
+  --tool-font-size: 11px;
+  --tool-font-weight: 700;
+  --text-tool-width: 31px;
+  --highlight-tool-ink: #9c7a16;
+  --toolbar-divider-width: 1px;
+  --toolbar-divider-height: 18px;
+
+  --block-list-gap: 9px;
+  --block-grid-columns: 32px minmax(0, 1fr) 32px;
+  --block-gap: 8px;
+  --block-padding: 10px 8px;
+  --block-radius: 13px;
+  --block-hover-background: rgba(255, 255, 255, 0.48);
+  --block-hover-shadow: 0 8px 18px rgba(83, 112, 89, 0.08);
+  --block-border: 1px solid transparent;
+  --block-transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  --block-drag-opacity: 0.48;
+  --block-drag-transform: scale(0.995);
+  --block-rail-gap: 4px;
+  --block-fold-ink: color-mix(in srgb, var(--accent) 58%, var(--muted));
+  --block-focus-min-height: 118px;
+  --block-focus-padding-bottom: 42px;
+  --block-content-min-height: 32px;
+  --block-content-padding: 4px 3px;
+  --block-preview-min-height: 28px;
+
+  --editor-font-size: 16px;
+  --editor-line-height: 1.72;
+  --heading-font: "Hannotate SC", "Klee", "Yuanti SC", var(--ui-font);
+  --h1-margin: 10px 0 8px;
+  --h1-size: 1.78em;
+  --h1-line-height: 1.22;
+  --h2-margin: 9px 0 7px;
+  --h2-size: 1.38em;
+  --h2-line-height: 1.28;
+  --h3-margin: 8px 0 6px;
+  --h3-size: 1.14em;
+  --h3-line-height: 1.32;
+  --list-margin: 6px 0;
+  --list-padding-left: 28px;
+  --list-item-margin: 4px 0;
+  --list-item-padding-left: 4px;
+  --list-fold-left: -24px;
+  --list-fold-top: 0.42em;
+  --list-fold-size: 0.86em;
+
+  --todo-gap: 8px;
+  --todo-label-min-height: 29px;
+  --todo-label-padding: 1px 0;
+  --todo-paragraph-margin: 0 0 8px;
+  --todo-bracket-radius: 999px;
+  --todo-bracket-padding: 2px 12px 2px 7px;
+  --todo-bracket-label-min-height: 26px;
+  --todo-checkbox-size: 17px;
+  --todo-checkbox-margin: 0 3px 0 0;
+  --todo-checkbox-vertical-align: -3px;
+
+  --highlight-radius: 999px;
+  --highlight-padding: 2px 8px;
+
+  --code-block-margin: 10px 0;
+  --code-block-padding: 12px 14px;
+  --code-block-radius: 12px;
+  --code-block-background:
+    linear-gradient(90deg, rgba(49, 127, 121, 0.12), transparent 5px),
+    linear-gradient(180deg, rgba(238, 247, 241, 0.98), rgba(226, 240, 235, 0.82));
+  --code-block-border: 1px solid rgba(49, 127, 121, 0.16);
+  --code-block-font-size: 13px;
+  --code-block-line-height: 1.58;
+  --code-block-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --inline-code-radius: 6px;
+  --inline-code-padding: 0.1em 0.35em;
+
+  --legacy-todo-gap: 5px;
+  --legacy-todo-min-height: 28px;
+  --legacy-todo-margin: 2px 0;
+  --legacy-bracket-todo-radius: 999px;
+  --legacy-bracket-todo-background: rgba(213, 232, 190, 0.62);
+  --legacy-bracket-todo-padding: 1px 7px 1px 5px;
+  --legacy-bracket-todo-weight: 600;
+
+  --composer-card-margin-top: 18px;
+  --composer-card-border: 1px dashed rgba(128, 176, 145, 0.46);
+  --composer-card-radius: 15px;
+  --composer-card-background: rgba(255, 253, 247, 0.62);
+  --composer-min-height: 118px;
+  --composer-padding: 16px 18px;
+  --composer-footer-gap: 12px;
+  --composer-footer-padding: 10px 12px;
+  --composer-footer-font-size: 13px;
+
+  --panel-card-radius: 14px;
+  --panel-card-background: rgba(255, 253, 247, 0.72);
+  --panel-card-padding: 13px;
+  --panel-title-gap: 8px;
+  --panel-title-font-size: 14px;
+  --panel-title-margin-bottom: 11px;
+  --outline-list-gap: 6px;
+  --outline-grid: 22px minmax(0, 1fr);
+  --outline-gap: 7px;
+  --outline-font-size: 12.5px;
+  --outline-line-height: 1.35;
+
+  --desktop-preview-gap: 10px;
+  --desktop-card-padding: 12px;
+  --desktop-card-border: 1px solid rgba(220, 207, 177, 0.58);
+  --desktop-card-radius: 8px;
+  --desktop-card-background: linear-gradient(180deg, rgba(255, 251, 238, 0.94), rgba(252, 246, 225, 0.78));
+  --desktop-card-ink: #486962;
+  --desktop-card-shadow: 0 10px 20px rgba(83, 112, 89, 0.08);
+  --desktop-card-max-height: 142px;
+  --desktop-card-font-size: 13px;
+  --desktop-card-line-height: 1.5;
+
+  --floating-card-right: 38px;
+  --floating-card-bottom: 38px;
+  --floating-card-width: 360px;
+  --floating-card-border: 1px solid rgba(220, 207, 177, 0.68);
+  --floating-card-radius: 12px;
+  --floating-card-background: linear-gradient(180deg, rgba(255, 251, 238, 0.96), rgba(252, 246, 225, 0.88));
+  --floating-card-shadow: 0 20px 40px rgba(74, 103, 86, 0.2);
+  --floating-card-page-padding: 10px;
+  --floating-card-page-background: linear-gradient(180deg, rgba(255, 251, 238, 0.96), rgba(252, 246, 225, 0.9));
+  --floating-card-mode-min-height: calc(100vh - 20px);
+  --floating-card-mode-border: 1px solid rgba(220, 207, 177, 0.58);
+  --floating-card-mode-radius: 10px;
+  --floating-card-mode-background: rgba(255, 253, 247, 0.62);
+  --floating-card-head-padding: 8px 10px;
+  --floating-card-head-font-size: 12px;
+  --floating-card-body-padding: 14px 16px 18px;
+  --floating-card-body-ink: #486962;
+  --floating-card-body-font-size: 14px;
+  --floating-card-body-line-height: 1.62;
+  --floating-card-body-max-height: 320px;
+
+  --mobile-shell-padding: 12px;
+  --mobile-page-padding: 20px 16px;
 
   --ui-font: "Nunito", "Avenir Next", "Hiragino Sans GB", "PingFang SC", ui-rounded, system-ui, sans-serif;
   --editor-font: "Avenir Next", "PingFang SC", "Hiragino Sans GB", ui-sans-serif, system-ui, sans-serif;
@@ -68,7 +315,7 @@
   --code-bg: var(--theme-code-bg);
   --code-ink: var(--theme-code-ink);
   --shadow: var(--theme-shadow);
-  --paper-shadow: var(--theme-paper-shadow);
+  --surface-shadow: var(--theme-surface-shadow);
 
   font-family: var(--ui-font);
   color: var(--ink);

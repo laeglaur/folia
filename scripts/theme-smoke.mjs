@@ -1,6 +1,6 @@
 import { chromium } from '@playwright/test';
 
-const themes = ['garden', 'paper', 'studio', 'archive'];
+const themes = ['garden', 'ledger'];
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 
@@ -20,10 +20,27 @@ for (const theme of themes) {
       styles.getPropertyValue('--theme-bg').trim() &&
       styles.getPropertyValue('--theme-accent').trim() &&
       styles.getPropertyValue('--theme-highlight').trim() &&
-      styles.getPropertyValue('--theme-bracket-todo').trim()
+      styles.getPropertyValue('--theme-bracket-todo').trim() &&
+      styles.getPropertyValue('--layout-sidebar-width').trim() &&
+      styles.getPropertyValue('--shape-page-radius').trim() &&
+      styles.getPropertyValue('--nav-item-radius').trim() &&
+      styles.getPropertyValue('--block-list-gap').trim()
     );
   });
 }
+
+checks.ledgerDiffersFromGarden = await page.evaluate(() => {
+  document.documentElement.dataset.theme = 'garden';
+  const gardenStyles = getComputedStyle(document.documentElement);
+  const gardenWidth = gardenStyles.getPropertyValue('--layout-page-width').trim();
+  const gardenRadius = gardenStyles.getPropertyValue('--nav-item-radius').trim();
+  document.documentElement.dataset.theme = 'ledger';
+  const ledgerStyles = getComputedStyle(document.documentElement);
+  return (
+    ledgerStyles.getPropertyValue('--layout-page-width').trim() !== gardenWidth &&
+    ledgerStyles.getPropertyValue('--nav-item-radius').trim() !== gardenRadius
+  );
+});
 
 const composer = page.locator('.composer').last();
 await composer.click();
