@@ -36,7 +36,7 @@ import { TableRow } from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { ListItem } from '@tiptap/extension-list';
-import { Extension, InputRule } from '@tiptap/core';
+import { Extension, InputRule, Node, mergeAttributes } from '@tiptap/core';
 import type { AppState, Block, Page, ThemeId } from './types';
 import {
   appendOperation,
@@ -174,6 +174,73 @@ const NotebookTaskItem = TaskItem.extend({
   }
 });
 
+const NotebookVideo = Node.create({
+  name: 'video',
+  group: 'block',
+  atom: true,
+
+  addAttributes() {
+    return {
+      src: { default: null },
+      controls: { default: true }
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'video[src]' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['video', mergeAttributes(HTMLAttributes, { controls: '' })];
+  }
+});
+
+const NotebookAudio = Node.create({
+  name: 'audio',
+  group: 'block',
+  atom: true,
+
+  addAttributes() {
+    return {
+      src: { default: null },
+      controls: { default: true }
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'audio[src]' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['audio', mergeAttributes(HTMLAttributes, { controls: '' })];
+  }
+});
+
+const NotebookEmbed = Node.create({
+  name: 'mediaEmbed',
+  group: 'block',
+  atom: true,
+
+  addAttributes() {
+    return {
+      src: { default: null },
+      title: { default: 'Embedded media' }
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'iframe.media-embed[src]' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['iframe', mergeAttributes(HTMLAttributes, {
+      class: 'media-embed',
+      loading: 'lazy',
+      allowfullscreen: 'true'
+    })];
+  }
+});
+
 const BracketTodoInput = Extension.create({
   name: 'bracketTodoInput',
 
@@ -258,6 +325,9 @@ const createEditorExtensions = (
   NotebookListItem,
   TaskList,
   NotebookTaskItem.configure({ nested: true }),
+  NotebookVideo,
+  NotebookAudio,
+  NotebookEmbed,
   BracketTodoInput,
   NotebookShortcuts.configure({ onShiftEnter, onMoveBlock }),
   Placeholder.configure({ placeholder: placeholder ?? '' })

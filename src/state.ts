@@ -214,9 +214,46 @@ const markdownInlineToHtml = (value: string) => {
   return typeof html === 'string' ? html : escapeHtml(value);
 };
 
+const urlWithoutQuery = (url: string) => url.split(/[?#]/)[0] ?? url;
+const isVideoUrl = (url: string) => /\.(mp4|mov|webm|m4v)$/i.test(urlWithoutQuery(url));
+const isAudioUrl = (url: string) => /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(urlWithoutQuery(url));
+
+const embedUrlFor = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, '');
+    if (host === 'youtu.be') return `https://www.youtube.com/embed/${escapeHtml(parsed.pathname.slice(1))}`;
+    if (host === 'youtube.com' || host === 'm.youtube.com') {
+      const videoId = parsed.searchParams.get('v');
+      if (videoId) return `https://www.youtube.com/embed/${escapeHtml(videoId)}`;
+      if (parsed.pathname.startsWith('/embed/')) return escapeHtml(parsed.href);
+    }
+    if (host === 'vimeo.com') {
+      const videoId = parsed.pathname.split('/').filter(Boolean)[0];
+      if (videoId) return `https://player.vimeo.com/video/${escapeHtml(videoId)}`;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+const mediaHtmlForUrl = (url: string, label = '') => {
+  const src = escapeHtml(url.trim());
+  const title = escapeHtml(label.trim() || 'Embedded media');
+  const embedUrl = embedUrlFor(url.trim());
+  if (isVideoUrl(url)) return `<video controls src="${src}"></video>`;
+  if (isAudioUrl(url)) return `<audio controls src="${src}"></audio>`;
+  if (embedUrl) return `<iframe class="media-embed" src="${embedUrl}" title="${title}" loading="lazy" allowfullscreen></iframe>`;
+  return null;
+};
+
 const normalizeMarkdownForMarked = (markdown: string) =>
   normalizeMarkdownWhitespace(markdown)
     .replace(/!\[([^\]]*)\]\(([^)\n]+)\)/g, (_match, alt: string, src: string) => `<img src="${escapeHtml(src.trim())}" alt="${escapeHtml(alt)}">`)
+    .replace(/^\s*\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)\s*$/gm, (match, label: string, url: string) => mediaHtmlForUrl(url, label) ?? match)
+    .replace(/^\s*(https?:\/\/\S+\.(?:mp4|mov|webm|m4v|mp3|wav|m4a|aac|ogg|flac)(?:[?#]\S*)?)\s*$/gim, (_match, url: string) => mediaHtmlForUrl(url) ?? _match)
+    .replace(/^\s*(https?:\/\/(?:www\.)?(?:youtu\.be|youtube\.com|m\.youtube\.com|vimeo\.com)\/\S+)\s*$/gim, (_match, url: string) => mediaHtmlForUrl(url) ?? _match)
     .replace(/==([^=\n][\s\S]*?[^=\n])==/g, '<mark>$1</mark>')
     .replace(/^\s*【】\s+(.+)$/gm, '- [ ] <mark>$1</mark>')
     .replace(/(?:^\s*[-*+]\s+\[[ xX]\]\s+.+(?:\n|$))+/gm, (block) => {

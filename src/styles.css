@@ -679,14 +679,52 @@ input, select { color: var(--ink); }
 .block-content img,
 .composer img,
 .floating-card-body img,
-.desktop-card img {
+.desktop-card img,
+.block-content video,
+.composer video,
+.floating-card-body video,
+.desktop-card video,
+.block-content audio,
+.composer audio,
+.floating-card-body audio,
+.desktop-card audio,
+.block-content iframe.media-embed,
+.composer iframe.media-embed,
+.floating-card-body iframe.media-embed,
+.desktop-card iframe.media-embed {
   display: block;
   max-width: 100%;
-  height: auto;
   margin: var(--media-margin);
   border: var(--media-border);
   border-radius: var(--media-radius);
   box-shadow: var(--media-shadow);
+}
+
+.block-content img,
+.composer img,
+.floating-card-body img,
+.desktop-card img,
+.block-content video,
+.composer video,
+.floating-card-body video,
+.desktop-card video {
+  height: auto;
+}
+
+.block-content audio,
+.composer audio,
+.floating-card-body audio,
+.desktop-card audio {
+  width: 100%;
+}
+
+.block-content iframe.media-embed,
+.composer iframe.media-embed,
+.floating-card-body iframe.media-embed,
+.desktop-card iframe.media-embed {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--panel-2);
 }
 
 .block-content table,
