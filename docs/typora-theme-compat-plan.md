@@ -18,20 +18,18 @@ Already implemented:
 - Tiptap rich editor.
 - SQLite state snapshot, attachment metadata, and operation log foundation.
 - Markdown import as one rich block per page.
-- Markdown import for headings, links, images, video, audio, embeds, lists, todos, tables, highlight, inline code, code blocks, and indented fences.
+- Markdown import for headings, links, images, video, audio, embeds, nested lists, todos, tables, highlight, inline code, code blocks, indented fences, footnotes, frontmatter, and inline/block math.
 - Local attachment copying for imported images, audio, and video.
+- Real right-side outline from page title, headings, and list parents.
 - Theme CSS token system with Garden and Ledger.
 - Editor, Markdown, theme, Rust attachment, and build smoke tests.
 - Progress tracker at `docs/progress.md`.
 
 Known gaps that matter for Typora-style writing:
 
-- Real heading/list outline is not implemented yet.
-- Frontmatter metadata import is not implemented.
-- Footnotes are not implemented.
-- LaTeX/math is not implemented.
-- Blockquote, horizontal rule, and strikethrough are not explicitly covered by smoke tests yet.
-- Underline is not implemented as a first-class rich-text mark yet.
+- Typora scoped content theme infrastructure is not implemented.
+- Typora CSS selector rewriting/prefixing is not implemented.
+- Pilot Typora themes are not installed yet.
 - Mermaid/diagram and Markdown source mode are desirable later but not part of this first compatibility milestone.
 - Markdown export is still too basic for advanced content.
 
@@ -47,13 +45,14 @@ First compatibility milestone:
 
 - advanced Markdown fixture coverage for Typora-styled basics such as blockquote, horizontal rule, strikethrough, code, tables, images, task lists, and nested lists
 - underline rich-text support
-- real TOC/outline from headings and collapsible list parents
+- real right-side outline from headings and collapsible list parents
 - YAML frontmatter import into page metadata
 - footnotes
 - inline math and block math
 
 Deferred:
 
+- inline Typora TOC block, because the right-side outline is sufficient for now
 - Mermaid/diagram rendering
 - Markdown source mode / CodeMirror
 - Typora sidebar/file tree compatibility
@@ -182,7 +181,7 @@ The current `theme` field can remain for Garden/Ledger while this is introduced.
 
 ## Advanced Writing Features In Scope
 
-### Real TOC And Outline
+### Real Right-Side Outline
 
 Replace the current block-preview outline with a real document outline.
 
@@ -197,7 +196,7 @@ Behavior:
 - show concise heading/list entries
 - preserve hierarchy when possible
 - jump to the exact heading/list item
-- support Typora-style TOC rendering inside content later
+- do not implement an inline Typora-style TOC block in this milestone
 
 Testing:
 
@@ -301,6 +300,10 @@ Testing:
 - math survives state save/load
 - math CSS can be themed
 
+Status:
+
+- Implemented with `@tiptap/extension-mathematics` and KaTeX.
+
 ## Deferred Advanced Features
 
 ### Mermaid / Diagram
@@ -333,29 +336,29 @@ Design expectation:
 
 ### Phase 1: Content Features
 
-1. Advanced fixture and small mark coverage:
+1. Advanced fixture and small mark coverage: done
    - add Markdown smoke coverage for blockquote, horizontal rule, strikethrough, nested lists, task lists, table, image/media, and code
    - verify StarterKit preserves blockquote, horizontal rule, and strikethrough
    - add underline support as a rich-text mark
    - add theme tokens for blockquote and horizontal rule
 
-2. Real outline:
+2. Real outline: done
    - extract headings from block HTML
    - extract collapsible list parent text
    - render hierarchical right-panel outline
    - jump to exact headings/list items
 
-3. Frontmatter:
+3. Frontmatter: done
    - parse YAML-ish frontmatter without overbuilding
    - add page metadata fields
    - remove frontmatter from imported body
    - show a compact metadata strip later if useful
 
-4. Footnotes:
+4. Footnotes: done
    - enable Markdown footnote parsing or add a preprocessing pass
    - style footnotes through theme tokens and Typora selectors
 
-5. Math:
+5. Math: done
    - choose the package after checking current Tiptap compatibility
    - add inline/block math import/render
    - add CSS hooks
@@ -378,7 +381,7 @@ Each subfeature should be separately committed and tested.
    - `#write` equivalent
    - `.md-fences` equivalent
    - task list equivalent
-   - footnote/math/TOC equivalents
+   - footnote/math equivalents
 
 4. Add importer/prefixer:
    - use PostCSS or another CSS parser

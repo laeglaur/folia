@@ -14,11 +14,14 @@ Updated: 2026-06-13
 - Bullets and task list items can collapse and persist collapsed state in saved HTML.
 - Markdown import creates one rich block per imported page by default, preserving headings, links, nested lists, todos, tables, highlight, inline code, code blocks, video, audio, and common embeds.
 - Markdown import parses leading frontmatter into page metadata, including title, tags, date, status, aliases, and simple custom fields.
+- Markdown import renders footnotes with Typora-compatible hooks.
+- Markdown import renders inline and block LaTeX math through Tiptap Mathematics and KaTeX.
 - Markdown import now shows visible success/warning/error feedback.
 - Local imported image/audio/video assets are copied into app data attachments storage in Tauri and referenced through the Tauri asset protocol.
 - Attachment metadata is stored in SQLite with content hash deduplication.
 - Right outline now extracts page title, block headings, and imported list parents, with jump-to-heading behavior.
 - Underline, strikethrough, blockquote, and horizontal rule are covered in editor/Markdown smoke tests.
+- Typora Phase 1 content feature coverage is complete except intentionally deferred inline TOC, Mermaid/diagram, and source mode.
 - Markdown export and JSON backup exist.
 - Theme CSS system exists with semantic tokens, Garden as the default theme, and Ledger as a contrasting layout/theme proof.
 - Themes can control sidebar chrome, page width, spacing, blocks, highlights, todos, code, tables, media, outline, and card surfaces.
@@ -33,6 +36,7 @@ Updated: 2026-06-13
 - SQLite currently stores a state snapshot plus operation log; normalized notebook/page/block tables are not fully used yet.
 - Multi-device sync is designed through operation logs, but there is no sync transport or conflict UI.
 - Themes are tokenized and flexible, but custom external CSS import is not implemented.
+- Typora content theme scoping, CSS prefixing, and pilot theme installation are not implemented yet.
 - Media import supports common URLs and local attachment copying, but there is no in-editor media picker/uploader yet.
 - Block-internal columns/layout groups are still not implemented.
 
@@ -51,11 +55,11 @@ Updated: 2026-06-13
 
 ## Suggested Next Work
 
-1. Improve desktop cards: make pinned cards reflect source edits, allow todo toggling, and add a return-to-source action.
-2. Implement block-internal layout groups for 2 to 4 columns, starting with image pairs and left-text/right-image.
-3. Improve Markdown export fidelity for todos, tables, media, embeds, and highlights.
-4. Add custom theme loading after the theme contract settles a little more.
-5. Start calendar/kanban views on top of block metadata.
+1. Add Typora content theme scope: `.typora-theme`, `.typora-write`, and `data-content-theme`.
+2. Add a Typora CSS prefixer/bridge for `#write`, headings, code fences, task lists, footnotes, and math.
+3. Install pilot Typora themes, starting with Konayuki, Folio, Zeus, Bonne nouvelle, and Flexoki Light.
+4. Improve Markdown export fidelity for todos, tables, media, embeds, footnotes, and math.
+5. Return to desktop cards after Typora theme migration is usable.
 
 ## Recent Verified Commits
 
