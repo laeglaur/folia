@@ -631,46 +631,46 @@ input, select { color: var(--ink); }
   line-height: 1;
 }
 
-.block-content li.is-collapsed-list:has(> ul)::before,
-.block-content li.is-collapsed-list:has(> ol)::before,
-.composer li.is-collapsed-list:has(> ul)::before,
-.composer li.is-collapsed-list:has(> ol)::before,
-.block-content li.is-collapsed-list[data-checked]:has(> div > ul)::before,
-.block-content li.is-collapsed-list[data-checked]:has(> div > ol)::before,
-.composer li.is-collapsed-list[data-checked]:has(> div > ul)::before,
-.composer li.is-collapsed-list[data-checked]:has(> div > ol)::before {
+.block-content li[data-list-collapsed="true"]:has(> ul)::before,
+.block-content li[data-list-collapsed="true"]:has(> ol)::before,
+.composer li[data-list-collapsed="true"]:has(> ul)::before,
+.composer li[data-list-collapsed="true"]:has(> ol)::before,
+.block-content li[data-list-collapsed="true"][data-checked]:has(> div > ul)::before,
+.block-content li[data-list-collapsed="true"][data-checked]:has(> div > ol)::before,
+.composer li[data-list-collapsed="true"][data-checked]:has(> div > ul)::before,
+.composer li[data-list-collapsed="true"][data-checked]:has(> div > ol)::before {
   transform: rotate(0deg);
 }
 
-.block-content li:not(.is-collapsed-list):has(> ul)::before,
-.block-content li:not(.is-collapsed-list):has(> ol)::before,
-.composer li:not(.is-collapsed-list):has(> ul)::before,
-.composer li:not(.is-collapsed-list):has(> ol)::before,
-.block-content li:not(.is-collapsed-list)[data-checked]:has(> div > ul)::before,
-.block-content li:not(.is-collapsed-list)[data-checked]:has(> div > ol)::before,
-.composer li:not(.is-collapsed-list)[data-checked]:has(> div > ul)::before,
-.composer li:not(.is-collapsed-list)[data-checked]:has(> div > ol)::before {
+.block-content li:not([data-list-collapsed="true"]):has(> ul)::before,
+.block-content li:not([data-list-collapsed="true"]):has(> ol)::before,
+.composer li:not([data-list-collapsed="true"]):has(> ul)::before,
+.composer li:not([data-list-collapsed="true"]):has(> ol)::before,
+.block-content li:not([data-list-collapsed="true"])[data-checked]:has(> div > ul)::before,
+.block-content li:not([data-list-collapsed="true"])[data-checked]:has(> div > ol)::before,
+.composer li:not([data-list-collapsed="true"])[data-checked]:has(> div > ul)::before,
+.composer li:not([data-list-collapsed="true"])[data-checked]:has(> div > ol)::before {
   transform: rotate(90deg);
 }
 
-.block-content li.is-collapsed-list > ul,
-.block-content li.is-collapsed-list > ol,
-.composer li.is-collapsed-list > ul,
-.composer li.is-collapsed-list > ol,
-.block-content li.is-collapsed-list[data-checked] > div > ul,
-.block-content li.is-collapsed-list[data-checked] > div > ol,
-.composer li.is-collapsed-list[data-checked] > div > ul,
-.composer li.is-collapsed-list[data-checked] > div > ol {
+.block-content li[data-list-collapsed="true"] > ul,
+.block-content li[data-list-collapsed="true"] > ol,
+.composer li[data-list-collapsed="true"] > ul,
+.composer li[data-list-collapsed="true"] > ol,
+.block-content li[data-list-collapsed="true"][data-checked] > div > ul,
+.block-content li[data-list-collapsed="true"][data-checked] > div > ol,
+.composer li[data-list-collapsed="true"][data-checked] > div > ul,
+.composer li[data-list-collapsed="true"][data-checked] > div > ol {
   display: none;
 }
 
-.block-content li.is-collapsed-list,
-.composer li.is-collapsed-list {
+.block-content li[data-list-collapsed="true"],
+.composer li[data-list-collapsed="true"] {
   color: color-mix(in srgb, var(--ink) 82%, var(--muted));
 }
 
-.block-content li.is-collapsed-list::after,
-.composer li.is-collapsed-list::after {
+.block-content li[data-list-collapsed="true"]::after,
+.composer li[data-list-collapsed="true"]::after {
   content: "  ...";
   color: var(--accent);
   font-size: 0.9em;

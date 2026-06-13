@@ -100,6 +100,21 @@ await page.keyboard.press('Enter');
 const enteredText = await firstBlock.innerText();
 checks.enterAtCaret = /abc\s+de/.test(enteredText);
 
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+const collapseComposer = page.locator('.composer').last();
+await collapseComposer.click();
+await page.keyboard.type('- parent');
+await page.keyboard.press('Enter');
+await page.keyboard.press('Tab');
+await page.keyboard.type('child');
+const parentListItemBox = await collapseComposer.locator('li:has(ul)').first().boundingBox();
+if (parentListItemBox) {
+  await page.mouse.click(parentListItemBox.x + 8, parentListItemBox.y + 8);
+}
+const collapsedHtml = await collapseComposer.evaluate((node) => node.innerHTML);
+checks.persistedListCollapse = collapsedHtml.includes('data-list-collapsed="true"');
+
 console.log(JSON.stringify({ checks }, null, 2));
 await browser.close();
 

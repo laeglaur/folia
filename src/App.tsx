@@ -28,6 +28,7 @@ import Highlight from '@tiptap/extension-highlight';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
+import { ListItem } from '@tiptap/extension-list';
 import { Extension, InputRule } from '@tiptap/core';
 import type { AppState, Block, Page, ThemeId } from './types';
 import {
@@ -69,7 +70,29 @@ type RichEditorProps = {
   editorRef: (editor: Editor | null) => void;
 };
 
-const toggleCollapsibleListItem = (event: React.MouseEvent<HTMLDivElement>) => {
+const setListItemCollapsed = (editor: Editor, listItem: HTMLElement, collapsed: boolean) => {
+  try {
+    const pos = editor.view.posAtDOM(listItem, 0);
+    const resolved = editor.state.doc.resolve(Math.max(0, pos));
+    for (let depth = resolved.depth; depth > 0; depth -= 1) {
+      const node = resolved.node(depth);
+      if (node.type.name !== 'listItem' && node.type.name !== 'taskItem') continue;
+      const nodePos = resolved.before(depth);
+      const transaction = editor.state.tr.setNodeMarkup(nodePos, undefined, {
+        ...node.attrs,
+        listCollapsed: collapsed
+      });
+      editor.view.dispatch(transaction);
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+};
+
+const toggleCollapsibleListItem = (event: React.MouseEvent<HTMLDivElement>, editor: Editor | null) => {
+  if (!editor) return;
   const target = event.target as HTMLElement;
   const editorRoot = event.currentTarget;
   const listItem = target.closest('li');
@@ -78,7 +101,8 @@ const toggleCollapsibleListItem = (event: React.MouseEvent<HTMLDivElement>) => {
   const rect = listItem.getBoundingClientRect();
   if (event.clientX - rect.left > 28) return;
   event.preventDefault();
-  listItem.classList.toggle('is-collapsed-list');
+  const collapsed = listItem.getAttribute('data-list-collapsed') !== 'true';
+  setListItemCollapsed(editor, listItem, collapsed);
 };
 
 const themes: Array<{ id: ThemeId; label: string }> = [
@@ -100,10 +124,32 @@ const firstLines = (text: string, lines = 2) => {
 const todoInputRegex = /^\s*(\[\]|【】)\s$/;
 const codeBlockInputRegex = /^\s*(```|\/code)\s$/;
 
+const NotebookListItem = ListItem.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      listCollapsed: {
+        default: false,
+        parseHTML: (element) => element.getAttribute('data-list-collapsed') === 'true',
+        renderHTML: (attributes) => ({
+          'data-list-collapsed': attributes.listCollapsed ? 'true' : 'false'
+        })
+      }
+    };
+  }
+});
+
 const NotebookTaskItem = TaskItem.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
+      listCollapsed: {
+        default: false,
+        parseHTML: (element) => element.getAttribute('data-list-collapsed') === 'true',
+        renderHTML: (attributes) => ({
+          'data-list-collapsed': attributes.listCollapsed ? 'true' : 'false'
+        })
+      },
       todoStyle: {
         default: 'plain',
         parseHTML: (element) => element.getAttribute('data-todo-style') ?? 'plain',
@@ -177,9 +223,11 @@ const createEditorExtensions = (
   onMoveBlock?: (direction: -1 | 1) => boolean
 ) => [
   StarterKit.configure({
-    heading: { levels: [1, 2, 3] }
+    heading: { levels: [1, 2, 3] },
+    listItem: false
   }),
   Highlight,
+  NotebookListItem,
   TaskList,
   NotebookTaskItem.configure({ nested: true }),
   BracketTodoInput,
@@ -226,7 +274,7 @@ function RichEditor({
     externalHtmlRef.current = nextHtml;
   }, [editor, html]);
 
-  return <div onMouseDown={toggleCollapsibleListItem}><EditorContent editor={editor} /></div>;
+  return <div onMouseDown={(event) => toggleCollapsibleListItem(event, editor)}><EditorContent editor={editor} /></div>;
 }
 
 export function App() {
