@@ -1,9 +1,69 @@
 @import "./typora/generated/typora-proof.scoped.css";
 @import "./typora/generated/typora-konayuki.scoped.css";
+@import "./typora/generated/typora-swiss.scoped.css";
 @import "./typora/generated/typora-folio.scoped.css";
 @import "./typora/generated/typora-zeus.scoped.css";
 @import "./typora/generated/typora-bonne-nouvelle.scoped.css";
 @import "./typora/generated/typora-flexoki-light.scoped.css";
+
+.typora-theme[data-content-theme^="typora-"] {
+  --theme-body-background: linear-gradient(180deg, color-mix(in srgb, var(--theme-bg) 92%, white), var(--theme-bg));
+  --theme-panel-background: color-mix(in srgb, var(--theme-surface-solid) 84%, white);
+  --page-background: color-mix(in srgb, var(--theme-surface-solid) 88%, white);
+  --panel-card-background: color-mix(in srgb, var(--theme-surface-solid) 86%, transparent);
+  --desktop-card-background: color-mix(in srgb, var(--theme-surface-solid) 88%, var(--theme-chip));
+  --desktop-card-ink: var(--theme-ink);
+  --floating-card-background: color-mix(in srgb, var(--theme-surface-solid) 92%, var(--theme-chip));
+  --floating-card-body-ink: var(--theme-ink);
+}
+
+.typora-theme[data-content-theme="typora-konayuki"] {
+  --theme-bg: #eef8fb;
+  --theme-surface-solid: #fbfeff;
+  --theme-surface: rgba(251, 254, 255, 0.88);
+  --theme-surface-tint: #e6f5f9;
+  --theme-ink: #2d3d46;
+  --theme-muted: #6b858f;
+  --theme-line: rgba(86, 154, 173, 0.22);
+  --theme-line-soft: rgba(86, 154, 173, 0.13);
+  --theme-accent: #4a90a8;
+  --theme-accent-2: #e2a86a;
+  --theme-chip: #eff8f6;
+  --theme-chip-primary: #e8f3ff;
+  --theme-body-background: linear-gradient(145deg, #f4fbfd 0%, #eef8fb 52%, #fff7e8 100%);
+  --theme-panel-background: rgba(251, 254, 255, 0.86);
+  --theme-nav-active-background: linear-gradient(90deg, rgba(74, 144, 168, 0.16), rgba(226, 168, 106, 0.1));
+  --theme-nav-active-ink: #2f6f86;
+  --page-background: rgba(251, 254, 255, 0.9);
+  --panel-card-background: rgba(251, 254, 255, 0.78);
+}
+
+.typora-theme[data-content-theme="typora-swiss"] {
+  --theme-bg: #fcf9f4;
+  --theme-surface-solid: #fffaf6;
+  --theme-surface: rgba(255, 250, 246, 0.94);
+  --theme-surface-tint: #faf5ef;
+  --theme-ink: #111111;
+  --theme-muted: #6d4a43;
+  --theme-line: #e8ddd2;
+  --theme-line-soft: rgba(128, 55, 43, 0.13);
+  --theme-accent: #80372b;
+  --theme-accent-2: #111111;
+  --theme-chip: #fffaf6;
+  --theme-chip-primary: #f4e8dc;
+  --theme-body-background: linear-gradient(180deg, #fffdf9 0%, #fcf9f4 100%);
+  --theme-panel-background: #fffaf6;
+  --theme-nav-active-background: linear-gradient(90deg, rgba(128, 55, 43, 0.12), rgba(17, 17, 17, 0.04));
+  --theme-nav-active-ink: #80372b;
+  --page-background: #fcf9f4;
+  --page-border: 1px solid #e8ddd2;
+  --shape-page-radius: 0;
+  --panel-card-background: #fffaf6;
+  --panel-card-radius: 0;
+  --desktop-card-background: #fffaf6;
+  --desktop-card-border: 1px solid #e8ddd2;
+  --desktop-card-radius: 0;
+}
 
 .typora-theme[data-content-theme^="typora-"] .typora-write .block-content,
 .typora-theme[data-content-theme^="typora-"] .typora-write .composer {
@@ -12,6 +72,57 @@
   font-size: inherit;
   line-height: inherit;
   letter-spacing: inherit;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-write,
+.typora-theme[data-content-theme^="typora-"] .typora-write *,
+.typora-theme[data-content-theme^="typora-"] .typora-write *::before,
+.typora-theme[data-content-theme^="typora-"] .typora-write *::after {
+  box-sizing: border-box;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-write {
+  width: 100%;
+  max-width: min(var(--layout-page-width), calc(100vw - (var(--layout-page-gutter) * 2)));
+  overflow-wrap: break-word;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc {
+  width: 100%;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc pre,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc table,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc img,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc video,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc audio,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc iframe,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc [data-type="block-math"],
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-math-block {
+  max-width: 100%;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc pre,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc table,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc [data-type="block-math"],
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-math-block {
+  overflow-x: auto;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc table {
+  display: table;
+  table-layout: auto;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc img,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc video {
+  height: auto;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc audio {
+  width: 100%;
 }
 
 .typora-theme[data-content-theme^="typora-"] .typora-write .block,

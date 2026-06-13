@@ -1,5 +1,5 @@
 import postcss from 'postcss';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 const themes = [
@@ -12,6 +12,11 @@ const themes = [
     id: 'typora-konayuki',
     label: 'Konayuki',
     sourceUrl: 'https://raw.githubusercontent.com/aerandirsf/Konayuki/main/konayuki-light.css'
+  },
+  {
+    id: 'typora-swiss',
+    label: 'Swiss',
+    sourceUrl: 'https://raw.githubusercontent.com/ChivaLryCieux/swiss-theme/main/swiss.css'
   },
   {
     id: 'typora-folio',
@@ -44,6 +49,14 @@ const ignoredSelectorPatterns = [
   /\.megamenu\b/,
   /\.context-menu\b/,
   /\.md-search\b/,
+  /#md-searchpanel\b/,
+  /\.sidebar\b/,
+  /#sidebar-content\b/,
+  /\.sidebar-content\b/,
+  /\.sidebar-tab\b/,
+  /\.outline-item\b/,
+  /\.file-list\b/,
+  /\.file-list-item\b/,
   /\.typora-node\b/,
   /\.typora-quick-open\b/,
   /contentmenu/i,
@@ -89,18 +102,7 @@ const shouldIgnoreSelector = (selector) => ignoredSelectorPatterns.some((pattern
 const normalizeTyporaSelector = (selector) =>
   selector
     .replace(/#write\b/g, '.typora-write')
-    .replace(/pre\.md-fences(?![-_a-zA-Z0-9])/g, 'pre')
-    .replace(/\.md-fences(?![-_a-zA-Z0-9])/g, 'pre')
-    .replace(/li\.task-list-item\b/g, 'li[data-type="taskItem"]')
-    .replace(/li\.md-task-list-item\b/g, 'li[data-type="taskItem"]')
-    .replace(/\.task-list-item\b/g, '[data-type="taskItem"]')
-    .replace(/\.md-task-list-item\b/g, '[data-type="taskItem"]')
-    .replace(/li\.task-list-done\b/g, 'li[data-checked="true"]')
-    .replace(/\.task-list-done\b/g, '[data-checked="true"]')
-    .replace(/\.md-math-block\b/g, '[data-type="block-math"]')
-    .replace(/\.md-math-inline\b/g, '[data-type="inline-math"]')
-    .replace(/\.mathjax-block\b/g, '[data-type="block-math"]')
-    .replace(/\.mathjax-inline\b/g, '[data-type="inline-math"]');
+    .replace(/\.typora-export\b/g, '.typora-write');
 
 const isTocSelector = (selector) => /\.md-toc\b|\.md-toc-content\b|\.md-toc-item\b/.test(selector);
 
@@ -201,13 +203,21 @@ const rewriteRelativeAssetUrls = (css, sourceUrl) => {
 
 const readThemeCss = async (theme) => {
   if (theme.sourceUrl) {
+    const cachedRawPath = join(process.cwd(), rawPathFor(theme));
+    try {
+      await access(cachedRawPath);
+      return { css: await readFile(cachedRawPath, 'utf8'), fromCache: true };
+    } catch {
+      // Download below when the managed raw copy does not exist yet.
+    }
+
     const response = await fetch(theme.sourceUrl, { headers: { 'User-Agent': 'block-first-notebook-theme-importer' } });
     if (!response.ok) throw new Error(`Could not download ${theme.sourceUrl}: ${response.status} ${response.statusText}`);
-    return response.text();
+    return { css: await response.text(), fromCache: false };
   }
 
   const inputPath = join(process.cwd(), theme.input);
-  return readFile(inputPath, 'utf8');
+  return { css: await readFile(inputPath, 'utf8'), fromCache: true };
 };
 
 const rawPathFor = (theme) => theme.input ?? `src/styles/typora/raw/${theme.id}.css`;
@@ -216,10 +226,10 @@ const outputPathFor = (theme) => theme.output ?? `src/styles/typora/generated/${
 for (const theme of themes) {
   const rawPath = rawPathFor(theme);
   const outputPath = join(process.cwd(), outputPathFor(theme));
-  const rawCss = await readThemeCss(theme);
+  const { css: rawCss, fromCache } = await readThemeCss(theme);
   const cssForScoping = rewriteRelativeAssetUrls(rawCss, theme.sourceUrl);
 
-  if (theme.sourceUrl) {
+  if (theme.sourceUrl && !fromCache) {
     const rawOutputPath = join(process.cwd(), rawPath);
     await mkdir(dirname(rawOutputPath), { recursive: true });
     await writeFile(rawOutputPath, `/* Source: ${theme.sourceUrl} */\n${rawCss}`);

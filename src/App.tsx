@@ -144,6 +144,7 @@ const contentThemes: Array<{ id: ContentThemeId; label: string }> = [
   { id: 'typora-base', label: 'Typora base' },
   { id: 'typora-proof', label: 'Typora proof' },
   { id: 'typora-konayuki', label: 'Konayuki' },
+  { id: 'typora-swiss', label: 'Swiss' },
   { id: 'typora-folio', label: 'Folio' },
   { id: 'typora-zeus', label: 'Zeus' },
   { id: 'typora-bonne-nouvelle', label: 'Bonne nouvelle' },
@@ -236,6 +237,193 @@ const stripOutlineAnchors = (html: string) => {
 
 const todoInputRegex = /^\s*(\[\]|【】)\s$/;
 const codeBlockInputRegex = /^\s*(```|\/code)\s$/;
+
+const syncDomSelectionToEditor = (editor: Editor) => {
+  const selection = window.getSelection();
+  if (!selection?.anchorNode || !editor.view.dom.contains(selection.anchorNode)) return;
+
+  try {
+    const anchor = editor.view.posAtDOM(selection.anchorNode, selection.anchorOffset);
+    const head = selection.focusNode
+      ? editor.view.posAtDOM(selection.focusNode, selection.focusOffset)
+      : anchor;
+    const { from, to } = editor.state.selection;
+    const nextFrom = Math.min(anchor, head);
+    const nextTo = Math.max(anchor, head);
+    if (from === nextFrom && to === nextTo) return;
+    editor.commands.setTextSelection({ from: nextFrom, to: nextTo });
+  } catch {
+    // Browser selections can briefly point at non-editable chrome; keep the current editor state then.
+  }
+};
+
+const typoraClass = (existing: unknown, ...aliases: string[]) => {
+  const classes = [
+    ...(typeof existing === 'string' ? existing.split(/\s+/) : []),
+    ...aliases
+  ].map((name) => name.trim()).filter(Boolean);
+  return [...new Set(classes)].join(' ');
+};
+
+const TyporaAliases = Extension.create({
+  name: 'typoraAliases',
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['paragraph'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'md-end-block') })
+          }
+        }
+      },
+      {
+        types: ['heading'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'md-heading', 'md-end-block') })
+          },
+          typoraHeadingLevel: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('data-heading-level'),
+            renderHTML: (attributes) => {
+              const level = attributes.level ?? attributes.typoraHeadingLevel;
+              return level ? { 'data-heading-level': String(level) } : {};
+            }
+          }
+        }
+      },
+      {
+        types: ['codeBlock'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'md-fences', 'md-end-block') })
+          }
+        }
+      },
+      {
+        types: ['table'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'md-table') })
+          }
+        }
+      },
+      {
+        types: ['bulletList', 'orderedList'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'md-list') })
+          }
+        }
+      },
+      {
+        types: ['taskList'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'contains-task-list', 'md-list') })
+          }
+        }
+      },
+      {
+        types: ['listItem'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'md-list-item', 'md-end-block') })
+          }
+        }
+      },
+      {
+        types: ['taskItem'],
+        attributes: {
+          typoraTaskType: {
+            default: 'taskItem',
+            parseHTML: (element) => element.getAttribute('data-type') ?? 'taskItem',
+            renderHTML: () => ({ 'data-type': 'taskItem' })
+          },
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({
+              class: typoraClass(
+                attributes.class,
+                'task-list-item',
+                'md-task-list-item',
+                attributes.checked ? 'task-list-done' : '',
+                'md-end-block'
+              )
+            })
+          }
+        }
+      },
+      {
+        types: ['image'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'md-image') })
+          }
+        }
+      },
+      {
+        types: ['video', 'audio', 'mediaEmbed'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'md-media') })
+          }
+        }
+      },
+      {
+        types: ['inlineMath'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'md-math-inline', 'mathjax-inline') })
+          }
+        }
+      },
+      {
+        types: ['blockMath'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'md-math-block', 'mathjax-block', 'md-end-block') })
+          }
+        }
+      },
+      {
+        types: ['blockquote', 'horizontalRule'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'md-end-block') })
+          }
+        }
+      }
+    ];
+  }
+});
 
 const NotebookListItem = ListItem.extend({
   addAttributes() {
@@ -466,10 +654,12 @@ const NotebookShortcuts = Extension.create<{
     return {
       'Mod-h': () => this.editor.commands.toggleHighlight(),
       Enter: () => {
+        syncDomSelectionToEditor(this.editor);
         const { state } = this.editor;
         const { $from } = state.selection;
         const text = $from.parent.textContent.trim();
-        if ($from.parent.type.name !== 'paragraph' || !['```', '/code'].includes(text)) return false;
+        if ($from.parent.type.name !== 'paragraph') return false;
+        if (!['```', '/code'].includes(text)) return this.editor.commands.splitBlock();
         return this.editor
           .chain()
           .deleteRange({ from: $from.start(), to: $from.end() })
@@ -494,6 +684,7 @@ const createEditorExtensions = (
     heading: { levels: [1, 2, 3, 4, 5, 6] },
     listItem: false
   }),
+  TyporaAliases,
   Highlight,
   Underline,
   Link.configure({
@@ -547,7 +738,7 @@ function RichEditor({
     content: html || '',
     editorProps: {
       attributes: {
-        class: `${className} tiptap-editor`
+        class: `${className} tiptap-editor typora-block-doc`
       }
     },
     onFocus: ({ editor }) => onFocus(editor),

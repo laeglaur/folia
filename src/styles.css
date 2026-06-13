@@ -465,34 +465,6 @@ input, select { color: var(--ink); }
   font-family: Georgia, "Times New Roman", serif;
 }
 
-.typora-theme[data-content-theme^="typora-"] .typora-content-surface .block-content,
-.typora-theme[data-content-theme^="typora-"] .typora-content-surface .composer {
-  color: inherit;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  letter-spacing: inherit;
-}
-
-.typora-theme[data-content-theme^="typora-"] .typora-content-surface .block,
-.typora-theme[data-content-theme^="typora-"] .typora-content-surface .block:hover,
-.typora-theme[data-content-theme^="typora-"] .typora-content-surface .block:focus-within {
-  background: transparent;
-}
-
-.typora-theme[data-content-theme^="typora-"] .typora-content-surface .page-title,
-.typora-theme[data-content-theme^="typora-"] .typora-content-surface .page-metadata,
-.typora-theme[data-content-theme^="typora-"] .typora-content-surface .format-toolbar,
-.typora-theme[data-content-theme^="typora-"] .typora-content-surface .composer-footer,
-.typora-theme[data-content-theme^="typora-"] .typora-content-surface .block-rail,
-.typora-theme[data-content-theme^="typora-"] .typora-content-surface .block-actions {
-  color: var(--ink);
-  font-family: var(--ui-font);
-  font-size: revert;
-  line-height: normal;
-  letter-spacing: 0;
-}
-
 .typora-theme .desktop-card,
 .typora-theme .floating-card-body {
   font-family: var(--editor-font);

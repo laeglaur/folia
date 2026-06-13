@@ -14,6 +14,13 @@
     "sourceUrl": "https://raw.githubusercontent.com/aerandirsf/Konayuki/main/konayuki-light.css"
   },
   {
+    "id": "typora-swiss",
+    "label": "Swiss",
+    "rawCss": "src/styles/typora/raw/typora-swiss.css",
+    "scopedCss": "src/styles/typora/generated/typora-swiss.scoped.css",
+    "sourceUrl": "https://raw.githubusercontent.com/ChivaLryCieux/swiss-theme/main/swiss.css"
+  },
+  {
     "id": "typora-folio",
     "label": "Folio",
     "rawCss": "src/styles/typora/raw/typora-folio.css",

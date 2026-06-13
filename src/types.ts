@@ -4,6 +4,7 @@ export type ContentThemeId =
   | 'typora-base'
   | 'typora-proof'
   | 'typora-konayuki'
+  | 'typora-swiss'
   | 'typora-folio'
   | 'typora-zeus'
   | 'typora-bonne-nouvelle'

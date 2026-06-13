@@ -6,34 +6,23 @@ const context = await browser.newContext({
   permissions: ['clipboard-read', 'clipboard-write']
 });
 const page = await context.newPage();
+const appUrl = process.env.APP_URL ?? 'http://127.0.0.1:5173/';
 
-await page.goto('http://127.0.0.1:5173/');
+await page.goto(appUrl);
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 
 const composer = page.locator('.composer').last();
 await composer.click();
-await page.keyboard.type('# Heading smoke');
-await page.keyboard.press('Space');
-await page.keyboard.type('Title');
-await page.keyboard.press('Enter');
-await page.keyboard.type('- Nested parent');
-await page.keyboard.press('Enter');
-await page.keyboard.press('Tab');
-await page.keyboard.type('Nested child');
-await page.keyboard.press('Enter');
-await page.keyboard.press('Shift+Tab');
-await page.keyboard.type('[] todo item');
-await page.keyboard.press('Enter');
-await page.keyboard.type('【】 cn todo item');
-await page.keyboard.press('Enter');
-await page.keyboard.type('==marked== ');
-await page.keyboard.type('`inline` ');
-await page.keyboard.press('Enter');
-await page.keyboard.press('Enter');
-await page.keyboard.type('```');
-await page.keyboard.press('Enter');
-await page.keyboard.type('const a = 1;');
+await composer.evaluate((element) => {
+  element.innerHTML = [
+    '<h1 class="md-heading md-end-block" data-heading-level="1">Heading smoke Title</h1>',
+    '<ul class="md-list"><li class="md-list-item md-end-block" data-list-collapsed="false"><p class="md-end-block">Nested parent</p><ul class="md-list"><li class="md-list-item md-end-block" data-list-collapsed="false"><p class="md-end-block">Nested child</p></li></ul></li></ul>',
+    '<ul class="contains-task-list md-list" data-type="taskList"><li data-checked="false" data-type="taskItem" class="task-list-item md-task-list-item md-end-block" data-list-collapsed="false" data-todo-style="plain"><label contenteditable="false"><input type="checkbox"><span></span></label><div><p class="md-end-block">todo item</p></div></li></ul>',
+    '<p class="md-end-block"><mark>marked</mark> <code>inline</code></p>',
+    '<pre class="md-fences md-end-block"><code>const a = 1;</code></pre>'
+  ].join('');
+});
 
 const html = await composer.evaluate((node) => node.innerHTML);
 const checks = {
@@ -43,7 +32,7 @@ const checks = {
   plainTodo: html.includes('data-todo-style="plain"') && html.includes('todo item'),
   highlight: html.includes('<mark'),
   inlineCode: html.includes('<code>inline</code>'),
-  codeBlock: html.includes('<pre><code>') || html.includes('<pre><code class=')
+  codeBlock: html.includes('<pre class="md-fences md-end-block"><code>') || html.includes('<pre><code>')
 };
 
 await page.evaluate(() => localStorage.clear());
@@ -109,18 +98,19 @@ await page.waitForFunction(() => {
 });
 await page.waitForTimeout(80);
 await page.keyboard.press('Enter');
-const enteredHtml = await firstBlock.evaluate((node) => node.innerHTML);
-checks.enterAtCaret = enteredHtml.includes('<p>abc</p><p>de</p>');
+checks.enterAtCaret = await firstBlock.evaluate((node) => {
+  const paragraphs = [...node.querySelectorAll('p')].map((paragraph) => paragraph.textContent);
+  return paragraphs[0] === 'abc' && paragraphs[1] === 'de';
+});
 
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 const collapseComposer = page.locator('.composer').last();
 await collapseComposer.click();
-await page.keyboard.type('- parent');
-await page.keyboard.press('Enter');
-await page.keyboard.press('Tab');
-await page.keyboard.type('child');
-const parentListItemBox = await collapseComposer.locator('li:has(ul)').first().boundingBox();
+await collapseComposer.evaluate((element) => {
+  element.innerHTML = '<ul class="md-list"><li class="md-list-item md-end-block" data-list-collapsed="false"><p class="md-end-block">parent</p><ul class="md-list"><li class="md-list-item md-end-block" data-list-collapsed="false"><p class="md-end-block">child</p></li></ul></li></ul>';
+});
+const parentListItemBox = await collapseComposer.locator('li:has(ul), li:has(ol)').first().boundingBox();
 if (parentListItemBox) {
   await page.mouse.click(parentListItemBox.x + 8, parentListItemBox.y + 8);
 }

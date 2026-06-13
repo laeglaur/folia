@@ -1,0 +1,337 @@
+/* Source: https://raw.githubusercontent.com/ChivaLryCieux/swiss-theme/main/swiss.css */
+:root {
+  --bg: #fcf9f4;
+  --accent: #80372b;
+  --text: #111;
+  --card: #fff;
+  --line: #e8ddd2;
+  --muted: #80372b;
+  --tag-bg: #fffaf6;
+}
+
+html, body, .typora-export { 
+  background: var(--bg) !important; 
+  color: var(--text); 
+  -webkit-font-smoothing: antialiased; /* 让字体渲染更平滑锐利 */
+}
+
+#write {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 36px 36px 56px; /* 版心留白 */
+  background: transparent;
+  color: var(--text);
+  /* 纯正的瑞士风格无衬线字体栈 */
+  font-family: "Helvetica Neue", Helvetica, Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.58;
+  font-size: 15px;
+}
+
+/* ===== Typography Hierarchy (字体层级) ===== */
+#write h1, #write h2, #write h3, #write h4, #write h5, #write h6 {
+  color: var(--text);
+  font-weight: 700;
+  margin-top: 1.6em;
+  margin-bottom: 0.65em;
+  line-height: 1.18;
+}
+
+#write h1 {
+  font-size: 2.85em;
+  letter-spacing: -0.035em; /* 大标题稍微收紧字距，增加力量感 */
+  margin-top: 0;
+  margin-bottom: 0.9em;
+  padding: 20px 24px 18px;
+  background: var(--card);
+  border-left: 5px solid var(--accent);
+  border-bottom: 1px solid var(--line);
+}
+
+#write h2 {
+  font-size: 1.95em;
+  margin-top: 1.3em;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+#write h2::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 2px;
+  background: #80372b;
+  opacity: 0.8;
+}
+
+#write h3 {
+  font-size: 1.5em;
+  margin-top: 1em;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#write h4,
+#write h5,
+#write h6 {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+#write p {
+  margin-top: 0;
+  margin-bottom: 0.68em;
+}
+
+#write strong {
+  font-weight: 700;
+  color: var(--text); /* 用强调色标注加粗，增加视觉跳跃率 */
+}
+
+#write em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+#write hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1.35em 0 1.5em;
+}
+
+/* ===== Block Elements (块级元素) ===== */
+#write ul, #write ol {
+  background: var(--card);
+  border: 1px solid #80372b;
+  border-left: 4px solid #80372b;
+  padding: 14px 18px 12px 34px;
+  margin: 0.75em 0 1.1em;
+  line-height: 1.5;
+}
+
+#write li {
+  margin-bottom: 0;
+  padding-left: 0.15em;
+}
+
+#write li + li {
+  margin-top: 0.32em;
+}
+
+#write li p {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+#write li::marker {
+  font-size: 0.95em;
+}
+
+/* 引用块样式 */
+#write blockquote {
+  background: var(--card);
+  border: 1px solid #80372b;
+  margin: 1.1em 0 1.4em;
+  padding: 14px 18px;
+  color: var(--muted);
+}
+
+/* 表格样式 (保持网格感) */
+#write table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0 1.5em;
+  background: var(--card);
+}
+#write th, #write td {
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  background: var(--card);
+  vertical-align: top;
+}
+#write th {
+  font-weight: 700;
+  background: #faf5ef;
+  text-align: left;
+  color: var(--accent);
+}
+
+#write p + h2,
+#write ul + h2,
+#write ol + h2,
+#write blockquote + h2,
+#write table + h2 {
+  margin-top: 1.6em;
+}
+
+#write > p {
+  background: var(--card);
+  border: 1px solid #80372b;
+  padding: 16px 18px;
+  margin-top: 0.75em;
+  margin-bottom: 0;
+}
+
+#write > p + p {
+  background: var(--card);
+  border: 1px solid #80372b;
+  border-top: 0;
+  padding-top: 4px;
+  padding-bottom: 16px;
+  padding-left: 18px;
+  padding-right: 18px;
+  margin-top: -1px;
+  margin-bottom: 0;
+}
+
+#write > blockquote,
+#write > table {
+  background: var(--card);
+  border: 1px solid #80372b;
+  margin-top: 0.75em;
+}
+
+#write mark {
+  background: var(--tag-bg);
+  color: var(--accent);
+  border: 1px solid var(--line);
+  padding: 0.05em 0.35em;
+}
+
+@media screen and (max-width: 900px) {
+  #write {
+    padding: 24px 20px 40px;
+    font-size: 14px;
+  }
+
+  #write h1 {
+    font-size: 2.3em;
+    padding: 16px 18px 14px;
+  }
+
+  #write h2 {
+    gap: 12px;
+    font-size: 1.65em;
+  }
+
+  #write h3 {
+    font-size: 1.3em;
+    gap: 12px;
+  }
+
+  #write h4,
+  #write h5,
+  #write h6 {
+    gap: 10px;
+  }
+}
+
+/* ===== Code Style: Typora GitHub-like ===== */
+.CodeMirror-lines {
+  padding-left: 4px;
+}
+
+.code-tooltip {
+  box-shadow: 0 1px 1px 0 rgba(0, 28, 36, .3);
+  border-top: 1px solid #eef2f2;
+}
+
+#write .md-fences,
+#write code,
+#write tt,
+.typora-export pre,
+.typora-export code,
+.typora-export tt {
+  border: 1px solid var(--line);
+  background-color: #ffffff;
+  border-radius: 0;
+  padding: 0;
+  padding: 2px 4px 0 4px;
+  font-size: 0.9em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  color: #24292f;
+}
+
+#write code,
+.typora-export code {
+  background-color: #ffffff;
+  padding: 0 2px 0 2px;
+}
+
+#write .md-fences,
+.typora-export pre {
+  margin-bottom: 15px;
+  margin-top: 15px;
+  padding-top: 8px;
+  padding-bottom: 6px;
+  line-height: 1.45;
+  box-shadow: none;
+}
+
+#write .md-fences {
+  background-color: #ffffff;
+}
+
+#write pre.md-meta-block,
+.typora-export pre.md-meta-block {
+  padding: 1rem;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: #f7f7f7;
+  border: 0;
+  border-radius: 0;
+  color: #777777;
+  margin-top: 0 !important;
+}
+
+#write .md-fences code,
+.typora-export pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+#write .md-fences .CodeMirror pre,
+#write .md-fences .CodeMirror-line,
+.typora-export pre code {
+  line-height: 1.45;
+}
+
+@media print {
+  html {
+    font-size: 13px;
+  }
+
+  pre {
+    page-break-inside: avoid;
+    word-wrap: break-word;
+  }
+}
+
+/* 语法高亮 */
+.hljs { color: #24292f; background: #ffffff; }
+.hljs-comment, .hljs-quote { color: #6e7781; font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal { color: #cf222e; }
+.hljs-string, .hljs-doctag, .hljs-regexp { color: #0a3069; }
+.hljs-title, .hljs-section, .hljs-name { color: #8250df; }
+.hljs-function, .hljs-params, .hljs-attr { color: #24292f; }
+.hljs-number, .hljs-built_in, .hljs-type { color: #0550ae; }
+.hljs-variable, .hljs-template-variable { color: #953800; }
+.cm-s-inner .cm-comment { color: #6e7781; font-style: italic; }
+.cm-s-inner .cm-keyword { color: #cf222e; }
+.cm-s-inner .cm-string { color: #0a3069; }
+.cm-s-inner .cm-number { color: #0550ae; }
+.cm-s-inner .cm-def, .cm-s-inner .cm-variable { color: #24292f; }

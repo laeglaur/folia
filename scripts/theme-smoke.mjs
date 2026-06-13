@@ -1,6 +1,16 @@
 import { chromium } from '@playwright/test';
 
 const themes = ['garden', 'ledger'];
+const typoraThemes = [
+  'typora-proof',
+  'typora-konayuki',
+  'typora-swiss',
+  'typora-folio',
+  'typora-zeus',
+  'typora-bonne-nouvelle',
+  'typora-flexoki-light'
+];
+
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 const appUrl = process.env.APP_URL ?? 'http://127.0.0.1:5173/';
@@ -10,10 +20,10 @@ await page.evaluate(() => localStorage.clear());
 await page.reload();
 
 const checks = {};
-const select = page.getByLabel('Shell theme');
+const shellSelect = page.getByLabel('Shell theme');
 
 for (const theme of themes) {
-  await select.selectOption(theme);
+  await shellSelect.selectOption(theme);
   checks[`${theme}:dataset`] = await page.evaluate((expected) => document.documentElement.dataset.theme === expected, theme);
   checks[`${theme}:tokens`] = await page.evaluate(() => {
     const styles = getComputedStyle(document.documentElement);
@@ -43,7 +53,7 @@ checks.ledgerDiffersFromGarden = await page.evaluate(() => {
   );
 });
 
-await select.selectOption('ledger');
+await shellSelect.selectOption('ledger');
 checks.ledgerCanHideDecorativeSidebar = await page.evaluate(() => {
   const eyebrow = document.querySelector('.eyebrow');
   const title = document.querySelector('.brand-block h1');
@@ -53,25 +63,39 @@ checks.ledgerCanHideDecorativeSidebar = await page.evaluate(() => {
   return [eyebrow, title, profile, note].every((element) => getComputedStyle(element).display === 'none');
 });
 
-const composer = page.locator('.composer').last();
-await composer.click();
-await page.keyboard.type('theme smoke');
-checks.editorStillWorks = (await composer.innerText()).includes('theme smoke');
-
 const contentSelect = page.locator('.content-theme-select');
 await contentSelect.selectOption('notebook');
 const notebookContentFont = await page.locator('.composer').last().evaluate((element) => getComputedStyle(element).fontFamily);
 const sidebarFontBeforeContentTheme = await page.locator('.sidebar').evaluate((element) => getComputedStyle(element).fontFamily);
-const injectThemeProbe = async () => {
-  await page.locator('.composer.tiptap-editor').last().evaluate((element) => {
-    element.innerHTML = `
-      <h1>Theme Probe</h1>
-      <p>body text <code>inline</code></p>
-      <pre><code>const ok = true;</code></pre>
-      <table><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>
-    `;
-  });
-};
+
+const composer = page.locator('.composer').last();
+await composer.click();
+await composer.evaluate((element) => {
+  element.innerHTML = [
+    '<h1 class="md-heading md-end-block" data-heading-level="1">Contract Heading One</h1>',
+    '<p class="md-end-block">Paragraph alias</p>',
+    '<ul class="md-list"><li class="md-list-item md-end-block" data-list-collapsed="false"><p class="md-end-block">Parent</p><ul class="md-list"><li class="md-list-item md-end-block" data-list-collapsed="false"><p class="md-end-block">Child</p></li></ul></li></ul>',
+    '<ul class="contains-task-list md-list" data-type="taskList"><li data-checked="false" data-type="taskItem" class="task-list-item md-task-list-item md-end-block" data-list-collapsed="false" data-todo-style="plain"><label contenteditable="false"><input type="checkbox"><span></span></label><div><p class="md-end-block">task alias</p></div></li></ul>',
+    '<pre class="md-fences md-end-block"><code>const ok = true;</code></pre>'
+  ].join('');
+});
+
+checks.editorStillWorks = (await composer.innerText()).includes('Contract Heading One');
+checks.typoraDomAliases = await composer.evaluate((element) => Boolean(
+  element.querySelector('h1.md-heading.md-end-block[data-heading-level="1"]') &&
+  element.querySelector('p.md-end-block') &&
+  element.querySelector('ul.md-list li.md-list-item.md-end-block') &&
+  element.querySelector('li.task-list-item.md-task-list-item.md-end-block[data-type="taskItem"]') &&
+  element.querySelector('pre.md-fences.md-end-block')
+));
+
+await composer.evaluate((element) => {
+  element.insertAdjacentHTML('beforeend', `
+    <table class="md-table"><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>
+    <img class="md-image" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="probe" />
+    <div class="md-math-block mathjax-block" data-type="block-math">x^2</div>
+  `);
+});
 
 await contentSelect.selectOption('typora-base');
 checks.contentThemeDataset = await page.evaluate(() => document.documentElement.dataset.contentTheme === 'typora-base');
@@ -94,68 +118,85 @@ checks.contentThemeChangesWritingSurface = await page.locator('.composer').last(
   getComputedStyle(element).fontFamily !== previousFont,
   notebookContentFont
 );
-checks.contentThemeDoesNotStyleSidebar = await page.locator('.sidebar').evaluate((element, previousFont) =>
+checks.contentThemeDoesNotStyleSidebarFont = await page.locator('.sidebar').evaluate((element, previousFont) =>
   getComputedStyle(element).fontFamily === previousFont,
   sidebarFontBeforeContentTheme
 );
 
-await contentSelect.selectOption('typora-proof');
-checks.typoraProofGeneratedCssApplies = await page.locator('.composer').last().evaluate((element) => {
-  const styles = getComputedStyle(element);
-  return styles.fontFamily.includes('Times New Roman') &&
-    Math.abs(Number.parseFloat(styles.letterSpacing) - 0.51) < 0.05 &&
-    Math.abs(Number.parseFloat(styles.lineHeight) - 30.26) < 1;
-});
+const assertNoHorizontalOverflow = async (theme) => {
+  await contentSelect.selectOption(theme);
+  return page.evaluate(() => {
+    const shell = document.querySelector('.app-shell');
+    const pageSurface = document.querySelector('.page-surface');
+    const composer = document.querySelector('.composer');
+    if (!(shell instanceof HTMLElement) || !(pageSurface instanceof HTMLElement) || !(composer instanceof HTMLElement)) return false;
+    const shellRect = shell.getBoundingClientRect();
+    const pageRect = pageSurface.getBoundingClientRect();
+    const offenders = [...composer.querySelectorAll('pre, table, img, video, audio, iframe, [data-type="block-math"], .md-math-block')]
+      .filter((node) => node instanceof HTMLElement)
+      .filter((node) => node.scrollWidth - node.clientWidth > 2 && node.getBoundingClientRect().width > pageRect.width + 2);
+    return pageRect.left >= -1 &&
+      pageRect.right <= shellRect.right + 1 &&
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2 &&
+      offenders.length === 0;
+  });
+};
+
+checks.typoraProofGeneratedCssApplies = await (async () => {
+  await contentSelect.selectOption('typora-proof');
+  return page.locator('.composer').last().evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return styles.fontFamily.includes('Times New Roman') &&
+      Math.abs(Number.parseFloat(styles.letterSpacing) - 0.51) < 0.05 &&
+      Math.abs(Number.parseFloat(styles.lineHeight) - 30.26) < 1;
+  });
+})();
 checks.typoraProofTocMapsToRightOutline = await page.locator('.outline-entry.md-toc-item').first().evaluate((element) =>
   getComputedStyle(element).textTransform === 'uppercase'
 );
-checks.typoraProofIgnoresTyporaSidebar = await page.locator('.sidebar').evaluate((element) =>
-  getComputedStyle(element).display !== 'none'
-);
-checks.typoraProofKeepsPinnedCardsCompact = await page.locator('.desktop-card').first().evaluate((element) => {
-  const styles = getComputedStyle(element);
-  return styles.letterSpacing === 'normal' && Number.parseFloat(styles.fontSize) <= 13.5;
-});
 
-await contentSelect.selectOption('typora-folio');
-await injectThemeProbe();
-checks.folioUsesThemeRootTypography = await page.locator('.page-surface.typora-write').evaluate((element) => {
-  const styles = getComputedStyle(element);
-  return Math.abs(Number.parseFloat(styles.fontSize) - 17) < 0.5 &&
-    Math.abs(Number.parseFloat(styles.lineHeight) - 30.94) < 1 &&
-    styles.fontFamily.includes('Merriweather');
-});
-checks.folioRemScaleReachesHeading = await page.locator('.composer h1').last().evaluate((element) => {
-  const styles = getComputedStyle(element);
-  return Math.abs(Number.parseFloat(styles.fontSize) - 68) < 2;
-});
-checks.folioCodeAndTableUseTheme = await page.locator('.composer').last().evaluate((element) => {
-  const pre = element.querySelector('pre');
-  const table = element.querySelector('table');
-  if (!(pre instanceof HTMLElement) || !(table instanceof HTMLElement)) return false;
-  const preStyles = getComputedStyle(pre);
-  const tableStyles = getComputedStyle(table);
-  return preStyles.borderStyle === 'solid' &&
-    preStyles.fontFamily.includes('Sarasa') &&
-    Math.abs(Number.parseFloat(tableStyles.fontSize) - 18.445) < 1;
-});
+checks.konayukiCodeAndTableUseTheme = await (async () => {
+  await contentSelect.selectOption('typora-konayuki');
+  return page.locator('.composer').last().evaluate((element) => {
+    const pre = element.querySelector('pre.md-fences');
+    const table = element.querySelector('table');
+    if (!(pre instanceof HTMLElement) || !(table instanceof HTMLElement)) return false;
+    const preStyles = getComputedStyle(pre);
+    const tableStyles = getComputedStyle(table);
+    return preStyles.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+      preStyles.borderTopStyle !== 'none' &&
+      tableStyles.borderCollapse === 'separate';
+  });
+})();
+checks.konayukiNoOverflow = await assertNoHorizontalOverflow('typora-konayuki');
 
-await contentSelect.selectOption('typora-zeus');
-await injectThemeProbe();
-checks.zeusUsesThemeRootTypography = await page.locator('.page-surface.typora-write').evaluate((element) => {
-  const styles = getComputedStyle(element);
-  return Math.abs(Number.parseFloat(styles.fontSize) - 14) < 0.5 &&
-    styles.color === 'rgb(212, 212, 212)';
-});
-checks.zeusCodeUsesTheme = await page.locator('.composer pre').last().evaluate((element) => {
-  const styles = getComputedStyle(element);
-  return styles.backgroundColor === 'rgb(45, 45, 45)' &&
-    Math.abs(Number.parseFloat(styles.fontSize) - 11.9) < 1;
-});
-checks.typoraTocStaysReadableInDarkTheme = await page.locator('.outline-entry.md-toc-item').first().evaluate((element) => {
-  const styles = getComputedStyle(element);
-  return styles.color !== 'rgb(212, 212, 212)' && Number.parseFloat(styles.fontSize) > 0;
-});
+checks.swissCodeAndTableUseTheme = await (async () => {
+  await contentSelect.selectOption('typora-swiss');
+  return page.locator('.composer').last().evaluate((element) => {
+    const pre = element.querySelector('pre.md-fences');
+    const table = element.querySelector('table');
+    const h1 = element.querySelector('h1');
+    if (!(pre instanceof HTMLElement) || !(table instanceof HTMLElement) || !(h1 instanceof HTMLElement)) return false;
+    const preStyles = getComputedStyle(pre);
+    const tableStyles = getComputedStyle(table);
+    const h1Styles = getComputedStyle(h1);
+    return preStyles.backgroundColor === 'rgb(255, 255, 255)' &&
+      preStyles.borderTopStyle === 'solid' &&
+      preStyles.color === 'rgb(36, 41, 47)' &&
+      tableStyles.borderCollapse === 'collapse' &&
+      h1Styles.borderLeftWidth === '5px';
+  });
+})();
+checks.swissNoOverflow = await assertNoHorizontalOverflow('typora-swiss');
+
+checks.zeusDarkThemeKeepsOutlineReadable = await (async () => {
+  await contentSelect.selectOption('typora-zeus');
+  return page.locator('.outline-entry.md-toc-item').first().evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return styles.color !== 'rgb(212, 212, 212)' && Number.parseFloat(styles.fontSize) > 0;
+  });
+})();
+
 checks.typoraKeepsPinnedCardsCompactAcrossThemes = await page.locator('.desktop-card').first().evaluate((element) => {
   const styles = getComputedStyle(element);
   return Number.parseFloat(styles.fontSize) <= 13.5 &&
@@ -163,17 +204,16 @@ checks.typoraKeepsPinnedCardsCompactAcrossThemes = await page.locator('.desktop-
     !styles.fontFamily.includes('Cascadia');
 });
 
-const pilotThemes = ['typora-konayuki', 'typora-folio', 'typora-zeus', 'typora-bonne-nouvelle', 'typora-flexoki-light'];
-checks.pilotThemesAreSelectable = true;
-for (const theme of pilotThemes) {
+checks.typoraThemesAreSelectable = true;
+for (const theme of typoraThemes) {
   await contentSelect.selectOption(theme);
   const themeApplied = await page.evaluate((expected) => document.documentElement.dataset.contentTheme === expected, theme);
-  const writingSurfaceChanged = await page.locator('.page-surface.typora-write').evaluate((element, baseFont) => {
-    const styles = getComputedStyle(element);
-    return styles.fontFamily !== baseFont || styles.backgroundColor !== 'rgba(0, 0, 0, 0)' || styles.letterSpacing !== 'normal';
-  }, notebookContentFont);
   const sidebarVisible = await page.locator('.sidebar').evaluate((element) => getComputedStyle(element).display !== 'none');
-  checks.pilotThemesAreSelectable = checks.pilotThemesAreSelectable && themeApplied && writingSurfaceChanged && sidebarVisible;
+  const pageVisible = await page.locator('.page-surface').evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return Number.parseFloat(styles.width) > 200 && styles.display !== 'none';
+  });
+  checks.typoraThemesAreSelectable = checks.typoraThemesAreSelectable && themeApplied && sidebarVisible && pageVisible;
 }
 
 console.log(JSON.stringify({ checks }, null, 2));

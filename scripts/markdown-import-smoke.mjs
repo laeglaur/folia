@@ -69,8 +69,9 @@ await writeFile(markdownPath, [
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
+const appUrl = process.env.APP_URL ?? 'http://127.0.0.1:5173/';
 
-await page.goto('http://127.0.0.1:5173/');
+await page.goto(appUrl);
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 
@@ -123,7 +124,7 @@ const checks = {
   embed: pageHtml.includes('<iframe') && pageHtml.includes('https://www.youtube.com/embed/dQw4w9WgXcQ'),
   inlineCode: pageHtml.includes('<code>inline</code>'),
   highlight: pageHtml.includes('<mark'),
-  codeBlock: pageHtml.includes('<pre><code>') && pageText.includes('const imported = true;'),
+  codeBlock: (pageHtml.includes('<pre class="md-fences md-end-block"><code>') || pageHtml.includes('<pre><code>')) && pageText.includes('const imported = true;'),
   indentedFence: pageHtml.includes('┌────┬────┐') && !pageText.includes('```'),
   importNotice: importNoticeClass?.includes('success') && importNoticeText.includes('Imported 1 page with 1 block')
 };
