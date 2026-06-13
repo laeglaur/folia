@@ -38,6 +38,7 @@ import {
   createPage,
   downloadTextFile,
   htmlToMarkdown,
+  loadPersistentState,
   loadState,
   saveState
 } from './state';
@@ -286,10 +287,24 @@ export function App() {
   const [showComposerFooter, setShowComposerFooter] = useState(true);
   const composerEditorRef = useRef<Editor | null>(null);
   const blockEditorRefs = useRef<Record<string, Editor | null>>({});
+  const persistenceReadyRef = useRef(!isTauri());
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isTauri()) return;
+    loadPersistentState().then((loadedState) => {
+      if (cancelled) return;
+      persistenceReadyRef.current = true;
+      setState(loadedState);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme;
-    saveState(state);
+    if (persistenceReadyRef.current) void saveState(state);
   }, [state]);
 
   const activeNotebook = state.notebooks.find((notebook) => notebook.id === state.activeNotebookId) ?? state.notebooks[0];

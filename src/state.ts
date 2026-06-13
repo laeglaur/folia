@@ -1,4 +1,5 @@
 import type { AppState, Block, Notebook, OperationLogEntry, Page, ThemeId } from './types';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 
 const STORAGE_KEY = 'block-first-notebook.state.v1';
 
@@ -99,8 +100,30 @@ export const loadState = (): AppState => {
   }
 };
 
-export const saveState = (state: AppState) => {
+export const loadPersistentState = async (): Promise<AppState> => {
+  const browserState = loadState();
+  if (!isTauri()) return browserState;
+
+  try {
+    const raw = await invoke<string | null>('load_state_snapshot');
+    if (raw) return normalizeState(JSON.parse(raw) as AppState);
+    await saveState(browserState);
+    return browserState;
+  } catch (error) {
+    console.warn('Falling back to browser notebook storage.', error);
+    return browserState;
+  }
+};
+
+export const saveState = async (state: AppState) => {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (!isTauri()) return;
+
+  try {
+    await invoke('save_state_snapshot', { stateJson: JSON.stringify(state) });
+  } catch (error) {
+    console.warn('Could not persist notebook state to SQLite.', error);
+  }
 };
 
 export const appendOperation = (
