@@ -667,6 +667,55 @@ input, select { color: var(--ink); }
   font-size: 0.9em;
 }
 
+.block-content blockquote,
+.composer blockquote,
+.floating-card-body blockquote,
+.desktop-card blockquote {
+  margin: var(--blockquote-margin);
+  padding: var(--blockquote-padding);
+  border-left: var(--blockquote-border);
+  border-radius: var(--blockquote-radius);
+  background: var(--blockquote-background);
+  color: var(--blockquote-ink);
+}
+
+.block-content blockquote p,
+.composer blockquote p,
+.floating-card-body blockquote p,
+.desktop-card blockquote p {
+  margin: 0;
+}
+
+.block-content hr,
+.composer hr,
+.floating-card-body hr,
+.desktop-card hr {
+  margin: var(--hr-margin);
+  border: var(--hr-border);
+  border-top: var(--hr-border-top);
+}
+
+.block-content u,
+.composer u,
+.floating-card-body u,
+.desktop-card u {
+  text-decoration-thickness: 1px;
+  text-underline-offset: var(--link-underline-offset);
+}
+
+.block-content s,
+.composer s,
+.floating-card-body s,
+.desktop-card s,
+.block-content del,
+.composer del,
+.floating-card-body del,
+.desktop-card del {
+  color: color-mix(in srgb, var(--ink) 58%, var(--muted));
+  text-decoration-color: color-mix(in srgb, var(--accent-2) 58%, var(--muted));
+  text-decoration-thickness: 1px;
+}
+
 .block-content a,
 .composer a,
 .floating-card-body a,

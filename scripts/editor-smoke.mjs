@@ -78,6 +78,18 @@ checks.copyPaste = clipboardText === 'toggle copy paste' && copiedText.includes(
 
 await page.evaluate(() => localStorage.clear());
 await page.reload();
+const markComposer = page.locator('.composer').last();
+await markComposer.click();
+await page.keyboard.type('styled marks');
+await page.keyboard.press(`${modKey}+A`);
+await page.locator('.format-toolbar .tool-button[title="Underline"]').click();
+await page.locator('.format-toolbar .tool-button[title="Strikethrough"]').click();
+const markHtml = await markComposer.evaluate((node) => node.innerHTML);
+checks.underline = markHtml.includes('<u>styled marks</u>');
+checks.strike = markHtml.includes('<s>') && markHtml.includes('styled marks');
+
+await page.evaluate(() => localStorage.clear());
+await page.reload();
 const enterComposer = page.locator('.composer').last();
 await enterComposer.click();
 await page.keyboard.type('abcde');

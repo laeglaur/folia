@@ -228,6 +228,16 @@
   --inline-code-radius: 6px;
   --inline-code-padding: 0.1em 0.35em;
 
+  --blockquote-margin: 12px 0;
+  --blockquote-padding: 8px 14px;
+  --blockquote-border: 3px solid color-mix(in srgb, var(--accent) 54%, var(--line));
+  --blockquote-radius: 0 10px 10px 0;
+  --blockquote-background: color-mix(in srgb, var(--panel-2) 68%, transparent);
+  --blockquote-ink: color-mix(in srgb, var(--ink) 82%, var(--muted));
+  --hr-margin: 18px 0;
+  --hr-border: 0;
+  --hr-border-top: 2px dashed color-mix(in srgb, var(--accent) 34%, var(--line));
+
   --link-ink: var(--accent);
   --link-underline-offset: 0.16em;
   --media-margin: 10px 0;

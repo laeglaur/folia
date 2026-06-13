@@ -207,6 +207,15 @@
   --code-block-shadow: none;
   --inline-code-radius: 4px;
   --inline-code-padding: 0.08em 0.32em;
+  --blockquote-margin: 10px 0;
+  --blockquote-padding: 7px 11px;
+  --blockquote-border: 3px solid rgba(47, 111, 100, 0.42);
+  --blockquote-radius: 0 4px 4px 0;
+  --blockquote-background: rgba(47, 111, 100, 0.07);
+  --blockquote-ink: #4d5d55;
+  --hr-margin: 16px 0;
+  --hr-border: 0;
+  --hr-border-top: 1px dashed rgba(36, 45, 39, 0.24);
   --link-underline-offset: 0.12em;
   --media-margin: 8px 0;
   --media-radius: 4px;

@@ -20,7 +20,9 @@ import {
   Plus,
   Search,
   Sparkles,
+  Strikethrough,
   Type,
+  Underline as UnderlineIcon,
   Upload
 } from 'lucide-react';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
@@ -29,6 +31,7 @@ import Highlight from '@tiptap/extension-highlight';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
+import Underline from '@tiptap/extension-underline';
 import { Table } from '@tiptap/extension-table';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
@@ -62,6 +65,8 @@ type ImportNotice = {
 type ToolbarCommand =
   | 'bold'
   | 'italic'
+  | 'underline'
+  | 'strike'
   | 'h1'
   | 'h2'
   | 'h3'
@@ -307,6 +312,7 @@ const createEditorExtensions = (
     listItem: false
   }),
   Highlight,
+  Underline,
   Link.configure({
     autolink: true,
     defaultProtocol: 'https',
@@ -452,6 +458,8 @@ export function App() {
     const chain = editor.chain().focus();
     if (command === 'bold') chain.toggleBold().run();
     if (command === 'italic') chain.toggleItalic().run();
+    if (command === 'underline') chain.toggleUnderline().run();
+    if (command === 'strike') chain.toggleStrike().run();
     if (command === 'h1') chain.toggleHeading({ level: 1 }).run();
     if (command === 'h2') chain.toggleHeading({ level: 2 }).run();
     if (command === 'h3') chain.toggleHeading({ level: 3 }).run();
@@ -1005,6 +1013,8 @@ function Toolbar({
     <div className="format-toolbar" aria-label="Formatting toolbar">
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('bold')} title="Bold: Command B"><Bold size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('italic')} title="Italic: Command I"><Italic size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('underline')} title="Underline"><UnderlineIcon size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('strike')} title="Strikethrough"><Strikethrough size={16} /></button>
       <button className="tool-button highlight-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={applyHighlight} title="Highlight: Command H"><Highlighter size={16} /></button>
       <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('h1')} title="Heading 1">H1</button>
       <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('h2')} title="Heading 2">H2</button>
