@@ -7,6 +7,10 @@ const markdownPath = join(tmpdir(), `notebook-import-${Date.now()}.md`);
 await writeFile(markdownPath, [
   '# Imported Smoke',
   '',
+  '## Section Smoke',
+  '',
+  '### Detail Smoke',
+  '',
   'A paragraph with **bold**, *italic*, ~~strike~~, ==mark==, `inline`, and [link](https://example.com).',
   '',
   '> A quote that Typora themes should be able to shape.',
@@ -57,6 +61,7 @@ const pageTitle = await page.locator('.page-title').inputValue();
 const pageTreeText = await page.locator('.page-tree').innerText();
 const pageText = await page.locator('.page-surface').innerText();
 const pageHtml = await page.locator('.page-surface').evaluate((node) => node.innerHTML);
+const outlineText = await page.locator('.outline-list').innerText();
 const importNoticeText = await page.locator('.import-notice').innerText();
 const importNoticeClass = await page.locator('.import-notice').getAttribute('class');
 const blockCount = await page.locator('.block').count();
@@ -65,6 +70,7 @@ const checks = {
   title: pageTitle === 'Imported Smoke',
   singleBlock: blockCount === 1,
   pageTree: pageTreeText.includes('Imported Smoke'),
+  outline: outlineText.includes('Imported Smoke') && outlineText.includes('Section Smoke') && outlineText.includes('Detail Smoke'),
   paragraph: pageText.includes('A paragraph with bold'),
   bullet: pageHtml.includes('<ul') && pageText.includes('first bullet'),
   nestedBullet: pageHtml.includes('<ul') && pageText.includes('nested bullet'),

@@ -884,16 +884,31 @@ input, select { color: var(--ink); }
 
 .panel-title { display: flex; align-items: center; gap: var(--panel-title-gap); color: var(--ink); font-size: var(--panel-title-font-size); margin-bottom: var(--panel-title-margin-bottom); }
 .outline-list { display: grid; gap: var(--outline-list-gap); }
-.outline-list a {
+.outline-entry {
   display: grid;
   grid-template-columns: var(--outline-grid);
   gap: var(--outline-gap);
+  width: 100%;
+  border-radius: var(--nav-item-radius);
+  background: transparent;
   color: var(--muted);
-  text-decoration: none;
+  padding: 3px 5px 3px calc((var(--level) - 1) * 8px + 5px);
+  text-align: left;
   font-size: var(--outline-font-size);
   line-height: var(--outline-line-height);
 }
-.outline-list span { color: var(--accent); font-variant-numeric: tabular-nums; }
+.outline-entry:hover {
+  background: var(--theme-nav-active-background);
+  color: var(--theme-nav-active-ink);
+}
+.outline-entry span:first-child {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86em;
+}
+.outline-entry.list span:first-child {
+  font-size: 1em;
+}
 
 .desktop-preview { display: grid; gap: var(--desktop-preview-gap); }
 .desktop-card {

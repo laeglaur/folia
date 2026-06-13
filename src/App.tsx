@@ -62,6 +62,14 @@ type ImportNotice = {
   message: string;
   details?: string[];
 };
+type OutlineEntry = {
+  id: string;
+  kind: 'page' | 'heading' | 'list';
+  blockId: string | null;
+  level: number;
+  text: string;
+  index: number;
+};
 type ToolbarCommand =
   | 'bold'
   | 'italic'
@@ -137,6 +145,80 @@ const blockTextPreview = (text: string, max = 56) => {
 const firstLines = (text: string, lines = 2) => {
   const parts = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
   return blockTextPreview(parts.slice(0, lines).join(' / '), 76);
+};
+
+const outlineText = (value: string, max = 72) => {
+  const compact = value.replace(/\s+/g, ' ').trim();
+  return compact.length > max ? `${compact.slice(0, max)}...` : compact;
+};
+
+const listItemLabel = (listItem: Element) => {
+  const clone = listItem.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll('ul, ol').forEach((node) => node.remove());
+  return outlineText(clone.textContent ?? '');
+};
+
+const extractOutlineEntries = (page: Page, blocks: Block[]): OutlineEntry[] => {
+  const entries: OutlineEntry[] = [{
+    id: `${page.id}:title`,
+    kind: 'page',
+    blockId: null,
+    level: 1,
+    text: page.title || 'Untitled page',
+    index: 0
+  }];
+
+  blocks.forEach((block) => {
+    const doc = new DOMParser().parseFromString(block.content.html, 'text/html');
+    doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((heading, index) => {
+      const text = outlineText(heading.textContent ?? '');
+      if (!text) return;
+      entries.push({
+        id: `${block.id}:heading:${index}`,
+        kind: 'heading',
+        blockId: block.id,
+        level: Number(heading.tagName.slice(1)),
+        text,
+        index
+      });
+    });
+
+    doc.querySelectorAll('li').forEach((listItem, index) => {
+      if (!listItem.querySelector(':scope > ul, :scope > ol, :scope > div > ul, :scope > div > ol')) return;
+      const text = listItemLabel(listItem);
+      if (!text) return;
+      entries.push({
+        id: `${block.id}:list:${index}`,
+        kind: 'list',
+        blockId: block.id,
+        level: 3,
+        text,
+        index
+      });
+    });
+  });
+
+  return entries;
+};
+
+const htmlWithOutlineAnchors = (html: string, blockId: string) => {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  container.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((heading, index) => {
+    heading.setAttribute('data-outline-id', `${blockId}:heading:${index}`);
+  });
+  container.querySelectorAll('li').forEach((listItem, index) => {
+    if (!listItem.querySelector(':scope > ul, :scope > ol, :scope > div > ul, :scope > div > ol')) return;
+    listItem.setAttribute('data-outline-id', `${blockId}:list:${index}`);
+  });
+  return container.innerHTML;
+};
+
+const stripOutlineAnchors = (html: string) => {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  container.querySelectorAll('[data-outline-id]').forEach((element) => element.removeAttribute('data-outline-id'));
+  return container.innerHTML;
 };
 
 const todoInputRegex = /^\s*(\[\]|【】)\s$/;
@@ -419,6 +501,7 @@ export function App() {
     () => activePage.blockIds.map((blockId) => state.blocks.find((block) => block.id === blockId)).filter(Boolean) as Block[],
     [activePage.blockIds, state.blocks]
   );
+  const outlineEntries = useMemo(() => extractOutlineEntries(activePage, pageBlocks), [activePage, pageBlocks]);
   const pinnedBlocks = state.blocks.filter((block) => block.pinned);
   const openCardBlock = state.blocks.find((block) => block.id === state.openCardWindowBlockId) ?? null;
   const cardModeBlockId = new URLSearchParams(window.location.search).get('card');
@@ -489,6 +572,18 @@ export function App() {
 
   const blockIndex = (blockId: string) => activePage.blockIds.indexOf(blockId);
 
+  const jumpToOutlineEntry = (entry: OutlineEntry) => {
+    if (!entry.blockId) {
+      document.querySelector<HTMLInputElement>('.page-title')?.focus();
+      document.querySelector('.page-surface')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    const blockElement = document.getElementById(entry.blockId);
+    if (!blockElement) return;
+    const target = blockElement.querySelector(`[data-outline-id="${entry.id}"]`) ?? blockElement;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   const moveBlockByKeyboard = (blockId: string, direction: -1 | 1) => {
     const index = blockIndex(blockId);
     const targetIndex = index + direction;
@@ -523,16 +618,17 @@ export function App() {
   };
 
   const updateBlock = (blockId: string, html: string, plainText: string) => {
+    const cleanHtml = stripOutlineAnchors(html);
     setState((current) => ({
       ...current,
       blocks: current.blocks.map((block) =>
-        block.id === blockId ? { ...block, content: { html, plainText }, updatedAt: new Date().toISOString() } : block
+        block.id === blockId ? { ...block, content: { html: cleanHtml, plainText }, updatedAt: new Date().toISOString() } : block
       ),
       operations: appendOperation(current, {
         entity: 'block',
         entityId: blockId,
         kind: 'block.update_content',
-        payload: { html, plainText }
+        payload: { html: cleanHtml, plainText }
       })
     }));
   };
@@ -909,7 +1005,7 @@ export function App() {
                     <RichEditor
                       editorRef={(editor) => { blockEditorRefs.current[block.id] = editor; }}
                       className="block-content editable"
-                      html={block.content.html}
+                      html={htmlWithOutlineAnchors(block.content.html, block.id)}
                       onFocus={() => activateEditor({ kind: 'block', blockId: block.id })}
                       onMoveBlock={(direction) => {
                         moveBlockByKeyboard(block.id, direction);
@@ -961,11 +1057,17 @@ export function App() {
         <section className="panel-card">
           <div className="panel-title"><PanelRight size={16} /> Outline</div>
           <div className="outline-list">
-            {pageBlocks.map((block, index) => (
-              <a href={`#${block.id}`} key={block.id}>
-                <span>{index + 1}</span>
-                {firstLines(block.content.plainText)}
-              </a>
+            {outlineEntries.map((entry) => (
+              <button
+                className={`outline-entry ${entry.kind}`}
+                key={entry.id}
+                onClick={() => jumpToOutlineEntry(entry)}
+                style={{ '--level': entry.level } as React.CSSProperties}
+                type="button"
+              >
+                <span>{entry.kind === 'page' ? 'P' : entry.kind === 'heading' ? `H${entry.level}` : '•'}</span>
+                <span>{entry.text}</span>
+              </button>
             ))}
           </div>
         </section>
