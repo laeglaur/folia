@@ -9,7 +9,7 @@ use tauri::{AppHandle, Manager};
 const DATABASE_FILE: &str = "notebook.sqlite3";
 const ATTACHMENTS_DIR: &str = "attachments";
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ImportedAsset {
     id: String,
@@ -22,13 +22,21 @@ struct ImportedAsset {
 }
 
 fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
     fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
     Ok(dir.join(DATABASE_FILE))
 }
 
 fn open_database(app: &AppHandle) -> Result<Connection, String> {
     let connection = Connection::open(database_path(app)?).map_err(|error| error.to_string())?;
+    initialize_database(&connection)?;
+    Ok(connection)
+}
+
+fn initialize_database(connection: &Connection) -> Result<(), String> {
     connection
         .execute_batch(
             "
@@ -62,17 +70,26 @@ fn open_database(app: &AppHandle) -> Result<Connection, String> {
             ",
         )
         .map_err(|error| error.to_string())?;
-    Ok(connection)
+    Ok(())
 }
 
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
     fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
     Ok(dir)
 }
 
 fn mime_from_path(path: &PathBuf) -> String {
-    match path.extension().and_then(|extension| extension.to_str()).unwrap_or("").to_lowercase().as_str() {
+    match path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or("")
+        .to_lowercase()
+        .as_str()
+    {
         "jpg" | "jpeg" => "image/jpeg",
         "png" => "image/png",
         "gif" => "image/gif",
@@ -111,45 +128,16 @@ fn asset_url_for_path(path: &PathBuf) -> String {
     format!("asset://localhost/{}", path.trim_start_matches('/'))
 }
 
-#[tauri::command]
-fn load_state_snapshot(app: AppHandle) -> Result<Option<String>, String> {
-    let connection = open_database(&app)?;
-    connection
-        .query_row(
-            "SELECT state_json FROM app_state WHERE id = 1",
-            [],
-            |row| row.get::<_, String>(0),
-        )
-        .optional()
-        .map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-fn save_state_snapshot(app: AppHandle, state_json: String) -> Result<(), String> {
-    let connection = open_database(&app)?;
-    connection
-        .execute(
-            "
-            INSERT INTO app_state (id, state_json, updated_at)
-            VALUES (1, ?1, CURRENT_TIMESTAMP)
-            ON CONFLICT(id) DO UPDATE SET
-              state_json = excluded.state_json,
-              updated_at = excluded.updated_at
-            ",
-            params![state_json],
-        )
-        .map_err(|error| error.to_string())?;
-    Ok(())
-}
-
-#[tauri::command]
-fn import_local_asset(app: AppHandle, source_path: String) -> Result<ImportedAsset, String> {
+fn import_asset_into_store(
+    connection: &Connection,
+    app_data_dir: PathBuf,
+    source_path: String,
+) -> Result<ImportedAsset, String> {
     let source = PathBuf::from(&source_path);
     if !source.is_file() {
         return Err(format!("Asset does not exist: {source_path}"));
     }
 
-    let connection = open_database(&app)?;
     let (sha256, size) = sha256_file(&source)?;
     let mime_type = mime_from_path(&source);
     let extension = source
@@ -158,7 +146,7 @@ fn import_local_asset(app: AppHandle, source_path: String) -> Result<ImportedAss
         .map(|extension| format!(".{}", extension.to_lowercase()))
         .unwrap_or_default();
     let id = format!("asset_{sha256}");
-    let attachments_dir = app_data_dir(&app)?.join(ATTACHMENTS_DIR).join(&sha256[0..2]);
+    let attachments_dir = app_data_dir.join(ATTACHMENTS_DIR).join(&sha256[0..2]);
     fs::create_dir_all(&attachments_dir).map_err(|error| error.to_string())?;
     let stored_path = attachments_dir.join(format!("{sha256}{extension}"));
 
@@ -199,6 +187,41 @@ fn import_local_asset(app: AppHandle, source_path: String) -> Result<ImportedAss
     })
 }
 
+#[tauri::command]
+fn load_state_snapshot(app: AppHandle) -> Result<Option<String>, String> {
+    let connection = open_database(&app)?;
+    connection
+        .query_row("SELECT state_json FROM app_state WHERE id = 1", [], |row| {
+            row.get::<_, String>(0)
+        })
+        .optional()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn save_state_snapshot(app: AppHandle, state_json: String) -> Result<(), String> {
+    let connection = open_database(&app)?;
+    connection
+        .execute(
+            "
+            INSERT INTO app_state (id, state_json, updated_at)
+            VALUES (1, ?1, CURRENT_TIMESTAMP)
+            ON CONFLICT(id) DO UPDATE SET
+              state_json = excluded.state_json,
+              updated_at = excluded.updated_at
+            ",
+            params![state_json],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn import_local_asset(app: AppHandle, source_path: String) -> Result<ImportedAsset, String> {
+    let connection = open_database(&app)?;
+    import_asset_into_store(&connection, app_data_dir(&app)?, source_path)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -210,4 +233,79 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    fn row_count(connection: &Connection) -> i64 {
+        connection
+            .query_row("SELECT COUNT(*) FROM attachments", [], |row| row.get(0))
+            .expect("attachments row count")
+    }
+
+    #[test]
+    fn importing_local_asset_copies_file_and_deduplicates_metadata() {
+        let source_root = tempfile::tempdir().expect("source temp dir");
+        let source_dir = source_root
+            .path()
+            .join("Group Containers")
+            .join("Markdown Import");
+        fs::create_dir_all(&source_dir).expect("source dirs");
+        let source_path = source_dir.join("sample travel image.jpeg");
+        let bytes = b"\xff\xd8\xff\xe0not-a-real-jpeg-but-stable-test-bytes";
+        fs::write(&source_path, bytes).expect("source image");
+
+        let app_data = tempfile::tempdir().expect("app data temp dir");
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+
+        let imported = import_asset_into_store(
+            &connection,
+            app_data.path().to_path_buf(),
+            source_path.to_string_lossy().to_string(),
+        )
+        .expect("first asset import");
+
+        assert_eq!(imported.original_path, source_path.to_string_lossy());
+        assert_eq!(imported.mime_type, "image/jpeg");
+        assert_eq!(imported.size, bytes.len() as u64);
+        assert!(imported.asset_url.starts_with("asset://localhost/"));
+        assert!(Path::new(&imported.stored_path).is_file());
+        assert!(imported.stored_path.contains("/attachments/"));
+        assert!(imported.stored_path.ends_with(".jpeg"));
+        assert_eq!(row_count(&connection), 1);
+
+        let imported_again = import_asset_into_store(
+            &connection,
+            app_data.path().to_path_buf(),
+            source_path.to_string_lossy().to_string(),
+        )
+        .expect("second asset import");
+
+        assert_eq!(imported_again.id, imported.id);
+        assert_eq!(imported_again.sha256, imported.sha256);
+        assert_eq!(imported_again.stored_path, imported.stored_path);
+        assert_eq!(row_count(&connection), 1);
+    }
+
+    #[test]
+    fn importing_missing_asset_returns_clear_error() {
+        let app_data = tempfile::tempdir().expect("app data temp dir");
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        let missing_path = app_data.path().join("missing.png");
+
+        let error = import_asset_into_store(
+            &connection,
+            app_data.path().to_path_buf(),
+            missing_path.to_string_lossy().to_string(),
+        )
+        .expect_err("missing asset should fail");
+
+        assert!(error.contains("Asset does not exist"));
+        assert_eq!(row_count(&connection), 0);
+    }
 }
