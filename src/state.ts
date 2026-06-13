@@ -290,22 +290,22 @@ const localAssetPathFromSrc = (src: string) => {
   return null;
 };
 
-const localizeImageAssets = async (html: string, filename: string) => {
+const localizeMediaAssets = async (html: string, filename: string) => {
   const warnings: MarkdownImportWarning[] = [];
   if (!isTauri()) return { html, warnings };
   const container = document.createElement('div');
   container.innerHTML = html;
-  const images = Array.from(container.querySelectorAll('img'));
+  const media = Array.from(container.querySelectorAll<HTMLImageElement | HTMLVideoElement | HTMLAudioElement>('img[src], video[src], audio[src]'));
 
-  await Promise.all(images.map(async (image) => {
-    const src = image.getAttribute('src') ?? '';
+  await Promise.all(media.map(async (element) => {
+    const src = element.getAttribute('src') ?? '';
     const sourcePath = localAssetPathFromSrc(src);
     if (!sourcePath) return;
     try {
       const imported = await invoke<ImportedAsset>('import_local_asset', { sourcePath });
-      image.setAttribute('src', imported.assetUrl);
-      image.setAttribute('data-asset-id', imported.id);
-      image.setAttribute('data-original-src', src);
+      element.setAttribute('src', imported.assetUrl);
+      element.setAttribute('data-asset-id', imported.id);
+      element.setAttribute('data-original-src', src);
     } catch (error) {
       warnings.push({
         filename,
@@ -326,7 +326,7 @@ export const createPageFromMarkdown = async (notebookId: string, filename: strin
   const body = firstHeading ? markdown.replace(/^#\s+.+$/m, '').trim() : markdown;
   const warnings: MarkdownImportWarning[] = [];
   const blocks = await Promise.all(markdownToBlocks(page.id, body).map(async (block) => {
-    const localized = await localizeImageAssets(block.content.html, filename);
+    const localized = await localizeMediaAssets(block.content.html, filename);
     warnings.push(...localized.warnings);
     return {
       ...block,

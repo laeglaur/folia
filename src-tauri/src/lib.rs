@@ -247,7 +247,7 @@ mod tests {
     }
 
     #[test]
-    fn importing_local_asset_copies_file_and_deduplicates_metadata() {
+    fn importing_local_assets_copies_media_files_and_deduplicates_metadata() {
         let source_root = tempfile::tempdir().expect("source temp dir");
         let source_dir = source_root
             .path()
@@ -257,6 +257,9 @@ mod tests {
         let source_path = source_dir.join("sample travel image.jpeg");
         let bytes = b"\xff\xd8\xff\xe0not-a-real-jpeg-but-stable-test-bytes";
         fs::write(&source_path, bytes).expect("source image");
+        let audio_path = source_dir.join("voice memo.m4a");
+        let audio_bytes = b"not-a-real-m4a-but-stable-test-bytes";
+        fs::write(&audio_path, audio_bytes).expect("source audio");
 
         let app_data = tempfile::tempdir().expect("app data temp dir");
         let connection = Connection::open_in_memory().expect("memory database");
@@ -289,6 +292,20 @@ mod tests {
         assert_eq!(imported_again.sha256, imported.sha256);
         assert_eq!(imported_again.stored_path, imported.stored_path);
         assert_eq!(row_count(&connection), 1);
+
+        let imported_audio = import_asset_into_store(
+            &connection,
+            app_data.path().to_path_buf(),
+            audio_path.to_string_lossy().to_string(),
+        )
+        .expect("audio asset import");
+
+        assert_eq!(imported_audio.original_path, audio_path.to_string_lossy());
+        assert_eq!(imported_audio.mime_type, "audio/mp4");
+        assert_eq!(imported_audio.size, audio_bytes.len() as u64);
+        assert!(Path::new(&imported_audio.stored_path).is_file());
+        assert!(imported_audio.stored_path.ends_with(".m4a"));
+        assert_eq!(row_count(&connection), 2);
     }
 
     #[test]
