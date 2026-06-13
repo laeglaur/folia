@@ -1,0 +1,54 @@
+import { chromium } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+
+const markdownPath = join(tmpdir(), `notebook-import-${Date.now()}.md`);
+await writeFile(markdownPath, [
+  '# Imported Smoke',
+  '',
+  'A paragraph with **bold**, *italic*, ==mark==, `inline`, and [link](https://example.com).',
+  '',
+  '- first bullet',
+  '- second bullet',
+  '',
+  '- [ ] open task',
+  '- [x] done task',
+  '',
+  '```',
+  'const imported = true;',
+  '```'
+].join('\n'));
+
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage();
+
+await page.goto('http://127.0.0.1:5173/');
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+
+await page.locator('input[type="file"]').setInputFiles(markdownPath);
+await page.locator('.page-title').waitFor({ state: 'visible' });
+
+const pageTitle = await page.locator('.page-title').inputValue();
+const pageTreeText = await page.locator('.page-tree').innerText();
+const pageText = await page.locator('.page-surface').innerText();
+const pageHtml = await page.locator('.page-surface').evaluate((node) => node.innerHTML);
+
+const checks = {
+  title: pageTitle === 'Imported Smoke',
+  pageTree: pageTreeText.includes('Imported Smoke'),
+  paragraph: pageText.includes('A paragraph with bold'),
+  bullet: pageHtml.includes('<ul') && pageText.includes('first bullet'),
+  task: pageHtml.includes('data-type="taskList"') && pageHtml.includes('open task') && pageHtml.includes('done task'),
+  inlineCode: pageHtml.includes('<code>inline</code>'),
+  highlight: pageHtml.includes('<mark'),
+  codeBlock: pageHtml.includes('<pre><code>') && pageText.includes('const imported = true;')
+};
+
+console.log(JSON.stringify({ checks }, null, 2));
+await browser.close();
+
+if (Object.values(checks).some((value) => !value)) {
+  process.exit(1);
+}

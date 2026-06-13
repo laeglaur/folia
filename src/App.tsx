@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Download,
   FilePlus,
+  FileUp,
   Highlighter,
   Indent,
   Italic,
@@ -35,6 +36,7 @@ import {
   appendOperation,
   createBlock,
   createNotebook,
+  createPageFromMarkdown,
   createPage,
   downloadTextFile,
   htmlToMarkdown,
@@ -288,6 +290,7 @@ export function App() {
   const composerEditorRef = useRef<Editor | null>(null);
   const blockEditorRefs = useRef<Record<string, Editor | null>>({});
   const persistenceReadyRef = useRef(!isTauri());
+  const markdownInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -524,6 +527,43 @@ export function App() {
     downloadTextFile('notebook-backup.json', JSON.stringify(state, null, 2), 'application/json;charset=utf-8');
   };
 
+  const importMarkdownFiles = async (fileList: FileList | null) => {
+    const files = Array.from(fileList ?? []).filter((file) => /\.(md|markdown|txt)$/i.test(file.name));
+    if (!files.length) return;
+    const documents = await Promise.all(files.map(async (file) => ({ filename: file.name, markdown: await file.text() })));
+
+    setState((current) => {
+      const imported = documents.map((document) => createPageFromMarkdown(current.activeNotebookId, document.filename, document.markdown));
+      const importedPageIds = imported.map(({ page }) => page.id);
+      const importedBlocks = imported.flatMap(({ blocks }) => blocks);
+      const activePageId = importedPageIds[importedPageIds.length - 1] ?? current.activePageId;
+      const operationsState = { ...current };
+      let operations = current.operations;
+      imported.forEach(({ page, blocks }) => {
+        operations = appendOperation({ ...operationsState, operations }, {
+          entity: 'page',
+          entityId: page.id,
+          kind: 'page.import_markdown',
+          payload: { page, blockCount: blocks.length }
+        });
+      });
+
+      return {
+        ...current,
+        pages: [...current.pages, ...imported.map(({ page }) => page)],
+        blocks: [...current.blocks, ...importedBlocks],
+        notebooks: current.notebooks.map((notebook) =>
+          notebook.id === current.activeNotebookId
+            ? { ...notebook, pageIds: [...notebook.pageIds, ...importedPageIds] }
+            : notebook
+        ),
+        activePageId,
+        expandedPageIds: [...new Set([...current.expandedPageIds, ...importedPageIds])],
+        operations
+      };
+    });
+  };
+
   const openPinnedWindow = async (blockId: string) => {
     setState((current) => ({ ...current, openCardWindowBlockId: blockId }));
     if (!isTauri()) return;
@@ -678,6 +718,18 @@ export function App() {
             >
               {themes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
             </select>
+            <input
+              ref={markdownInputRef}
+              hidden
+              multiple
+              accept=".md,.markdown,.txt,text/markdown,text/plain"
+              type="file"
+              onChange={(event) => {
+                void importMarkdownFiles(event.target.files);
+                event.currentTarget.value = '';
+              }}
+            />
+            <button className="secondary-button" type="button" onClick={() => markdownInputRef.current?.click()}><FileUp size={15} /> Import MD</button>
             <button className="secondary-button" type="button" onClick={exportMarkdown}><Download size={15} /> Markdown</button>
             <button className="secondary-button" type="button" onClick={exportJson}><Upload size={15} /> Backup</button>
           </div>
