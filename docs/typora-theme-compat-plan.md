@@ -30,6 +30,8 @@ Known gaps that matter for Typora-style writing:
 - Frontmatter metadata import is not implemented.
 - Footnotes are not implemented.
 - LaTeX/math is not implemented.
+- Blockquote, horizontal rule, and strikethrough are not explicitly covered by smoke tests yet.
+- Underline is not implemented as a first-class rich-text mark yet.
 - Mermaid/diagram and Markdown source mode are desirable later but not part of this first compatibility milestone.
 - Markdown export is still too basic for advanced content.
 
@@ -43,11 +45,12 @@ This layer defines the semantic document features the editor can actually store,
 
 First compatibility milestone:
 
+- advanced Markdown fixture coverage for Typora-styled basics such as blockquote, horizontal rule, strikethrough, code, tables, images, task lists, and nested lists
+- underline rich-text support
 - real TOC/outline from headings and collapsible list parents
 - YAML frontmatter import into page metadata
 - footnotes
 - inline math and block math
-- blockquotes and horizontal rules smoke coverage
 
 Deferred:
 
@@ -330,23 +333,29 @@ Design expectation:
 
 ### Phase 1: Content Features
 
-1. Real outline:
+1. Advanced fixture and small mark coverage:
+   - add Markdown smoke coverage for blockquote, horizontal rule, strikethrough, nested lists, task lists, table, image/media, and code
+   - verify StarterKit preserves blockquote, horizontal rule, and strikethrough
+   - add underline support as a rich-text mark
+   - add theme tokens for blockquote and horizontal rule
+
+2. Real outline:
    - extract headings from block HTML
    - extract collapsible list parent text
    - render hierarchical right-panel outline
    - jump to exact headings/list items
 
-2. Frontmatter:
+3. Frontmatter:
    - parse YAML-ish frontmatter without overbuilding
    - add page metadata fields
    - remove frontmatter from imported body
    - show a compact metadata strip later if useful
 
-3. Footnotes:
+4. Footnotes:
    - enable Markdown footnote parsing or add a preprocessing pass
    - style footnotes through theme tokens and Typora selectors
 
-4. Math:
+5. Math:
    - choose the package after checking current Tiptap compatibility
    - add inline/block math import/render
    - add CSS hooks
@@ -483,15 +492,17 @@ Manual review:
 Commit in small chunks:
 
 1. `Plan Typora theme compatibility`
-2. `Add advanced markdown fixture coverage`
-3. `Build real page outline`
-4. `Import markdown frontmatter metadata`
-5. `Render markdown footnotes`
-6. `Render latex math`
-7. `Add Typora content theme scope`
-8. `Add Typora CSS prefixer`
-9. `Install pilot Typora themes`
-10. `Add Typora theme smoke tests`
+2. `Audit Typora theme CSS requirements`
+3. `Add advanced markdown fixture coverage`
+4. `Add underline rich text support`
+5. `Build real page outline`
+6. `Import markdown frontmatter metadata`
+7. `Render markdown footnotes`
+8. `Render latex math`
+9. `Add Typora content theme scope`
+10. `Add Typora CSS prefixer`
+11. `Install pilot Typora themes`
+12. `Add Typora theme smoke tests`
 
 Do not batch content features and theme importer into one large commit.
 
@@ -506,12 +517,12 @@ Do not batch content features and theme importer into one large commit.
 
 ## First Implementation Recommendation
 
-Start with Phase 1, item 1: real outline.
+Start with Phase 1, item 1: advanced fixture and small mark coverage.
 
 Reason:
 
-- It is already listed as partial in `docs/progress.md`.
-- It improves daily navigation immediately.
-- It is required for Typora-like TOC behavior.
+- The audit shows Typora themes heavily style blockquote, horizontal rule, strikethrough, code, tables, images, task lists, and markers.
+- Several of these are likely already supported by StarterKit, but under-tested.
+- Fixing small gaps before the theme bridge prevents false assumptions during compatibility work.
 - It does not depend on third-party math/theme packages.
-- It gives us the DOM anchors that Typora-compatible TOC styling can later target.
+- It gives the later Typora bridge a reliable fixture to test against.
