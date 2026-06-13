@@ -290,10 +290,7 @@ const normalizeMarkdownWhitespace = (markdown: string) =>
   markdown
     .replace(/\r\n?/g, '\n')
     .split('\n')
-    .map((line) => {
-      if (/^[\t ]*```/.test(line)) return line.trimStart();
-      return line.replace(/^ {2}/, '');
-    })
+    .map((line) => (/^[\t ]*```/.test(line) ? line.trimStart() : line))
     .join('\n');
 
 const markdownInlineToHtml = (value: string) => {
@@ -341,16 +338,16 @@ const mediaHtmlForUrl = (url: string, label = '') => {
 const normalizeMarkdownForMarked = (markdown: string) =>
   normalizeMarkdownWhitespace(markdown)
     .replace(/!\[([^\]]*)\]\(([^)\n]+)\)/g, (_match, alt: string, src: string) => `<img src="${escapeHtml(src.trim())}" alt="${escapeHtml(alt)}">`)
-    .replace(/^\s*\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)\s*$/gm, (match, label: string, url: string) => mediaHtmlForUrl(url, label) ?? match)
-    .replace(/^\s*(https?:\/\/\S+\.(?:mp4|mov|webm|m4v|mp3|wav|m4a|aac|ogg|flac)(?:[?#]\S*)?)\s*$/gim, (_match, url: string) => mediaHtmlForUrl(url) ?? _match)
-    .replace(/^\s*(https?:\/\/(?:www\.)?(?:youtu\.be|youtube\.com|m\.youtube\.com|vimeo\.com)\/\S+)\s*$/gim, (_match, url: string) => mediaHtmlForUrl(url) ?? _match)
+    .replace(/^[^\S\r\n]*\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)[^\S\r\n]*$/gm, (match, label: string, url: string) => mediaHtmlForUrl(url, label) ?? match)
+    .replace(/^[^\S\r\n]*(https?:\/\/\S+\.(?:mp4|mov|webm|m4v|mp3|wav|m4a|aac|ogg|flac)(?:[?#]\S*)?)[^\S\r\n]*$/gim, (_match, url: string) => mediaHtmlForUrl(url) ?? _match)
+    .replace(/^[^\S\r\n]*(https?:\/\/(?:www\.)?(?:youtu\.be|youtube\.com|m\.youtube\.com|vimeo\.com)\/\S+)[^\S\r\n]*$/gim, (_match, url: string) => mediaHtmlForUrl(url) ?? _match)
     .replace(/==([^=\n][\s\S]*?[^=\n])==/g, '<mark>$1</mark>')
-    .replace(/^\s*【】\s+(.+)$/gm, '- [ ] <mark>$1</mark>')
-    .replace(/(?:^\s*[-*+]\s+\[[ xX]\]\s+.+(?:\n|$))+/gm, (block) => {
+    .replace(/^[^\S\r\n]*【】[^\S\r\n]+(.+)$/gm, '- [ ] <mark>$1</mark>')
+    .replace(/(?:^[^\S\r\n]*[-*+][^\S\r\n]+\[[ xX]\][^\S\r\n]+.+(?:\n|$))+/gm, (block) => {
       const items = block
         .trimEnd()
         .split('\n')
-        .map((line) => line.match(/^\s*[-*+]\s+\[([ xX])\]\s+(.+)$/))
+        .map((line) => line.match(/^[^\S\r\n]*[-*+][^\S\r\n]+\[([ xX])\][^\S\r\n]+(.+)$/))
         .filter(Boolean) as RegExpMatchArray[];
       if (!items.length) return block;
       return `<ul data-type="taskList">${items.map((match) => {

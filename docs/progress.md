@@ -12,12 +12,12 @@ Updated: 2026-06-13
 - Tiptap rich text editing is in place for headings, bold, italic, highlight, inline code, code blocks, links, lists, todos, tables, images, video, audio, and embeds.
 - Markdown input shortcuts are covered for headings, bullets, todos, bracket todos, highlight, inline code, and code blocks.
 - Bullets and task list items can collapse and persist collapsed state in saved HTML.
-- Markdown import creates one rich block per imported page by default, preserving headings, links, images, lists, todos, tables, highlight, inline code, code blocks, video, audio, and common embeds.
+- Markdown import creates one rich block per imported page by default, preserving headings, links, nested lists, todos, tables, highlight, inline code, code blocks, video, audio, and common embeds.
 - Markdown import parses leading frontmatter into page metadata, including title, tags, date, status, aliases, and simple custom fields.
 - Markdown import now shows visible success/warning/error feedback.
 - Local imported image/audio/video assets are copied into app data attachments storage in Tauri and referenced through the Tauri asset protocol.
 - Attachment metadata is stored in SQLite with content hash deduplication.
-- Right outline now extracts page title and block headings, with jump-to-heading behavior.
+- Right outline now extracts page title, block headings, and imported list parents, with jump-to-heading behavior.
 - Underline, strikethrough, blockquote, and horizontal rule are covered in editor/Markdown smoke tests.
 - Markdown export and JSON backup exist.
 - Theme CSS system exists with semantic tokens, Garden as the default theme, and Ledger as a contrasting layout/theme proof.
@@ -28,17 +28,13 @@ Updated: 2026-06-13
 ## Partial
 
 - Desktop cards exist, but source-to-card live editing, card todo toggling, and jump-back behavior are still thin.
-- Outline supports page title and headings, but list-parent outline entries are limited until nested Markdown list import is fixed.
+- Outline supports page title, headings, and list-parent entries, but deeper outline filtering and richer labels are still basic.
 - Markdown export is basic and not yet a faithful round trip for tables, media, todos, and embeds.
 - SQLite currently stores a state snapshot plus operation log; normalized notebook/page/block tables are not fully used yet.
 - Multi-device sync is designed through operation logs, but there is no sync transport or conflict UI.
 - Themes are tokenized and flexible, but custom external CSS import is not implemented.
 - Media import supports common URLs and local attachment copying, but there is no in-editor media picker/uploader yet.
 - Block-internal columns/layout groups are still not implemented.
-
-## Known Issues
-
-- Markdown import currently flattens indented nested bullets in some files, so list-parent outline entries may not appear after import even though typed nested bullets can collapse in the editor.
 
 ## Not Started
 
@@ -55,11 +51,11 @@ Updated: 2026-06-13
 
 ## Suggested Next Work
 
-1. Fix nested Markdown list import so list-parent outline entries work for imported notes.
-2. Improve desktop cards: make pinned cards reflect source edits, allow todo toggling, and add a return-to-source action.
-3. Implement block-internal layout groups for 2 to 4 columns, starting with image pairs and left-text/right-image.
-4. Improve Markdown export fidelity for todos, tables, media, embeds, and highlights.
-5. Add custom theme loading after the theme contract settles a little more.
+1. Improve desktop cards: make pinned cards reflect source edits, allow todo toggling, and add a return-to-source action.
+2. Implement block-internal layout groups for 2 to 4 columns, starting with image pairs and left-text/right-image.
+3. Improve Markdown export fidelity for todos, tables, media, embeds, and highlights.
+4. Add custom theme loading after the theme contract settles a little more.
+5. Start calendar/kanban views on top of block metadata.
 
 ## Recent Verified Commits
 

@@ -78,18 +78,21 @@ const metadataText = await page.locator('.page-metadata').innerText();
 const blockCount = await page.locator('.block').count();
 const storedState = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
 const storedPage = storedState.pages?.find((storedPage) => storedPage.id === storedState.activePageId);
+const hasNestedBulletDom = await page.locator('.page-surface li > ul li').evaluateAll((items) =>
+  items.some((item) => item.textContent?.includes('nested bullet'))
+);
 
 const checks = {
   title: pageTitle === 'Frontmatter Smoke',
   singleBlock: blockCount === 1,
   pageTree: pageTreeText.includes('Frontmatter Smoke'),
-  outline: outlineText.includes('Frontmatter Smoke') && outlineText.includes('Section Smoke') && outlineText.includes('Detail Smoke'),
+  outline: outlineText.includes('Frontmatter Smoke') && outlineText.includes('Section Smoke') && outlineText.includes('Detail Smoke') && outlineText.includes('first bullet'),
   frontmatterHidden: !pageText.includes('title: Frontmatter Smoke') && !pageText.includes('tags: [travel, literature]') && !pageText.includes('aliases:'),
   metadataUi: metadataText.includes('2026-05-02') && metadataText.includes('draft') && metadataText.includes('#travel') && metadataText.includes('#literature') && metadataText.includes('Hengdian notes') && metadataText.includes('Qin palace'),
   metadataState: storedPage?.metadata?.sourceFilename?.endsWith('.md') && storedPage.metadata.tags.includes('travel') && storedPage.metadata.tags.includes('literature') && storedPage.metadata.date === '2026-05-02' && storedPage.metadata.status === 'draft' && storedPage.metadata.aliases.includes('Hengdian notes') && storedPage.metadata.frontmatter.title === 'Frontmatter Smoke',
   paragraph: pageText.includes('A paragraph with bold'),
   bullet: pageHtml.includes('<ul') && pageText.includes('first bullet'),
-  nestedBullet: pageHtml.includes('<ul') && pageText.includes('nested bullet'),
+  nestedBullet: hasNestedBulletDom,
   blockquote: pageHtml.includes('<blockquote') && pageText.includes('A quote that Typora themes should be able to shape.'),
   horizontalRule: pageHtml.includes('<hr'),
   strike: pageHtml.includes('<s>strike</s>') || pageHtml.includes('<del>strike</del>'),
