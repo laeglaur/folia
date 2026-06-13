@@ -105,18 +105,52 @@ const categoryPatterns = {
   ]
 };
 
+const capabilityPatterns = {
+  bold: [/\bstrong\b/],
+  italic: [/\bem\b/],
+  underline: [/(^|[\s>+~,(])u([\s>+~,.#:[)]|$)/],
+  strike: [/\bdel\b/, /(^|[\s>+~,(])s([\s>+~,.#:[)]|$)/],
+  mark: [/\bmark\b/, /\.md-highlight\b/],
+  link: [/(^|[\s>+~,(])a([\s>+~,.#:[)]|$)/],
+  inlineCode: [/(^|[\s>+~,(])code([\s>+~,.#:[)]|$)/],
+  codeFence: [/\bpre\b/, /\.md-fences\b/],
+  codeMirror: [/\.CodeMirror\b/, /\.cm-/, /#typora-source\b/],
+  table: [/\btable\b/, /\bthead\b/, /\btbody\b/, /\btr\b/, /\bth\b/, /\btd\b/],
+  unorderedList: [/\bul\b/],
+  orderedList: [/\bol\b/],
+  task: [/task-list/i, /md-task/i, /checkbox/i, /input\[type=['"]?checkbox/i],
+  blockquote: [/\bblockquote\b/],
+  hr: [/\bhr\b/],
+  image: [/\bimg\b/, /\.md-image\b/],
+  media: [/\bvideo\b/, /\baudio\b/, /iframe\b/],
+  toc: [/\.md-toc\b/, /\.md-toc-content\b/, /\.md-toc-item\b/],
+  footnote: [/\.md-footnote\b/, /\.md-def-footnote\b/, /\.md-def-link\b/],
+  math: [/math/i, /jax/i],
+  mermaid: [/mermaid/i, /diagram/i]
+};
+
 const cjkFontPatterns = [
   /PingFang\s*SC/i,
   /Hiragino\s*Sans\s*GB/i,
   /Microsoft\s*YaHei/i,
+  /Microsoft\s*JhengHei/i,
   /Noto\s*Sans\s*CJK/i,
+  /Noto\s*Sans\s*SC/i,
+  /Noto\s*Serif\s*SC/i,
   /Source\s*Han/i,
+  /Source\s*Han\s*Sans/i,
+  /Source\s*Han\s*Serif/i,
   /Songti\s*SC/i,
+  /Heiti\s*SC/i,
+  /Kaiti\s*SC/i,
   /STSong/i,
+  /STHeiti/i,
+  /STKaiti/i,
   /SimSun/i,
   /SimHei/i,
   /Sarasa/i,
   /LXGW/i,
+  /LXGW\s*WenKai/i,
   /霞鹜/,
   /思源/,
   /方正/,
@@ -377,10 +411,12 @@ const resolveDownloadSource = async (downloadUrl) => {
 const selectorMatches = (selector, patterns) => patterns.some((pattern) => pattern.test(selector));
 
 const blankCounts = () => Object.fromEntries(Object.keys(categoryPatterns).map((key) => [key, 0]));
+const blankCapabilityCounts = () => Object.fromEntries(Object.keys(capabilityPatterns).map((key) => [key, 0]));
 
 const analyzeCss = (css) => {
   const root = safeParser(css);
   const counts = blankCounts();
+  const capabilityCounts = blankCapabilityCounts();
   const declarations = {
     fontFamily: [],
     layoutRisk: [],
@@ -393,6 +429,9 @@ const analyzeCss = (css) => {
     selectors.push(rule.selector);
     for (const [category, patterns] of Object.entries(categoryPatterns)) {
       if (selectorMatches(rule.selector, patterns)) counts[category] += 1;
+    }
+    for (const [capability, patterns] of Object.entries(capabilityPatterns)) {
+      if (selectorMatches(rule.selector, patterns)) capabilityCounts[capability] += 1;
     }
   });
 
@@ -412,6 +451,7 @@ const analyzeCss = (css) => {
   const fontText = declarations.fontFamily.join(' | ');
   const cjkMatches = [...new Set(cjkFontPatterns.filter((pattern) => pattern.test(fontText)).map((pattern) => pattern.source.replace(/\\s\*/g, ' ')))];
   const hasCjkFallback = cjkMatches.length > 0;
+  const cjkSupport = hasCjkFallback ? 'explicit/acceptable' : declarations.fontFamily.length ? 'weak/unknown' : 'unknown';
 
   const has = (key, threshold = 1) => counts[key] >= threshold;
   const contentCoverage = [
@@ -442,8 +482,10 @@ const analyzeCss = (css) => {
 
   return {
     counts,
+    capabilityCounts,
+    capabilities: buildCapabilities(capabilityCounts, cjkSupport),
     fontFamilies: [...new Set(declarations.fontFamily)].slice(0, 10),
-    cjkSupport: hasCjkFallback ? 'explicit/acceptable' : declarations.fontFamily.length ? 'weak/unknown' : 'unknown',
+    cjkSupport,
     cjkMatches,
     layoutRisk: declarations.layoutRisk.slice(0, 12),
     colors: declarations.colors,
@@ -468,6 +510,36 @@ const buildNotes = (counts, declarations, hasCjkFallback) => {
   if (counts.media === 0) notes.push('media/image styling sparse');
   return notes;
 };
+
+const capabilityStatus = (count, yesThreshold = 1) => {
+  if (count >= yesThreshold) return 'yes';
+  if (count > 0) return 'partial';
+  return 'no';
+};
+
+const buildCapabilities = (capabilityCounts, cjkSupport) => ({
+  cjk: cjkSupport === 'explicit/acceptable' ? 'yes' : cjkSupport === 'weak/unknown' ? 'partial' : 'no',
+  bold: capabilityStatus(capabilityCounts.bold),
+  italic: capabilityStatus(capabilityCounts.italic),
+  underline: capabilityStatus(capabilityCounts.underline),
+  strike: capabilityStatus(capabilityCounts.strike),
+  mark: capabilityStatus(capabilityCounts.mark),
+  link: capabilityStatus(capabilityCounts.link),
+  inlineCode: capabilityStatus(capabilityCounts.inlineCode),
+  codeFence: capabilityCounts.codeFence >= 2 ? 'yes' : capabilityCounts.codeFence > 0 ? 'partial' : capabilityCounts.codeMirror > 0 ? 'typora-dom' : 'no',
+  table: capabilityStatus(capabilityCounts.table, 3),
+  unorderedList: capabilityStatus(capabilityCounts.unorderedList),
+  orderedList: capabilityStatus(capabilityCounts.orderedList),
+  task: capabilityStatus(capabilityCounts.task),
+  blockquote: capabilityStatus(capabilityCounts.blockquote),
+  hr: capabilityStatus(capabilityCounts.hr),
+  image: capabilityStatus(capabilityCounts.image),
+  media: capabilityStatus(capabilityCounts.media),
+  toc: capabilityStatus(capabilityCounts.toc),
+  footnote: capabilityStatus(capabilityCounts.footnote),
+  math: capabilityStatus(capabilityCounts.math),
+  mermaid: capabilityStatus(capabilityCounts.mermaid)
+});
 
 const buildMergedNotes = (counts, layoutRisk, hasCjkFallback) =>
   buildNotes(
@@ -592,6 +664,8 @@ const auditGalleryTheme = async (target, tempDir, galleryIndex) => {
 
 const emptyAnalysis = (note) => ({
   counts: blankCounts(),
+  capabilityCounts: blankCapabilityCounts(),
+  capabilities: buildCapabilities(blankCapabilityCounts(), 'unknown'),
   fontFamilies: [],
   cjkSupport: 'unknown',
   cjkMatches: [],
@@ -608,6 +682,7 @@ const emptyAnalysis = (note) => ({
 
 const mergeAnalyses = (analyses) => {
   const counts = blankCounts();
+  const capabilityCounts = blankCapabilityCounts();
   const fontFamilies = new Set();
   const cjkMatches = new Set();
   const layoutRisk = [];
@@ -618,6 +693,7 @@ const mergeAnalyses = (analyses) => {
 
   for (const analysis of analyses) {
     for (const key of Object.keys(counts)) counts[key] += analysis.counts[key] ?? 0;
+    for (const key of Object.keys(capabilityCounts)) capabilityCounts[key] += analysis.capabilityCounts?.[key] ?? 0;
     analysis.fontFamilies.forEach((font) => fontFamilies.add(font));
     analysis.cjkMatches.forEach((match) => cjkMatches.add(match));
     layoutRisk.push(...analysis.layoutRisk);
@@ -632,6 +708,7 @@ const mergeAnalyses = (analyses) => {
   const merged = {
     ...best,
     counts,
+    capabilityCounts,
     fontFamilies: [...fontFamilies].slice(0, 10),
     cjkSupport: cjkMatches.size ? 'explicit/acceptable' : fontFamilies.size ? 'weak/unknown' : 'unknown',
     cjkMatches: [...cjkMatches],
@@ -640,12 +717,24 @@ const mergeAnalyses = (analyses) => {
     backgrounds,
     notes: buildMergedNotes(counts, [...new Set(layoutRisk)], cjkMatches.size > 0)
   };
+  merged.capabilities = buildCapabilities(capabilityCounts, merged.cjkSupport);
   return merged;
 };
 
 const markdownCell = (value) => String(value ?? '').replace(/\|/g, '\\|').replace(/\n/g, '<br>');
-const compactCount = (analysis) =>
-  `base ${analysis.counts.base}; code ${analysis.counts.renderedCode}/${analysis.counts.codeMirror}; table ${analysis.counts.table}; list ${analysis.counts.list}; task ${analysis.counts.task}; media ${analysis.counts.media}; UI ${analysis.counts.typoraUi}`;
+const cap = (result, key) => result.capabilities?.[key] ?? 'no';
+const capabilitySummary = (result, keys) => keys.map((key) => `${key}:${cap(result, key)}`).join(', ');
+const tierOrder = { none: 0, light: 1, medium: 2, heavy: 3, unknown: 4 };
+const byAdaptationTier = (a, b) => (tierOrder[a.offload] ?? 9) - (tierOrder[b.offload] ?? 9) || a.name.localeCompare(b.name);
+
+const buildCapabilityTable = (results, title, columns) => [
+  `## ${title}`,
+  '',
+  `| Theme | Source | Variants | ${columns.map((column) => column.label).join(' | ')} | Adaptation | Notes |`,
+  `| --- | --- | ---: | ${columns.map(() => '---').join(' | ')} | --- | --- |`,
+  ...results.map((result) => `| ${markdownCell(result.name)} | ${markdownCell(result.sourceStatus)} | ${result.cssVariants.length} | ${columns.map((column) => markdownCell(cap(result, column.key))).join(' | ')} | ${markdownCell(result.offload)} | ${markdownCell(result.notes.join('; '))} |`),
+  ''
+];
 
 const buildMarkdownAudit = (results) => {
   const lines = [
@@ -653,31 +742,52 @@ const buildMarkdownAudit = (results) => {
     '',
     'Generated by `pnpm audit:typora-themes`. Download responses are cached under `.cache/typora-theme-audit/`; pass `--refresh` to force a fresh download pass.',
     '',
-    '| Theme | Source | CSS variants | CJK | Coverage counts | Layout risk | Grade | Offload | Notes |',
-    '| --- | --- | ---: | --- | --- | --- | --- | --- | --- |'
+    'Statuses: `yes` means the theme CSS has direct styling for that semantic; `partial` means sparse or fallback-level coverage; `typora-dom` means the styling mostly targets Typora or CodeMirror DOM that our renderer must alias; `no` means no styling was detected.',
+    ''
   ];
 
-  for (const result of results) {
-    lines.push(`| ${markdownCell(result.name)} | ${markdownCell(result.sourceStatus)} | ${result.cssVariants.length} | ${markdownCell(result.cjkSupport)} | ${markdownCell(compactCount(result))} | ${result.layoutRisk.length} | ${markdownCell(result.grade)} | ${markdownCell(result.offload)} | ${markdownCell(result.notes.join('; '))} |`);
-  }
-
   lines.push(
+    ...buildCapabilityTable(results, 'Inline Formatting', [
+      { key: 'cjk', label: 'CJK' },
+      { key: 'bold', label: 'Bold' },
+      { key: 'italic', label: 'Italic' },
+      { key: 'underline', label: 'Underline' },
+      { key: 'strike', label: 'Strike' },
+      { key: 'mark', label: 'Highlight' },
+      { key: 'link', label: 'Link' },
+      { key: 'inlineCode', label: 'Inline Code' }
+    ]),
+    ...buildCapabilityTable(results, 'Block Formatting', [
+      { key: 'codeFence', label: 'Code Fence' },
+      { key: 'table', label: 'Table' },
+      { key: 'unorderedList', label: 'UL' },
+      { key: 'orderedList', label: 'OL' },
+      { key: 'task', label: 'Task' },
+      { key: 'blockquote', label: 'Quote' },
+      { key: 'hr', label: 'HR' },
+      { key: 'image', label: 'Image' },
+      { key: 'media', label: 'Media' }
+    ]),
+    ...buildCapabilityTable(results, 'Advanced And Compatibility', [
+      { key: 'toc', label: 'TOC' },
+      { key: 'footnote', label: 'Footnote' },
+      { key: 'math', label: 'Math' },
+      { key: 'mermaid', label: 'Mermaid' }
+    ]),
     '',
-    '## Recommended First Adaptation Candidates',
+    '## Light Adaptation Candidates',
     '',
     ...results
-      .filter((result) => result.grade === 'ready' || result.grade === 'good candidate')
-      .sort((a, b) => b.readinessScore - a.readinessScore)
-      .slice(0, 10)
-      .map((result) => `- ${result.name}: ${result.grade}, offload ${result.offload}, score ${result.readinessScore}`),
+      .filter((result) => result.offload === 'none' || result.offload === 'light')
+      .sort(byAdaptationTier)
+      .map((result) => `- ${result.name}: ${result.offload}; inline [${capabilitySummary(result, ['cjk', 'bold', 'italic', 'mark', 'inlineCode'])}]; blocks [${capabilitySummary(result, ['codeFence', 'table', 'unorderedList', 'orderedList', 'task', 'image'])}]`),
     '',
-    '## Themes To Offload First',
+    '## Heavy Or Experimental',
     '',
     ...results
       .filter((result) => result.offload === 'heavy' || result.grade === 'experimental')
-      .sort((a, b) => a.readinessScore - b.readinessScore)
-      .slice(0, 12)
-      .map((result) => `- ${result.name}: ${result.grade}, ${result.notes.join('; ') || 'low readiness score'}`),
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((result) => `- ${result.name}: ${result.offload}; ${result.notes.join('; ') || 'requires manual review'}`),
     ''
   );
 
@@ -696,9 +806,9 @@ const updateTargetsDoc = async (results) => {
     '',
     'Generated by `pnpm audit:typora-themes`. Source links are discovered from the Typora Theme Gallery when possible; installed pilot themes are audited from local raw CSS. Download responses are cached under `.cache/typora-theme-audit/`; pass `--refresh` to force a fresh download pass.',
     '',
-    '| Theme | Source Status | CSS Variants | CJK Support | Code | Table | Media | UI Leakage | Layout Risks | Grade | Offload |',
-    '| --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |',
-    ...results.map((result) => `| ${markdownCell(result.name)} | ${markdownCell(result.sourceStatus)} | ${result.cssVariants.length} | ${markdownCell(result.cjkSupport)} | ${result.counts.renderedCode}/${result.counts.codeMirror} | ${result.counts.table} | ${result.counts.media} | ${result.counts.typoraUi} | ${result.layoutRisk.length} | ${markdownCell(result.grade)} | ${markdownCell(result.offload)} |`),
+    '| Theme | Source Status | CSS Variants | Inline | Blocks | Advanced | UI Leakage | Layout Risks | Adaptation |',
+    '| --- | --- | ---: | --- | --- | --- | ---: | ---: | --- |',
+    ...results.map((result) => `| ${markdownCell(result.name)} | ${markdownCell(result.sourceStatus)} | ${result.cssVariants.length} | ${markdownCell(capabilitySummary(result, ['cjk', 'bold', 'italic', 'mark', 'inlineCode']))} | ${markdownCell(capabilitySummary(result, ['codeFence', 'table', 'unorderedList', 'orderedList', 'task', 'image']))} | ${markdownCell(capabilitySummary(result, ['toc', 'footnote', 'math', 'mermaid']))} | ${result.counts.typoraUi} | ${result.layoutRisk.length} | ${markdownCell(result.offload)} |`),
     '',
     markerEnd
   ].join('\n');
