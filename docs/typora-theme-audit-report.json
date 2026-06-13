@@ -1,0 +1,1880 @@
+{
+  "generatedAt": "2026-06-13T12:27:49.513Z",
+  "results": [
+    {
+      "name": "Inkwell",
+      "slug": "Inkwell",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/toxic-19/typora-theme-inkwell",
+      "pageUrl": "https://theme.typora.io/theme/Inkwell/",
+      "downloadUrl": "https://github.com/toxic-19/typora-theme-inkwell/archive/main.zip",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/toxic-19/typora-theme-inkwell/archive/main.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "typora-theme-inkwell-main/inkwell-dark.css",
+        "typora-theme-inkwell-main/inkwell.css"
+      ],
+      "counts": {
+        "base": 77,
+        "code": 141,
+        "renderedCode": 51,
+        "codeMirror": 112,
+        "table": 22,
+        "list": 14,
+        "task": 4,
+        "media": 8,
+        "inlineMarks": 24,
+        "blockSemantics": 16,
+        "toc": 10,
+        "footnote": 2,
+        "math": 4,
+        "typoraUi": 17
+      },
+      "fontFamilies": [
+        "var(--font-sans)",
+        "var(--font-mono)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 331,
+      "backgrounds": 99,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 15,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Salamander",
+      "slug": "Salamander",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/mariusw/salamander-typora-theme",
+      "pageUrl": "https://theme.typora.io/theme/Salamander/",
+      "downloadUrl": "https://github.com/mariusw/salamander-typora-theme/releases/latest/download/salamander.zip",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/mariusw/salamander-typora-theme/releases/latest/download/salamander.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "salamander.css"
+      ],
+      "counts": {
+        "base": 16,
+        "code": 29,
+        "renderedCode": 4,
+        "codeMirror": 26,
+        "table": 6,
+        "list": 5,
+        "task": 5,
+        "media": 0,
+        "inlineMarks": 29,
+        "blockSemantics": 3,
+        "toc": 0,
+        "footnote": 0,
+        "math": 12,
+        "typoraUi": 5
+      },
+      "fontFamilies": [
+        "'Plus Jakarta Sans'",
+        "'Syne'",
+        "'JetBrains Mono'",
+        "'Plus Jakarta Sans', sans-serif",
+        "'Syne', sans-serif",
+        "'JetBrains Mono', monospace"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 70,
+      "backgrounds": 27,
+      "contentCoverage": 6,
+      "advancedCoverage": 1,
+      "readinessScore": 12,
+      "offload": "light",
+      "grade": "good candidate",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "fixed/print-like layout declarations need containment",
+        "media/image styling sparse"
+      ]
+    },
+    {
+      "name": "Maodie",
+      "slug": "Maodie",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/Lei285714/Maodie-Typora-theme",
+      "pageUrl": "https://theme.typora.io/theme/Maodie/",
+      "downloadUrl": "https://github.com/Lei285714/Maodie-Typora-theme/archive/main.zip",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/Lei285714/Maodie-Typora-theme/archive/main.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "Maodie-Typora-theme-main/maodie.css"
+      ],
+      "counts": {
+        "base": 65,
+        "code": 55,
+        "renderedCode": 22,
+        "codeMirror": 35,
+        "table": 11,
+        "list": 32,
+        "task": 16,
+        "media": 4,
+        "inlineMarks": 21,
+        "blockSemantics": 23,
+        "toc": 11,
+        "footnote": 2,
+        "math": 17,
+        "typoraUi": 62
+      },
+      "fontFamilies": [
+        "\"Newsreader\"",
+        "var(--font-body)",
+        "var(--font-mono)",
+        "var(--font-ui)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 300,
+      "backgrounds": 167,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 12,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Crisp",
+      "slug": "Crisp",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/nitaking/typora-crisp-theme",
+      "pageUrl": "https://theme.typora.io/theme/Crisp/",
+      "downloadUrl": "https://github.com/nitaking/typora-crisp-theme/releases/latest",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/nitaking/typora-crisp-theme/archive/refs/tags/v1.1.0.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "typora-crisp-theme-1.1.0/crisp-gothic.css",
+        "typora-crisp-theme-1.1.0/crisp-mincho.css"
+      ],
+      "counts": {
+        "base": 26,
+        "code": 8,
+        "renderedCode": 8,
+        "codeMirror": 0,
+        "table": 6,
+        "list": 4,
+        "task": 6,
+        "media": 2,
+        "inlineMarks": 8,
+        "blockSemantics": 6,
+        "toc": 0,
+        "footnote": 0,
+        "math": 0,
+        "typoraUi": 0
+      },
+      "fontFamilies": [
+        "\"Helvetica Neue\", \"Hiragino Sans\", \"Hiragino Kaku Gothic ProN\", Arial, \"Noto Sans JP\", Meiryo, sans-serif",
+        "var(--monospace)",
+        "\"Hiragino Mincho ProN\", \"Hiragino Mincho Pro\", \"HGSMinchoE\", \"Yu Mincho\", YuMincho, \"MS PMincho\", serif"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [],
+      "colors": 20,
+      "backgrounds": 14,
+      "contentCoverage": 6,
+      "advancedCoverage": 0,
+      "readinessScore": 13,
+      "offload": "light",
+      "grade": "good candidate",
+      "notes": [
+        "CJK fallback weak or not detected"
+      ]
+    },
+    {
+      "name": "Folio",
+      "slug": "Folio",
+      "importId": "typora-folio",
+      "sourceStatus": "verified installed",
+      "sourceUrl": "https://raw.githubusercontent.com/liyoulu/typora-folio-theme/main/folio.css",
+      "cssVariants": [
+        "src/styles/typora/raw/typora-folio.css"
+      ],
+      "counts": {
+        "base": 22,
+        "code": 4,
+        "renderedCode": 3,
+        "codeMirror": 2,
+        "table": 5,
+        "list": 4,
+        "task": 1,
+        "media": 2,
+        "inlineMarks": 7,
+        "blockSemantics": 5,
+        "toc": 9,
+        "footnote": 1,
+        "math": 0,
+        "typoraUi": 8
+      },
+      "fontFamilies": [
+        "\"Merriweather\"",
+        "\"Folio CJK Display\"",
+        "var(--folio-serif)",
+        "var(--folio-display)",
+        "var(--folio-mono)",
+        "var(--folio-ui)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "max-width: 210mm",
+        "padding: 24mm 20mm 26mm"
+      ],
+      "colors": 18,
+      "backgrounds": 12,
+      "contentCoverage": 7,
+      "advancedCoverage": 2,
+      "readinessScore": 15,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Swiss",
+      "slug": "Swiss",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/ChivaLryCieux/swiss-theme",
+      "pageUrl": "https://theme.typora.io/theme/Swiss/",
+      "downloadUrl": "https://github.com/ChivaLryCieux/swiss-theme/releases",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/ChivaLryCieux/swiss-theme/archive/refs/tags/v1.0.0.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "swiss-theme-1.0.0/swiss.css"
+      ],
+      "counts": {
+        "base": 39,
+        "code": 15,
+        "renderedCode": 9,
+        "codeMirror": 7,
+        "table": 5,
+        "list": 6,
+        "task": 0,
+        "media": 0,
+        "inlineMarks": 8,
+        "blockSemantics": 4,
+        "toc": 0,
+        "footnote": 0,
+        "math": 0,
+        "typoraUi": 0
+      },
+      "fontFamilies": [
+        "\"Helvetica Neue\", Helvetica, Arial, \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif",
+        "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", monospace"
+      ],
+      "cjkSupport": "explicit/acceptable",
+      "cjkMatches": [
+        "Microsoft YaHei"
+      ],
+      "layoutRisk": [],
+      "colors": 28,
+      "backgrounds": 22,
+      "contentCoverage": 6,
+      "advancedCoverage": 0,
+      "readinessScore": 14,
+      "offload": "light",
+      "grade": "good candidate",
+      "notes": [
+        "media/image styling sparse"
+      ]
+    },
+    {
+      "name": "Blue Topaz",
+      "slug": "Blue-Topaz",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/LingJingMaster/typora-theme-blue-topaz",
+      "pageUrl": "https://theme.typora.io/theme/Blue-Topaz/",
+      "downloadUrl": "https://github.com/LingJingMaster/typora-theme-blue-topaz/archive/refs/heads/main.zip",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/LingJingMaster/typora-theme-blue-topaz/archive/refs/heads/main.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "typora-theme-blue-topaz-main/blue-topaz.css"
+      ],
+      "counts": {
+        "base": 38,
+        "code": 57,
+        "renderedCode": 10,
+        "codeMirror": 48,
+        "table": 17,
+        "list": 8,
+        "task": 4,
+        "media": 1,
+        "inlineMarks": 52,
+        "blockSemantics": 7,
+        "toc": 5,
+        "footnote": 3,
+        "math": 5,
+        "typoraUi": 12
+      },
+      "fontFamilies": [
+        "var(--font-family-sans)",
+        "var(--font-family-heading)",
+        "var(--font-family-mono)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 246,
+      "backgrounds": 74,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 12.5,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "LaTeX Typora",
+      "slug": "LaTeX-Typora",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/shamsghi/LatexTypora",
+      "pageUrl": "https://theme.typora.io/theme/LaTeX-Typora/",
+      "downloadUrl": "https://github.com/shamsghi/LatexTypora/releases/latest",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/shamsghi/LatexTypora/archive/refs/tags/v1.5.1.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "LatexTypora-1.5.1/latex-dark.css",
+        "LatexTypora-1.5.1/latex-dev-dark.css",
+        "LatexTypora-1.5.1/latex.css"
+      ],
+      "counts": {
+        "base": 94,
+        "code": 102,
+        "renderedCode": 53,
+        "codeMirror": 71,
+        "table": 20,
+        "list": 46,
+        "task": 16,
+        "media": 6,
+        "inlineMarks": 59,
+        "blockSemantics": 68,
+        "toc": 6,
+        "footnote": 6,
+        "math": 88,
+        "typoraUi": 30
+      },
+      "fontFamilies": [
+        "\"Backtick Serif Fix\"",
+        "\"Latin Modern Roman\"",
+        "\"Latin Modern Sans\"",
+        "\"Latin Modern Mono\"",
+        "\"Noto Nastaliq Urdu\"",
+        "\"JuliaMono\"",
+        "\"New Computer Modern\"",
+        "var(--font-family)",
+        "var(--cjk-heading-font)",
+        "var(--sans-font)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 477,
+      "backgrounds": 117,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 14.5,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Paperglow Theme",
+      "slug": "Paperglow-Theme",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/cloudy-liu/Paperglow-Theme",
+      "pageUrl": "https://theme.typora.io/theme/Paperglow/",
+      "downloadUrl": "https://github.com/cloudy-liu/Paperglow-Theme/releases/latest/download/typora-paperglow.zip",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/cloudy-liu/Paperglow-Theme/releases/latest/download/typora-paperglow.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "paperglow-dark.css",
+        "paperglow.css"
+      ],
+      "counts": {
+        "base": 31,
+        "code": 51,
+        "renderedCode": 20,
+        "codeMirror": 34,
+        "table": 12,
+        "list": 27,
+        "task": 3,
+        "media": 2,
+        "inlineMarks": 54,
+        "blockSemantics": 15,
+        "toc": 6,
+        "footnote": 6,
+        "math": 23,
+        "typoraUi": 16
+      },
+      "fontFamilies": [
+        "var(--font-body)",
+        "var(--font-heading)",
+        "var(--monospace)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 314,
+      "backgrounds": 75,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 12.5,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Gruvbox",
+      "slug": "Gruvbox",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/TwinklerG/typora-gruvbox-theme",
+      "pageUrl": "https://theme.typora.io/theme/Gruvbox/",
+      "downloadUrl": "https://github.com/TwinklerG/typora-gruvbox-theme/releases",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/TwinklerG/typora-gruvbox-theme/archive/refs/tags/v0.1.0.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "typora-gruvbox-theme-0.1.0/src/gruvbox-dark.css",
+        "typora-gruvbox-theme-0.1.0/src/gruvbox.css"
+      ],
+      "counts": {
+        "base": 86,
+        "code": 90,
+        "renderedCode": 16,
+        "codeMirror": 82,
+        "table": 10,
+        "list": 18,
+        "task": 10,
+        "media": 6,
+        "inlineMarks": 96,
+        "blockSemantics": 6,
+        "toc": 20,
+        "footnote": 0,
+        "math": 0,
+        "typoraUi": 36
+      },
+      "fontFamilies": [
+        "'Inconsolata', monospace",
+        "'Inconsolata'",
+        "monospace",
+        "\"PT Mono\", monospace"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 244,
+      "backgrounds": 96,
+      "contentCoverage": 7,
+      "advancedCoverage": 1,
+      "readinessScore": 10.5,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Zeus",
+      "slug": "Zeus",
+      "importId": "typora-zeus",
+      "sourceStatus": "verified installed",
+      "sourceUrl": "https://raw.githubusercontent.com/zmtsikriteas/zeus-typora-theme/main/zeus.css",
+      "cssVariants": [
+        "src/styles/typora/raw/typora-zeus.css"
+      ],
+      "counts": {
+        "base": 39,
+        "code": 33,
+        "renderedCode": 9,
+        "codeMirror": 25,
+        "table": 9,
+        "list": 11,
+        "task": 5,
+        "media": 0,
+        "inlineMarks": 29,
+        "blockSemantics": 11,
+        "toc": 6,
+        "footnote": 1,
+        "math": 6,
+        "typoraUi": 14
+      },
+      "fontFamilies": [
+        "\"Cascadia Code\"",
+        "var(--font-sans-serif)",
+        "'Cascadia Code'",
+        "none",
+        "var(--code-font)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute",
+        "position: absolute",
+        "position: absolute",
+        "position: absolute",
+        "transform: translateY(-120%)"
+      ],
+      "colors": 149,
+      "backgrounds": 62,
+      "contentCoverage": 6,
+      "advancedCoverage": 3,
+      "readinessScore": 11.5,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment",
+        "media/image styling sparse"
+      ]
+    },
+    {
+      "name": "Bit Clean",
+      "slug": "Bit-Clean",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/bitbonsai/typora-bit-clean",
+      "pageUrl": "https://theme.typora.io/theme/Bit-Clean/",
+      "downloadUrl": "https://github.com/bitbonsai/typora-bit-clean/tree/main/bit-clean/bit-clean-light.css",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/bitbonsai/typora-bit-clean/archive/refs/heads/main.zip",
+        "preferredPath": "bit-clean/bit-clean-light.css"
+      },
+      "cssVariants": [
+        "typora-bit-clean-main/bit-clean/bit-clean-light.css",
+        "typora-bit-clean-main/bit-clean/bit-clean-dark.css"
+      ],
+      "counts": {
+        "base": 86,
+        "code": 70,
+        "renderedCode": 20,
+        "codeMirror": 50,
+        "table": 12,
+        "list": 16,
+        "task": 10,
+        "media": 2,
+        "inlineMarks": 56,
+        "blockSemantics": 10,
+        "toc": 0,
+        "footnote": 0,
+        "math": 2,
+        "typoraUi": 44
+      },
+      "fontFamilies": [
+        "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"Roboto\", \"Oxygen\",\n        \"Ubuntu\", \"Cantarell\", sans-serif",
+        "var(--monospace)",
+        "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [],
+      "colors": 182,
+      "backgrounds": 112,
+      "contentCoverage": 7,
+      "advancedCoverage": 1,
+      "readinessScore": 14.5,
+      "offload": "light",
+      "grade": "good candidate",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage"
+      ]
+    },
+    {
+      "name": "Bonne nouvelle",
+      "slug": "Bonne-nouvelle",
+      "importId": "typora-bonne-nouvelle",
+      "sourceStatus": "verified installed",
+      "sourceUrl": "https://raw.githubusercontent.com/senges/typora-bonne-nouvelle/main/bonne-nouvelle.css",
+      "cssVariants": [
+        "src/styles/typora/raw/typora-bonne-nouvelle.css"
+      ],
+      "counts": {
+        "base": 13,
+        "code": 2,
+        "renderedCode": 2,
+        "codeMirror": 2,
+        "table": 4,
+        "list": 3,
+        "task": 1,
+        "media": 3,
+        "inlineMarks": 3,
+        "blockSemantics": 3,
+        "toc": 3,
+        "footnote": 0,
+        "math": 0,
+        "typoraUi": 44
+      },
+      "fontFamilies": [
+        "\"Courier Screenplay\", \"Courier New\", \"Courier\", monospace"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "width: 8in",
+        "position: absolute",
+        "transform: translateX(-120%)"
+      ],
+      "colors": 87,
+      "backgrounds": 52,
+      "contentCoverage": 6,
+      "advancedCoverage": 1,
+      "readinessScore": 10,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Print",
+      "slug": "Print",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/semi72/typora-print-theme",
+      "pageUrl": "https://theme.typora.io/theme/Print/",
+      "downloadUrl": "https://github.com/semi72/typora-print-theme/releases/latest",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/semi72/typora-print-theme/archive/refs/tags/v1.0.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "typora-print-theme-1.0/print-letter.css",
+        "typora-print-theme-1.0/print.css"
+      ],
+      "counts": {
+        "base": 54,
+        "code": 22,
+        "renderedCode": 20,
+        "codeMirror": 2,
+        "table": 26,
+        "list": 16,
+        "task": 8,
+        "media": 6,
+        "inlineMarks": 14,
+        "blockSemantics": 12,
+        "toc": 8,
+        "footnote": 2,
+        "math": 8,
+        "typoraUi": 12
+      },
+      "fontFamilies": [
+        "var(--font-family)",
+        "var(--mono-font)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "max-width: 180mm",
+        "max-width: 196mm",
+        "max-width: 170mm",
+        "max-width: 190mm"
+      ],
+      "colors": 102,
+      "backgrounds": 54,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 15,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Konayuki",
+      "slug": "Konayuki",
+      "importId": "typora-konayuki",
+      "sourceStatus": "verified installed",
+      "sourceUrl": "https://raw.githubusercontent.com/aerandirsf/Konayuki/main/konayuki-light.css",
+      "cssVariants": [
+        "src/styles/typora/raw/typora-konayuki.css"
+      ],
+      "counts": {
+        "base": 86,
+        "code": 34,
+        "renderedCode": 5,
+        "codeMirror": 30,
+        "table": 59,
+        "list": 10,
+        "task": 4,
+        "media": 4,
+        "inlineMarks": 36,
+        "blockSemantics": 21,
+        "toc": 6,
+        "footnote": 4,
+        "math": 1,
+        "typoraUi": 56
+      },
+      "fontFamilies": [
+        "var(--font-body)",
+        "var(--font-heading)",
+        "var(--font-mono)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute",
+        "transform: translateX(-50%)",
+        "position: absolute",
+        "transform: translateX(-50%)",
+        "position: absolute"
+      ],
+      "colors": 161,
+      "backgrounds": 75,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 12,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Neon",
+      "slug": "Neon",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/channingwalton/typora-themes",
+      "pageUrl": "https://theme.typora.io/theme/Neon/",
+      "downloadUrl": "https://github.com/channingwalton/typora-themes/blob/main/neon/neon.css",
+      "downloadSource": {
+        "kind": "css",
+        "url": "https://raw.githubusercontent.com/channingwalton/typora-themes/main/neon/neon.css",
+        "preferredPath": "neon/neon.css"
+      },
+      "cssVariants": [
+        "https://raw.githubusercontent.com/channingwalton/typora-themes/main/neon/neon.css"
+      ],
+      "counts": {
+        "base": 61,
+        "code": 33,
+        "renderedCode": 9,
+        "codeMirror": 25,
+        "table": 12,
+        "list": 10,
+        "task": 6,
+        "media": 1,
+        "inlineMarks": 27,
+        "blockSemantics": 6,
+        "toc": 0,
+        "footnote": 0,
+        "math": 1,
+        "typoraUi": 20
+      },
+      "fontFamilies": [
+        "'Antonio', 'Helvetica Neue', 'Arial Narrow', 'Arial', sans-serif",
+        "'Antonio', 'Helvetica Neue', 'Arial Narrow', sans-serif",
+        "'Courier New', 'Courier', monospace",
+        "'Antonio', sans-serif"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: fixed",
+        "position: absolute"
+      ],
+      "colors": 94,
+      "backgrounds": 64,
+      "contentCoverage": 7,
+      "advancedCoverage": 1,
+      "readinessScore": 11.5,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Everforest",
+      "slug": "Everforest",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/YuxBao/everforest-typora",
+      "pageUrl": "https://theme.typora.io/theme/Everforest/",
+      "downloadUrl": "https://github.com/YuxBao/everforest-typora/tree/main/themes",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/YuxBao/everforest-typora/archive/refs/heads/main.zip",
+        "preferredPath": "themes"
+      },
+      "cssVariants": [
+        "everforest-typora-main/themes/everforest-dark.css",
+        "everforest-typora-main/themes/everforest-light.css"
+      ],
+      "counts": {
+        "base": 116,
+        "code": 63,
+        "renderedCode": 21,
+        "codeMirror": 47,
+        "table": 8,
+        "list": 15,
+        "task": 21,
+        "media": 2,
+        "inlineMarks": 50,
+        "blockSemantics": 45,
+        "toc": 4,
+        "footnote": 0,
+        "math": 10,
+        "typoraUi": 45
+      },
+      "fontFamilies": [
+        "var(--font-body)",
+        "var(--font-code)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 240,
+      "backgrounds": 123,
+      "contentCoverage": 7,
+      "advancedCoverage": 2,
+      "readinessScore": 13.5,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Screenplay",
+      "slug": "Screenplay",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/pranavgn/Typora-Screenplay-Theme",
+      "pageUrl": "https://theme.typora.io/theme/Screenplay/",
+      "downloadUrl": "https://github.com/pranavgn/Typora-Screenplay-Theme",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/pranavgn/Typora-Screenplay-Theme/archive/refs/heads/main.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "Typora-Screenplay-Theme-main/Screenplay.css"
+      ],
+      "counts": {
+        "base": 24,
+        "code": 1,
+        "renderedCode": 1,
+        "codeMirror": 0,
+        "table": 0,
+        "list": 0,
+        "task": 2,
+        "media": 0,
+        "inlineMarks": 1,
+        "blockSemantics": 5,
+        "toc": 0,
+        "footnote": 0,
+        "math": 0,
+        "typoraUi": 0
+      },
+      "fontFamilies": [
+        "\"Courier Screenplay\", \"Courier New\", \"Courier\", monospace"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "width: 8.5in",
+        "padding-left: 1.5in",
+        "padding-right: 0.5in",
+        "max-width: 6in",
+        "position: absolute",
+        "left: 6.1in",
+        "width: 0.5in",
+        "margin-left: 2.2in",
+        "margin-left: 1in",
+        "max-width: 3.5in",
+        "margin-left: 1.6in"
+      ],
+      "colors": 4,
+      "backgrounds": 3,
+      "contentCoverage": 2,
+      "advancedCoverage": 0,
+      "readinessScore": 2,
+      "offload": "heavy",
+      "grade": "experimental",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "rendered code styling is sparse",
+        "fixed/print-like layout declarations need containment",
+        "table styling sparse",
+        "media/image styling sparse"
+      ]
+    },
+    {
+      "name": "Flexoki Light",
+      "slug": "Flexoki-Light",
+      "importId": "typora-flexoki-light",
+      "sourceStatus": "verified installed",
+      "sourceUrl": "https://raw.githubusercontent.com/guidovicino/flexoki-typora/main/flexoki-light.css",
+      "cssVariants": [
+        "src/styles/typora/raw/typora-flexoki-light.css"
+      ],
+      "counts": {
+        "base": 49,
+        "code": 41,
+        "renderedCode": 7,
+        "codeMirror": 36,
+        "table": 14,
+        "list": 10,
+        "task": 6,
+        "media": 4,
+        "inlineMarks": 35,
+        "blockSemantics": 6,
+        "toc": 4,
+        "footnote": 1,
+        "math": 1,
+        "typoraUi": 17
+      },
+      "fontFamilies": [
+        "var(--sans-serif)",
+        "var(--monospace)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 178,
+      "backgrounds": 56,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 14.5,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "mdmdt",
+      "slug": "Mdmdt",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/cayxc/Mdmdt",
+      "pageUrl": "https://theme.typora.io/theme/Mdmdt/",
+      "downloadUrl": "https://github.com/cayxc/Mdmdt/tags",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/cayxc/Mdmdt/archive/refs/heads/main.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "Mdmdt-main/mdmdt-dark.css",
+        "Mdmdt-main/mdmdt-light.css",
+        "Mdmdt-main/mdmdt.css"
+      ],
+      "counts": {
+        "base": 287,
+        "code": 219,
+        "renderedCode": 99,
+        "codeMirror": 141,
+        "table": 66,
+        "list": 207,
+        "task": 15,
+        "media": 60,
+        "inlineMarks": 201,
+        "blockSemantics": 57,
+        "toc": 48,
+        "footnote": 6,
+        "math": 27,
+        "typoraUi": 177
+      },
+      "fontFamilies": [
+        "\"PingFang SC\", \"Microsoft YaHei UI\", \"Microsoft YaHei\", Arial, \"Helvetica Neue\", Helvetica, sans-serif",
+        "\"Microsoft YaHei UI\", \"Microsoft YaHei\", Arial, \"Helvetica Neue\", Helvetica, sans-serif"
+      ],
+      "cjkSupport": "explicit/acceptable",
+      "cjkMatches": [
+        "PingFang SC",
+        "Microsoft YaHei"
+      ],
+      "layoutRisk": [
+        "position: absolute",
+        "width: 100vw"
+      ],
+      "colors": 567,
+      "backgrounds": 317,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 13,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Ravel",
+      "slug": "Ravel",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/isunjn/ravel",
+      "pageUrl": "https://theme.typora.io/theme/Ravel/",
+      "downloadUrl": "https://github.com/isunjn/ravel/releases/latest",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/isunjn/ravel/archive/refs/tags/v2.0.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "ravel-2.0/ravel-dark.css",
+        "ravel-2.0/ravel-light.css",
+        "ravel-2.0/ravel.css"
+      ],
+      "counts": {
+        "base": 23,
+        "code": 32,
+        "renderedCode": 12,
+        "codeMirror": 22,
+        "table": 14,
+        "list": 8,
+        "task": 1,
+        "media": 1,
+        "inlineMarks": 18,
+        "blockSemantics": 4,
+        "toc": 5,
+        "footnote": 1,
+        "math": 0,
+        "typoraUi": 43
+      },
+      "fontFamilies": [
+        "Ionicons",
+        "var(--monospace)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute",
+        "transform: translateX(-100%)"
+      ],
+      "colors": 139,
+      "backgrounds": 27,
+      "contentCoverage": 7,
+      "advancedCoverage": 2,
+      "readinessScore": 12,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Ceylon",
+      "slug": "Ceylon",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/tdarshana/typora-ceylon-theme",
+      "pageUrl": "https://theme.typora.io/theme/Ceylon/",
+      "downloadUrl": "https://github.com/tdarshana/typora-ceylon-theme",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/tdarshana/typora-ceylon-theme/archive/refs/heads/main.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "typora-ceylon-theme-main/ceylon-dark.css",
+        "typora-ceylon-theme-main/ceylon-darker.css",
+        "typora-ceylon-theme-main/ceylon.css",
+        "typora-ceylon-theme-main/ceylon/fonts.css"
+      ],
+      "counts": {
+        "base": 183,
+        "code": 153,
+        "renderedCode": 63,
+        "codeMirror": 90,
+        "table": 57,
+        "list": 51,
+        "task": 9,
+        "media": 12,
+        "inlineMarks": 108,
+        "blockSemantics": 18,
+        "toc": 24,
+        "footnote": 3,
+        "math": 30,
+        "typoraUi": 129
+      },
+      "fontFamilies": [
+        "var(--ui-font-monospace)",
+        "inherit",
+        "var(--ui-font-display)",
+        "\"IBMPlexSans\"",
+        "var(--font-family)",
+        "\"Inter\"",
+        "\"IBMPlexMono\"",
+        "\"FiraCode\"",
+        "\"FiraMono\""
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 460,
+      "backgrounds": 150,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 15,
+      "offload": "light",
+      "grade": "good candidate",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Blackout",
+      "slug": "Blackout",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/obscurefreeman/typora_theme_blackout/releases",
+      "pageUrl": "https://theme.typora.io/theme/Blackout/",
+      "downloadUrl": "https://github.com/obscurefreeman/typora_theme_blackout/releases",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/obscurefreeman/typora_theme_blackout/releases/download/V1.0.9/blackout_theme_pack.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "blackout-gamer.css",
+        "blackout.css",
+        "obscurefreeman/codeblock.dark.css",
+        "obscurefreeman/mermaid.dark.css",
+        "chernobyl-blue.css",
+        "chernobyl.css"
+      ],
+      "counts": {
+        "base": 148,
+        "code": 112,
+        "renderedCode": 56,
+        "codeMirror": 68,
+        "table": 81,
+        "list": 52,
+        "task": 28,
+        "media": 26,
+        "inlineMarks": 135,
+        "blockSemantics": 18,
+        "toc": 12,
+        "footnote": 4,
+        "math": 33,
+        "typoraUi": 192
+      },
+      "fontFamilies": [
+        "var(--text-font)",
+        "var(--title-font)",
+        "var(--ofcodetext)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 725,
+      "backgrounds": 357,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 15,
+      "offload": "light",
+      "grade": "good candidate",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Whitelines",
+      "slug": "Whitelines",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/TEParsons/Whitelines",
+      "pageUrl": "https://theme.typora.io/theme/Whitelines/",
+      "downloadUrl": "https://github.com/TEParsons/Whitelines/releases/latest",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/TEParsons/Whitelines/archive/refs/tags/v2.0.0.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "Whitelines-2.0.0/typora/blacklines.css",
+        "Whitelines-2.0.0/typora/whitelines.css",
+        "Whitelines-2.0.0/typora/whitelines/whitelines_common.css"
+      ],
+      "counts": {
+        "base": 18,
+        "code": 8,
+        "renderedCode": 2,
+        "codeMirror": 6,
+        "table": 7,
+        "list": 3,
+        "task": 0,
+        "media": 1,
+        "inlineMarks": 3,
+        "blockSemantics": 6,
+        "toc": 0,
+        "footnote": 0,
+        "math": 0,
+        "typoraUi": 0
+      },
+      "fontFamilies": [
+        "'Didact Gothic', sans-serif",
+        "'Josefin Sans', sans-serif"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "width: 21cm",
+        "padding: 1.5cm",
+        "padding: 0.5cm"
+      ],
+      "colors": 11,
+      "backgrounds": 13,
+      "contentCoverage": 6,
+      "advancedCoverage": 0,
+      "readinessScore": 10,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "LCARS",
+      "slug": "LCARS",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/TEParsons/LCARS",
+      "pageUrl": "https://theme.typora.io/theme/LCARS/",
+      "downloadUrl": "https://github.com/TEParsons/LCARS/releases/latest",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/TEParsons/LCARS/archive/refs/tags/v1.0.2.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "LCARS-1.0.2/typora/lcars.css"
+      ],
+      "counts": {
+        "base": 21,
+        "code": 6,
+        "renderedCode": 4,
+        "codeMirror": 2,
+        "table": 13,
+        "list": 5,
+        "task": 0,
+        "media": 3,
+        "inlineMarks": 5,
+        "blockSemantics": 7,
+        "toc": 0,
+        "footnote": 0,
+        "math": 0,
+        "typoraUi": 0
+      },
+      "fontFamilies": [
+        "Teko",
+        "Share Tech Mono"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "max-width: 24cm",
+        "position: absolute"
+      ],
+      "colors": 23,
+      "backgrounds": 14,
+      "contentCoverage": 7,
+      "advancedCoverage": 0,
+      "readinessScore": 12,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Valve",
+      "slug": "Valve",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/obscurefreeman/typora_theme_valve",
+      "pageUrl": "https://theme.typora.io/theme/Valve/",
+      "downloadUrl": "https://github.com/obscurefreeman/typora_theme_valve/releases",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/obscurefreeman/typora_theme_valve/archive/refs/tags/V1.1.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "typora_theme_valve-1.1/valve.css",
+        "typora_theme_valve-1.1/valve/codeblock.dark.css",
+        "typora_theme_valve-1.1/valve/mermaid.dark.css",
+        "typora_theme_valve-1.1/valve/sourcemode.dark.css"
+      ],
+      "counts": {
+        "base": 32,
+        "code": 45,
+        "renderedCode": 13,
+        "codeMirror": 35,
+        "table": 13,
+        "list": 7,
+        "task": 7,
+        "media": 5,
+        "inlineMarks": 43,
+        "blockSemantics": 6,
+        "toc": 3,
+        "footnote": 1,
+        "math": 9,
+        "typoraUi": 45
+      },
+      "fontFamilies": [
+        "\"Helvetica Neue\", Helvetica, Arial, 'Segoe UI Emoji', sans-serif",
+        "\"Lucida Grande\", \"Corbel\", sans-serif",
+        "Monaco, Consolas, \"Andale Mono\", \"DejaVu Sans Mono\", monospace"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 145,
+      "backgrounds": 71,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 16,
+      "offload": "light",
+      "grade": "good candidate",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Alise",
+      "slug": "Alise",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/linklinco/Typora-Theme-Alise",
+      "pageUrl": "https://theme.typora.io/theme/Alise/",
+      "downloadUrl": "https://github.com/linklinco/Typora-Theme-Alise",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/linklinco/Typora-Theme-Alise/archive/refs/heads/main.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "Typora-Theme-Alise-main/assets/alice.css"
+      ],
+      "counts": {
+        "base": 16,
+        "code": 4,
+        "renderedCode": 2,
+        "codeMirror": 2,
+        "table": 6,
+        "list": 2,
+        "task": 0,
+        "media": 1,
+        "inlineMarks": 4,
+        "blockSemantics": 2,
+        "toc": 1,
+        "footnote": 0,
+        "math": 0,
+        "typoraUi": 0
+      },
+      "fontFamilies": [
+        "lxgw",
+        "firacode",
+        "firacode, lxgw, sans-serif",
+        "\"Helvetica\"",
+        "\"Helvetica Neue\", Helvetica, sans-serif"
+      ],
+      "cjkSupport": "explicit/acceptable",
+      "cjkMatches": [
+        "LXGW"
+      ],
+      "layoutRisk": [],
+      "colors": 17,
+      "backgrounds": 4,
+      "contentCoverage": 6,
+      "advancedCoverage": 1,
+      "readinessScore": 15,
+      "offload": "light",
+      "grade": "good candidate",
+      "notes": []
+    },
+    {
+      "name": "Torillic",
+      "slug": "Torillic",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/TEParsons/torillic/releases/latest",
+      "pageUrl": "https://theme.typora.io/theme/Torillic/",
+      "downloadUrl": "https://github.com/TEParsons/torillic/releases/latest",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/TEParsons/torillic/archive/refs/tags/2.2.2.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "torillic-2.2.2/torillic/torillic.css"
+      ],
+      "counts": {
+        "base": 25,
+        "code": 8,
+        "renderedCode": 3,
+        "codeMirror": 5,
+        "table": 5,
+        "list": 2,
+        "task": 0,
+        "media": 7,
+        "inlineMarks": 13,
+        "blockSemantics": 5,
+        "toc": 0,
+        "footnote": 0,
+        "math": 0,
+        "typoraUi": 0
+      },
+      "fontFamilies": [
+        "\"Crimson Text\"",
+        "\"Alegreya\"",
+        "\"Source Code Pro\"",
+        "var(--body)",
+        "var(--head)",
+        "var(--mono)"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "width: 21cm",
+        "max-width: calc(100% - 4cm - 8rem)",
+        "padding: 2cm",
+        "padding: 5mm",
+        "width: calc(100% - 1rem - 4cm)"
+      ],
+      "colors": 20,
+      "backgrounds": 26,
+      "contentCoverage": 6,
+      "advancedCoverage": 0,
+      "readinessScore": 10,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Chocolate Box",
+      "slug": "Chocolate-Box",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/Beanie127/typora-ChocolateBox-theme",
+      "pageUrl": "https://theme.typora.io/theme/ChocolateBox/",
+      "downloadUrl": "https://github.com/Beanie127/typora-ChocolateBox-theme/tree/main/latest",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/Beanie127/typora-ChocolateBox-theme/archive/refs/heads/main.zip",
+        "preferredPath": "latest"
+      },
+      "cssVariants": [
+        "typora-ChocolateBox-theme-main/latest/chocolate-box.css"
+      ],
+      "counts": {
+        "base": 19,
+        "code": 22,
+        "renderedCode": 2,
+        "codeMirror": 20,
+        "table": 6,
+        "list": 5,
+        "task": 4,
+        "media": 0,
+        "inlineMarks": 24,
+        "blockSemantics": 6,
+        "toc": 0,
+        "footnote": 1,
+        "math": 0,
+        "typoraUi": 0
+      },
+      "fontFamilies": [
+        "\"Fira Sans\", Arial, sans-serif"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute"
+      ],
+      "colors": 47,
+      "backgrounds": 13,
+      "contentCoverage": 6,
+      "advancedCoverage": 1,
+      "readinessScore": 10,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "fixed/print-like layout declarations need containment",
+        "media/image styling sparse"
+      ]
+    },
+    {
+      "name": "Eloquent",
+      "slug": "Eloquent",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/jianmin-chen/eloquent",
+      "pageUrl": "https://theme.typora.io/theme/Eloquent/",
+      "downloadUrl": "https://github.com/jianmin-chen/eloquent/releases",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/jianmin-chen/eloquent/archive/refs/tags/0.3.0.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "eloquent-0.3.0/eloquent.css"
+      ],
+      "counts": {
+        "base": 7,
+        "code": 2,
+        "renderedCode": 0,
+        "codeMirror": 2,
+        "table": 7,
+        "list": 0,
+        "task": 0,
+        "media": 1,
+        "inlineMarks": 2,
+        "blockSemantics": 1,
+        "toc": 0,
+        "footnote": 0,
+        "math": 0,
+        "typoraUi": 0
+      },
+      "fontFamilies": [
+        "\"IBM Plex\"",
+        "\"Libre Baskerville\"",
+        "\"Lato\"",
+        "normal 1rem sans-serif",
+        "normal 0.9rem \"Libre Baskerville\", serif",
+        "\"Lato\", sans-serif",
+        "\"IBM Plex\", monospace"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [],
+      "colors": 5,
+      "backgrounds": 2,
+      "contentCoverage": 3,
+      "advancedCoverage": 0,
+      "readinessScore": 7,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "code depends more on CodeMirror/source selectors than rendered fences"
+      ]
+    },
+    {
+      "name": "Inside",
+      "slug": "Inside",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/FishionYu/typora-inside-theme",
+      "pageUrl": "https://theme.typora.io/theme/Inside/",
+      "downloadUrl": "https://github.com/FishionYu/typora-inside-theme/releases",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/FishionYu/typora-inside-theme/archive/refs/tags/v1.2.2.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "typora-inside-theme-1.2.2/inside-dark.css",
+        "typora-inside-theme-1.2.2/inside.css"
+      ],
+      "counts": {
+        "base": 88,
+        "code": 38,
+        "renderedCode": 38,
+        "codeMirror": 2,
+        "table": 38,
+        "list": 26,
+        "task": 0,
+        "media": 10,
+        "inlineMarks": 48,
+        "blockSemantics": 14,
+        "toc": 2,
+        "footnote": 0,
+        "math": 2,
+        "typoraUi": 0
+      },
+      "fontFamilies": [
+        "'Noto Sans SC'",
+        "'Galada'",
+        "'Baloo Bhaijaan'",
+        "'Josefin Sans'",
+        "'CascadiaCode'",
+        "\"Josefin Sans\", \"Noto Sans SC\", -apple-system, sans-serif",
+        "'Cascadia Code', Consolas, 'Courier New', monospace",
+        "inherit",
+        "Icon",
+        "monospace"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [
+        "position: absolute",
+        "position: fixed"
+      ],
+      "colors": 151,
+      "backgrounds": 71,
+      "contentCoverage": 7,
+      "advancedCoverage": 2,
+      "readinessScore": 14,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "CJK fallback weak or not detected",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Law",
+      "slug": "Law",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/lloyd094/Typora-Law-School",
+      "pageUrl": "https://theme.typora.io/theme/Law/",
+      "downloadUrl": "https://github.com/lloyd094/Typora-Law-School/archive/master.zip",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/lloyd094/Typora-Law-School/archive/master.zip",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "Typora-Law-School-master/law.css",
+        "Typora-Law-School-master/law/base-control.css",
+        "Typora-Law-School-master/law/base.css",
+        "Typora-Law-School-master/law/codemirror.css",
+        "Typora-Law-School-master/law/megamenu.css",
+        "Typora-Law-School-master/law/typora-icon.css",
+        "Typora-Law-School-master/law/window.css"
+      ],
+      "counts": {
+        "base": 116,
+        "code": 173,
+        "renderedCode": 53,
+        "codeMirror": 135,
+        "table": 58,
+        "list": 52,
+        "task": 12,
+        "media": 34,
+        "inlineMarks": 87,
+        "blockSemantics": 10,
+        "toc": 30,
+        "footnote": 8,
+        "math": 62,
+        "typoraUi": 207
+      },
+      "fontFamilies": [
+        "'STIX2Text'",
+        "'STIX2Math'",
+        "'Lato'",
+        "\"Lato\", \"STIX2Text\", \"Times New Roman\", \"serif\"",
+        "inherit",
+        "'Latin Modern Mono Light', \"Latin Modern Mono\", monospace",
+        "'Raleway'",
+        "monospace",
+        "'Glyphicons Halflings'",
+        "\"Helvetica Neue\", Helvetica, Microsoft Yahei, Hiragino Sans GB, WenQuanYi Micro Hei, sans-serif"
+      ],
+      "cjkSupport": "explicit/acceptable",
+      "cjkMatches": [
+        "Hiragino Sans GB",
+        "Microsoft YaHei"
+      ],
+      "layoutRisk": [
+        "position: absolute",
+        "padding-left: 1cm",
+        "padding-right: 1cm",
+        "margin-left: 0mm",
+        "margin-right: 0mm",
+        "position: fixed"
+      ],
+      "colors": 357,
+      "backgrounds": 191,
+      "contentCoverage": 7,
+      "advancedCoverage": 3,
+      "readinessScore": 14,
+      "offload": "medium",
+      "grade": "needs shim",
+      "notes": [
+        "heavy Typora UI/source/sidebar leakage",
+        "fixed/print-like layout declarations need containment"
+      ]
+    },
+    {
+      "name": "Minimalism",
+      "slug": "Minimalism",
+      "importId": null,
+      "sourceStatus": "verified gallery",
+      "sourceUrl": "https://github.com/zissoo/typora-theme-gallery",
+      "pageUrl": "https://theme.typora.io/theme/Minimalism/",
+      "downloadUrl": "https://github.com/zissoo/typora-theme-gallery/blob/gh-pages/media/theme/minimalism/minimalism.zip?raw=true",
+      "downloadSource": {
+        "kind": "zip",
+        "url": "https://github.com/zissoo/typora-theme-gallery/blob/gh-pages/media/theme/minimalism/minimalism.zip?raw=true",
+        "preferredPath": ""
+      },
+      "cssVariants": [
+        "minimalism-dark.css",
+        "minimalism.css"
+      ],
+      "counts": {
+        "base": 72,
+        "code": 29,
+        "renderedCode": 26,
+        "codeMirror": 3,
+        "table": 18,
+        "list": 12,
+        "task": 6,
+        "media": 2,
+        "inlineMarks": 12,
+        "blockSemantics": 10,
+        "toc": 4,
+        "footnote": 0,
+        "math": 2,
+        "typoraUi": 10
+      },
+      "fontFamilies": [
+        "'HKGrotesk'",
+        "'HKGroteskMedium'",
+        "'OfficeCodePro'",
+        "'Atlas Grotesk', sans-serif",
+        "'Atlas Grotesk', serif",
+        "\"Atlas Grotesk\",sans-serif",
+        "'OfficeCodePro', monospace",
+        "\"HKGrotesk\", sans-serif",
+        "'HKGrotesk', sans-serif",
+        "'HKGrotesk', serif"
+      ],
+      "cjkSupport": "weak/unknown",
+      "cjkMatches": [],
+      "layoutRisk": [],
+      "colors": 39,
+      "backgrounds": 19,
+      "contentCoverage": 7,
+      "advancedCoverage": 2,
+      "readinessScore": 17,
+      "offload": "light",
+      "grade": "good candidate",
+      "notes": [
+        "CJK fallback weak or not detected"
+      ]
+    }
+  ]
+}
