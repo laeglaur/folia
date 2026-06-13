@@ -1,4 +1,4 @@
-export type ThemeId = 'fish' | 'paper' | 'atelier';
+export type ThemeId = 'garden' | 'paper' | 'studio' | 'archive';
 
 export interface Notebook {
   id: string;

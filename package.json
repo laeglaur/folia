@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test:editor": "node scripts/editor-smoke.mjs",
+    "test:theme": "node scripts/theme-smoke.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"

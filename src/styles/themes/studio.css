@@ -1,0 +1,38 @@
+:root[data-theme="studio"] {
+  --theme-bg: #f3f0f7;
+  --theme-surface: rgba(255, 252, 255, 0.9);
+  --theme-surface-solid: #fffaff;
+  --theme-surface-tint: rgba(239, 232, 249, 0.86);
+  --theme-ink: #30293b;
+  --theme-muted: #786a86;
+  --theme-line: rgba(161, 134, 190, 0.28);
+  --theme-line-soft: rgba(161, 134, 190, 0.2);
+  --theme-accent: #6e4f8f;
+  --theme-accent-2: #ba7fb8;
+  --theme-chip-primary: rgba(232, 216, 247, 0.86);
+  --theme-highlight: #f2eafa;
+  --theme-highlight-ink: #614280;
+  --theme-highlight-edge: rgba(110, 79, 143, 0.18);
+  --theme-bracket-todo: #eee4f5;
+  --theme-bracket-todo-ink: #674579;
+  --theme-bracket-todo-edge: rgba(110, 79, 143, 0.2);
+  --theme-code-bg: #f0eaf7;
+  --theme-code-ink: #503769;
+  --theme-body-background:
+    radial-gradient(circle at 18% 10%, rgba(232, 216, 247, 0.46) 0 170px, transparent 171px),
+    radial-gradient(circle at 78% 78%, rgba(247, 221, 241, 0.34) 0 220px, transparent 221px),
+    linear-gradient(118deg, #f3f0f7 0%, #fbf5fb 44%, #f2eef8 100%);
+  --theme-app-aura:
+    radial-gradient(ellipse at 34% 82%, rgba(110, 79, 143, 0.1) 0 42px, transparent 43px),
+    radial-gradient(ellipse at 62% 68%, rgba(186, 127, 184, 0.15) 0 52px, transparent 53px);
+  --theme-panel-background:
+    radial-gradient(circle at 20% 3%, rgba(232, 216, 247, 0.24) 0 46px, transparent 47px),
+    linear-gradient(180deg, rgba(255, 252, 255, 0.92), rgba(249, 243, 252, 0.76));
+  --theme-brand-mark-background:
+    radial-gradient(circle at 62% 28%, rgba(255, 255, 255, 0.88) 0 8px, transparent 9px),
+    linear-gradient(145deg, rgba(232, 216, 247, 0.94), rgba(239, 206, 235, 0.88));
+  --theme-nav-active-background: linear-gradient(90deg, rgba(232, 216, 247, 0.86), rgba(251, 240, 250, 0.74));
+  --theme-nav-active-ink: #674579;
+  --theme-note-background: linear-gradient(180deg, rgba(255, 250, 255, 0.94), rgba(239, 230, 247, 0.78));
+  --theme-note-ink: #5d4b6b;
+}

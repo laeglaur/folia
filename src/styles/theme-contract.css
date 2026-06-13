@@ -1,0 +1,79 @@
+:root {
+  color-scheme: light;
+  --theme-bg: #f7f4ea;
+  --theme-surface: rgba(255, 253, 247, 0.9);
+  --theme-surface-solid: #fffdf7;
+  --theme-surface-tint: rgba(229, 247, 240, 0.82);
+  --theme-ink: #263934;
+  --theme-muted: #6a817b;
+  --theme-line: rgba(128, 176, 145, 0.3);
+  --theme-line-soft: rgba(186, 205, 178, 0.24);
+  --theme-accent: #317f79;
+  --theme-accent-2: #69b8c7;
+  --theme-chip: rgba(231, 237, 220, 0.82);
+  --theme-chip-primary: rgba(213, 232, 190, 0.82);
+  --theme-star: #e6c869;
+  --theme-highlight: #edf6ea;
+  --theme-highlight-ink: #2f735f;
+  --theme-highlight-edge: rgba(49, 127, 121, 0.17);
+  --theme-bracket-todo: #f2ead2;
+  --theme-bracket-todo-ink: #6c5a29;
+  --theme-bracket-todo-edge: rgba(167, 137, 54, 0.22);
+  --theme-code-bg: #eef7f1;
+  --theme-code-ink: #24534c;
+  --theme-shadow: 0 14px 32px rgba(74, 103, 86, 0.13);
+  --theme-paper-shadow: 0 7px 18px rgba(83, 112, 89, 0.11), 0 1px 0 rgba(255, 255, 255, 0.92) inset;
+  --theme-body-background:
+    radial-gradient(circle at 20% 8%, rgba(231, 243, 207, 0.46) 0 170px, transparent 171px),
+    radial-gradient(circle at 76% 78%, rgba(255, 241, 219, 0.4) 0 230px, transparent 231px),
+    linear-gradient(118deg, #f7f1e5 0%, #faf6e9 38%, #f6f3e4 66%, #f3f7e7 100%);
+  --theme-app-aura:
+    radial-gradient(ellipse at 34% 82%, rgba(49, 127, 121, 0.13) 0 42px, transparent 43px),
+    radial-gradient(ellipse at 62% 68%, rgba(105, 184, 199, 0.18) 0 52px, transparent 53px);
+  --theme-panel-background:
+    radial-gradient(circle at 20% 3%, rgba(189, 226, 196, 0.26) 0 46px, transparent 47px),
+    linear-gradient(180deg, rgba(255, 253, 247, 0.92), rgba(255, 253, 247, 0.74));
+  --theme-brand-mark-background:
+    radial-gradient(circle at 62% 28%, rgba(255, 255, 255, 0.9) 0 8px, transparent 9px),
+    linear-gradient(145deg, rgba(213, 232, 190, 0.9), rgba(184, 232, 220, 0.9));
+  --theme-nav-active-background: linear-gradient(90deg, rgba(210, 231, 187, 0.82), rgba(245, 249, 226, 0.74));
+  --theme-nav-active-ink: #2f735f;
+  --theme-note-background: linear-gradient(180deg, rgba(255, 251, 238, 0.9), rgba(252, 246, 225, 0.72));
+  --theme-note-ink: #486962;
+
+  --ui-font: "Nunito", "Avenir Next", "Hiragino Sans GB", "PingFang SC", ui-rounded, system-ui, sans-serif;
+  --editor-font: "Avenir Next", "PingFang SC", "Hiragino Sans GB", ui-sans-serif, system-ui, sans-serif;
+  --mono-font: "SFMono-Regular", "Cascadia Code", Menlo, Consolas, monospace;
+  --sidebar-width: 232px;
+
+  --bg: var(--theme-bg);
+  --panel: var(--theme-surface);
+  --panel-solid: var(--theme-surface-solid);
+  --panel-2: var(--theme-surface-tint);
+  --ink: var(--theme-ink);
+  --muted: var(--theme-muted);
+  --line: var(--theme-line);
+  --line-soft: var(--theme-line-soft);
+  --accent: var(--theme-accent);
+  --accent-2: var(--theme-accent-2);
+  --chip: var(--theme-chip);
+  --chip-primary: var(--theme-chip-primary);
+  --star: var(--theme-star);
+  --highlight: var(--theme-highlight);
+  --highlight-ink: var(--theme-highlight-ink);
+  --highlight-edge: var(--theme-highlight-edge);
+  --bracket-todo: var(--theme-bracket-todo);
+  --bracket-todo-ink: var(--theme-bracket-todo-ink);
+  --bracket-todo-edge: var(--theme-bracket-todo-edge);
+  --code-bg: var(--theme-code-bg);
+  --code-ink: var(--theme-code-ink);
+  --shadow: var(--theme-shadow);
+  --paper-shadow: var(--theme-paper-shadow);
+
+  font-family: var(--ui-font);
+  color: var(--ink);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}

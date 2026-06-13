@@ -1,4 +1,4 @@
-import type { AppState, Block, Notebook, OperationLogEntry, Page } from './types';
+import type { AppState, Block, Notebook, OperationLogEntry, Page, ThemeId } from './types';
 
 const STORAGE_KEY = 'block-first-notebook.state.v1';
 
@@ -58,11 +58,18 @@ export const createInitialState = (): AppState => ({
   ],
   activeNotebookId: starterNotebookId,
   activePageId: starterPageId,
-  theme: 'fish',
+  theme: 'garden',
   openCardWindowBlockId: null,
   expandedPageIds: [starterPageId],
   operations: []
 });
+
+const normalizeTheme = (theme?: string): ThemeId => {
+  if (theme === 'fish') return 'garden';
+  if (theme === 'atelier') return 'studio';
+  if (theme === 'garden' || theme === 'paper' || theme === 'studio' || theme === 'archive') return theme;
+  return 'garden';
+};
 
 const normalizeState = (state: AppState): AppState => ({
   ...state,
@@ -74,7 +81,7 @@ const normalizeState = (state: AppState): AppState => ({
     ...page,
     parentId: page.parentId ?? null
   })),
-  theme: state.theme ?? 'fish',
+  theme: normalizeTheme(state.theme),
   openCardWindowBlockId: state.openCardWindowBlockId ?? null,
   expandedPageIds: state.expandedPageIds ?? state.pages.map((page) => page.id),
   operations: state.operations ?? []

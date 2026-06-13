@@ -106,9 +106,10 @@ const toggleCollapsibleListItem = (event: React.MouseEvent<HTMLDivElement>, edit
 };
 
 const themes: Array<{ id: ThemeId; label: string }> = [
-  { id: 'fish', label: 'Fish cosmos' },
-  { id: 'paper', label: 'Soft paper' },
-  { id: 'atelier', label: 'Atelier' }
+  { id: 'garden', label: 'Garden' },
+  { id: 'paper', label: 'Paper' },
+  { id: 'studio', label: 'Studio' },
+  { id: 'archive', label: 'Archive' }
 ];
 
 const blockTextPreview = (text: string, max = 56) => {
@@ -595,7 +596,7 @@ export function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-block">
-          <p className="eyebrow">fish cosmos</p>
+          <p className="eyebrow">garden notes</p>
           <div className="brand-mark"><Sparkles size={20} /></div>
           <h1>Notebook</h1>
           <p className="profile-id">block-first</p>
