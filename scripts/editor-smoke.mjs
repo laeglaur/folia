@@ -81,24 +81,24 @@ await page.reload();
 const enterComposer = page.locator('.composer').last();
 await enterComposer.click();
 await page.keyboard.type('abcde');
+const editableBlockCount = await page.locator('.block-content.editable').count();
 await page.keyboard.press('Shift+Enter');
-const firstBlock = page.locator('.block-content').first();
+await page.waitForFunction((count) => document.querySelectorAll('.block-content.editable').length > count, editableBlockCount);
+const nextEditableBlockCount = await page.locator('.block-content.editable').count();
+const firstBlock = page.locator('.block-content.editable').nth(nextEditableBlockCount - 1);
 await firstBlock.click();
 await page.keyboard.press(`${modKey}+A`);
 await page.keyboard.type('abcde');
-await firstBlock.evaluate((node) => {
-  const textNode = node.querySelector('.ProseMirror p')?.firstChild;
-  if (!textNode) return;
-  const range = document.createRange();
-  range.setStart(textNode, 3);
-  range.collapse(true);
+await page.keyboard.press('ArrowLeft');
+await page.keyboard.press('ArrowLeft');
+await page.waitForFunction(() => {
   const selection = window.getSelection();
-  selection?.removeAllRanges();
-  selection?.addRange(range);
+  return selection?.anchorNode?.textContent === 'abcde' && selection.anchorOffset === 3;
 });
+await page.waitForTimeout(80);
 await page.keyboard.press('Enter');
-const enteredText = await firstBlock.innerText();
-checks.enterAtCaret = /abc\s+de/.test(enteredText);
+const enteredHtml = await firstBlock.evaluate((node) => node.innerHTML);
+checks.enterAtCaret = enteredHtml.includes('<p>abc</p><p>de</p>');
 
 await page.evaluate(() => localStorage.clear());
 await page.reload();
