@@ -1,6 +1,7 @@
 @import "./styles/theme-contract.css";
 @import "./styles/themes/garden.css";
 @import "./styles/themes/ledger.css";
+@import "./styles/typora/generated/typora-proof.scoped.css";
 
 * { box-sizing: border-box; }
 

@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc && vite build",
+    "build": "pnpm build:typora-css && tsc && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test:editor": "node scripts/editor-smoke.mjs",
     "test:markdown": "node scripts/markdown-import-smoke.mjs",
     "test:theme": "node scripts/theme-smoke.mjs",
+    "build:typora-css": "node scripts/typora-css-prefixer.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
@@ -45,7 +46,8 @@
     "@playwright/test": "^1.60.0",
     "@tauri-apps/cli": "latest",
     "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3"
+    "@types/react-dom": "^19.2.3",
+    "postcss": "^8.5.15"
   },
   "packageManager": "pnpm@11.5.1"
 }

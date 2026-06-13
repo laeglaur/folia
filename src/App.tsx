@@ -141,7 +141,8 @@ const themes: Array<{ id: ThemeId; label: string }> = [
 
 const contentThemes: Array<{ id: ContentThemeId; label: string }> = [
   { id: 'notebook', label: 'Notebook' },
-  { id: 'typora-base', label: 'Typora base' }
+  { id: 'typora-base', label: 'Typora base' },
+  { id: 'typora-proof', label: 'Typora proof' }
 ];
 
 const blockTextPreview = (text: string, max = 56) => {

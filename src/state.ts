@@ -82,7 +82,7 @@ const normalizeTheme = (theme?: string): ThemeId => {
 };
 
 const normalizeContentTheme = (contentTheme?: string): ContentThemeId => {
-  if (contentTheme === 'typora-base') return contentTheme;
+  if (contentTheme === 'typora-base' || contentTheme === 'typora-proof') return contentTheme;
   return 'notebook';
 };
 

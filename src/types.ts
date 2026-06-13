@@ -1,5 +1,5 @@
 export type ThemeId = 'garden' | 'ledger';
-export type ContentThemeId = 'notebook' | 'typora-base';
+export type ContentThemeId = 'notebook' | 'typora-base' | 'typora-proof';
 
 export interface Notebook {
   id: string;

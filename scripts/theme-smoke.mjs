@@ -80,6 +80,20 @@ checks.contentThemeDoesNotStyleSidebar = await page.locator('.sidebar').evaluate
   sidebarFontBeforeContentTheme
 );
 
+await contentSelect.selectOption('typora-proof');
+checks.typoraProofGeneratedCssApplies = await page.locator('.composer').last().evaluate((element) => {
+  const styles = getComputedStyle(element);
+  return styles.fontFamily.includes('Times New Roman') &&
+    Math.abs(Number.parseFloat(styles.letterSpacing) - 0.51) < 0.05 &&
+    Math.abs(Number.parseFloat(styles.lineHeight) - 30.26) < 1;
+});
+checks.typoraProofTocMapsToRightOutline = await page.locator('.outline-entry.md-toc-item').first().evaluate((element) =>
+  getComputedStyle(element).textTransform === 'uppercase'
+);
+checks.typoraProofIgnoresTyporaSidebar = await page.locator('.sidebar').evaluate((element) =>
+  getComputedStyle(element).display !== 'none'
+);
+
 console.log(JSON.stringify({ checks }, null, 2));
 await browser.close();
 

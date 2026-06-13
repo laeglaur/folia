@@ -1,0 +1,55 @@
+body {
+  font-family: "Times New Roman", Georgia, serif;
+  letter-spacing: 0.03em;
+  line-height: 1.78;
+}
+
+#write {
+  font-size: 17px;
+}
+
+#write p {
+  margin: 0 0 1.15em;
+}
+
+#write h1,
+#write h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: 0.08em;
+}
+
+#write blockquote {
+  border-left: 4px double #6d8a72;
+  background: rgba(109, 138, 114, 0.1);
+}
+
+#write .md-fences {
+  border: 2px dashed #6d8a72;
+  background: rgba(248, 247, 232, 0.88);
+}
+
+#write .task-list-item {
+  color: #355f52;
+}
+
+#write .md-footnote,
+#write .md-def-footnote {
+  letter-spacing: 0.02em;
+}
+
+#write .md-math-block {
+  border-style: dashed;
+}
+
+.md-toc-content {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: 0.04em;
+}
+
+.md-toc-item {
+  text-transform: uppercase;
+}
+
+#typora-sidebar {
+  display: none;
+}

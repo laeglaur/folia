@@ -387,11 +387,15 @@ Each subfeature should be separately committed and tested.
    - footnote/math equivalents
    - Typora TOC selectors mapped to the right-side outline
 
+   Status: done for the generated proof theme.
+
 4. Add importer/prefixer:
    - use PostCSS or another CSS parser
    - rewrite selectors
    - copy assets
    - write manifest entry
+
+   Status: PostCSS selector prefixing is implemented for local theme CSS. Asset copying and manifest generation remain for real pilot themes.
 
 5. Add UI:
    - content theme picker

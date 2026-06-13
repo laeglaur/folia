@@ -23,6 +23,7 @@ Updated: 2026-06-13
 - Underline, strikethrough, blockquote, and horizontal rule are covered in editor/Markdown smoke tests.
 - Typora Phase 1 content feature coverage is complete except intentionally deferred inline TOC, Mermaid/diagram, and source mode.
 - Typora content theme scope exists with independent `contentTheme` state, `.typora-theme`, `.typora-write`, and right-outline TOC compatibility hooks.
+- Typora CSS prefixer/bridge exists with a generated scoped proof theme covering `#write`, code fences, task lists, footnotes, math, and TOC-to-right-outline mapping.
 - Markdown export and JSON backup exist.
 - Theme CSS system exists with semantic tokens, Garden as the default theme, and Ledger as a contrasting layout/theme proof.
 - Themes can control sidebar chrome, page width, spacing, blocks, highlights, todos, code, tables, media, outline, and card surfaces.
@@ -37,7 +38,7 @@ Updated: 2026-06-13
 - SQLite currently stores a state snapshot plus operation log; normalized notebook/page/block tables are not fully used yet.
 - Multi-device sync is designed through operation logs, but there is no sync transport or conflict UI.
 - Themes are tokenized and flexible, but custom external CSS import is not implemented.
-- Typora CSS prefixing/bridge and pilot theme installation are not implemented yet.
+- Typora pilot theme installation is not implemented yet.
 - Media import supports common URLs and local attachment copying, but there is no in-editor media picker/uploader yet.
 - Block-internal columns/layout groups are still not implemented.
 
@@ -56,8 +57,8 @@ Updated: 2026-06-13
 
 ## Suggested Next Work
 
-1. Add a Typora CSS prefixer/bridge for `#write`, headings, code fences, task lists, footnotes, math, and TOC-to-right-outline mapping.
-2. Install pilot Typora themes, starting with Konayuki, Folio, Zeus, Bonne nouvelle, and Flexoki Light.
+1. Install pilot Typora themes, starting with Konayuki, Folio, Zeus, Bonne nouvelle, and Flexoki Light.
+2. Add Typora theme smoke/screenshots for pilot theme readability and shell isolation.
 3. Improve Markdown export fidelity for todos, tables, media, embeds, footnotes, and math.
 4. Return to desktop cards after Typora theme migration is usable.
 5. Implement block-internal layout groups after the Typora theme path is stable.
