@@ -9,6 +9,8 @@ await writeFile(markdownPath, [
   '',
   'A paragraph with **bold**, *italic*, ==mark==, `inline`, and [link](https://example.com).',
   '',
+  '![diagram](https://example.com/diagram.png)',
+  '',
   '- first bullet',
   '- second bullet',
   '',
@@ -41,6 +43,8 @@ const checks = {
   paragraph: pageText.includes('A paragraph with bold'),
   bullet: pageHtml.includes('<ul') && pageText.includes('first bullet'),
   task: pageHtml.includes('data-type="taskList"') && pageHtml.includes('open task') && pageHtml.includes('done task'),
+  link: pageHtml.includes('href="https://example.com"'),
+  image: pageHtml.includes('src="https://example.com/diagram.png"') && pageHtml.includes('alt="diagram"'),
   inlineCode: pageHtml.includes('<code>inline</code>'),
   highlight: pageHtml.includes('<mark'),
   codeBlock: pageHtml.includes('<pre><code>') && pageText.includes('const imported = true;')

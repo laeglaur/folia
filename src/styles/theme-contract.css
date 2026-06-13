@@ -228,6 +228,13 @@
   --inline-code-radius: 6px;
   --inline-code-padding: 0.1em 0.35em;
 
+  --link-ink: var(--accent);
+  --link-underline-offset: 0.16em;
+  --media-margin: 10px 0;
+  --media-radius: 10px;
+  --media-border: 1px solid var(--line-soft);
+  --media-shadow: 0 8px 18px rgba(83, 112, 89, 0.08);
+
   --legacy-todo-gap: 5px;
   --legacy-todo-min-height: 28px;
   --legacy-todo-margin: 2px 0;

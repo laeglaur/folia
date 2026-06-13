@@ -207,6 +207,11 @@
   --code-block-shadow: none;
   --inline-code-radius: 4px;
   --inline-code-padding: 0.08em 0.32em;
+  --link-underline-offset: 0.12em;
+  --media-margin: 8px 0;
+  --media-radius: 4px;
+  --media-border: 1px solid rgba(36, 45, 39, 0.14);
+  --media-shadow: none;
 
   --composer-card-margin-top: 14px;
   --composer-card-border: 1px solid rgba(36, 45, 39, 0.14);

@@ -636,6 +636,28 @@ input, select { color: var(--ink); }
   font-size: 0.9em;
 }
 
+.block-content a,
+.composer a,
+.floating-card-body a,
+.desktop-card a {
+  color: var(--link-ink);
+  text-decoration-thickness: 1px;
+  text-underline-offset: var(--link-underline-offset);
+}
+
+.block-content img,
+.composer img,
+.floating-card-body img,
+.desktop-card img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: var(--media-margin);
+  border: var(--media-border);
+  border-radius: var(--media-radius);
+  box-shadow: var(--media-shadow);
+}
+
 .todo-item {
   display: inline-flex;
   align-items: center;
