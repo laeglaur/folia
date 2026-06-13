@@ -114,7 +114,7 @@
     .typora-theme[data-content-theme="typora-zeus"] .typora-write { max-width: 1200px; }
 }
 .typora-theme[data-content-theme="typora-zeus"] .typora-write ol li {
-    padding-left: 0.5rem;
+    padding-left: calc(0.5 * var(--typora-root-font-size, 16px));
 }
 .typora-theme[data-content-theme="typora-zeus"] .typora-write > ul:first-child,
 .typora-theme[data-content-theme="typora-zeus"] .typora-write > ol:first-child {
@@ -132,7 +132,7 @@
 .typora-theme[data-content-theme="typora-zeus"] .typora-write h5,
 .typora-theme[data-content-theme="typora-zeus"] .typora-write h6 {
     position: relative;
-    margin: 1rem 0;
+    margin: calc(1 * var(--typora-root-font-size, 16px)) 0;
     font-weight: bold;
     line-height: 1.4;
     cursor: text;
@@ -225,7 +225,7 @@
 
 /* --- 7. Blockquote --- */
 .typora-theme[data-content-theme="typora-zeus"] .typora-write blockquote {
-    padding: 0.8em 1.4rem;
+    padding: 0.8em calc(1.4 * var(--typora-root-font-size, 16px));
     margin: 1em 0;
     font-weight: 400;
     border-left: 4px solid #2196f3;
@@ -302,18 +302,18 @@
 /* --- 10. Code Fences --- */
 .typora-theme[data-content-theme="typora-zeus"] .typora-write pre {
     border: 1px solid var(--border-color);
-    margin: 0.8rem 0 !important;
-    padding: 0.8rem 0 !important;
-    line-height: 1.43rem;
+    margin: calc(0.8 * var(--typora-root-font-size, 16px)) 0 !important;
+    padding: calc(0.8 * var(--typora-root-font-size, 16px)) 0 !important;
+    line-height: calc(1.43 * var(--typora-root-font-size, 16px));
     background-color: #2d2d2d !important;
     border-radius: 8px;
     font-family: 'Cascadia Code';
-    font-size: 0.85rem;
+    font-size: calc(0.85 * var(--typora-root-font-size, 16px));
     word-wrap: normal;
     color: #d4d4d4;
 }
 
-.typora-theme[data-content-theme="typora-zeus"] .typora-write prepre-advanced.md-focus pre-adv-panel {
+.typora-theme[data-content-theme="typora-zeus"] .typora-write pre.md-fences-advanced.md-focus .md-fences-adv-panel {
     position: unset;
 }
 
@@ -323,7 +323,7 @@
     padding: 2px 6px;
     border-radius: 4px;
     font-family: 'Cascadia Code';
-    font-size: 0.92rem;
+    font-size: calc(0.92 * var(--typora-root-font-size, 16px));
     color: #ce9178;
     background-color: #3e3e3e;
     border: 1px solid #444;
@@ -356,11 +356,11 @@
 /* --- 13. Checkbox Styles --- */
 
 /* Reset flex layout, keep default flow layout */
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .md-task-list-item {
+.typora-theme[data-content-theme="typora-zeus"] .typora-write [data-type="taskItem"] {
     display: list-item;
     margin-left: 0;
 }
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .md-task-list-item > input {
+.typora-theme[data-content-theme="typora-zeus"] .typora-write [data-type="taskItem"] > input {
     margin-left: -1.3em;
     margin-top: 0;
 }
@@ -479,7 +479,7 @@
     border: 1px solid #555;
     border-radius: 4px;
     position: absolute;
-    left: -2.5rem;
+    left: calc(-2.5 * var(--typora-root-font-size, 16px));
     float: left;
     top: 50%;
     font-size: 14px;
@@ -581,7 +581,7 @@
 /* --- 17. Code Syntax Highlighting (VS Code Dark) --- */
 
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-rawblock .md-rawblock-tooltip {
-    inset: auto 0.3rem auto auto;
+    inset: auto calc(0.3 * var(--typora-root-font-size, 16px)) auto auto;
     transform: translateY(-120%);
     background: #333 !important;
     color: #fff;
@@ -733,4 +733,9 @@
     border: 0px !important;
     cursor: pointer;
     font-size: 24px;
+}
+
+
+.typora-theme[data-content-theme="typora-zeus"] .typora-write {
+    --typora-root-font-size: 14px;
 }

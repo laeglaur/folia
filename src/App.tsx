@@ -978,7 +978,7 @@ export function App() {
   if (cardModeBlock) {
     return (
       <main className="card-window-page typora-theme" data-content-theme={state.contentTheme}>
-        <div className="floating-card-body card-mode typora-write" dangerouslySetInnerHTML={{ __html: cardModeBlock.content.html }} />
+        <div className="floating-card-body card-mode" dangerouslySetInnerHTML={{ __html: cardModeBlock.content.html }} />
       </main>
     );
   }
@@ -1093,7 +1093,7 @@ export function App() {
           </div>
         )}
 
-        <section className="page-surface typora-content-surface">
+        <section className="page-surface typora-content-surface typora-write">
           <input className="page-title" value={activePage.title} onChange={(event) => renamePage(event.target.value)} aria-label="Page title" />
           {metadataChips.length ? (
             <div className="page-metadata" aria-label="Page metadata">
@@ -1134,7 +1134,7 @@ export function App() {
                   {!block.collapsed ? (
                     <RichEditor
                       editorRef={(editor) => { blockEditorRefs.current[block.id] = editor; }}
-                      className="block-content editable typora-write"
+                      className="block-content editable"
                       html={htmlWithOutlineAnchors(block.content.html, block.id)}
                       onFocus={() => activateEditor({ kind: 'block', blockId: block.id })}
                       onMoveBlock={(direction) => {
@@ -1144,7 +1144,7 @@ export function App() {
                       onBlur={(html, plainText) => updateBlock(block.id, html, plainText)}
                     />
                   ) : (
-                    <div className="block-content preview typora-write">{firstLines(block.content.plainText)}</div>
+                    <div className="block-content preview">{firstLines(block.content.plainText)}</div>
                   )}
                 </div>
                 <div className="block-actions">
@@ -1162,7 +1162,7 @@ export function App() {
             )}
             <RichEditor
               editorRef={(editor) => { composerEditorRef.current = editor; }}
-              className="composer typora-write"
+              className="composer"
               placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
               onFocus={() => activateEditor({ kind: 'composer' })}
               onUpdate={(html) => {
@@ -1206,7 +1206,7 @@ export function App() {
           <div className="panel-title"><MapPin size={16} /> Pinned</div>
           {pinnedBlocks.length ? pinnedBlocks.map((block) => (
             <button
-              className="desktop-card typora-write"
+              className="desktop-card"
               key={block.id}
               type="button"
               onClick={() => openPinnedWindow(block.id)}
@@ -1223,7 +1223,7 @@ export function App() {
             <span>Desktop card</span>
             <button type="button" onClick={() => setState((current) => ({ ...current, openCardWindowBlockId: null }))}>×</button>
           </div>
-          <div className="floating-card-body typora-write" dangerouslySetInnerHTML={{ __html: openCardBlock.content.html }} />
+          <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: openCardBlock.content.html }} />
         </div>
       )}
     </div>

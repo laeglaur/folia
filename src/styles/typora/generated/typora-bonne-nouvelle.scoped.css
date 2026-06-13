@@ -322,7 +322,7 @@
 }
 
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .on-focus-mode .md-end-block:not(.md-focus) img,
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .on-focus-mode .md-task-list-item:not(.md-focus-container)>input {
+.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .on-focus-mode [data-type="taskItem"]:not(.md-focus-container)>input {
     opacity: #686868 !important;
 }
 

@@ -1,0 +1,104 @@
+@import "./typora/generated/typora-proof.scoped.css";
+@import "./typora/generated/typora-konayuki.scoped.css";
+@import "./typora/generated/typora-folio.scoped.css";
+@import "./typora/generated/typora-zeus.scoped.css";
+@import "./typora/generated/typora-bonne-nouvelle.scoped.css";
+@import "./typora/generated/typora-flexoki-light.scoped.css";
+
+.typora-theme[data-content-theme^="typora-"] .typora-write .block-content,
+.typora-theme[data-content-theme^="typora-"] .typora-write .composer {
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-write .block,
+.typora-theme[data-content-theme^="typora-"] .typora-write .block:hover,
+.typora-theme[data-content-theme^="typora-"] .typora-write .block:focus-within {
+  background: transparent;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-write .page-title,
+.typora-theme[data-content-theme^="typora-"] .typora-write .page-metadata,
+.typora-theme[data-content-theme^="typora-"] .typora-write .format-toolbar,
+.typora-theme[data-content-theme^="typora-"] .typora-write .composer-footer,
+.typora-theme[data-content-theme^="typora-"] .typora-write .block-rail,
+.typora-theme[data-content-theme^="typora-"] .typora-write .block-actions {
+  color: var(--ink);
+  font-family: var(--ui-font);
+  font-size: revert;
+  line-height: normal;
+  letter-spacing: 0;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-write .format-toolbar button,
+.typora-theme[data-content-theme^="typora-"] .typora-write .block-actions button,
+.typora-theme[data-content-theme^="typora-"] .typora-write .block-rail button {
+  font-family: var(--ui-font);
+}
+
+.typora-theme[data-content-theme^="typora-"] .right-panel,
+.typora-theme[data-content-theme^="typora-"] .right-panel .panel-card,
+.typora-theme[data-content-theme^="typora-"] .right-panel .outline-list,
+.typora-theme[data-content-theme^="typora-"] .right-panel .outline-entry,
+.typora-theme[data-content-theme^="typora-"] .right-panel .panel-title {
+  color: var(--ink);
+  font-family: var(--ui-font);
+  letter-spacing: 0;
+}
+
+.typora-theme[data-content-theme^="typora-"] .right-panel .outline-entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--outline-grid);
+  gap: var(--outline-gap);
+  width: 100%;
+  padding: 3px 5px 3px calc((var(--level) - 1) * 8px + 5px);
+  color: var(--muted);
+  background: transparent;
+  text-align: left;
+  font-size: var(--outline-font-size);
+  line-height: var(--outline-line-height);
+}
+
+.typora-theme[data-content-theme^="typora-"] .right-panel .outline-entry:hover {
+  color: var(--theme-nav-active-ink);
+  background: var(--theme-nav-active-background);
+}
+
+.typora-theme[data-content-theme^="typora-"] .right-panel .outline-list::before,
+.typora-theme[data-content-theme^="typora-"] .right-panel .outline-list::after,
+.typora-theme[data-content-theme^="typora-"] .right-panel .outline-entry::before,
+.typora-theme[data-content-theme^="typora-"] .right-panel .outline-entry::after {
+  display: none;
+  content: none;
+}
+
+.typora-theme[data-content-theme^="typora-"] .right-panel .outline-entry span:first-child {
+  color: var(--accent);
+  font-size: 0.86em;
+}
+
+.typora-theme[data-content-theme^="typora-"] .desktop-card,
+.typora-theme[data-content-theme^="typora-"] .floating-card-body {
+  color: var(--desktop-card-ink);
+  font-family: var(--editor-font);
+  font-size: var(--desktop-card-font-size);
+  line-height: var(--desktop-card-line-height);
+  letter-spacing: 0;
+}
+
+.typora-theme[data-content-theme^="typora-"] .desktop-card {
+  background: var(--desktop-card-background);
+  border: var(--desktop-card-border);
+  border-radius: var(--desktop-card-radius);
+  padding: var(--desktop-card-padding);
+}
+
+.typora-theme[data-content-theme^="typora-"] .floating-card-body {
+  color: var(--floating-card-body-ink);
+  font-size: var(--floating-card-body-font-size);
+  line-height: var(--floating-card-body-line-height);
+}

@@ -1,12 +1,6 @@
 @import "./styles/theme-contract.css";
 @import "./styles/themes/garden.css";
 @import "./styles/themes/ledger.css";
-@import "./styles/typora/generated/typora-proof.scoped.css";
-@import "./styles/typora/generated/typora-konayuki.scoped.css";
-@import "./styles/typora/generated/typora-folio.scoped.css";
-@import "./styles/typora/generated/typora-zeus.scoped.css";
-@import "./styles/typora/generated/typora-bonne-nouvelle.scoped.css";
-@import "./styles/typora/generated/typora-flexoki-light.scoped.css";
 
 * { box-sizing: border-box; }
 
@@ -471,18 +465,49 @@ input, select { color: var(--ink); }
   font-family: Georgia, "Times New Roman", serif;
 }
 
-.typora-theme .desktop-card.typora-write,
-.typora-theme .floating-card-body.typora-write {
+.typora-theme[data-content-theme^="typora-"] .typora-content-surface .block-content,
+.typora-theme[data-content-theme^="typora-"] .typora-content-surface .composer {
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-content-surface .block,
+.typora-theme[data-content-theme^="typora-"] .typora-content-surface .block:hover,
+.typora-theme[data-content-theme^="typora-"] .typora-content-surface .block:focus-within {
+  background: transparent;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-content-surface .page-title,
+.typora-theme[data-content-theme^="typora-"] .typora-content-surface .page-metadata,
+.typora-theme[data-content-theme^="typora-"] .typora-content-surface .format-toolbar,
+.typora-theme[data-content-theme^="typora-"] .typora-content-surface .composer-footer,
+.typora-theme[data-content-theme^="typora-"] .typora-content-surface .block-rail,
+.typora-theme[data-content-theme^="typora-"] .typora-content-surface .block-actions {
+  color: var(--ink);
+  font-family: var(--ui-font);
+  font-size: revert;
+  line-height: normal;
+  letter-spacing: 0;
+}
+
+.typora-theme .desktop-card,
+.typora-theme .floating-card-body {
   font-family: var(--editor-font);
   letter-spacing: 0;
 }
 
-.typora-theme .desktop-card.typora-write {
+.typora-theme .desktop-card {
+  color: var(--desktop-card-ink);
+  background: var(--desktop-card-background);
   font-size: var(--desktop-card-font-size);
   line-height: var(--desktop-card-line-height);
 }
 
-.typora-theme .floating-card-body.typora-write {
+.typora-theme .floating-card-body {
+  color: var(--floating-card-body-ink);
   font-size: var(--floating-card-body-font-size);
   line-height: var(--floating-card-body-line-height);
 }
