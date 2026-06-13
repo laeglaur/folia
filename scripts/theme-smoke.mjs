@@ -93,6 +93,10 @@ checks.typoraProofTocMapsToRightOutline = await page.locator('.outline-entry.md-
 checks.typoraProofIgnoresTyporaSidebar = await page.locator('.sidebar').evaluate((element) =>
   getComputedStyle(element).display !== 'none'
 );
+checks.typoraProofKeepsPinnedCardsCompact = await page.locator('.desktop-card').first().evaluate((element) => {
+  const styles = getComputedStyle(element);
+  return styles.letterSpacing === 'normal' && Number.parseFloat(styles.fontSize) <= 13.5;
+});
 
 console.log(JSON.stringify({ checks }, null, 2));
 await browser.close();

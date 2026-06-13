@@ -466,6 +466,22 @@ input, select { color: var(--ink); }
   font-family: Georgia, "Times New Roman", serif;
 }
 
+.typora-theme .desktop-card.typora-write,
+.typora-theme .floating-card-body.typora-write {
+  font-family: var(--editor-font);
+  letter-spacing: 0;
+}
+
+.typora-theme .desktop-card.typora-write {
+  font-size: var(--desktop-card-font-size);
+  line-height: var(--desktop-card-line-height);
+}
+
+.typora-theme .floating-card-body.typora-write {
+  font-size: var(--floating-card-body-font-size);
+  line-height: var(--floating-card-body-line-height);
+}
+
 .block-content,
 .composer {
   min-height: var(--block-content-min-height);
