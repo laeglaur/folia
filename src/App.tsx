@@ -54,6 +54,11 @@ import { isTauri } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 type EditorTarget = { kind: 'composer' } | { kind: 'block'; blockId: string };
+type ImportNotice = {
+  kind: 'idle' | 'loading' | 'success' | 'warning' | 'error';
+  message: string;
+  details?: string[];
+};
 type ToolbarCommand =
   | 'bold'
   | 'italic'
@@ -308,6 +313,7 @@ export function App() {
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [showToolbar, setShowToolbar] = useState(true);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
+  const [importNotice, setImportNotice] = useState<ImportNotice>({ kind: 'idle', message: '' });
   const composerEditorRef = useRef<Editor | null>(null);
   const blockEditorRefs = useRef<Record<string, Editor | null>>({});
   const persistenceReadyRef = useRef(!isTauri());
@@ -551,38 +557,59 @@ export function App() {
   const importMarkdownFiles = async (fileList: FileList | null) => {
     const files = Array.from(fileList ?? []).filter((file) => /\.(md|markdown|txt)$/i.test(file.name));
     if (!files.length) return;
-    const documents = await Promise.all(files.map(async (file) => ({ filename: file.name, markdown: await file.text() })));
-    const imported = await Promise.all(documents.map((document) => createPageFromMarkdown(state.activeNotebookId, document.filename, document.markdown)));
+    setImportNotice({ kind: 'loading', message: `Importing ${files.length} Markdown file${files.length > 1 ? 's' : ''}...` });
 
-    setState((current) => {
-      const importedPageIds = imported.map(({ page }) => page.id);
-      const importedBlocks = imported.flatMap(({ blocks }) => blocks);
-      const activePageId = importedPageIds[importedPageIds.length - 1] ?? current.activePageId;
-      const operationsState = { ...current };
-      let operations = current.operations;
-      imported.forEach(({ page, blocks }) => {
-        operations = appendOperation({ ...operationsState, operations }, {
-          entity: 'page',
-          entityId: page.id,
-          kind: 'page.import_markdown',
-          payload: { page, blockCount: blocks.length }
+    try {
+      const documents = await Promise.all(files.map(async (file) => ({ filename: file.name, markdown: await file.text() })));
+      const imported = await Promise.all(documents.map((document) => createPageFromMarkdown(state.activeNotebookId, document.filename, document.markdown)));
+      const warnings = imported.flatMap(({ warnings }) => warnings);
+      const warningDetails = warnings.slice(0, 4).map((warning) => `${warning.filename}: ${warning.sourcePath} (${warning.message})`);
+
+      setState((current) => {
+        const importedPageIds = imported.map(({ page }) => page.id);
+        const importedBlocks = imported.flatMap(({ blocks }) => blocks);
+        const activePageId = importedPageIds[importedPageIds.length - 1] ?? current.activePageId;
+        const operationsState = { ...current };
+        let operations = current.operations;
+        imported.forEach(({ page, blocks, warnings }) => {
+          operations = appendOperation({ ...operationsState, operations }, {
+            entity: 'page',
+            entityId: page.id,
+            kind: 'page.import_markdown',
+            payload: { page, blockCount: blocks.length, warningCount: warnings.length }
+          });
         });
+
+        return {
+          ...current,
+          pages: [...current.pages, ...imported.map(({ page }) => page)],
+          blocks: [...current.blocks, ...importedBlocks],
+          notebooks: current.notebooks.map((notebook) =>
+            notebook.id === current.activeNotebookId
+              ? { ...notebook, pageIds: [...notebook.pageIds, ...importedPageIds] }
+              : notebook
+          ),
+          activePageId,
+          expandedPageIds: [...new Set([...current.expandedPageIds, ...importedPageIds])],
+          operations
+        };
       });
 
-      return {
-        ...current,
-        pages: [...current.pages, ...imported.map(({ page }) => page)],
-        blocks: [...current.blocks, ...importedBlocks],
-        notebooks: current.notebooks.map((notebook) =>
-          notebook.id === current.activeNotebookId
-            ? { ...notebook, pageIds: [...notebook.pageIds, ...importedPageIds] }
-            : notebook
-        ),
-        activePageId,
-        expandedPageIds: [...new Set([...current.expandedPageIds, ...importedPageIds])],
-        operations
-      };
-    });
+      const importedBlockCount = imported.reduce((sum, item) => sum + item.blocks.length, 0);
+      setImportNotice({
+        kind: warnings.length ? 'warning' : 'success',
+        message: warnings.length
+          ? `Imported ${imported.length} page${imported.length > 1 ? 's' : ''}, but ${warnings.length} local asset${warnings.length > 1 ? 's' : ''} could not be copied.`
+          : `Imported ${imported.length} page${imported.length > 1 ? 's' : ''} with ${importedBlockCount} block${importedBlockCount > 1 ? 's' : ''}.`,
+        details: warningDetails
+      });
+    } catch (error) {
+      setImportNotice({
+        kind: 'error',
+        message: 'Markdown import failed.',
+        details: [error instanceof Error ? error.message : String(error)]
+      });
+    }
   };
 
   const openPinnedWindow = async (blockId: string) => {
@@ -755,6 +782,17 @@ export function App() {
             <button className="secondary-button" type="button" onClick={exportJson}><Upload size={15} /> Backup</button>
           </div>
         </header>
+
+        {importNotice.kind !== 'idle' && (
+          <div className={`import-notice ${importNotice.kind}`} role="status" aria-live="polite">
+            <span>{importNotice.message}</span>
+            {importNotice.details?.length ? (
+              <ul>
+                {importNotice.details.map((detail) => <li key={detail}>{detail}</li>)}
+              </ul>
+            ) : null}
+          </div>
+        )}
 
         <section className="page-surface">
           <input className="page-title" value={activePage.title} onChange={(event) => renamePage(event.target.value)} aria-label="Page title" />

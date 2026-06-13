@@ -190,6 +190,12 @@ type ImportedAsset = {
   sha256: string;
 };
 
+export type MarkdownImportWarning = {
+  filename: string;
+  sourcePath: string;
+  message: string;
+};
+
 const normalizeMarkdownWhitespace = (markdown: string) =>
   markdown
     .replace(/\r\n?/g, '\n')
@@ -247,8 +253,9 @@ const localAssetPathFromSrc = (src: string) => {
   return null;
 };
 
-const localizeImageAssets = async (html: string) => {
-  if (!isTauri()) return html;
+const localizeImageAssets = async (html: string, filename: string) => {
+  const warnings: MarkdownImportWarning[] = [];
+  if (!isTauri()) return { html, warnings };
   const container = document.createElement('div');
   container.innerHTML = html;
   const images = Array.from(container.querySelectorAll('img'));
@@ -263,11 +270,16 @@ const localizeImageAssets = async (html: string) => {
       image.setAttribute('data-asset-id', imported.id);
       image.setAttribute('data-original-src', src);
     } catch (error) {
+      warnings.push({
+        filename,
+        sourcePath,
+        message: error instanceof Error ? error.message : String(error)
+      });
       console.warn('Could not import local asset.', sourcePath, error);
     }
   }));
 
-  return container.innerHTML;
+  return { html: container.innerHTML, warnings };
 };
 
 export const createPageFromMarkdown = async (notebookId: string, filename: string, markdown: string) => {
@@ -275,19 +287,25 @@ export const createPageFromMarkdown = async (notebookId: string, filename: strin
   const fallbackTitle = filename.replace(/\.(md|markdown|txt)$/i, '').trim() || 'Imported page';
   const page = createPage(notebookId, firstHeading || fallbackTitle);
   const body = firstHeading ? markdown.replace(/^#\s+.+$/m, '').trim() : markdown;
-  const blocks = await Promise.all(markdownToBlocks(page.id, body).map(async (block) => ({
-    ...block,
-    content: {
-      html: await localizeImageAssets(block.content.html),
-      plainText: block.content.plainText
-    }
-  })));
+  const warnings: MarkdownImportWarning[] = [];
+  const blocks = await Promise.all(markdownToBlocks(page.id, body).map(async (block) => {
+    const localized = await localizeImageAssets(block.content.html, filename);
+    warnings.push(...localized.warnings);
+    return {
+      ...block,
+      content: {
+        html: localized.html,
+        plainText: block.content.plainText
+      }
+    };
+  }));
   return {
     page: {
       ...page,
       blockIds: blocks.map((block) => block.id)
     },
-    blocks
+    blocks,
+    warnings
   };
 };
 

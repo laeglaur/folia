@@ -46,6 +46,8 @@ const pageTitle = await page.locator('.page-title').inputValue();
 const pageTreeText = await page.locator('.page-tree').innerText();
 const pageText = await page.locator('.page-surface').innerText();
 const pageHtml = await page.locator('.page-surface').evaluate((node) => node.innerHTML);
+const importNoticeText = await page.locator('.import-notice').innerText();
+const importNoticeClass = await page.locator('.import-notice').getAttribute('class');
 const blockCount = await page.locator('.block').count();
 
 const checks = {
@@ -61,7 +63,8 @@ const checks = {
   inlineCode: pageHtml.includes('<code>inline</code>'),
   highlight: pageHtml.includes('<mark'),
   codeBlock: pageHtml.includes('<pre><code>') && pageText.includes('const imported = true;'),
-  indentedFence: pageHtml.includes('┌────┬────┐') && !pageText.includes('```')
+  indentedFence: pageHtml.includes('┌────┬────┐') && !pageText.includes('```'),
+  importNotice: importNoticeClass?.includes('success') && importNoticeText.includes('Imported 1 page with 1 block')
 };
 
 console.log(JSON.stringify({ checks }, null, 2));

@@ -290,6 +290,37 @@ input, select { color: var(--ink); }
 
 .secondary-button:hover { color: var(--accent); background: var(--chip-primary); }
 
+.import-notice {
+  width: min(var(--layout-page-width), calc(100% - var(--layout-page-gutter)));
+  margin: 0 auto 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--topbar-control-radius);
+  background: var(--panel);
+  box-shadow: var(--surface-shadow);
+  color: var(--muted);
+  padding: 9px 13px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.import-notice.success {
+  border-color: var(--highlight-edge);
+  background: var(--highlight);
+  color: var(--highlight-ink);
+}
+
+.import-notice.warning,
+.import-notice.error {
+  border-color: var(--bracket-todo-edge);
+  background: var(--bracket-todo);
+  color: var(--bracket-todo-ink);
+}
+
+.import-notice ul {
+  margin: 5px 0 0;
+  padding-left: 18px;
+}
+
 .primary-button {
   min-height: var(--primary-button-height);
   border-radius: var(--primary-button-radius);
