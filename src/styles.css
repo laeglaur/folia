@@ -2,6 +2,11 @@
 @import "./styles/themes/garden.css";
 @import "./styles/themes/ledger.css";
 @import "./styles/typora/generated/typora-proof.scoped.css";
+@import "./styles/typora/generated/typora-konayuki.scoped.css";
+@import "./styles/typora/generated/typora-folio.scoped.css";
+@import "./styles/typora/generated/typora-zeus.scoped.css";
+@import "./styles/typora/generated/typora-bonne-nouvelle.scoped.css";
+@import "./styles/typora/generated/typora-flexoki-light.scoped.css";
 
 * { box-sizing: border-box; }
 

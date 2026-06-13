@@ -81,8 +81,19 @@ const normalizeTheme = (theme?: string): ThemeId => {
   return 'garden';
 };
 
+const contentThemeIds = new Set<ContentThemeId>([
+  'notebook',
+  'typora-base',
+  'typora-proof',
+  'typora-konayuki',
+  'typora-folio',
+  'typora-zeus',
+  'typora-bonne-nouvelle',
+  'typora-flexoki-light'
+]);
+
 const normalizeContentTheme = (contentTheme?: string): ContentThemeId => {
-  if (contentTheme === 'typora-base' || contentTheme === 'typora-proof') return contentTheme;
+  if (contentThemeIds.has(contentTheme as ContentThemeId)) return contentTheme as ContentThemeId;
   return 'notebook';
 };
 

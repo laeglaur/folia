@@ -1,0 +1,394 @@
+/* Source: https://raw.githubusercontent.com/liyoulu/typora-folio-theme/main/folio.css */
+@include-when-export url(https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&display=swap);
+@import url("https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&display=swap");
+
+@font-face {
+  font-family: "Merriweather";
+  font-style: normal;
+  font-weight: 300;
+  src: local("Merriweather Light"), local("Merriweather-Light"),
+    url("./pixyll/merriweather-v19-latin-300.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Merriweather";
+  font-style: normal;
+  font-weight: 700;
+  src: local("Merriweather Heavy"), local("Merriweather-Heavy"),
+    url("./pixyll/merriweather-v19-latin-700.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Merriweather";
+  font-style: italic;
+  font-weight: 300;
+  src: local("Merriweather Light Italic"), local("Merriweather-LightItalic"),
+    url("./pixyll/merriweather-v19-latin-300italic.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Merriweather";
+  font-style: italic;
+  font-weight: 700;
+  src: local("Merriweather Heavy Italic"), local("Merriweather-HeavyItalic"),
+    url("./pixyll/merriweather-v19-latin-700italic.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Folio CJK Display";
+  font-style: normal;
+  font-weight: 400;
+  src: url("./folio-fonts/FZPanHuBaoZhuangTiS-W07-R.TTF") format("truetype");
+}
+
+@font-face {
+  font-family: "Folio CJK Display";
+  font-style: normal;
+  font-weight: 500;
+  src: url("./folio-fonts/FZPanHuBaoZhuangTiS-W07-SB.TTF") format("truetype");
+}
+
+:root {
+  --folio-bg: #e9e6e1;
+  --folio-paper: #fffdfa;
+  --folio-shadow: rgba(74, 59, 47, 0.12);
+  --folio-border: rgba(116, 93, 74, 0.16);
+  --folio-text: #2f2a25;
+  --folio-muted: #8d7d70;
+  --folio-heading: #1f1a16;
+  --folio-link: #b17b4d;
+  --folio-link-hover: #8e5f36;
+  --folio-code-bg: #f5efe8;
+  --folio-code-border: rgba(116, 93, 74, 0.16);
+  --folio-quote-border: rgba(177, 123, 77, 0.42);
+  --folio-table-border: rgba(116, 93, 74, 0.2);
+  --folio-hr: rgba(116, 93, 74, 0.18);
+  --folio-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --folio-display: "Oswald", "Folio CJK Display", "FZPanHuBaoZhuangTiS W07 R",
+    "方正潘虎包装体 简 W07 R", "FZPanHuBaoZhuangTiS-W07-R", "方正美黑简体", "FZMeiHei-M07S",
+    "FZMHJW--GB1-0", "Arial Narrow", "Helvetica Neue Condensed", sans-serif;
+  --folio-serif: "Merriweather", "Sarasa UI SC", "更纱黑体 UI SC", "Sarasa-UI-SC-Regular",
+    "Folio CJK Serif", "Songti SC", "STSong", "Iowan Old Style", "Palatino Linotype",
+    "Book Antiqua", Georgia, serif;
+  --folio-mono: "Sarasa Mono SC", "等距更纱黑体 SC", "Sarasa-Mono-SC-Bold", "SF Mono", Menlo,
+    Monaco, Consolas, monospace;
+}
+
+html {
+  font-size: 17px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background: var(--folio-bg);
+  color: var(--folio-text);
+  font-family: var(--folio-serif);
+  font-weight: 400;
+  line-height: 1.82;
+  letter-spacing: 0;
+}
+
+content {
+  display: block;
+  min-height: 100vh;
+  padding: 28px 24px 42px;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #ece9e4 0%, #e6e2dc 100%);
+}
+
+#write {
+  max-width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 24mm 20mm 26mm;
+  box-sizing: border-box;
+  background: var(--folio-paper);
+  border: 1px solid var(--folio-border);
+  box-shadow: 0 14px 42px var(--folio-shadow);
+  color: var(--folio-text);
+}
+
+@media screen and (max-width: 980px) {
+  content {
+    padding: 0;
+    background: var(--folio-paper);
+  }
+
+  #write {
+    min-height: auto;
+    padding: 1.6rem 1.3rem 2.25rem;
+    border: none;
+    box-shadow: none;
+  }
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 1.7em;
+  margin-bottom: 0.5em;
+  color: var(--folio-heading);
+  font-family: var(--folio-display);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+h1 {
+  margin-top: 0;
+  font-size: 4rem;
+}
+
+h2 {
+  font-size: 2.4rem;
+}
+
+h3 {
+  font-size: 1.8rem;
+}
+
+h4,
+h5,
+h6 {
+  font-size: 1.3rem;
+}
+
+p,
+ul,
+ol,
+blockquote,
+table {
+  font-size: 1.085rem;
+}
+
+p {
+  margin: 0 0 1.28em;
+}
+
+strong {
+  font-weight: 700;
+}
+
+em {
+  color: var(--folio-muted);
+}
+
+a {
+  color: var(--folio-link);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--folio-link-hover);
+}
+
+hr {
+  border: none;
+  border-bottom: 1px solid var(--folio-hr);
+  margin: 2rem 0;
+}
+
+blockquote {
+  margin: 1.6rem 0;
+  padding: 0.1rem 0 0.1rem 1.15rem;
+  border-left: 3px solid var(--folio-quote-border);
+  color: #5f5146;
+}
+
+ul,
+ol {
+  margin: 0 0 1.2em;
+  padding-left: 1.4em;
+}
+
+li {
+  margin: 0.22em 0;
+}
+
+code,
+pre,
+.md-fences,
+.CodeMirror pre {
+  font-family: var(--folio-mono) !important;
+}
+
+code {
+  padding: 0.08em 0.32em;
+  border-radius: 3px;
+  background: var(--folio-code-bg);
+  border: 1px solid var(--folio-code-border);
+  font-size: 0.92em;
+}
+
+.md-fences {
+  margin: 1.45rem 0 1.75rem;
+  padding: 0.95rem 1rem;
+  background: #fcf8f3;
+  border: 1px solid var(--folio-code-border);
+  border-radius: 4px;
+}
+
+.cm-s-inner {
+  background: transparent !important;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.6rem 0 2rem;
+}
+
+th,
+td {
+  padding: 0.7rem 0.4rem 0.7rem 0;
+  text-align: left;
+  border-bottom: 1px solid var(--folio-table-border);
+}
+
+th {
+  font-family: var(--folio-display);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--folio-heading);
+}
+
+img {
+  max-width: 100%;
+}
+
+.md-task-list-item > input {
+  accent-color: var(--folio-link);
+}
+
+.ty-table-edit {
+  background: #f2ebe3;
+}
+
+#write .md-footnote,
+#write .md-meta,
+.md-image > .md-meta {
+  color: var(--folio-muted);
+  font-family: var(--folio-ui);
+}
+
+/* Codex quote line-height sync */
+blockquote {
+  line-height: inherit;
+}
+
+blockquote,
+blockquote *,
+blockquote p,
+blockquote span,
+blockquote li {
+  line-height: inherit !important;
+}
+
+#write .md-toc {
+  margin: 1.8rem 0 2.2rem;
+  padding: 1.15rem 1.25rem 1.2rem;
+  background: #faf6f0;
+  border: 1px solid var(--folio-border);
+  border-radius: 4px;
+}
+
+#write .md-toc::before {
+  content: "Contents";
+  display: block;
+  margin-bottom: 0.7rem;
+  color: var(--folio-heading);
+  font-family: var(--folio-ui);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+#write .md-toc-content,
+#write .md-toc-content a {
+  color: var(--folio-text);
+  font-family: var(--folio-ui);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+#write .md-toc-content a:hover {
+  color: var(--folio-link-hover);
+  text-decoration: none;
+}
+
+#write .md-toc-inner {
+  margin-left: 0;
+}
+
+#write .md-toc-item {
+  margin: 0.2rem 0;
+}
+
+#write .md-toc-h1 .md-toc-inner {
+  margin-left: 0;
+}
+
+#write .md-toc-h2 .md-toc-inner {
+  margin-left: 1rem;
+}
+
+#write .md-toc-h3 .md-toc-inner,
+#write .md-toc-h4 .md-toc-inner,
+#write .md-toc-h5 .md-toc-inner,
+#write .md-toc-h6 .md-toc-inner {
+  margin-left: 1.8rem;
+}
+
+#typora-sidebar {
+  background: #ece7df;
+  border-right: 1px solid rgba(116, 93, 74, 0.12);
+  color: var(--folio-text);
+  font-family: var(--folio-ui);
+}
+
+#typora-sidebar .outline-title-wrapper,
+#typora-sidebar .sidebar-tabs,
+#typora-sidebar #ty-sidebar-footer {
+  background: transparent;
+  border-color: rgba(116, 93, 74, 0.12);
+}
+
+#typora-sidebar .outline-title {
+  color: var(--folio-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#typora-sidebar .outline-content {
+  padding: 0.6rem 0.6rem 1rem;
+}
+
+#typora-sidebar .outline-content .outline-item {
+  border-radius: 3px;
+  color: var(--folio-text);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  padding: 0.14rem 0.42rem;
+}
+
+#typora-sidebar .outline-content .outline-label {
+  font-family: var(--folio-ui);
+}
+
+#typora-sidebar .outline-content .outline-item:hover,
+#typora-sidebar .outline-content .outline-item-active {
+  background: rgba(177, 123, 77, 0.1);
+  color: var(--folio-heading);
+}
+
+#typora-sidebar .outline-expander::before {
+  opacity: 0.5;
+}

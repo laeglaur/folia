@@ -1,0 +1,741 @@
+/* Source: https://raw.githubusercontent.com/zmtsikriteas/zeus-typora-theme/main/zeus.css */
+@font-face {
+    font-family: "Cascadia Code";
+    src: url("zeus/CascadiaCode.woff2");
+}
+
+/* --- 1. Global Variable Definitions (Typora System UI) --- */
+:root {
+    /* --- Core Background & Text --- */
+    --bg-color: #1e1e1e;                /* Global background: dark grey */
+    --text-color: #d4d4d4;              /* Global text: light grey */
+    --side-bar-bg-color: #252526;       /* Sidebar background */
+    --control-text-color: #d4d4d4;      /* Control text */
+    --control-text-hover-color: #fff;
+
+    /* --- Window & Panel Borders --- */
+    --window-border: 1px solid #454545;
+    --panel-border-color: #454545;      /* Panel divider color */
+    --table-border-color: #454545;      /* Table border color */
+
+    /* --- Sidebar & List States --- */
+    --active-file-bg-color: #37373d;       /* Sidebar selected file background */
+    --active-file-border-color: #2196f3;   /* Sidebar selected left border */
+    --active-file-text-color: #fff;        /* Sidebar selected text */
+
+    /* List/menu/settings hover background */
+    --item-hover-bg-color: #094771;
+    --item-hover-text-color: #fff;
+
+    /* --- Search & Input Fields --- */
+    --search-select-bg-color: #094771;     /* Search result selected background */
+    --search-select-text-color: #fff;
+    --focus-ring-color: #2196f3;           /* Input focus ring */
+
+    /* --- Text Selection --- */
+    --select-text-bg-color: rgba(33, 150, 243, 0.4);
+    --select-text-font-color: #fff;
+
+    /* --- Source Code & Special Panels --- */
+    --rawblock-edit-panel-bd: #2d2d2d;     /* Formula/HTML block edit panel background */
+    --color-popover-bg-color: #252526;     /* Color picker background */
+
+    /* --- Markdown Element Colors --- */
+    --md-char-color: #666;                 /* Markup character color */
+    --heading-char-color: #666;            /* Heading # character color */
+    --meta-content-color: #5b808d;         /* Metadata color */
+    --blur-text-color: #777;               /* Unfocused text color */
+
+    /* --- Buttons & Drag --- */
+    --active-toggle-btn-color: #2196f3;    /* Toggle button active color */
+    --drag-placeholder-color: #2196f3;     /* Drag placeholder */
+    --primary-btn-border-color: #2196f3;
+    --primary-btn-text-color: #fff;
+
+    /* --- Zeus Theme Variables --- */
+    --primary-color: #2196f3;
+    --primary-hover: #64b5f6;
+    --code-bg: #2d2d2d;
+    --border-color: #454545;
+
+    /* --- Font Settings --- */
+    --font-sans-serif: "Open Sans","Clear Sans", "Helvetica Neue", Helvetica, Arial, 'Segoe UI Emoji', 'SF Pro', sans-serif;
+    --font-monospace: "Cascadia Code" !important;
+    --code-font: "Cascadia Code" !important;
+
+    /* --- Mermaid --- */
+    --mermaid-theme: dark;
+}
+
+html {
+    font-size: 14px;
+    background-color: var(--bg-color);
+}
+
+/* --- 2. Body Base Styles --- */
+body {
+    font-family: var(--font-sans-serif);
+    color: #d4d4d4;
+    background-color: var(--bg-color);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+    margin: 0;
+    overflow-x: hidden;
+}
+
+/* Text selection color */
+::selection {
+    background-color: var(--select-text-bg-color);
+    color: #fff;
+}
+
+/* --- 3. Link Styles --- */
+#write a {
+    position: relative;
+    text-decoration: none;
+    display: inline-block;
+    color: var(--primary-color);
+    padding: 0 2px;
+}
+
+/* --- 4. Layout Container --- */
+#write {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 30px;
+    padding-bottom: 100px;
+}
+
+@media only screen and (min-width: 1400px) {
+    #write { max-width: 1024px; }
+}
+
+@media only screen and (min-width: 1800px) {
+    #write { max-width: 1200px; }
+}
+#write ol li {
+    padding-left: 0.5rem;
+}
+#write > ul:first-child,
+#write > ol:first-child {
+    margin-top: 30px;
+}
+
+body > *:first-child { margin-top: 0 !important; }
+body > *:last-child { margin-bottom: 0 !important; }
+
+/* --- 5. Heading Styles --- */
+h1, h2, h3, h4, h5, h6 {
+    position: relative;
+    margin: 1rem 0;
+    font-weight: bold;
+    line-height: 1.4;
+    cursor: text;
+    color: #e8944c;
+}
+
+
+h3.md-focus:before, h4.md-focus:before, h5.md-focus:before, h6.md-focus:before {
+    float: unset;
+    font-size: unset;
+}
+h1 tt, h1 code, h2 tt, h2 code, h3 tt, h3 code,
+h4 tt, h4 code, h5 tt, h5 code, h6 tt, h6 code {
+    font-size: inherit !important;
+}
+
+h2 a, h3 a { color: #d4d4d4; }
+
+h1 { font-size: 2.25em; line-height: 1.2; border-bottom: 1px solid #333; }
+h2 { font-size: 1.75em; line-height: 1.225; border-bottom: 1px solid #333; }
+h3 { font-size: 1.5em; line-height: 1.43; }
+h4 { font-size: 1.25em; }
+h5 { font-size: 1em; }
+h6 { font-size: 1em; }
+
+p, blockquote, ul, ol, dl, table { margin: 0.8em 0; }
+li > ol, li > ul { margin: 0; }
+
+/* --- 6. Horizontal Rule --- */
+hr {
+    padding: 0;
+    margin: 22px 0;
+    border-top: 5px dashed #e8944c57;
+    overflow: hidden;
+    box-sizing: content-box;
+}
+
+/* Top spacing adjustments */
+body > h2:first-child, body > h1:first-child, body > h1:first-child + h2,
+body > h3:first-child, body > h4:first-child, body > h5:first-child,
+body > h6:first-child, a:first-child h1, a:first-child h2,
+a:first-child h3, a:first-child h4, a:first-child h5, a:first-child h6 {
+    margin-top: 0;
+    padding-top: 0;
+}
+
+h1 p, h2 p, h3 p, h4 p, h5 p, h6 p { margin-top: 0; }
+li p.first { display: inline-block; }
+
+ul, ol { padding-left: 30px; }
+ul:first-child, ol:first-child { margin-top: 0; }
+ul:last-child, ol:last-child { margin-bottom: 0; }
+
+/* --- 7. Blockquote --- */
+blockquote {
+    padding: 0.8em 1.4rem;
+    margin: 1em 0;
+    font-weight: 400;
+    border-left: 4px solid #2196f3;
+    background-color: rgba(33, 150, 243, 0.15);
+    color: #b0c4de;
+    border-radius: 0 8px 8px 0;
+}
+
+/* --- 8. Table Styles --- */
+table {
+    padding: 0;
+    word-break: initial;
+    border-collapse: collapse;
+}
+table tr {
+    border-top: 1px solid var(--table-border-color);
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+}
+table tr:nth-child(2n), thead {
+    background-color: #262626; /* Zebra stripe dark row */
+}
+table tr th,
+table tr td {
+    border: 1px solid var(--table-border-color);
+    text-align: left;
+    margin: 0;
+    padding: 6px 13px;
+    color: var(--text-color);
+}
+table tr th {
+    font-weight: bold;
+    border-bottom: 0;
+    background-color: #333;
+    color: #fff;
+}
+table tr th:first-child, table tr td:first-child { margin-top: 0; }
+table tr th:last-child, table tr td:last-child { margin-bottom: 0; }
+
+#write strong { padding: 0 1px; color: #fff; }
+#write em { padding: 0 5px 0 2px; }
+#write table thead th { background-color: #333; }
+
+/* --- 9. Code Tooltip --- */
+.code-tooltip {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    background-color: #252526 !important;
+    border: 1px solid var(--border-color);
+    color: #ccc;
+}
+
+.md-fences .code-tooltip {
+    z-index: 50;
+    right: 0 !important;
+    bottom: -28px !important;
+    padding: 0;
+    border-radius: 5px;
+}
+
+.md-fences .code-tooltip input, .md-fences .code-tooltip span {
+    margin: 0;
+    padding: 3px;
+    border-radius: 5px;
+    background-color: #383838;
+    color: #fff;
+    border: 1px solid #555;
+}
+
+/* --- 10. Code Fences --- */
+#write .md-fences {
+    border: 1px solid var(--border-color);
+    margin: 0.8rem 0 !important;
+    padding: 0.8rem 0 !important;
+    line-height: 1.43rem;
+    background-color: #2d2d2d !important;
+    border-radius: 8px;
+    font-family: 'Cascadia Code';
+    font-size: 0.85rem;
+    word-wrap: normal;
+    color: #d4d4d4;
+}
+
+pre.md-fences-advanced.md-focus .md-fences-adv-panel {
+    position: unset;
+}
+
+#write .CodeMirror-wrap .CodeMirror-code pre { padding-left: 12px; }
+
+/* --- 11. Inline Code --- */
+#write code, tt {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Cascadia Code';
+    font-size: 0.92rem;
+    color: #ce9178;
+    background-color: #3e3e3e;
+    border: 1px solid #444;
+}
+tt { margin: 0 2px; }
+
+figure { border-radius: 8px; }
+
+#write .md-footnote {
+    background-color: #333;
+    color: var(--primary-color);
+}
+
+/* --- 12. Highlight & Strikethrough --- */
+#write mark {
+    background-color: #d19a66;
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin: 0 2px;
+    color: #000;
+    font-weight: 500;
+}
+
+#write del {
+    padding: 1px 2px;
+    text-decoration-color: #ff5555;
+    color: #777;
+}
+
+/* --- 13. Checkbox Styles --- */
+
+/* Reset flex layout, keep default flow layout */
+.md-task-list-item {
+    display: list-item;
+    margin-left: 0;
+}
+.md-task-list-item > input {
+    margin-left: -1.3em;
+    margin-top: 0;
+}
+
+/* Checkbox appearance */
+#write input[type=checkbox] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #e8944c;
+    border-radius: 4px;
+    background-color: transparent;
+    top: 4px;
+    cursor: pointer;
+}
+
+#write input[type="checkbox"]:checked {
+    background: #e8944c;
+    border-color: #e8944c;
+}
+
+#write input[type="checkbox"]:checked:before {
+    content: '\2714';
+    color: #1e1e1e;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    font-size: 10px;
+    display: block;
+    line-height: 1;
+    transform: translate(-50%, -50%);
+}
+
+/* --- 14. Table of Contents (TOC) --- */
+.md-toc { margin-top: 28px; margin-left: 0px; margin-right: 0px; }
+.sidebar-tabs { border-bottom: none; }
+
+.md-toc-content { position: relative; }
+.md-toc-content .md-toc-item { position: relative; color: #d4d4d4; }
+
+.md-toc-content:before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px;
+    width: 1px; height: calc(100% - 20px);
+    border-left: 1px solid rgba(232, 148, 76, 0.4);
+}
+
+.md-toc-content .md-toc-h1::before { background: #e8944c; }
+.md-toc-content .md-toc-item:before {
+    content: '';
+    position: absolute;
+    top: 12px; left: -22px;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+}
+#typora-quick-open {
+    border: 1px solid var(--border-color);
+    background-color: #252526;
+    color: #ccc;
+}
+#typora-quick-open-item {
+    background-color: #252526;
+    border-color: var(--border-color);
+}
+#typora-quick-open-item.active {
+    background-color: var(--item-hover-bg-color);
+    color: #fff;
+}
+#md-notification:before { top: 10px; }
+
+/* Focus mode */
+.on-focus-mode blockquote { border-left-color: rgba(85,85,85,0.12); }
+
+header, .context-menu, .megamenu-content, footer {
+    font-family: var(--font-sans-serif);
+}
+
+/* Context menu styles */
+.context-menu, .dropdown-menu {
+    background-color: #2d2d2d !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.6) !important;
+    color: #ccc !important;
+}
+.menu-item.active {
+    background-color: var(--item-hover-bg-color) !important;
+    color: #fff !important;
+}
+.menu-style-btn {
+    background: transparent;
+    border: 1px solid #555;
+    color: #ccc;
+}
+
+.mac-seamless-mode #typora-sidebar {
+    background-color: var(--side-bar-bg-color);
+}
+
+.md-lang { color: #ce9178; }
+
+.pin-outline #outline-content .outline-active strong,
+.pin-outline .outline-active { color: #e8944c; }
+
+.code-tooltip {
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: #252526;
+}
+
+/* --- 15. H1-H6 Heading Level Labels --- */
+h1.md-end-block.md-heading:after,
+h2.md-end-block.md-heading:after,
+h3.md-end-block.md-heading:after,
+h4.md-end-block.md-heading:after,
+h5.md-end-block.md-heading:after,
+h6.md-end-block.md-heading:after {
+    color: #888 !important;
+    border: 1px solid #555;
+    border-radius: 4px;
+    position: absolute;
+    left: -2.5rem;
+    float: left;
+    top: 50%;
+    font-size: 14px;
+    transform: translateY(-50%);
+    padding: 1px 5px;
+    vertical-align: bottom;
+    font-weight: 400;
+    line-height: normal;
+    opacity: 0;
+    background-color: var(--bg-color);
+}
+
+.outline-label { font-family: var(--font-sans-serif); color: #ccc; }
+
+h1.md-end-block.md-heading span:first-of-type,
+h2.md-end-block.md-heading span:first-of-type,
+h3.md-end-block.md-heading span:first-of-type,
+h4.md-end-block.md-heading span:first-of-type,
+h5.md-end-block.md-heading span:first-of-type,
+h6.md-end-block.md-heading span:first-of-type {
+    margin-left: 0;
+    position: relative;
+}
+
+/* --- 16. Admonition/Callout Styles --- */
+.md-alert {
+    padding: 0.1em 1em;
+    border-radius: 0px 8px 8px 0px;
+    color: #ddd;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.md-alert.md-alert-note { background: rgba(33, 150, 243, 0.15); color: #64b5f6; }
+.md-alert.md-alert-tip { background: rgba(50, 200, 100, 0.15); color: #81c784; }
+.md-alert.md-alert-important { background: rgba(133, 102, 251, 0.15); color: #b39ddb; }
+.md-alert.md-alert-warning { background: rgba(216, 161, 50, 0.15); color: #ffd54f; }
+.md-alert.md-alert-caution { background: rgba(209, 47, 58, 0.15); color: #e57373; }
+
+.modal-content {
+    border-radius: 8px;
+    background-color: #2d2d2d;
+    color: #ccc;
+    border: 1px solid var(--border-color);
+}
+
+.md-notification button, .modal-dialog .btn, .modal-dialog button {
+    border-radius: 8px;
+    outline: none;
+    color: #ccc;
+    background-color: #383838;
+    border: 1px solid #555;
+}
+
+#about-content-license-button {
+    border: 1px solid #555;
+    background: #333;
+    outline: none;
+    color: #ccc;
+}
+
+.md-notification button:focus, .modal-dialog .btn:focus, .modal-dialog button:focus {
+    outline: none;
+}
+
+.md-hr:focus { outline: none; }
+
+.outline-item.outline-item-active {
+    background-color: rgba(232, 148, 76, 0.3);
+    border-radius: 8px;
+    color: #fff;
+}
+
+.outline-item.outline-item-active span::before { color: #e8944c; }
+
+.outline-content li, .outline-content ul { margin-top: 2px; }
+
+.typora-node #typora-sidebar {
+    background-color: var(--side-bar-bg-color);
+    border-right: 1px solid #111;
+}
+
+.md-empty .md-meta, .md-expand .md-content, .md-expand .md-meta, .md-expand.md-content, .md-expand.md-meta {
+    font-family: none;
+}
+
+#file-library-search-input {
+    border-radius: 6px;
+    background-color: #383838;
+    color: #fff;
+    border: 1px solid #555;
+}
+
+#close-outline-filter-btn { position: relative; right: 0; }
+
+/* --- 17. Code Syntax Highlighting (VS Code Dark) --- */
+.CodeMirror.cm-s-inner {
+    font-family: var(--code-font);
+    padding: 0rem .4rem;
+    background-color: #2d2d2d;
+    color: #d4d4d4;
+}
+
+.cm-s-inner .cm-keyword { color: #569cd6 !important; }
+.cm-s-inner .cm-operator { color: #d4d4d4 !important; }
+.cm-s-inner .cm-variable,
+.cm-s-inner .cm-builtin,
+.cm-s-inner .cm-header,
+.cm-s-inner .cm-tag,
+.cm-s-inner .cm-property,
+.cm-s-inner .cm-quote { color: #9cdcfe !important; }
+
+.cm-s-inner .cm-variable-2 { color: #9cdcfe !important; }
+.cm-s-inner .cm-variable-3,
+.cm-s-inner .cm-type { color: #4ec9b0 !important; }
+
+.cm-s-inner .cm-atom { color: #ce9178 !important; }
+.cm-s-inner .cm-number { color: #b5cea8 !important; }
+
+.cm-s-inner .cm-def,
+.cm-s-inner .cm-qualifier { color: #dcdcaa !important; }
+
+.cm-s-inner .cm-string { color: #ce9178 !important; }
+.cm-s-inner .cm-string-2 { color: #ce9178 !important; }
+
+.cm-s-inner .cm-comment { color: #6a9955 !important; }
+
+.cm-s-inner .cm-meta { color: #d4d4d4 !important; }
+.cm-s-inner .cm-attribute { color: #9cdcfe !important; }
+
+.cm-s-inner .cm-error {
+    color: #f44336 !important;
+    background-color: transparent !important;
+}
+
+.cm-s-inner .CodeMirror-matchingbracket {
+    text-decoration: underline;
+    color: white !important;
+}
+
+.CodeMirror div.CodeMirror-cursor {
+    border-left: 1px solid #fff;
+    z-index: 3;
+}
+
+.cm-s-inner div.CodeMirror-selected { background: #264f78 !important; }
+.cm-s-inner.CodeMirror-focused div.CodeMirror-selected { background: #264f78 !important; }
+.cm-s-inner .CodeMirror-selected,
+.cm-s-inner .CodeMirror-selectedtext { background-color: #264f78 !important; }
+
+.cm-s-inner .CodeMirror-line::-moz-selection,
+.cm-s-inner .CodeMirror-line>span::-moz-selection,
+.cm-s-inner .CodeMirror-line>span>span::-moz-selection { background-color: #264f78; }
+
+.cm-s-inner .CodeMirror-line::selection,
+.cm-s-inner .CodeMirror-line>span::selection,
+.cm-s-inner .CodeMirror-line>span>span::selection { background-color: #264f78; }
+
+.md-rawblock .md-rawblock-tooltip {
+    inset: auto 0.3rem auto auto;
+    transform: translateY(-120%);
+    background: #333 !important;
+    color: #fff;
+}
+
+.btn-primary.active, .btn-primary.focus, .btn-primary:active, .btn-primary:focus, .open>.dropdown-toggle.btn-primary {
+    background-color: #1976d2;
+}
+
+/* --- 18. Math Block: Force Remove White Background --- */
+.md-math-block,
+.md-rawblock,
+.md-rawblock-container {
+    color: #d4d4d4;
+}
+
+/* Force override CodeMirror internal background */
+.md-math-block .CodeMirror,
+.md-math-block .CodeMirror-scroll {
+    background-color: #2d2d2d !important;
+}
+/* Math editing cursor and text color */
+.md-math-block .CodeMirror-line { color: #d4d4d4 !important; }
+/* Math focus: use semi-transparent black instead of white */
+.md-focus .md-math-block, .md-focus.md-math-block {
+    background-color: rgba(0,0,0,0.3) !important;
+    box-shadow: none !important;
+}
+/* MathJax preview content color */
+.jax-element, g[data-mml-node="text"] { fill: #d4d4d4 !important; }
+/* Preview popup */
+.md-math-preview {
+    background-color: #252526 !important;
+    border: 1px solid #454545 !important;
+    color: #fff !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+/* --- 19. Mermaid Diagram Dark Mode --- */
+g.node rect, g.node circle, g.node polygon {
+    fill: #2d2d2d !important;
+    stroke: var(--primary-color) !important;
+}
+g.node text { fill: #fff !important; }
+g.edgeLabel rect { fill: #2d2d2d !important; opacity: 0.8; }
+g.edgeLabel text { fill: #d4d4d4 !important; }
+.edgePath .path { stroke: #888 !important; }
+.arrowheadPath { fill: #888 !important; }
+
+
+/* --- Fix: Formula/Raw Block Edit Control Bar Background --- */
+.md-rawblock-control:not(.md-rawblock-tooltip) {
+    background-color: #2d2d2d !important;
+}
+
+/* Fix control bar input/button colors */
+.md-rawblock-control:not(.md-rawblock-tooltip) input {
+    background-color: #383838 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+}
+
+/* Fix control bar button colors */
+.md-rawblock-control:not(.md-rawblock-tooltip) .md-rawblock-btn {
+    color: #ccc !important;
+}
+/* =========================================================
+   Global UI Overrides (Fix settings panel white bg, scrollbar, etc.)
+   ========================================================= */
+
+/* 1. Global Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background-color: #454545;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+    background-color: #1e1e1e;
+}
+::-webkit-scrollbar-corner {
+    background-color: #1e1e1e;
+}
+
+/* 2. Auto-Suggest Dropdown Menu */
+.auto-suggest-container {
+    background-color: #252526 !important;
+    border: 1px solid #454545 !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.6) !important;
+    z-index: 99999 !important;
+}
+.auto-suggest-container li {
+    color: #ccc !important;
+    background-color: transparent !important;
+    border: none !important;
+}
+.auto-suggest-container li.active {
+    background-color: #094771 !important;
+    color: #ffffff !important;
+}
+
+/* 3. Universal Input/Button Overrides (Settings panel, insert link, etc.) */
+input[type="text"], input[type="search"], input[type="number"],
+input[type="password"], textarea, select {
+    background-color: #383838 !important;
+    border: 1px solid #555 !important;
+    color: #eee !important;
+    box-shadow: none !important;
+}
+input:focus, textarea:focus, select:focus {
+    border-color: var(--primary-color) !important;
+}
+button, .btn {
+    background-color: #333 !important;
+    border: 1px solid #555 !important;
+    color: #ccc !important;
+}
+/* 4. Settings Panel Deep Override */
+.ty-preferences .window-content,
+.ty-preferences .nav-group-item,
+#setting-window, .modal-content {
+    background-color: #1e1e1e !important;
+    color: #ccc !important;
+}
+
+/* Settings panel sidebar selected item highlight */
+.ty-preferences .nav-group-item.active {
+    background-color: var(--primary-color) !important;
+    color: #fff !important;
+}
+
+
+.window-header button {
+    border: 0;
+    background: transparent !important;
+    border: 0px !important;
+    cursor: pointer;
+    font-size: 24px;
+}

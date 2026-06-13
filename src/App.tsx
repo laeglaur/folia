@@ -142,7 +142,12 @@ const themes: Array<{ id: ThemeId; label: string }> = [
 const contentThemes: Array<{ id: ContentThemeId; label: string }> = [
   { id: 'notebook', label: 'Notebook' },
   { id: 'typora-base', label: 'Typora base' },
-  { id: 'typora-proof', label: 'Typora proof' }
+  { id: 'typora-proof', label: 'Typora proof' },
+  { id: 'typora-konayuki', label: 'Konayuki' },
+  { id: 'typora-folio', label: 'Folio' },
+  { id: 'typora-zeus', label: 'Zeus' },
+  { id: 'typora-bonne-nouvelle', label: 'Bonne nouvelle' },
+  { id: 'typora-flexoki-light', label: 'Flexoki Light' }
 ];
 
 const blockTextPreview = (text: string, max = 56) => {

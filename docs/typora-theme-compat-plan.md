@@ -411,6 +411,8 @@ Install five pilot themes first:
 - Bonne nouvelle
 - Flexoki Light
 
+Status: installed as selectable content themes; visual QA and per-theme adjustments remain.
+
 Acceptance:
 
 - theme CSS is scoped

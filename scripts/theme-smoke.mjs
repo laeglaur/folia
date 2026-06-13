@@ -98,6 +98,19 @@ checks.typoraProofKeepsPinnedCardsCompact = await page.locator('.desktop-card').
   return styles.letterSpacing === 'normal' && Number.parseFloat(styles.fontSize) <= 13.5;
 });
 
+const pilotThemes = ['typora-konayuki', 'typora-folio', 'typora-zeus', 'typora-bonne-nouvelle', 'typora-flexoki-light'];
+checks.pilotThemesAreSelectable = true;
+for (const theme of pilotThemes) {
+  await contentSelect.selectOption(theme);
+  const themeApplied = await page.evaluate((expected) => document.documentElement.dataset.contentTheme === expected, theme);
+  const writingSurfaceChanged = await page.locator('.composer').last().evaluate((element, baseFont) => {
+    const styles = getComputedStyle(element);
+    return styles.fontFamily !== baseFont || styles.backgroundColor !== 'rgba(0, 0, 0, 0)' || styles.letterSpacing !== 'normal';
+  }, notebookContentFont);
+  const sidebarVisible = await page.locator('.sidebar').evaluate((element) => getComputedStyle(element).display !== 'none');
+  checks.pilotThemesAreSelectable = checks.pilotThemesAreSelectable && themeApplied && writingSurfaceChanged && sidebarVisible;
+}
+
 console.log(JSON.stringify({ checks }, null, 2));
 await browser.close();
 

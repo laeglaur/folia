@@ -1,0 +1,44 @@
+[
+  {
+    "id": "typora-proof",
+    "label": "Typora proof",
+    "rawCss": "src/styles/typora/raw/typora-proof.css",
+    "scopedCss": "src/styles/typora/generated/typora-proof.scoped.css",
+    "sourceUrl": null
+  },
+  {
+    "id": "typora-konayuki",
+    "label": "Konayuki",
+    "rawCss": "src/styles/typora/raw/typora-konayuki.css",
+    "scopedCss": "src/styles/typora/generated/typora-konayuki.scoped.css",
+    "sourceUrl": "https://raw.githubusercontent.com/aerandirsf/Konayuki/main/konayuki-light.css"
+  },
+  {
+    "id": "typora-folio",
+    "label": "Folio",
+    "rawCss": "src/styles/typora/raw/typora-folio.css",
+    "scopedCss": "src/styles/typora/generated/typora-folio.scoped.css",
+    "sourceUrl": "https://raw.githubusercontent.com/liyoulu/typora-folio-theme/main/folio.css"
+  },
+  {
+    "id": "typora-zeus",
+    "label": "Zeus",
+    "rawCss": "src/styles/typora/raw/typora-zeus.css",
+    "scopedCss": "src/styles/typora/generated/typora-zeus.scoped.css",
+    "sourceUrl": "https://raw.githubusercontent.com/zmtsikriteas/zeus-typora-theme/main/zeus.css"
+  },
+  {
+    "id": "typora-bonne-nouvelle",
+    "label": "Bonne nouvelle",
+    "rawCss": "src/styles/typora/raw/typora-bonne-nouvelle.css",
+    "scopedCss": "src/styles/typora/generated/typora-bonne-nouvelle.scoped.css",
+    "sourceUrl": "https://raw.githubusercontent.com/senges/typora-bonne-nouvelle/main/bonne-nouvelle.css"
+  },
+  {
+    "id": "typora-flexoki-light",
+    "label": "Flexoki Light",
+    "rawCss": "src/styles/typora/raw/typora-flexoki-light.css",
+    "scopedCss": "src/styles/typora/generated/typora-flexoki-light.scoped.css",
+    "sourceUrl": "https://raw.githubusercontent.com/guidovicino/flexoki-typora/main/flexoki-light.css"
+  }
+]
