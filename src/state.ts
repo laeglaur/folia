@@ -330,6 +330,20 @@ const normalizeFootnotes = (markdown: string) => {
   return `${referenced.trimEnd()}\n\n${section}`;
 };
 
+const normalizeMath = (markdown: string) => {
+  const withBlockMath = markdown.replace(/(^|\n)\$\$\n?([\s\S]*?)\n?\$\$(?=\n|$)/g, (_match, prefix: string, latex: string) => {
+    const trimmed = latex.trim();
+    if (!trimmed) return _match;
+    return `${prefix}<div class="md-math-block" data-type="block-math" data-latex="${escapeHtml(trimmed)}"></div>`;
+  });
+
+  return withBlockMath.replace(/(?<!\\)\$(?!\$|\d)([^$\n]+?)(?<!\\)\$(?!\$|\d)/g, (_match, latex: string) => {
+    const trimmed = latex.trim();
+    if (!trimmed) return _match;
+    return `<span class="md-math-inline" data-type="inline-math" data-latex="${escapeHtml(trimmed)}"></span>`;
+  });
+};
+
 const urlWithoutQuery = (url: string) => url.split(/[?#]/)[0] ?? url;
 const isVideoUrl = (url: string) => /\.(mp4|mov|webm|m4v)$/i.test(urlWithoutQuery(url));
 const isAudioUrl = (url: string) => /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(urlWithoutQuery(url));
@@ -365,7 +379,7 @@ const mediaHtmlForUrl = (url: string, label = '') => {
 };
 
 const normalizeMarkdownForMarked = (markdown: string) =>
-  normalizeFootnotes(normalizeMarkdownWhitespace(markdown))
+  normalizeMath(normalizeFootnotes(normalizeMarkdownWhitespace(markdown)))
     .replace(/!\[([^\]]*)\]\(([^)\n]+)\)/g, (_match, alt: string, src: string) => `<img src="${escapeHtml(src.trim())}" alt="${escapeHtml(alt)}">`)
     .replace(/^[^\S\r\n]*\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)[^\S\r\n]*$/gm, (match, label: string, url: string) => mediaHtmlForUrl(url, label) ?? match)
     .replace(/^[^\S\r\n]*(https?:\/\/\S+\.(?:mp4|mov|webm|m4v|mp3|wav|m4a|aac|ogg|flac)(?:[?#]\S*)?)[^\S\r\n]*$/gim, (_match, url: string) => mediaHtmlForUrl(url) ?? _match)

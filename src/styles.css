@@ -793,6 +793,32 @@ input, select { color: var(--ink); }
   font-size: 0.86em;
 }
 
+.block-content [data-type="inline-math"],
+.composer [data-type="inline-math"],
+.floating-card-body [data-type="inline-math"],
+.desktop-card [data-type="inline-math"] {
+  color: var(--code-ink);
+}
+
+.block-content [data-type="block-math"],
+.composer [data-type="block-math"],
+.floating-card-body [data-type="block-math"],
+.desktop-card [data-type="block-math"] {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--code-block-radius);
+  background: color-mix(in srgb, var(--code-bg) 64%, transparent);
+  overflow-x: auto;
+}
+
+.block-content .tiptap-mathematics-render,
+.composer .tiptap-mathematics-render,
+.floating-card-body .tiptap-mathematics-render,
+.desktop-card .tiptap-mathematics-render {
+  max-width: 100%;
+}
+
 .block-content img,
 .composer img,
 .floating-card-body img,

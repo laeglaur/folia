@@ -25,6 +25,8 @@ await writeFile(markdownPath, [
   '',
   'A sentence with a footnote.[^note]',
   '',
+  'Inline math: $E = mc^2$ should render.',
+  '',
   '> A quote that Typora themes should be able to shape.',
   '',
   '---',
@@ -36,6 +38,10 @@ await writeFile(markdownPath, [
   'https://example.com/audio.m4a',
   '',
   '[Demo video](https://youtu.be/dQw4w9WgXcQ)',
+  '',
+  '$$',
+  '\\int_0^1 x^2 dx',
+  '$$',
   '',
   '- first bullet',
   '  - nested bullet',
@@ -88,6 +94,9 @@ const hasNestedBulletDom = await page.locator('.page-surface li > ul li').evalua
 );
 const footnoteReferenceCount = await page.locator('.page-surface .md-footnote').count();
 const footnoteDefinitionText = await page.locator('.page-surface .md-def-footnote').innerText();
+const inlineMathCount = await page.locator('.page-surface [data-type="inline-math"]').count();
+const blockMathCount = await page.locator('.page-surface [data-type="block-math"]').count();
+const katexCount = await page.locator('.page-surface .katex').count();
 
 const checks = {
   title: pageTitle === 'Frontmatter Smoke',
@@ -99,6 +108,7 @@ const checks = {
   metadataState: storedPage?.metadata?.sourceFilename?.endsWith('.md') && storedPage.metadata.tags.includes('travel') && storedPage.metadata.tags.includes('literature') && storedPage.metadata.date === '2026-05-02' && storedPage.metadata.status === 'draft' && storedPage.metadata.aliases.includes('Hengdian notes') && storedPage.metadata.frontmatter.title === 'Frontmatter Smoke',
   paragraph: pageText.includes('A paragraph with bold'),
   footnote: footnoteReferenceCount === 1 && footnoteDefinitionText.includes('Footnote content with bold text') && storedBlock?.content?.html?.includes('data-type="footnotes"'),
+  math: inlineMathCount === 1 && blockMathCount === 1 && katexCount >= 2 && storedBlock?.content?.html?.includes('data-latex="E = mc^2"') && storedBlock?.content?.html?.includes('data-latex="\\int_0^1 x^2 dx"'),
   bullet: pageHtml.includes('<ul') && pageText.includes('first bullet'),
   nestedBullet: hasNestedBulletDom,
   blockquote: pageHtml.includes('<blockquote') && pageText.includes('A quote that Typora themes should be able to shape.'),

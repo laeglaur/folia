@@ -32,6 +32,7 @@ import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
+import { Mathematics } from '@tiptap/extension-mathematics';
 import { Table } from '@tiptap/extension-table';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
@@ -55,6 +56,7 @@ import {
 } from './state';
 import { isTauri } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import 'katex/dist/katex.min.css';
 
 type EditorTarget = { kind: 'composer' } | { kind: 'block'; blockId: string };
 type ImportNotice = {
@@ -507,6 +509,11 @@ const createEditorExtensions = (
   FootnoteReference,
   FootnoteItem,
   FootnoteSection,
+  Mathematics.configure({
+    katexOptions: {
+      throwOnError: false
+    }
+  }),
   BracketTodoInput,
   NotebookShortcuts.configure({ onShiftEnter, onMoveBlock }),
   Placeholder.configure({ placeholder: placeholder ?? '' })
