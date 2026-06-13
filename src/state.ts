@@ -1,4 +1,4 @@
-import type { AppState, Block, Notebook, OperationLogEntry, Page, ThemeId } from './types';
+import type { AppState, Block, Notebook, OperationLogEntry, Page, PageMetadata, ThemeId } from './types';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { marked } from 'marked';
 
@@ -7,6 +7,13 @@ const STORAGE_KEY = 'block-first-notebook.state.v1';
 const now = () => new Date().toISOString();
 
 export const createId = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
+
+const createEmptyPageMetadata = (sourceFilename?: string): PageMetadata => ({
+  sourceFilename,
+  tags: [],
+  aliases: [],
+  frontmatter: {}
+});
 
 const starterPageId = createId('page');
 const starterBlockOne = createId('block');
@@ -28,6 +35,7 @@ export const createInitialState = (): AppState => ({
       parentId: null,
       title: 'Inbox',
       blockIds: [starterBlockOne, starterBlockTwo],
+      metadata: createEmptyPageMetadata(),
       createdAt: now(),
       updatedAt: now()
     }
@@ -80,7 +88,14 @@ const normalizeState = (state: AppState): AppState => ({
   })),
   pages: state.pages.map((page) => ({
     ...page,
-    parentId: page.parentId ?? null
+    parentId: page.parentId ?? null,
+    metadata: {
+      ...createEmptyPageMetadata(),
+      ...(page.metadata ?? {}),
+      tags: page.metadata?.tags ?? [],
+      aliases: page.metadata?.aliases ?? [],
+      frontmatter: page.metadata?.frontmatter ?? {}
+    }
   })),
   theme: normalizeTheme(state.theme),
   openCardWindowBlockId: state.openCardWindowBlockId ?? null,
@@ -151,6 +166,7 @@ export const createPage = (notebookId: string, title = 'Untitled', parentId: str
   parentId,
   title,
   blockIds: [],
+  metadata: createEmptyPageMetadata(),
   createdAt: now(),
   updatedAt: now()
 });
@@ -194,6 +210,80 @@ export type MarkdownImportWarning = {
   filename: string;
   sourcePath: string;
   message: string;
+};
+
+type ParsedFrontmatter = {
+  body: string;
+  metadata: PageMetadata;
+  title?: string;
+};
+
+const trimQuotes = (value: string) => value.trim().replace(/^['"]|['"]$/g, '');
+
+const parseFrontmatterValue = (value: string): string | string[] => {
+  const trimmed = value.trim();
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    return trimmed
+      .slice(1, -1)
+      .split(',')
+      .map((item) => trimQuotes(item))
+      .filter(Boolean);
+  }
+  return trimQuotes(trimmed);
+};
+
+const normalizeStringList = (value: string | string[] | undefined) => {
+  if (!value) return [];
+  return Array.isArray(value) ? value.map(trimQuotes).filter(Boolean) : [trimQuotes(value)].filter(Boolean);
+};
+
+const parseFrontmatter = (markdown: string, filename: string): ParsedFrontmatter => {
+  const normalized = markdown.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  const match = normalized.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
+  if (!match) {
+    return {
+      body: markdown,
+      metadata: createEmptyPageMetadata(filename)
+    };
+  }
+
+  const frontmatter: Record<string, string | string[]> = {};
+  let currentListKey: string | null = null;
+  match[1].split('\n').forEach((line) => {
+    const listMatch = line.match(/^\s*-\s+(.+)$/);
+    if (listMatch && currentListKey) {
+      const current = frontmatter[currentListKey];
+      frontmatter[currentListKey] = [...normalizeStringList(current), trimQuotes(listMatch[1])];
+      return;
+    }
+
+    const keyValue = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (!keyValue) {
+      currentListKey = null;
+      return;
+    }
+    const [, key, rawValue] = keyValue;
+    if (!rawValue.trim()) {
+      frontmatter[key] = [];
+      currentListKey = key;
+      return;
+    }
+    frontmatter[key] = parseFrontmatterValue(rawValue);
+    currentListKey = null;
+  });
+
+  return {
+    body: normalized.slice(match[0].length),
+    title: typeof frontmatter.title === 'string' ? frontmatter.title : undefined,
+    metadata: {
+      sourceFilename: filename,
+      tags: normalizeStringList(frontmatter.tags),
+      date: typeof frontmatter.date === 'string' ? frontmatter.date : undefined,
+      status: typeof frontmatter.status === 'string' ? frontmatter.status : undefined,
+      aliases: normalizeStringList(frontmatter.aliases),
+      frontmatter
+    }
+  };
 };
 
 const normalizeMarkdownWhitespace = (markdown: string) =>
@@ -320,10 +410,14 @@ const localizeMediaAssets = async (html: string, filename: string) => {
 };
 
 export const createPageFromMarkdown = async (notebookId: string, filename: string, markdown: string) => {
-  const firstHeading = markdown.match(/^#\s+(.+)$/m)?.[1]?.trim();
+  const parsed = parseFrontmatter(markdown, filename);
+  const firstHeading = parsed.body.match(/^#\s+(.+)$/m)?.[1]?.trim();
   const fallbackTitle = filename.replace(/\.(md|markdown|txt)$/i, '').trim() || 'Imported page';
-  const page = createPage(notebookId, firstHeading || fallbackTitle);
-  const body = firstHeading ? markdown.replace(/^#\s+.+$/m, '').trim() : markdown;
+  const page = {
+    ...createPage(notebookId, parsed.title || firstHeading || fallbackTitle),
+    metadata: parsed.metadata
+  };
+  const body = firstHeading ? parsed.body.replace(/^#\s+.+$/m, '').trim() : parsed.body.trim();
   const warnings: MarkdownImportWarning[] = [];
   const blocks = await Promise.all(markdownToBlocks(page.id, body).map(async (block) => {
     const localized = await localizeMediaAssets(block.content.html, filename);

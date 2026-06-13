@@ -352,6 +352,27 @@ input, select { color: var(--ink); }
   margin-bottom: var(--title-margin-bottom);
 }
 
+.page-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: calc(var(--title-margin-bottom) * -0.45) 0 var(--title-margin-bottom);
+  color: var(--muted);
+  font-family: var(--ui-font);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.page-metadata span {
+  max-width: 100%;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chip) 78%, transparent);
+  color: color-mix(in srgb, var(--accent) 76%, var(--ink));
+  padding: 2px 8px;
+  overflow-wrap: anywhere;
+}
+
 .format-toolbar {
   position: relative;
   z-index: 4;

@@ -509,6 +509,12 @@ export function App() {
   const visibleBlocks = query.trim()
     ? pageBlocks.filter((block) => block.content.plainText.toLowerCase().includes(query.trim().toLowerCase()))
     : pageBlocks;
+  const metadataChips = [
+    activePage.metadata?.date,
+    activePage.metadata?.status,
+    ...(activePage.metadata?.tags ?? []).map((tag) => `#${tag}`),
+    ...(activePage.metadata?.aliases ?? [])
+  ].filter(Boolean) as string[];
 
   const childPages = useMemo(() => {
     const map = new Map<string | null, Page[]>();
@@ -970,6 +976,11 @@ export function App() {
 
         <section className="page-surface">
           <input className="page-title" value={activePage.title} onChange={(event) => renamePage(event.target.value)} aria-label="Page title" />
+          {metadataChips.length ? (
+            <div className="page-metadata" aria-label="Page metadata">
+              {metadataChips.map((chip, index) => <span key={`${chip}-${index}`}>{chip}</span>)}
+            </div>
+          ) : null}
 
           <div className="block-list">
             {visibleBlocks.map((block) => (

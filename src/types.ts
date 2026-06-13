@@ -6,12 +6,22 @@ export interface Notebook {
   pageIds: string[];
 }
 
+export interface PageMetadata {
+  sourceFilename?: string;
+  tags: string[];
+  date?: string;
+  status?: string;
+  aliases: string[];
+  frontmatter: Record<string, string | string[]>;
+}
+
 export interface Page {
   id: string;
   notebookId: string;
   parentId: string | null;
   title: string;
   blockIds: string[];
+  metadata: PageMetadata;
   createdAt: string;
   updatedAt: string;
 }
