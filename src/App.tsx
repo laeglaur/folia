@@ -552,9 +552,9 @@ export function App() {
     const files = Array.from(fileList ?? []).filter((file) => /\.(md|markdown|txt)$/i.test(file.name));
     if (!files.length) return;
     const documents = await Promise.all(files.map(async (file) => ({ filename: file.name, markdown: await file.text() })));
+    const imported = await Promise.all(documents.map((document) => createPageFromMarkdown(state.activeNotebookId, document.filename, document.markdown)));
 
     setState((current) => {
-      const imported = documents.map((document) => createPageFromMarkdown(current.activeNotebookId, document.filename, document.markdown));
       const importedPageIds = imported.map(({ page }) => page.id);
       const importedBlocks = imported.flatMap(({ blocks }) => blocks);
       const activePageId = importedPageIds[importedPageIds.length - 1] ?? current.activePageId;

@@ -180,6 +180,16 @@ const htmlToPlainText = (html: string) => {
 
 const blockFromHtml = (pageId: string, html: string) => createBlock(pageId, html, htmlToPlainText(html));
 
+type ImportedAsset = {
+  id: string;
+  originalPath: string;
+  storedPath: string;
+  assetUrl: string;
+  mimeType: string;
+  size: number;
+  sha256: string;
+};
+
 const normalizeMarkdownWhitespace = (markdown: string) =>
   markdown
     .replace(/\r\n?/g, '\n')
@@ -230,12 +240,48 @@ export const markdownToBlocks = (pageId: string, markdown: string): Block[] => {
   return [blockFromHtml(pageId, html || '<p></p>')];
 };
 
-export const createPageFromMarkdown = (notebookId: string, filename: string, markdown: string) => {
+const localAssetPathFromSrc = (src: string) => {
+  if (!src || src.startsWith('asset://') || src.startsWith('data:') || /^https?:\/\//i.test(src)) return null;
+  if (src.startsWith('file://')) return decodeURIComponent(new URL(src).pathname);
+  if (src.startsWith('/')) return src;
+  return null;
+};
+
+const localizeImageAssets = async (html: string) => {
+  if (!isTauri()) return html;
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  const images = Array.from(container.querySelectorAll('img'));
+
+  await Promise.all(images.map(async (image) => {
+    const src = image.getAttribute('src') ?? '';
+    const sourcePath = localAssetPathFromSrc(src);
+    if (!sourcePath) return;
+    try {
+      const imported = await invoke<ImportedAsset>('import_local_asset', { sourcePath });
+      image.setAttribute('src', imported.assetUrl);
+      image.setAttribute('data-asset-id', imported.id);
+      image.setAttribute('data-original-src', src);
+    } catch (error) {
+      console.warn('Could not import local asset.', sourcePath, error);
+    }
+  }));
+
+  return container.innerHTML;
+};
+
+export const createPageFromMarkdown = async (notebookId: string, filename: string, markdown: string) => {
   const firstHeading = markdown.match(/^#\s+(.+)$/m)?.[1]?.trim();
   const fallbackTitle = filename.replace(/\.(md|markdown|txt)$/i, '').trim() || 'Imported page';
   const page = createPage(notebookId, firstHeading || fallbackTitle);
   const body = firstHeading ? markdown.replace(/^#\s+.+$/m, '').trim() : markdown;
-  const blocks = markdownToBlocks(page.id, body);
+  const blocks = await Promise.all(markdownToBlocks(page.id, body).map(async (block) => ({
+    ...block,
+    content: {
+      html: await localizeImageAssets(block.content.html),
+      plainText: block.content.plainText
+    }
+  })));
   return {
     page: {
       ...page,
