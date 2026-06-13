@@ -69,14 +69,18 @@
 
   --brand-gap: 5px;
   --brand-padding: 8px 10px 14px;
+  --brand-eyebrow-display: block;
   --brand-eyebrow-size: 18px;
+  --brand-mark-display: grid;
   --brand-mark-size: 72px;
   --brand-mark-radius: 50%;
   --brand-mark-shadow: 0 10px 22px rgba(49, 127, 121, 0.14);
+  --brand-title-display: block;
   --brand-title-size: 21px;
   --brand-title-line-height: 1.1;
   --brand-title-weight: 400;
   --brand-title-letter-spacing: 0.02em;
+  --profile-display: block;
   --profile-radius: 999px;
   --profile-background: rgba(241, 237, 224, 0.42);
   --profile-padding: 2px 8px;
@@ -107,6 +111,7 @@
   --control-hover-ink: var(--accent);
 
   --note-margin: 18px auto 2px;
+  --note-display: grid;
   --note-width: 162px;
   --note-min-height: 108px;
   --note-border: 1px solid rgba(220, 207, 177, 0.58);

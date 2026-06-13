@@ -79,6 +79,7 @@ input, select { color: var(--ink); }
 }
 
 .eyebrow {
+  display: var(--brand-eyebrow-display);
   margin: 0 0 3px;
   color: var(--accent);
   font-size: var(--brand-eyebrow-size);
@@ -89,7 +90,7 @@ input, select { color: var(--ink); }
 .brand-mark {
   width: var(--brand-mark-size);
   height: var(--brand-mark-size);
-  display: grid;
+  display: var(--brand-mark-display);
   place-items: center;
   border-radius: var(--brand-mark-radius);
   color: var(--accent);
@@ -98,6 +99,7 @@ input, select { color: var(--ink); }
 }
 
 .brand-block h1 {
+  display: var(--brand-title-display);
   margin: 0;
   font-size: var(--brand-title-size);
   line-height: var(--brand-title-line-height);
@@ -106,6 +108,7 @@ input, select { color: var(--ink); }
 }
 
 .profile-id {
+  display: var(--profile-display);
   margin: 0;
   border-radius: var(--profile-radius);
   background: var(--profile-background);
@@ -205,7 +208,7 @@ input, select { color: var(--ink); }
   font-size: var(--note-font-size);
   line-height: var(--note-line-height);
   letter-spacing: 0.025em;
-  display: grid;
+  display: var(--note-display);
   align-content: center;
 }
 

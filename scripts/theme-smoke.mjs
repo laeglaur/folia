@@ -42,6 +42,16 @@ checks.ledgerDiffersFromGarden = await page.evaluate(() => {
   );
 });
 
+await select.selectOption('ledger');
+checks.ledgerCanHideDecorativeSidebar = await page.evaluate(() => {
+  const eyebrow = document.querySelector('.eyebrow');
+  const title = document.querySelector('.brand-block h1');
+  const profile = document.querySelector('.profile-id');
+  const note = document.querySelector('.sidebar-note');
+  if (!(eyebrow instanceof HTMLElement) || !(title instanceof HTMLElement) || !(profile instanceof HTMLElement) || !(note instanceof HTMLElement)) return false;
+  return [eyebrow, title, profile, note].every((element) => getComputedStyle(element).display === 'none');
+});
+
 const composer = page.locator('.composer').last();
 await composer.click();
 await page.keyboard.type('theme smoke');
