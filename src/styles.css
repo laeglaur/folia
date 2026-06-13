@@ -568,15 +568,24 @@ input, select { color: var(--ink); }
 
 .block-content li[data-todo-style="bracket"] > div > p:first-child,
 .composer li[data-todo-style="bracket"] > div > p:first-child {
-  display: inline-block;
-  min-width: min(18ch, 100%);
-  border-radius: 999px;
-  background: var(--bracket-todo);
   color: var(--bracket-todo-ink);
-  box-shadow: 0 0 0 1px var(--bracket-todo-edge) inset;
-  padding: 2px 10px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+}
+
+.block-content li[data-todo-style="bracket"],
+.composer li[data-todo-style="bracket"] {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 999px;
+  background: var(--bracket-todo);
+  box-shadow: 0 0 0 1px var(--bracket-todo-edge) inset;
+  padding: 2px 12px 2px 7px;
+}
+
+.block-content li[data-todo-style="bracket"] > label,
+.composer li[data-todo-style="bracket"] > label {
+  min-height: 26px;
 }
 
 .block-content li[data-todo-style="bracket"] > div > p:first-child:empty::before,
@@ -623,7 +632,7 @@ input, select { color: var(--ink); }
 .composer li[data-checked]:has(> div > ol)::before {
   position: absolute;
   left: -24px;
-  top: 0.18em;
+  top: 0.42em;
   color: color-mix(in srgb, var(--accent) 70%, var(--muted));
   content: ">";
   font-family: var(--ui-font);
@@ -667,13 +676,6 @@ input, select { color: var(--ink); }
 .block-content li[data-list-collapsed="true"],
 .composer li[data-list-collapsed="true"] {
   color: color-mix(in srgb, var(--ink) 82%, var(--muted));
-}
-
-.block-content li[data-list-collapsed="true"]::after,
-.composer li[data-list-collapsed="true"]::after {
-  content: "  ...";
-  color: var(--accent);
-  font-size: 0.9em;
 }
 
 .block-content [style*="background-color"],
