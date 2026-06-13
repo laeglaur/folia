@@ -41,7 +41,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { ListItem } from '@tiptap/extension-list';
 import { Extension, InputRule, Node, mergeAttributes } from '@tiptap/core';
-import type { AppState, Block, Page, ThemeId } from './types';
+import type { AppState, Block, ContentThemeId, Page, ThemeId } from './types';
 import {
   appendOperation,
   createBlock,
@@ -137,6 +137,11 @@ const toggleCollapsibleListItem = (event: React.MouseEvent<HTMLDivElement>, edit
 const themes: Array<{ id: ThemeId; label: string }> = [
   { id: 'garden', label: 'Garden' },
   { id: 'ledger', label: 'Ledger' }
+];
+
+const contentThemes: Array<{ id: ContentThemeId; label: string }> = [
+  { id: 'notebook', label: 'Notebook' },
+  { id: 'typora-base', label: 'Typora base' }
 ];
 
 const blockTextPreview = (text: string, max = 56) => {
@@ -590,6 +595,7 @@ export function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme;
+    document.documentElement.dataset.contentTheme = state.contentTheme;
     if (persistenceReadyRef.current) void saveState(state);
   }, [state]);
 
@@ -965,14 +971,14 @@ export function App() {
 
   if (cardModeBlock) {
     return (
-      <main className="card-window-page">
-        <div className="floating-card-body card-mode" dangerouslySetInnerHTML={{ __html: cardModeBlock.content.html }} />
+      <main className="card-window-page typora-theme" data-content-theme={state.contentTheme}>
+        <div className="floating-card-body card-mode typora-write" dangerouslySetInnerHTML={{ __html: cardModeBlock.content.html }} />
       </main>
     );
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell typora-theme" data-content-theme={state.contentTheme}>
       <aside className="sidebar">
         <div className="brand-block">
           <p className="eyebrow">{state.theme === 'ledger' ? 'ledger notes' : 'garden notes'}</p>
@@ -1041,8 +1047,17 @@ export function App() {
               className="theme-select"
               value={state.theme}
               onChange={(event) => setState((current) => ({ ...current, theme: event.target.value as ThemeId }))}
+              aria-label="Shell theme"
             >
               {themes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
+            </select>
+            <select
+              className="theme-select content-theme-select"
+              value={state.contentTheme}
+              onChange={(event) => setState((current) => ({ ...current, contentTheme: event.target.value as ContentThemeId }))}
+              aria-label="Content theme"
+            >
+              {contentThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
             </select>
             <input
               ref={markdownInputRef}
@@ -1072,7 +1087,7 @@ export function App() {
           </div>
         )}
 
-        <section className="page-surface">
+        <section className="page-surface typora-content-surface">
           <input className="page-title" value={activePage.title} onChange={(event) => renamePage(event.target.value)} aria-label="Page title" />
           {metadataChips.length ? (
             <div className="page-metadata" aria-label="Page metadata">
@@ -1113,7 +1128,7 @@ export function App() {
                   {!block.collapsed ? (
                     <RichEditor
                       editorRef={(editor) => { blockEditorRefs.current[block.id] = editor; }}
-                      className="block-content editable"
+                      className="block-content editable typora-write"
                       html={htmlWithOutlineAnchors(block.content.html, block.id)}
                       onFocus={() => activateEditor({ kind: 'block', blockId: block.id })}
                       onMoveBlock={(direction) => {
@@ -1123,7 +1138,7 @@ export function App() {
                       onBlur={(html, plainText) => updateBlock(block.id, html, plainText)}
                     />
                   ) : (
-                    <div className="block-content preview">{firstLines(block.content.plainText)}</div>
+                    <div className="block-content preview typora-write">{firstLines(block.content.plainText)}</div>
                   )}
                 </div>
                 <div className="block-actions">
@@ -1141,7 +1156,7 @@ export function App() {
             )}
             <RichEditor
               editorRef={(editor) => { composerEditorRef.current = editor; }}
-              className="composer"
+              className="composer typora-write"
               placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
               onFocus={() => activateEditor({ kind: 'composer' })}
               onUpdate={(html) => {
@@ -1165,10 +1180,10 @@ export function App() {
       <aside className="right-panel">
         <section className="panel-card">
           <div className="panel-title"><PanelRight size={16} /> Outline</div>
-          <div className="outline-list">
+          <div className="outline-list typora-toc md-toc md-toc-content">
             {outlineEntries.map((entry) => (
               <button
-                className={`outline-entry ${entry.kind}`}
+                className={`outline-entry md-toc-item ${entry.kind}`}
                 key={entry.id}
                 onClick={() => jumpToOutlineEntry(entry)}
                 style={{ '--level': entry.level } as React.CSSProperties}
@@ -1185,7 +1200,7 @@ export function App() {
           <div className="panel-title"><MapPin size={16} /> Pinned</div>
           {pinnedBlocks.length ? pinnedBlocks.map((block) => (
             <button
-              className="desktop-card"
+              className="desktop-card typora-write"
               key={block.id}
               type="button"
               onClick={() => openPinnedWindow(block.id)}
@@ -1202,7 +1217,7 @@ export function App() {
             <span>Desktop card</span>
             <button type="button" onClick={() => setState((current) => ({ ...current, openCardWindowBlockId: null }))}>×</button>
           </div>
-          <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: openCardBlock.content.html }} />
+          <div className="floating-card-body typora-write" dangerouslySetInnerHTML={{ __html: openCardBlock.content.html }} />
         </div>
       )}
     </div>

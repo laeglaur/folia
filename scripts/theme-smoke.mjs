@@ -9,7 +9,7 @@ await page.evaluate(() => localStorage.clear());
 await page.reload();
 
 const checks = {};
-const select = page.locator('.theme-select');
+const select = page.getByLabel('Shell theme');
 
 for (const theme of themes) {
   await select.selectOption(theme);
@@ -56,6 +56,29 @@ const composer = page.locator('.composer').last();
 await composer.click();
 await page.keyboard.type('theme smoke');
 checks.editorStillWorks = (await composer.innerText()).includes('theme smoke');
+
+const contentSelect = page.locator('.content-theme-select');
+await contentSelect.selectOption('notebook');
+const notebookContentFont = await page.locator('.composer').last().evaluate((element) => getComputedStyle(element).fontFamily);
+const sidebarFontBeforeContentTheme = await page.locator('.sidebar').evaluate((element) => getComputedStyle(element).fontFamily);
+
+await contentSelect.selectOption('typora-base');
+checks.contentThemeDataset = await page.evaluate(() => document.documentElement.dataset.contentTheme === 'typora-base');
+checks.typoraScopeHooks = await page.evaluate(() => {
+  const shell = document.querySelector('.typora-theme[data-content-theme="typora-base"]');
+  const write = document.querySelector('.typora-write');
+  const toc = document.querySelector('.outline-list.typora-toc.md-toc.md-toc-content');
+  const tocItem = document.querySelector('.outline-entry.md-toc-item');
+  return Boolean(shell && write && toc && tocItem);
+});
+checks.contentThemeChangesWritingSurface = await page.locator('.composer').last().evaluate((element, previousFont) =>
+  getComputedStyle(element).fontFamily !== previousFont,
+  notebookContentFont
+);
+checks.contentThemeDoesNotStyleSidebar = await page.locator('.sidebar').evaluate((element, previousFont) =>
+  getComputedStyle(element).fontFamily === previousFont,
+  sidebarFontBeforeContentTheme
+);
 
 console.log(JSON.stringify({ checks }, null, 2));
 await browser.close();

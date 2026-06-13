@@ -436,6 +436,35 @@ input, select { color: var(--ink); }
   font-family: var(--editor-font);
 }
 
+.typora-theme[data-content-theme="typora-base"] .typora-write {
+  font-family: Georgia, "Times New Roman", serif;
+  color: color-mix(in srgb, var(--ink) 88%, #1f1f1f);
+}
+
+.typora-theme[data-content-theme="typora-base"] .typora-write h1,
+.typora-theme[data-content-theme="typora-base"] .typora-write h2,
+.typora-theme[data-content-theme="typora-base"] .typora-write h3,
+.typora-theme[data-content-theme="typora-base"] .typora-write h4,
+.typora-theme[data-content-theme="typora-base"] .typora-write h5,
+.typora-theme[data-content-theme="typora-base"] .typora-write h6 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 600;
+}
+
+.typora-theme[data-content-theme="typora-base"] .typora-write blockquote {
+  border-left-width: 3px;
+  font-style: italic;
+}
+
+.typora-theme[data-content-theme="typora-base"] .typora-write pre,
+.typora-theme[data-content-theme="typora-base"] .typora-write code {
+  font-family: var(--mono-font);
+}
+
+.typora-theme[data-content-theme="typora-base"] .typora-toc {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
 .block-content,
 .composer {
   min-height: var(--block-content-min-height);

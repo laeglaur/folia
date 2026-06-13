@@ -1,4 +1,4 @@
-import type { AppState, Block, Notebook, OperationLogEntry, Page, PageMetadata, ThemeId } from './types';
+import type { AppState, Block, ContentThemeId, Notebook, OperationLogEntry, Page, PageMetadata, ThemeId } from './types';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { marked } from 'marked';
 
@@ -69,6 +69,7 @@ export const createInitialState = (): AppState => ({
   activeNotebookId: starterNotebookId,
   activePageId: starterPageId,
   theme: 'garden',
+  contentTheme: 'notebook',
   openCardWindowBlockId: null,
   expandedPageIds: [starterPageId],
   operations: []
@@ -78,6 +79,11 @@ const normalizeTheme = (theme?: string): ThemeId => {
   if (theme === 'archive') return 'ledger';
   if (theme === 'garden' || theme === 'ledger') return theme;
   return 'garden';
+};
+
+const normalizeContentTheme = (contentTheme?: string): ContentThemeId => {
+  if (contentTheme === 'typora-base') return contentTheme;
+  return 'notebook';
 };
 
 const normalizeState = (state: AppState): AppState => ({
@@ -98,6 +104,7 @@ const normalizeState = (state: AppState): AppState => ({
     }
   })),
   theme: normalizeTheme(state.theme),
+  contentTheme: normalizeContentTheme(state.contentTheme),
   openCardWindowBlockId: state.openCardWindowBlockId ?? null,
   expandedPageIds: state.expandedPageIds ?? state.pages.map((page) => page.id),
   operations: state.operations ?? []

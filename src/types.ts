@@ -1,4 +1,5 @@
 export type ThemeId = 'garden' | 'ledger';
+export type ContentThemeId = 'notebook' | 'typora-base';
 
 export interface Notebook {
   id: string;
@@ -57,6 +58,7 @@ export interface AppState {
   activeNotebookId: string;
   activePageId: string;
   theme: ThemeId;
+  contentTheme: ContentThemeId;
   openCardWindowBlockId: string | null;
   expandedPageIds: string[];
   operations: OperationLogEntry[];

@@ -376,12 +376,16 @@ Each subfeature should be separately committed and tested.
    - `.typora-theme`
    - `.typora-write`
    - `data-content-theme`
+   - right outline hooks for Typora TOC selector mapping
+
+   Status: done.
 
 3. Add CSS bridge:
    - `#write` equivalent
    - `.md-fences` equivalent
    - task list equivalent
    - footnote/math equivalents
+   - Typora TOC selectors mapped to the right-side outline
 
 4. Add importer/prefixer:
    - use PostCSS or another CSS parser
