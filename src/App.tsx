@@ -9,8 +9,11 @@ import {
   FilePlus,
   FileUp,
   Highlighter,
+  Image as ImageIcon,
   Indent,
   Italic,
+  Keyboard,
+  Link as LinkIcon,
   List,
   ListOrdered,
   MapPin,
@@ -18,12 +21,18 @@ import {
   Outdent,
   PanelRight,
   Plus,
+  Quote,
   Search,
+  Sigma,
   Sparkles,
   Strikethrough,
+  Table2,
   Type,
   Underline as UnderlineIcon,
-  Upload
+  Upload,
+  Video,
+  Volume2,
+  PanelTop
 } from 'lucide-react';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -40,7 +49,7 @@ import { TableRow } from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { ListItem } from '@tiptap/extension-list';
-import { Extension, InputRule, Node, mergeAttributes } from '@tiptap/core';
+import { Extension, InputRule, Mark, Node, mergeAttributes } from '@tiptap/core';
 import type { AppState, Block, ContentThemeId, Page, ThemeId } from './types';
 import {
   appendOperation,
@@ -82,6 +91,16 @@ type ToolbarCommand =
   | 'h3'
   | 'inlineCode'
   | 'codeBlock'
+  | 'blockquote'
+  | 'link'
+  | 'table'
+  | 'inlineMath'
+  | 'blockMath'
+  | 'image'
+  | 'video'
+  | 'audio'
+  | 'embed'
+  | 'kbd'
   | 'bulletList'
   | 'orderedList'
   | 'indent'
@@ -237,6 +256,8 @@ const stripOutlineAnchors = (html: string) => {
 
 const todoInputRegex = /^\s*(\[\]|【】)\s$/;
 const codeBlockInputRegex = /^\s*(```|\/code)\s$/;
+const blockMathInputRegex = /^\s*(\$\$|\/math)\s$/;
+const blockquoteInputRegex = /^\s*(>|\/quote)\s$/;
 
 const syncDomSelectionToEditor = (editor: Editor) => {
   const selection = window.getSelection();
@@ -334,7 +355,7 @@ const TyporaAliases = Extension.create({
           class: {
             default: null,
             parseHTML: (element) => element.getAttribute('class'),
-            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'contains-task-list', 'md-list') })
+            renderHTML: (attributes) => ({ class: typoraClass(attributes.class, 'contains-task-list', 'task-list', 'md-list') })
           }
         }
       },
@@ -422,6 +443,48 @@ const TyporaAliases = Extension.create({
         }
       }
     ];
+  }
+});
+
+const KeyboardKey = Mark.create({
+  name: 'keyboardKey',
+
+  parseHTML() {
+    return [{ tag: 'kbd' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['kbd', mergeAttributes(HTMLAttributes, { class: 'md-kbd' }), 0];
+  }
+});
+
+const MdAlert = Node.create({
+  name: 'mdAlert',
+  group: 'block',
+  content: 'block+',
+
+  addAttributes() {
+    return {
+      alertType: {
+        default: 'note',
+        parseHTML: (element) => {
+          const className = (element as HTMLElement).className;
+          return className.match(/md-alert-(note|tip|important|warning|caution)/)?.[1] ?? 'note';
+        },
+        renderHTML: (attributes) => ({ 'data-alert-type': attributes.alertType ?? 'note' })
+      }
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'div.md-alert' }];
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    const alertType = node.attrs.alertType ?? 'note';
+    return ['div', mergeAttributes(HTMLAttributes, {
+      class: `md-alert md-alert-${alertType}`
+    }), 0];
   }
 });
 
@@ -639,6 +702,20 @@ const BracketTodoInput = Extension.create({
           commands.deleteRange(range);
           commands.setCodeBlock();
         }
+      }),
+      new InputRule({
+        find: blockMathInputRegex,
+        handler: ({ range, commands }) => {
+          commands.deleteRange(range);
+          commands.insertBlockMath({ latex: '' });
+        }
+      }),
+      new InputRule({
+        find: blockquoteInputRegex,
+        handler: ({ range, commands }) => {
+          commands.deleteRange(range);
+          commands.toggleBlockquote();
+        }
       })
     ];
   }
@@ -682,11 +759,14 @@ const createEditorExtensions = (
 ) => [
   StarterKit.configure({
     heading: { levels: [1, 2, 3, 4, 5, 6] },
-    listItem: false
+    listItem: false,
+    link: false,
+    underline: false
   }),
   TyporaAliases,
   Highlight,
   Underline,
+  KeyboardKey,
   Link.configure({
     autolink: true,
     defaultProtocol: 'https',
@@ -708,6 +788,7 @@ const createEditorExtensions = (
   NotebookVideo,
   NotebookAudio,
   NotebookEmbed,
+  MdAlert,
   FootnoteReference,
   FootnoteItem,
   FootnoteSection,
@@ -855,6 +936,44 @@ export function App() {
     if (command === 'h3') chain.toggleHeading({ level: 3 }).run();
     if (command === 'inlineCode') chain.toggleCode().run();
     if (command === 'codeBlock') chain.toggleCodeBlock().run();
+    if (command === 'blockquote') chain.toggleBlockquote().run();
+    if (command === 'kbd') chain.toggleMark('keyboardKey').run();
+    if (command === 'link') {
+      const previousUrl = editor.getAttributes('link').href as string | undefined;
+      const url = window.prompt('Link URL', previousUrl ?? 'https://');
+      if (url === null) return;
+      if (!url.trim()) {
+        editor.chain().focus().unsetLink().run();
+        return;
+      }
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run();
+    }
+    if (command === 'table') {
+      editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+    }
+    if (command === 'inlineMath') {
+      const latex = window.prompt('Inline math', 'E = mc^2');
+      if (latex?.trim()) editor.chain().focus().insertInlineMath({ latex: latex.trim() }).run();
+    }
+    if (command === 'blockMath') {
+      const latex = window.prompt('Block math', '\\int_0^1 x^2 dx');
+      if (latex?.trim()) editor.chain().focus().insertBlockMath({ latex: latex.trim() }).run();
+    }
+    if (command === 'image') {
+      const src = window.prompt('Image URL');
+      if (src?.trim()) editor.chain().focus().setImage({ src: src.trim() }).run();
+    }
+    if (command === 'video' || command === 'audio' || command === 'embed') {
+      const src = window.prompt(`${command[0].toUpperCase()}${command.slice(1)} URL`);
+      if (!src?.trim()) return;
+      const html =
+        command === 'video'
+          ? `<video controls src="${src.trim()}"></video>`
+          : command === 'audio'
+            ? `<audio controls src="${src.trim()}"></audio>`
+            : `<iframe class="media-embed md-media" src="${src.trim()}" title="Embedded media" loading="lazy" allowfullscreen="true"></iframe>`;
+      editor.chain().focus().insertContent(html).run();
+    }
     if (command === 'bulletList') chain.toggleBulletList().run();
     if (command === 'orderedList') chain.toggleOrderedList().run();
     if (command === 'indent') {
@@ -1443,7 +1562,17 @@ function Toolbar({
       <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('h2')} title="Heading 2">H2</button>
       <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('h3')} title="Heading 3">H3</button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={applyInlineCode} title="Inline code"><Type size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('kbd')} title="Keyboard key"><Keyboard size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('link')} title="Link"><LinkIcon size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('codeBlock')} title="Code block"><Braces size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('blockquote')} title="Quote"><Quote size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('table')} title="Table"><Table2 size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('inlineMath')} title="Inline math"><Sigma size={16} /></button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('blockMath')} title="Block math">Σ</button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('image')} title="Image"><ImageIcon size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('video')} title="Video"><Video size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('audio')} title="Audio"><Volume2 size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('embed')} title="Embed"><PanelTop size={16} /></button>
       <span className="toolbar-divider" />
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('bulletList')} title="Bullet list"><List size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('orderedList')} title="Numbered list"><ListOrdered size={16} /></button>

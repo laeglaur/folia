@@ -702,7 +702,7 @@ input, select { color: var(--ink); }
 .block-content mark,
 .composer mark {
   display: inline;
-  background: var(--highlight) !important;
+  background: var(--highlight);
   color: var(--highlight-ink);
   border-radius: var(--highlight-radius);
   box-shadow: 0 0 0 1px var(--highlight-edge) inset;

@@ -125,6 +125,162 @@
   width: 100%;
 }
 
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc mark {
+  box-shadow: none;
+}
+
+.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc mark {
+  border-radius: 0;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.task-list-item,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.md-task-list-item {
+  align-items: flex-start;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.task-list-item > label,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.md-task-list-item > label {
+  line-height: inherit;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.task-list-item > label input[type="checkbox"],
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.md-task-list-item > label input[type="checkbox"] {
+  vertical-align: text-top;
+}
+
+:where(.typora-theme[data-content-theme^="typora-"] .typora-block-doc kbd,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-kbd) {
+  display: inline-block;
+  min-width: 1.45em;
+  margin: 0 0.08em;
+  padding: 0.08em 0.42em;
+  border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  color: inherit;
+  font-family: var(--mono-font);
+  font-size: 0.84em;
+  line-height: 1.35;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-alert {
+  max-width: 100%;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  margin: 0 0 0.4em;
+  font-weight: 700;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-alert-title::before {
+  display: inline-grid;
+  place-items: center;
+  width: 1.3em;
+  height: 1.3em;
+  flex: none;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-family: var(--ui-font);
+  font-size: 0.76em;
+  font-weight: 700;
+  line-height: 1;
+  content: "i";
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-alert-tip .md-alert-title::before {
+  content: "+";
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-alert-important .md-alert-title::before {
+  content: "*";
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-alert-warning .md-alert-title::before,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-alert-caution .md-alert-title::before {
+  content: "!";
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-alert-title svg {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.task-list-item,
+.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.md-task-list-item {
+  display: block;
+  min-height: 1.8em;
+}
+
+.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.task-list-item > label,
+.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.md-task-list-item > label {
+  position: static;
+  display: block;
+  min-height: 0;
+  padding: 0;
+  line-height: inherit;
+}
+
+.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.task-list-item > div,
+.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.md-task-list-item > div {
+  min-width: 0;
+}
+
+.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.task-list-item > div > p:first-child,
+.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.md-task-list-item > div > p:first-child {
+  margin-top: 0;
+}
+
+.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc [data-type="block-math"] {
+  background-color: var(--code-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-medium);
+  box-shadow: var(--shadow-small);
+  color: var(--code-text-color);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  line-height: 1.6;
+  margin: 1.5em 0;
+  padding: 1.2em;
+}
+
+.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.task-list-item,
+.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.md-task-list-item {
+  display: grid;
+  grid-template-columns: 1.15em minmax(0, 1fr);
+  column-gap: 0.5em;
+  padding-left: 0.15em;
+  align-items: baseline;
+}
+
+.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.task-list-item > label,
+.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.md-task-list-item > label {
+  display: flex;
+  align-items: center;
+  min-height: 0;
+  padding: 0;
+  line-height: inherit;
+}
+
+.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.task-list-item > label input[type="checkbox"],
+.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.md-task-list-item > label input[type="checkbox"] {
+  width: 0.95em;
+  height: 0.95em;
+  margin: 0.22em 0 0;
+  accent-color: var(--accent, #80372b);
+}
+
+.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.task-list-item > div > p:first-child,
+.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.md-task-list-item > div > p:first-child {
+  margin-top: 0;
+}
+
 .typora-theme[data-content-theme^="typora-"] .typora-write .block,
 .typora-theme[data-content-theme^="typora-"] .typora-write .block:hover,
 .typora-theme[data-content-theme^="typora-"] .typora-write .block:focus-within {

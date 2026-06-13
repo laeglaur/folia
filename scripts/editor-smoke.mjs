@@ -76,6 +76,21 @@ await page.locator('.format-toolbar .tool-button[title="Strikethrough"]').click(
 const markHtml = await markComposer.evaluate((node) => node.innerHTML);
 checks.underline = markHtml.includes('<u>styled marks</u>');
 checks.strike = markHtml.includes('<s>') && markHtml.includes('styled marks');
+checks.semanticToolbarButtons = await page.locator('.format-toolbar').evaluate((toolbar) => {
+  const requiredTitles = [
+    'Keyboard key',
+    'Link',
+    'Quote',
+    'Table',
+    'Inline math',
+    'Block math',
+    'Image',
+    'Video',
+    'Audio',
+    'Embed'
+  ];
+  return requiredTitles.every((title) => toolbar.querySelector(`button[title="${title}"]`));
+});
 
 await page.evaluate(() => localStorage.clear());
 await page.reload();

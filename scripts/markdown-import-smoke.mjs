@@ -23,11 +23,16 @@ await writeFile(markdownPath, [
   '',
   'A paragraph with **bold**, *italic*, ~~strike~~, ==mark==, `inline`, and [link](https://example.com).',
   '',
+  'Use <kbd>Cmd</kbd> + <kbd>K</kbd> to test keyboard key styling.',
+  '',
   'A sentence with a footnote.[^note]',
   '',
   'Inline math: $E = mc^2$ should render.',
   '',
   '> A quote that Typora themes should be able to shape.',
+  '',
+  '> [!WARNING]',
+  '> A warning callout imported from Markdown.',
   '',
   '---',
   '',
@@ -98,6 +103,8 @@ const footnoteDefinitionText = await page.locator('.page-surface .md-def-footnot
 const inlineMathCount = await page.locator('.page-surface [data-type="inline-math"]').count();
 const blockMathCount = await page.locator('.page-surface [data-type="block-math"]').count();
 const katexCount = await page.locator('.page-surface .katex').count();
+const kbdCount = await page.locator('.page-surface kbd').count();
+const alertCount = await page.locator('.page-surface .md-alert.md-alert-warning').count();
 
 const checks = {
   title: pageTitle === 'Frontmatter Smoke',
@@ -113,6 +120,7 @@ const checks = {
   bullet: pageHtml.includes('<ul') && pageText.includes('first bullet'),
   nestedBullet: hasNestedBulletDom,
   blockquote: pageHtml.includes('<blockquote') && pageText.includes('A quote that Typora themes should be able to shape.'),
+  alert: alertCount === 1 && pageText.includes('A warning callout imported from Markdown.'),
   horizontalRule: pageHtml.includes('<hr'),
   strike: pageHtml.includes('<s>strike</s>') || pageHtml.includes('<del>strike</del>'),
   task: pageHtml.includes('data-type="taskList"') && pageHtml.includes('open task') && pageHtml.includes('done task'),
@@ -123,6 +131,7 @@ const checks = {
   audio: pageHtml.includes('<audio') && pageHtml.includes('src="https://example.com/audio.m4a"'),
   embed: pageHtml.includes('<iframe') && pageHtml.includes('https://www.youtube.com/embed/dQw4w9WgXcQ'),
   inlineCode: pageHtml.includes('<code>inline</code>'),
+  kbd: kbdCount === 2 && pageText.includes('Cmd') && pageText.includes('K'),
   highlight: pageHtml.includes('<mark'),
   codeBlock: (pageHtml.includes('<pre class="md-fences md-end-block"><code>') || pageHtml.includes('<pre><code>')) && pageText.includes('const imported = true;'),
   indentedFence: pageHtml.includes('┌────┬────┐') && !pageText.includes('```'),

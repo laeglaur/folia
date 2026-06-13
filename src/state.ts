@@ -363,6 +363,28 @@ const normalizeMath = (markdown: string) => {
   });
 };
 
+const alertTypeLabels: Record<string, string> = {
+  note: 'Note',
+  tip: 'Tip',
+  important: 'Important',
+  warning: 'Warning',
+  caution: 'Caution'
+};
+
+const normalizeAlerts = (markdown: string) =>
+  markdown.replace(/(?:^|\n)>[ \t]*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][^\n]*(?:\n>[ \t]?.*)*/gi, (match) => {
+    const lines = match.replace(/^\n/, '').split('\n');
+    const type = lines[0].match(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/i)?.[1].toLowerCase() ?? 'note';
+    const body = lines
+      .slice(1)
+      .map((line) => line.replace(/^>[ \t]?/, ''))
+      .join('\n')
+      .trim();
+    const title = alertTypeLabels[type] ?? 'Note';
+    const bodyHtml = body ? markdownInlineToHtml(body) : '';
+    return `\n<div class="md-alert md-alert-${type}" data-alert-type="${type}"><p class="md-alert-title md-alert-text">${title}</p>${bodyHtml ? `<p>${bodyHtml}</p>` : ''}</div>`;
+  });
+
 const urlWithoutQuery = (url: string) => url.split(/[?#]/)[0] ?? url;
 const isVideoUrl = (url: string) => /\.(mp4|mov|webm|m4v)$/i.test(urlWithoutQuery(url));
 const isAudioUrl = (url: string) => /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(urlWithoutQuery(url));
@@ -398,7 +420,7 @@ const mediaHtmlForUrl = (url: string, label = '') => {
 };
 
 const normalizeMarkdownForMarked = (markdown: string) =>
-  normalizeMath(normalizeFootnotes(normalizeMarkdownWhitespace(markdown)))
+  normalizeMath(normalizeFootnotes(normalizeAlerts(normalizeMarkdownWhitespace(markdown))))
     .replace(/!\[([^\]]*)\]\(([^)\n]+)\)/g, (_match, alt: string, src: string) => `<img src="${escapeHtml(src.trim())}" alt="${escapeHtml(alt)}">`)
     .replace(/^[^\S\r\n]*\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)[^\S\r\n]*$/gm, (match, label: string, url: string) => mediaHtmlForUrl(url, label) ?? match)
     .replace(/^[^\S\r\n]*(https?:\/\/\S+\.(?:mp4|mov|webm|m4v|mp3|wav|m4a|aac|ogg|flac)(?:[?#]\S*)?)[^\S\r\n]*$/gim, (_match, url: string) => mediaHtmlForUrl(url) ?? _match)
