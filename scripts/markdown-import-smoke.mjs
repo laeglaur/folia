@@ -23,7 +23,13 @@ await writeFile(markdownPath, [
   '',
   '```',
   'const imported = true;',
-  '```'
+  '```',
+  '',
+  '  ```',
+  '  ┌────┬────┐',
+  '  │ P0 │ OK │',
+  '  └────┴────┘',
+  '  ```'
 ].join('\n'));
 
 const browser = await chromium.launch({ headless: true });
@@ -54,7 +60,8 @@ const checks = {
   image: pageHtml.includes('src="https://example.com/diagram.png"') && pageHtml.includes('alt="diagram"'),
   inlineCode: pageHtml.includes('<code>inline</code>'),
   highlight: pageHtml.includes('<mark'),
-  codeBlock: pageHtml.includes('<pre><code>') && pageText.includes('const imported = true;')
+  codeBlock: pageHtml.includes('<pre><code>') && pageText.includes('const imported = true;'),
+  indentedFence: pageHtml.includes('┌────┬────┐') && !pageText.includes('```')
 };
 
 console.log(JSON.stringify({ checks }, null, 2));

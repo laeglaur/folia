@@ -180,6 +180,16 @@ const htmlToPlainText = (html: string) => {
 
 const blockFromHtml = (pageId: string, html: string) => createBlock(pageId, html, htmlToPlainText(html));
 
+const normalizeMarkdownWhitespace = (markdown: string) =>
+  markdown
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => {
+      if (/^[\t ]*```/.test(line)) return line.trimStart();
+      return line.replace(/^ {2}/, '');
+    })
+    .join('\n');
+
 const markdownInlineToHtml = (value: string) => {
   const html = marked.parseInline(value.replace(/==([^=\n][\s\S]*?[^=\n])==/g, '<mark>$1</mark>'), {
     async: false,
@@ -189,7 +199,7 @@ const markdownInlineToHtml = (value: string) => {
 };
 
 const normalizeMarkdownForMarked = (markdown: string) =>
-  markdown
+  normalizeMarkdownWhitespace(markdown)
     .replace(/!\[([^\]]*)\]\(([^)\n]+)\)/g, (_match, alt: string, src: string) => `<img src="${escapeHtml(src.trim())}" alt="${escapeHtml(alt)}">`)
     .replace(/==([^=\n][\s\S]*?[^=\n])==/g, '<mark>$1</mark>')
     .replace(/^\s*【】\s+(.+)$/gm, '- [ ] <mark>$1</mark>')
