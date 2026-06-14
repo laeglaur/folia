@@ -1,13 +1,16 @@
 /* Runs after notebook base styles and before generated Typora themes. */
 /* TyporaContentBase: fill semantic gaps without falling back to Garden/Ledger tokens. */
 .typora-theme[data-content-theme^="typora-"] {
+  /* These app contract tokens share names with some Typora themes; reset inherited values before generated theme CSS can opt back in. */
+  --code-bg: initial;
+  --code-ink: initial;
   --typora-fallback-bg: var(--bg-color, #f7f7f7);
-  --typora-fallback-panel: var(--rawblock-edit-panel-bd, color-mix(in srgb, var(--typora-fallback-bg) 88%, var(--text-color, #202124)));
   --typora-fallback-text: var(--text-color, #202124);
+  --typora-fallback-panel: var(--blockquote-bg, var(--quote-color, color-mix(in srgb, var(--typora-fallback-bg) 88%, var(--typora-fallback-text))));
   --typora-fallback-muted: var(--control-text-color, color-mix(in srgb, var(--typora-fallback-text) 66%, transparent));
   --typora-fallback-line: var(--table-border-color, var(--window-border-color, color-mix(in srgb, var(--typora-fallback-text) 24%, transparent)));
   --typora-fallback-accent: var(--primary-color, #4a89dc);
-  --typora-fallback-code-bg: var(--code-bg-color, var(--rawblock-edit-panel-bd, color-mix(in srgb, var(--typora-fallback-bg) 82%, var(--typora-fallback-text))));
+  --typora-fallback-code-bg: var(--code-bg-color, var(--code-bg, var(--typora-fallback-panel)));
   --typora-fallback-code-text: var(--code-text-color, color-mix(in srgb, var(--typora-fallback-text) 88%, var(--typora-fallback-accent)));
   --typora-fallback-mark-bg: color-mix(in srgb, var(--typora-fallback-accent) 26%, var(--typora-fallback-bg));
   --typora-fallback-mark-text: color-mix(in srgb, var(--typora-fallback-text) 88%, white);

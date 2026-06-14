@@ -198,6 +198,53 @@ for (const theme of ['typora-print', 'typora-inkwell', 'typora-ravel-light']) {
   }, theme, nativeGardenTableHeader);
 }
 
+await chooseContentTheme('typora-chocolate-box');
+checks.chocolateBoxFallbackUsesThemePanel = await page.locator('.typora-write').evaluate((surface) => {
+  const channelsFromColor = (value) => {
+    const rgbMatch = value.match(/rgba?\(([^)]+)\)/i);
+    if (rgbMatch) {
+      return rgbMatch[1].split(/[\s,\/]+/).slice(0, 3).map((part) => Number.parseFloat(part));
+    }
+    const srgbMatch = value.match(/color\(srgb\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)/i);
+    if (srgbMatch) {
+      return srgbMatch.slice(1, 4).map((part) => Number.parseFloat(part) * 255);
+    }
+    return null;
+  };
+  const luminance = (value) => {
+    const channels = channelsFromColor(value);
+    if (!channels || channels.some((channel) => Number.isNaN(channel))) return null;
+    const [r, g, b] = channels.map((channel) => {
+      const normalized = channel / 255;
+      return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const readablePair = (background, color) => {
+    const bgLuminance = luminance(background);
+    const textLuminance = luminance(color);
+    if (bgLuminance === null || textLuminance === null) return false;
+    return Math.abs(bgLuminance - textLuminance) > 0.18;
+  };
+  const notLightGrayPanel = (background) => {
+    const channels = channelsFromColor(background);
+    if (!channels) return false;
+    return background !== 'rgb(208, 208, 208)' && channels.some((channel) => channel < 160);
+  };
+  const elements = [
+    surface.querySelector('pre.md-fences'),
+    surface.querySelector('blockquote'),
+    surface.querySelector('th'),
+    surface.querySelector('mark')
+  ];
+  if (elements.some((element) => !(element instanceof HTMLElement))) return false;
+  return elements.every((element) => {
+    const styles = getComputedStyle(element);
+    return notLightGrayPanel(styles.backgroundColor) &&
+      readablePair(styles.backgroundColor, styles.color);
+  });
+});
+
 checks.fencedCodeDoesNotUseInlineCodeChrome = true;
 for (const theme of ['typora-zeus', 'typora-folio', 'typora-flexoki-light']) {
   await chooseContentTheme(theme);
