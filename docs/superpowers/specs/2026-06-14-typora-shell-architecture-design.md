@@ -18,12 +18,14 @@ The fix is not another override. The app needs two explicit shell contracts.
 
 - Keep Garden and Ledger as native notebook shells with the existing three-column layout.
 - Add a separate Typora shell that is parallel to Garden/Ledger, not layered on top of them.
-- Use TyporaShell for all Typora themes.
+- Support shell and content as separate architecture choices, with simple presets on top.
+- First implementation exposes only three shell choices: Native Garden, Native Ledger, and Typora Base.
 - Do not add a user-facing left/right vs left/middle/right layout switch in this phase.
 - TyporaShell is always left sidebar plus writing surface.
-- Tools, outline, and pinned blocks live inside TyporaShell left sidebar tabs.
+- Outline lives inside TyporaShell left sidebar tabs.
+- Tools and pinned blocks share one TyporaShell sidebar tab.
 - Swiss and other weak shell themes fall back to TyporaShellBase, not Garden.
-- Konayuki and other strong shell themes can override TyporaShellBase through their own Typora selectors.
+- Typora content themes can automatically apply their matching shell overrides when the active shell is Typora Base.
 - Preserve current Typora content fidelity for code, math, table, tasks, highlights, and import behavior.
 
 ## Non-Goals
@@ -34,23 +36,50 @@ The fix is not another override. The app needs two explicit shell contracts.
 - Do not clone Typora menus, status bar, quick open, preferences, search panel, or source mode.
 - Do not make pin cards inherit full Typora page typography.
 
-## Shell Model
+## Shell And Content Model
 
-The app has one theme selection concept for users, but two shell families internally.
+The app should separate shell and content internally.
+
+First implementation shell choices:
 
 ```txt
-Theme
-├─ native
-│  ├─ garden -> NativeShell, native content style
-│  └─ ledger -> NativeShell, native content style
-└─ typora
-   ├─ typora-swiss -> TyporaShell + Swiss content/shell CSS
-   ├─ typora-konayuki -> TyporaShell + Konayuki content/shell CSS
-   ├─ typora-folio -> TyporaShell + Folio content/shell CSS
-   └─ ...
+Shell
+├─ native-garden
+├─ native-ledger
+└─ typora-base
 ```
 
-The implementation may keep separate `theme` and `contentTheme` state fields temporarily for migration, but the UI and component architecture should treat Typora themes as whole-app themes.
+First implementation content choices:
+
+```txt
+Content
+├─ notebook
+├─ typora-swiss
+├─ typora-konayuki
+├─ typora-folio
+└─ ...
+```
+
+Preset examples:
+
+```txt
+Garden preset -> shell native-garden + content notebook
+Ledger preset -> shell native-ledger + content notebook
+Swiss preset -> shell typora-base + content typora-swiss
+Konayuki preset -> shell typora-base + content typora-konayuki
+```
+
+When shell is `typora-base` and content is a Typora theme, that Typora theme may automatically contribute matching shell overrides from its raw CSS. These overrides are not separate shell choices in the first implementation. For example, `shell=typora-base` plus `content=typora-konayuki` applies Konayuki's `#typora-sidebar` rules over TyporaShellBase.
+
+Advanced combinations are architecturally valid:
+
+```txt
+native-garden shell + typora-swiss content
+typora-base shell + notebook content
+typora-base shell + typora-swiss content
+```
+
+The first UI can expose presets plus an advanced section for shell/content separation. It should not expose per-theme shell override choices such as "Konayuki shell" yet.
 
 ## NativeShell Contract
 
@@ -101,7 +130,7 @@ Typora themes often express this through `html`, `body`, `content`, `#typora-sid
 Sidebar tabs:
 
 ```txt
-Files | Outline | Pin | Tools
+Files | Outline | Desk
 ```
 
 DOM contract:
@@ -112,8 +141,7 @@ DOM contract:
     <div class="sidebar-tabs">
       <button id="info-panel-tab-file" class="sidebar-tab active">Files</button>
       <button id="info-panel-tab-outline" class="sidebar-tab">Outline</button>
-      <button class="sidebar-tab">Pin</button>
-      <button class="sidebar-tab">Tools</button>
+      <button class="sidebar-tab">Desk</button>
     </div>
 
     <div id="sidebar-content" class="sidebar-content">
@@ -154,18 +182,22 @@ Outline tab DOM:
 </div>
 ```
 
-Pin tab DOM:
+Desk tab DOM:
 
 ```html
-<div class="typora-pin-list">
-  <button class="typora-pin-card">...</button>
+<div class="typora-desk-tab">
+  <section class="typora-pin-list">
+    <button class="typora-pin-card">...</button>
+  </section>
+  <section class="typora-tools">...</section>
 </div>
 ```
 
 Pin cards intentionally do not use `#write`, `.typora-write`, or full Typora page styles.
 
-Tools tab contains:
+Desk contains:
 
+- pinned blocks
 - search
 - theme selector
 - import/export
@@ -174,9 +206,34 @@ Tools tab contains:
 
 There is no topbar in TyporaShell in this phase.
 
+## Typora File Views
+
+Typora themes often style two file-area modes:
+
+```txt
+File tree:
+.file-library-node
+.file-node-content
+.file-node-title
+.file-node-background
+
+File list:
+.file-list-item
+.file-list-item-file-name
+.file-list-item-summary
+```
+
+TyporaShell should implement File Tree first because the notebook already has nested pages. The DOM should still use Typora file-tree class names so theme CSS can apply. File List can be added later as a view inside the Files tab:
+
+```txt
+Tree | List
+```
+
+Tree shows notebooks/pages hierarchically. List can show a flat current-notebook page list with summary, date, or metadata. File List is not required in the first implementation, but the architecture must not block it.
+
 ## TyporaShellBase
 
-TyporaShellBase is the fallback shell for Typora themes that do not define shell styles.
+TyporaShellBase is the fallback shell for Typora themes that do not define shell styles, and it is also the shell used when `content=notebook` with `shell=typora-base`.
 
 It should approximate Typora's native shell, not Garden:
 
@@ -242,7 +299,7 @@ Ownership:
 
 ## Theme Behavior
 
-Swiss:
+Swiss content with Typora Base shell:
 
 - Swiss CSS mostly defines root colors and `#write`.
 - Swiss sets `html, body` background to `--bg`; TyporaShell app canvas must receive that background.
@@ -250,12 +307,12 @@ Swiss:
 - Result: TyporaShellBase controls sidebar layout and shape; Swiss variables influence colors where applicable.
 - No Garden capsule fallback.
 
-Konayuki:
+Konayuki content with Typora Base shell:
 
 - Konayuki defines sidebar tokens and explicit `#typora-sidebar`, `.file-node-content`, `.file-list-item`, and `.outline-item` rules.
-- Result: Konayuki overrides TyporaShellBase and gets its floating rounded sidebar style.
+- Result: Konayuki's shell override rules apply automatically over TyporaShellBase and produce its floating rounded sidebar style.
 
-Folio:
+Folio content with Typora Base shell:
 
 - Folio defines `#typora-sidebar` and outline styles.
 - Result: Folio uses TyporaShellBase for missing file-tree details and Folio CSS for sidebar/outline it defines.
@@ -294,9 +351,10 @@ Shared panels should not share shell class names. A page row may share data and 
 ## Migration Plan
 
 1. Keep the revert of the mixed shell-layout experiment.
-2. Add shell family resolver:
-   - Garden/Ledger -> NativeShell
-   - Typora themes -> TyporaShell
+2. Add shell/content resolver:
+   - shell native-garden/native-ledger -> NativeShell
+   - shell typora-base -> TyporaShell
+   - Typora content themes can supply shell overrides only inside TyporaShell
 3. Extract NativeShell around the current JSX with minimal behavior changes.
 4. Create TyporaShell separately with Typora DOM/class contract.
 5. Add TyporaShellBase CSS.
@@ -305,11 +363,12 @@ Shared panels should not share shell class names. A page row may share data and 
 8. Add smoke tests for:
    - Garden remains three-column and keeps Garden decorations.
    - Ledger remains three-column and hides decorations as before.
-- Swiss TyporaShell has no Garden capsule nav items.
-- Swiss TyporaShell app canvas uses Swiss background rather than Garden background.
-- Swiss uses TyporaShellBase fallback sidebar.
+   - Swiss TyporaShell has no Garden capsule nav items.
+   - Swiss TyporaShell app canvas uses Swiss background rather than Garden background.
+   - Swiss uses TyporaShellBase fallback sidebar.
    - Konayuki sidebar receives its own background, border radius, shadow, and active item rules.
-   - Outline and Pin are inside Typora sidebar tabs.
+   - Outline is inside Typora sidebar tabs.
+   - Pin and tools are inside the Typora Desk tab.
    - Pin remains compact.
    - Topbar is absent in TyporaShell.
 
@@ -336,6 +395,7 @@ Add visual/computed assertions:
 
 - Exact TyporaShellBase sidebar width after visual comparison with Typora.
 - Whether TyporaShell Files tab should combine notebooks and pages in one file tree or keep notebooks as a small selector above pages.
-- Whether Pin tab should show cards or a compact list first.
+- Whether Typora File List mode should be implemented in the first pass or deferred.
+- Whether Desk should show pinned cards before tools or tools before pinned cards.
 
 These should be resolved during implementation review, not by reintroducing a layout selector.
