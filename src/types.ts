@@ -20,7 +20,14 @@ export type ContentThemeId =
   | 'typora-eloquent'
   | 'typora-law'
   | 'typora-blackout'
-  | 'typora-salamander';
+  | 'typora-salamander'
+  | 'typora-minimalism'
+  | 'typora-everforest-light'
+  | 'typora-everforest-dark'
+  | 'typora-mdmdt-light'
+  | 'typora-paperglow'
+  | 'typora-latex'
+  | 'typora-alise';
 
 export interface Notebook {
   id: string;

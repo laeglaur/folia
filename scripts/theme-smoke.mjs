@@ -138,7 +138,14 @@ const selectableTyporaThemes = [
   'typora-eloquent',
   'typora-law',
   'typora-blackout',
-  'typora-salamander'
+  'typora-salamander',
+  'typora-minimalism',
+  'typora-everforest-light',
+  'typora-everforest-dark',
+  'typora-mdmdt-light',
+  'typora-paperglow',
+  'typora-latex',
+  'typora-alise'
 ];
 
 checks.typoraThemesAreSelectable = true;
@@ -173,7 +180,7 @@ for (const theme of ['typora-inkwell', 'typora-gruvbox-dark', 'typora-bit-clean-
 }
 
 checks.newTyporaThemeAssetsAreRouted = true;
-for (const theme of ['typora-chocolate-box', 'typora-torillic', 'typora-eloquent', 'typora-law', 'typora-salamander']) {
+for (const theme of ['typora-chocolate-box', 'typora-torillic', 'typora-eloquent', 'typora-law', 'typora-salamander', 'typora-minimalism', 'typora-latex', 'typora-alise']) {
   const generatedCss = await readFile(`src/styles/typora/generated/${theme}.scoped.css`, 'utf8');
   const urls = [...generatedCss.matchAll(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g)].map((match) => match[2].trim());
   checks.newTyporaThemeAssetsAreRouted = checks.newTyporaThemeAssetsAreRouted &&

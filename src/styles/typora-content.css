@@ -17,6 +17,13 @@
 @import "./typora/generated/typora-law.scoped.css";
 @import "./typora/generated/typora-blackout.scoped.css";
 @import "./typora/generated/typora-salamander.scoped.css";
+@import "./typora/generated/typora-minimalism.scoped.css";
+@import "./typora/generated/typora-everforest-light.scoped.css";
+@import "./typora/generated/typora-everforest-dark.scoped.css";
+@import "./typora/generated/typora-mdmdt-light.scoped.css";
+@import "./typora/generated/typora-paperglow.scoped.css";
+@import "./typora/generated/typora-latex.scoped.css";
+@import "./typora/generated/typora-alise.scoped.css";
 
 .typora-theme[data-content-theme^="typora-"] {
   --theme-body-background: linear-gradient(180deg, color-mix(in srgb, var(--theme-bg) 92%, white), var(--theme-bg));

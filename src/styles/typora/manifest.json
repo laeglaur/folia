@@ -130,5 +130,57 @@
     "scopedCss": "src/styles/typora/generated/typora-salamander.scoped.css",
     "sourceUrl": null,
     "assetBaseDir": "src/styles/typora/raw/typora-salamander"
+  },
+  {
+    "id": "typora-minimalism",
+    "label": "Minimalism",
+    "rawCss": "src/styles/typora/raw/typora-minimalism.css",
+    "scopedCss": "src/styles/typora/generated/typora-minimalism.scoped.css",
+    "sourceUrl": null,
+    "assetBaseDir": "src/styles/typora/raw/typora-minimalism"
+  },
+  {
+    "id": "typora-everforest-light",
+    "label": "Everforest Light",
+    "rawCss": "src/styles/typora/raw/typora-everforest-light.css",
+    "scopedCss": "src/styles/typora/generated/typora-everforest-light.scoped.css",
+    "sourceUrl": null
+  },
+  {
+    "id": "typora-everforest-dark",
+    "label": "Everforest Dark",
+    "rawCss": "src/styles/typora/raw/typora-everforest-dark.css",
+    "scopedCss": "src/styles/typora/generated/typora-everforest-dark.scoped.css",
+    "sourceUrl": null
+  },
+  {
+    "id": "typora-mdmdt-light",
+    "label": "mdmdt Light",
+    "rawCss": "src/styles/typora/raw/typora-mdmdt-light.css",
+    "scopedCss": "src/styles/typora/generated/typora-mdmdt-light.scoped.css",
+    "sourceUrl": null
+  },
+  {
+    "id": "typora-paperglow",
+    "label": "Paperglow",
+    "rawCss": "src/styles/typora/raw/typora-paperglow.css",
+    "scopedCss": "src/styles/typora/generated/typora-paperglow.scoped.css",
+    "sourceUrl": null
+  },
+  {
+    "id": "typora-latex",
+    "label": "LaTeX Typora",
+    "rawCss": "src/styles/typora/raw/typora-latex.css",
+    "scopedCss": "src/styles/typora/generated/typora-latex.scoped.css",
+    "sourceUrl": null,
+    "assetBaseDir": "src/styles/typora/raw/typora-latex"
+  },
+  {
+    "id": "typora-alise",
+    "label": "Alise",
+    "rawCss": "src/styles/typora/raw/typora-alise.css",
+    "scopedCss": "src/styles/typora/generated/typora-alise.scoped.css",
+    "sourceUrl": null,
+    "assetBaseDir": "src/styles/typora/raw/typora-alise"
   }
 ]
