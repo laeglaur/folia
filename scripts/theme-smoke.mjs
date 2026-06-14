@@ -234,6 +234,7 @@ checks.swissCodeAndTableUseTheme = await (async () => {
     const h1Styles = getComputedStyle(h1);
     const markStyles = getComputedStyle(mark);
     return preStyles.backgroundColor === 'rgb(255, 255, 255)' &&
+      preStyles.backgroundImage === 'none' &&
       preStyles.borderTopStyle === 'solid' &&
       preStyles.color === 'rgb(36, 41, 47)' &&
       tableStyles.borderCollapse === 'collapse' &&
@@ -299,6 +300,7 @@ for (const theme of ['typora-konayuki', 'typora-swiss']) {
 
     return codeIsTokenized &&
       preStyles.backgroundColor === 'rgb(255, 255, 255)' &&
+      preStyles.backgroundImage === 'none' &&
       tableStyles.borderCollapse === 'collapse' &&
       mathUsesCodeFrame &&
       mathIsCentered;

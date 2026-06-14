@@ -1,3 +1,4 @@
+@import "./typora/prelude.css";
 @import "./typora/generated/typora-proof.scoped.css";
 @import "./typora/generated/typora-konayuki.scoped.css";
 @import "./typora/generated/typora-swiss.scoped.css";
@@ -258,13 +259,6 @@
   line-height: 1.6;
   margin: 1.5em 0;
   padding: 1.2em;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc pre.md-fences,
-.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc pre.md-meta-block,
-.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc .md-diagram-panel,
-.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc [data-type="block-math"] {
-  background-image: none;
 }
 
 .typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc th {

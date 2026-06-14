@@ -1,0 +1,7 @@
+/* Runs after notebook base styles and before generated Typora themes. */
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc pre.md-fences,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc pre.md-meta-block,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-diagram-panel,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc [data-type="block-math"] {
+  background-image: none;
+}
