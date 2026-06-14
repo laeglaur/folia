@@ -492,13 +492,12 @@ const localizeMediaAssets = async (html: string, filename: string) => {
 
 export const createPageFromMarkdown = async (notebookId: string, filename: string, markdown: string) => {
   const parsed = parseFrontmatter(markdown, filename);
-  const firstHeading = parsed.body.match(/^#\s+(.+)$/m)?.[1]?.trim();
   const fallbackTitle = filename.replace(/\.(md|markdown|txt)$/i, '').trim() || 'Imported page';
   const page = {
-    ...createPage(notebookId, parsed.title || firstHeading || fallbackTitle),
+    ...createPage(notebookId, fallbackTitle),
     metadata: parsed.metadata
   };
-  const body = firstHeading ? parsed.body.replace(/^#\s+.+$/m, '').trim() : parsed.body.trim();
+  const body = parsed.body.trim();
   const warnings: MarkdownImportWarning[] = [];
   const blocks = await Promise.all(markdownToBlocks(page.id, body).map(async (block) => {
     const localized = await localizeMediaAssets(block.content.html, filename);

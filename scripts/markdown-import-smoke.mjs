@@ -3,7 +3,8 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const markdownPath = join(tmpdir(), `notebook-import-${Date.now()}.md`);
+const markdownPath = join(tmpdir(), `filename-title-smoke-${Date.now()}.md`);
+const expectedTitle = markdownPath.match(/([^/]+)\.md$/)?.[1] ?? 'filename-title-smoke';
 await writeFile(markdownPath, [
   '---',
   'title: Frontmatter Smoke',
@@ -108,14 +109,14 @@ const alertCount = await page.locator('.page-surface .md-alert.md-alert-warning'
 const codeFenceCount = await page.locator('.page-surface pre.md-fences code').count();
 
 const checks = {
-  title: pageTitle === 'Frontmatter Smoke',
+  title: pageTitle === expectedTitle,
   singleBlock: blockCount === 1,
-  pageTree: pageTreeText.includes('Frontmatter Smoke'),
-  outline: outlineText.includes('Frontmatter Smoke') && outlineText.includes('Section Smoke') && outlineText.includes('Detail Smoke') && outlineText.includes('first bullet'),
+  pageTree: pageTreeText.includes(expectedTitle),
+  outline: outlineText.includes('Imported Smoke') && outlineText.includes('Section Smoke') && outlineText.includes('Detail Smoke') && outlineText.includes('first bullet'),
   frontmatterHidden: !pageText.includes('title: Frontmatter Smoke') && !pageText.includes('tags: [travel, literature]') && !pageText.includes('aliases:'),
   metadataUi: metadataText.includes('2026-05-02') && metadataText.includes('draft') && metadataText.includes('#travel') && metadataText.includes('#literature') && metadataText.includes('Hengdian notes') && metadataText.includes('Qin palace'),
   metadataState: storedPage?.metadata?.sourceFilename?.endsWith('.md') && storedPage.metadata.tags.includes('travel') && storedPage.metadata.tags.includes('literature') && storedPage.metadata.date === '2026-05-02' && storedPage.metadata.status === 'draft' && storedPage.metadata.aliases.includes('Hengdian notes') && storedPage.metadata.frontmatter.title === 'Frontmatter Smoke',
-  paragraph: pageText.includes('A paragraph with bold'),
+  paragraph: pageText.includes('Imported Smoke') && pageText.includes('A paragraph with bold'),
   footnote: footnoteReferenceCount === 1 && footnoteDefinitionText.includes('Footnote content with bold text') && storedBlock?.content?.html?.includes('data-type="footnotes"'),
   math: inlineMathCount === 1 && blockMathCount === 1 && katexCount >= 2 && storedBlock?.content?.html?.includes('data-latex="E = mc^2"') && storedBlock?.content?.html?.includes('data-latex="\\int_0^1 x^2 dx"'),
   bullet: pageHtml.includes('<ul') && pageText.includes('first bullet'),
