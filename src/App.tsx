@@ -101,6 +101,11 @@ type CalendarEntry = {
   page: Page;
 };
 type WorkspaceView = 'write' | 'calendar';
+type TableControlsState = {
+  visible: boolean;
+  top: number;
+  left: number;
+};
 type ToolbarCommand =
   | 'bold'
   | 'italic'
@@ -137,6 +142,8 @@ type RichEditorProps = {
   onSelectionUpdate?: (editor: Editor) => void;
   onShiftEnter?: (editor: Editor) => boolean;
   onMoveBlock?: (direction: -1 | 1) => boolean;
+  tableControls?: TableControlsState;
+  runTableCommand?: (command: ToolbarCommand) => void;
   editorRef: (editor: Editor | null) => void;
 };
 
@@ -327,6 +334,14 @@ const escapeHtml = (value: string) =>
 const dispatchAttachmentShortcut = () => {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent('notebook:attachment-shortcut'));
+};
+
+const inferAttachmentKind = (file: File) => {
+  const name = file.name.toLowerCase();
+  if (file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|avif|svg|bmp|ico|tiff?)$/.test(name)) return 'image';
+  if (file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|ogv|avi|mkv)$/.test(name)) return 'video';
+  if (file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac|aiff?)$/.test(name)) return 'audio';
+  return 'file';
 };
 
 const markdownishText = (value: string) =>
@@ -1015,7 +1030,7 @@ const BracketTodoInput = Extension.create({
   addInputRules() {
     return [
       markInputRule({
-        find: /~([^~\n]+)~$/,
+        find: /(?<!~)~([^~\n]+)~(?!~)$/,
         type: this.editor.schema.marks.underline
       }),
       new InputRule({
@@ -1025,7 +1040,8 @@ const BracketTodoInput = Extension.create({
           if (!latex) return;
           chain()
             .deleteRange(range)
-            .insertInlineMath({ latex })
+            .insertContentAt(range.from, { type: 'inlineMath', attrs: { latex } })
+            .setTextSelection(range.from + 1)
             .run();
         }
       }),
@@ -1060,6 +1076,7 @@ const BracketTodoInput = Extension.create({
           chain()
             .deleteRange(range)
             .insertContentAt(range.from, { type: 'blockMath', attrs: { latex: '\\;' } })
+            .setTextSelection(range.from + 1)
             .run();
         }
       }),
@@ -1109,7 +1126,10 @@ const NotebookShortcuts = Extension.create<{
       const insertAt = $from.before();
       const chain = editor.chain().deleteRange({ from: $from.start(), to: $from.end() });
       if (transform === 'blockquote') return chain.toggleBlockquote().run();
-      return chain.insertContentAt(insertAt, { type: 'blockMath', attrs: { latex: '\\;' } }).run();
+      return chain
+        .insertContentAt(insertAt, { type: 'blockMath', attrs: { latex: '\\;' } })
+        .setTextSelection(insertAt + 1)
+        .run();
     };
 
     return {
@@ -1206,6 +1226,8 @@ function RichEditor({
   onSelectionUpdate,
   onShiftEnter,
   onMoveBlock,
+  tableControls,
+  runTableCommand,
   editorRef
 }: RichEditorProps) {
   const externalHtmlRef = useRef(html ?? '');
@@ -1243,7 +1265,14 @@ function RichEditor({
     externalHtmlRef.current = nextHtml;
   }, [editor, html]);
 
-  return <div onMouseDown={(event) => toggleCollapsibleListItem(event, editor)}><EditorContent editor={editor} /></div>;
+  return (
+    <div className="rich-editor-wrap" onMouseDown={(event) => toggleCollapsibleListItem(event, editor)}>
+      <EditorContent editor={editor} />
+      {tableControls?.visible && runTableCommand && (
+        <TableControls runCommand={runTableCommand} position={tableControls} />
+      )}
+    </div>
+  );
 }
 
 export function App() {
@@ -1253,7 +1282,7 @@ export function App() {
   const [activeEditor, setActiveEditor] = useState<EditorTarget>({ kind: 'composer' });
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [showToolbar, setShowToolbar] = useState(true);
-  const [tableControlsVisible, setTableControlsVisible] = useState(false);
+  const [tableControls, setTableControls] = useState<TableControlsState>({ visible: false, top: 0, left: 0 });
   const [showComposerFooter, setShowComposerFooter] = useState(true);
   const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'outline' | 'calendar' | 'desk'>('files');
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('write');
@@ -1367,7 +1396,26 @@ export function App() {
   };
 
   const syncTableControls = (editor: Editor | null) => {
-    setTableControlsVisible(Boolean(editor?.isActive('table')));
+    if (!editor?.isActive('table')) {
+      setTableControls((current) => current.visible ? { visible: false, top: 0, left: 0 } : current);
+      return;
+    }
+    const { from } = editor.state.selection;
+    const domAtPos = editor.view.domAtPos(from).node;
+    const element = domAtPos instanceof HTMLElement ? domAtPos : domAtPos.parentElement;
+    const table = element?.closest('table');
+    const editorRoot = editor.view.dom instanceof HTMLElement ? editor.view.dom : null;
+    if (!table || !editorRoot) {
+      setTableControls({ visible: true, top: 0, left: 0 });
+      return;
+    }
+    const tableRect = table.getBoundingClientRect();
+    const editorRect = editorRoot.getBoundingClientRect();
+    setTableControls({
+      visible: true,
+      top: Math.max(0, tableRect.bottom - editorRect.top + 6),
+      left: Math.max(0, tableRect.left - editorRect.left)
+    });
   };
 
   const activateEditor = (target: EditorTarget) => {
@@ -1391,7 +1439,7 @@ export function App() {
       const from = Math.min(selection.from, maxPosition);
       const to = Math.min(selection.to, maxPosition);
       const chain = editor.chain().focus().setTextSelection({ from, to });
-      if (kind === 'image') {
+      if (typeof content === 'object') {
         chain.setImage(content as Parameters<Editor['commands']['setImage']>[0]).run();
         return;
       }
@@ -1407,15 +1455,7 @@ export function App() {
       reader.onload = () => {
         const src = typeof reader.result === 'string' ? reader.result : '';
         if (!src) return;
-        const resolvedKind = kind === 'attachment'
-          ? file.type.startsWith('image/')
-            ? 'image'
-            : file.type.startsWith('video/')
-              ? 'video'
-              : file.type.startsWith('audio/')
-                ? 'audio'
-                : 'file'
-          : kind;
+        const resolvedKind = kind === 'attachment' ? inferAttachmentKind(file) : kind;
         if (resolvedKind === 'image') {
           insertAtSavedSelection({ src, alt: file.name });
           return;
@@ -2192,10 +2232,7 @@ export function App() {
               </div>
               <div className="block-body">
                 {showToolbar && activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
-                  <>
-                    <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
-                    {tableControlsVisible && <TableControls runCommand={runEditorCommand} />}
-                  </>
+                  <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
                 )}
                 {!block.collapsed ? (
                   <RichEditor
@@ -2207,6 +2244,8 @@ export function App() {
                       syncTableControls(editor);
                     }}
                     onSelectionUpdate={syncTableControls}
+                    tableControls={activeEditor.kind === 'block' && activeEditor.blockId === block.id ? tableControls : undefined}
+                    runTableCommand={runEditorCommand}
                     onMoveBlock={(direction) => {
                       moveBlockByKeyboard(block.id, direction);
                       return true;
@@ -2235,10 +2274,7 @@ export function App() {
 
       <div className="composer-card">
         {showToolbar && activeEditor.kind === 'composer' && (
-          <>
-            <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
-            {tableControlsVisible && <TableControls runCommand={runEditorCommand} />}
-          </>
+          <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
         )}
         <RichEditor
           editorRef={(editor) => { composerEditorRef.current = editor; }}
@@ -2249,6 +2285,8 @@ export function App() {
             syncTableControls(editor);
           }}
           onSelectionUpdate={syncTableControls}
+          tableControls={activeEditor.kind === 'composer' ? tableControls : undefined}
+          runTableCommand={runEditorCommand}
           onUpdate={(html) => {
             setDraft(html);
           }}
@@ -2723,13 +2761,19 @@ function Toolbar({
   );
 }
 
-function TableControls({ runCommand }: { runCommand: (command: ToolbarCommand) => void }) {
+function TableControls({
+  runCommand,
+  position
+}: {
+  runCommand: (command: ToolbarCommand) => void;
+  position: TableControlsState;
+}) {
   return (
-    <div className="table-controls" aria-label="Table controls">
+    <div className="table-controls" aria-label="Table controls" style={{ top: position.top, left: position.left }}>
       <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableRowAfter')} title="Add row">+ row</button>
       <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableColumnAfter')} title="Add column">+ col</button>
-      <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteRow')} title="Delete selected row">del row</button>
-      <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteColumn')} title="Delete selected column">del col</button>
+      <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteRow')} title="Delete selected row">- row</button>
+      <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteColumn')} title="Delete selected column">- col</button>
     </div>
   );
 }

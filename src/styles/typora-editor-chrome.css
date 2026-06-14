@@ -190,7 +190,6 @@
 }
 
 .typora-app-shell .table-controls {
-  margin: -2px 0 8px;
   border: 1px solid var(--typora-editor-toolbar-border);
   border-radius: 4px;
   background: var(--typora-editor-toolbar-bg);

@@ -448,13 +448,18 @@ input, select { color: var(--ink); }
 .highlight-tool { color: var(--highlight-tool-ink); }
 .toolbar-divider { width: var(--toolbar-divider-width); height: var(--toolbar-divider-height); background: var(--line); }
 
+.rich-editor-wrap {
+  position: relative;
+}
+
 .table-controls {
+  position: absolute;
+  z-index: 6;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   width: fit-content;
   max-width: 100%;
-  margin: -2px 0 8px;
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: 7px;

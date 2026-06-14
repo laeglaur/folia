@@ -1,6 +1,8 @@
 import { chromium } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 
 const modKey = process.platform === 'darwin' ? 'Meta' : 'Control';
+await writeFile('/tmp/notebook-at-test.png', Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64'));
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({
   permissions: ['clipboard-read', 'clipboard-write']
@@ -173,13 +175,26 @@ await page.keyboard.type('/table ');
 await page.waitForFunction(() => document.querySelector('.composer table'));
 let inputRulesHtml = await inputRulesComposer.evaluate((node) => node.innerHTML);
 checks.underlineInputRule = inputRulesHtml.includes('<u>underlined</u>');
-checks.inlineMathInputRule = inputRulesHtml.includes('data-type="inline-math"') || inputRulesHtml.includes('math-inline') || inputRulesHtml.includes('a+b');
+checks.inlineMathInputRule = inputRulesHtml.includes('data-type="inline-math"') && inputRulesHtml.includes('data-latex="a+b"');
 checks.quoteInputRule = inputRulesHtml.includes('<blockquote') && inputRulesHtml.includes('quoted');
 checks.tableInputRule = inputRulesHtml.includes('<table');
 checks.tableControlsAppearInTable = await page.locator('.table-controls').evaluate((controls) => {
   const requiredTitles = ['Add row', 'Add column', 'Delete selected row', 'Delete selected column'];
-  return requiredTitles.every((title) => controls.querySelector(`button[title="${title}"]`));
+  const text = controls.textContent ?? '';
+  return requiredTitles.every((title) => controls.querySelector(`button[title="${title}"]`)) &&
+    text.includes('- row') &&
+    text.includes('- col');
 });
+
+await resetApp();
+const strikeInputComposer = page.locator('.composer').last();
+await strikeInputComposer.click();
+await page.keyboard.type('> ');
+await page.keyboard.type('~~非服务~~');
+inputRulesHtml = await strikeInputComposer.evaluate((node) => node.innerHTML);
+checks.strikeInputRuleSurvivesUnderlineRule = inputRulesHtml.includes('<blockquote') &&
+  inputRulesHtml.includes('<s>非服务</s>') &&
+  !inputRulesHtml.includes('<u>非服务</u>');
 
 await resetApp();
 await page.evaluate(() => {
@@ -211,6 +226,17 @@ await mathDollarComposer.click();
 await page.keyboard.type('$$ ');
 aliasHtml = await mathDollarComposer.evaluate((node) => node.innerHTML);
 checks.mathBlockDollarInputRule = aliasHtml.includes('data-type="block-math"') || aliasHtml.includes('md-math-block');
+
+await resetApp();
+const attachmentComposer = page.locator('.composer').last();
+await attachmentComposer.click();
+const chooserPromise = page.waitForEvent('filechooser');
+await page.keyboard.type('/at ');
+const chooser = await chooserPromise;
+await chooser.setFiles('/tmp/notebook-at-test.png');
+await page.waitForFunction(() => Boolean(document.querySelector('.composer img')));
+aliasHtml = await attachmentComposer.evaluate((node) => node.innerHTML);
+checks.attachmentShortcutInsertsImage = aliasHtml.includes('<img') && aliasHtml.includes('notebook-at-test.png');
 
 await resetApp();
 const listComposer = page.locator('.composer').last();
