@@ -1,4 +1,98 @@
 /* Runs after notebook base styles and before generated Typora themes. */
+/* TyporaContentBase: fill semantic gaps without falling back to Garden/Ledger tokens. */
+.typora-theme[data-content-theme^="typora-"] {
+  --typora-fallback-bg: var(--bg-color, #f7f7f7);
+  --typora-fallback-panel: var(--rawblock-edit-panel-bd, color-mix(in srgb, var(--typora-fallback-bg) 88%, var(--text-color, #202124)));
+  --typora-fallback-text: var(--text-color, #202124);
+  --typora-fallback-muted: var(--control-text-color, color-mix(in srgb, var(--typora-fallback-text) 66%, transparent));
+  --typora-fallback-line: var(--table-border-color, var(--window-border-color, color-mix(in srgb, var(--typora-fallback-text) 24%, transparent)));
+  --typora-fallback-accent: var(--primary-color, #4a89dc);
+  --typora-fallback-code-bg: var(--code-bg-color, var(--rawblock-edit-panel-bd, color-mix(in srgb, var(--typora-fallback-bg) 82%, var(--typora-fallback-text))));
+  --typora-fallback-code-text: var(--code-text-color, color-mix(in srgb, var(--typora-fallback-text) 88%, var(--typora-fallback-accent)));
+  --typora-fallback-mark-bg: color-mix(in srgb, var(--typora-fallback-accent) 26%, var(--typora-fallback-bg));
+  --typora-fallback-mark-text: color-mix(in srgb, var(--typora-fallback-text) 88%, white);
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc {
+  color: var(--typora-fallback-text);
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(h1, h2, h3, h4, h5, h6) {
+  color: inherit;
+  font-family: inherit;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(p, ul, ol, li, table, blockquote) {
+  color: inherit;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(a) {
+  color: var(--typora-fallback-accent);
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(mark) {
+  background: var(--typora-fallback-mark-bg);
+  color: var(--typora-fallback-mark-text);
+  border-radius: 0.25em;
+  box-shadow: none;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(code, tt) {
+  background: var(--typora-fallback-code-bg);
+  color: var(--typora-fallback-code-text);
+  border: 1px solid color-mix(in srgb, var(--typora-fallback-line) 78%, transparent);
+  border-radius: 4px;
+  font-family: var(--font-monospace, var(--code-font, "SF Mono", Menlo, Consolas, monospace));
+  padding: 0.12em 0.36em;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(pre, pre.md-fences) {
+  background: var(--typora-fallback-code-bg);
+  color: var(--typora-fallback-code-text);
+  border: 1px solid color-mix(in srgb, var(--typora-fallback-line) 78%, transparent);
+  border-radius: 6px;
+  font-family: var(--font-monospace, var(--code-font, "SF Mono", Menlo, Consolas, monospace));
+  padding: 0.9em 1em;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(blockquote) {
+  color: color-mix(in srgb, var(--typora-fallback-text) 86%, var(--typora-fallback-accent));
+  background: color-mix(in srgb, var(--typora-fallback-panel) 58%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--typora-fallback-accent) 62%, transparent);
+  border-radius: 0 6px 6px 0;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(hr) {
+  border: 0;
+  border-top: 1px solid var(--typora-fallback-line);
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(table) {
+  color: inherit;
+  border-color: var(--typora-fallback-line);
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(th, td) {
+  border-color: var(--typora-fallback-line);
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(kbd, .md-kbd) {
+  color: inherit;
+  background: color-mix(in srgb, var(--typora-fallback-panel) 72%, transparent);
+  border-color: var(--typora-fallback-line);
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where([data-type="block-math"], .md-math-block) {
+  background: var(--typora-fallback-code-bg);
+  color: var(--typora-fallback-code-text);
+  border: 1px solid color-mix(in srgb, var(--typora-fallback-line) 78%, transparent);
+  border-radius: 6px;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(input[type="checkbox"]) {
+  accent-color: var(--typora-fallback-accent);
+}
+
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc pre.md-fences,
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc pre.md-meta-block,
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc .md-diagram-panel,

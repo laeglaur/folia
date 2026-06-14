@@ -145,6 +145,27 @@ for (const theme of ['typora-zeus', 'typora-folio', 'typora-flexoki-light']) {
   });
 }
 
+await chooseContentTheme('typora-bonne-nouvelle');
+checks.typoraFallbackDoesNotUseNativeGardenChrome = await page.locator('.typora-write').evaluate((surface) => {
+  const h1 = surface.querySelector('h1');
+  const inlineCode = surface.querySelector('p code');
+  const mark = surface.querySelector('mark');
+  const pre = surface.querySelector('pre.md-fences');
+  if (!(h1 instanceof HTMLElement) || !(inlineCode instanceof HTMLElement) || !(mark instanceof HTMLElement) || !(pre instanceof HTMLElement)) return false;
+  const h1Styles = getComputedStyle(h1);
+  const codeStyles = getComputedStyle(inlineCode);
+  const markStyles = getComputedStyle(mark);
+  const preStyles = getComputedStyle(pre);
+  return h1Styles.color === 'rgb(184, 191, 198)' &&
+    h1Styles.fontFamily.includes('Courier') &&
+    codeStyles.backgroundColor !== 'rgb(238, 247, 241)' &&
+    codeStyles.color !== 'rgb(36, 83, 76)' &&
+    markStyles.backgroundColor !== 'rgb(237, 246, 234)' &&
+    markStyles.color !== 'rgb(47, 115, 95)' &&
+    preStyles.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+    preStyles.color !== 'rgb(36, 83, 76)';
+});
+
 await chooseContentTheme('typora-proof');
 checks.proofKeepsTyporaShellLayout = await page.evaluate(() => {
   const sidebar = document.querySelector('#typora-sidebar');
