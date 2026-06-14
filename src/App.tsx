@@ -19,10 +19,12 @@ import {
   MapPin,
   NotebookTabs,
   Outdent,
+  PanelTop,
   PanelRight,
   Plus,
   Quote,
   Search,
+  Settings2,
   Sigma,
   Sparkles,
   Strikethrough,
@@ -31,8 +33,7 @@ import {
   Underline as UnderlineIcon,
   Upload,
   Video,
-  Volume2,
-  PanelTop
+  Volume2
 } from 'lucide-react';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -51,7 +52,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { ListItem } from '@tiptap/extension-list';
 import { Extension, InputRule, Mark, Node, mergeAttributes } from '@tiptap/core';
-import type { AppState, Block, ContentThemeId, Page, ThemeId } from './types';
+import type { AppState, Block, ContentThemeId, Page, ShellLayoutId, ThemeId } from './types';
 import {
   appendOperation,
   createBlock,
@@ -83,6 +84,7 @@ type OutlineEntry = {
   text: string;
   index: number;
 };
+type SidebarTab = 'files' | 'outline' | 'pin' | 'tools';
 type ToolbarCommand =
   | 'bold'
   | 'italic'
@@ -171,6 +173,22 @@ const contentThemes: Array<{ id: ContentThemeId; label: string }> = [
   { id: 'typora-bonne-nouvelle', label: 'Bonne nouvelle' },
   { id: 'typora-flexoki-light', label: 'Flexoki Light' }
 ];
+
+type UnifiedThemeId = ThemeId | ContentThemeId;
+
+const unifiedThemes: Array<{ id: UnifiedThemeId; label: string }> = [
+  { id: 'garden', label: 'Garden' },
+  { id: 'ledger', label: 'Ledger' },
+  ...contentThemes.filter((theme) => theme.id !== 'notebook').map((theme) => ({ id: theme.id, label: theme.label }))
+];
+
+const shellLayouts: Array<{ id: ShellLayoutId; label: string }> = [
+  { id: 'auto', label: 'Auto layout' },
+  { id: 'tri-pane', label: 'Left / Write / Right' },
+  { id: 'left-tabs', label: 'Left tabs / Write' }
+];
+
+const isTyporaContentTheme = (theme: ContentThemeId) => theme.startsWith('typora-');
 
 const lowlight = createLowlight(common);
 
@@ -879,6 +897,7 @@ export function App() {
   const [query, setQuery] = useState('');
   const [activeEditor, setActiveEditor] = useState<EditorTarget>({ kind: 'composer' });
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
+  const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('files');
   const [showToolbar, setShowToolbar] = useState(true);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
   const [importNotice, setImportNotice] = useState<ImportNotice>({ kind: 'idle', message: '' });
@@ -908,6 +927,22 @@ export function App() {
 
   const activeNotebook = state.notebooks.find((notebook) => notebook.id === state.activeNotebookId) ?? state.notebooks[0];
   const activePage = state.pages.find((page) => page.id === state.activePageId) ?? state.pages[0];
+  const resolvedShellLayout: Exclude<ShellLayoutId, 'auto'> =
+    state.shellLayout === 'auto'
+      ? isTyporaContentTheme(state.contentTheme) ? 'left-tabs' : 'tri-pane'
+      : state.shellLayout;
+  const usesSidebarTabs = resolvedShellLayout === 'left-tabs';
+  const activeUnifiedTheme: UnifiedThemeId = isTyporaContentTheme(state.contentTheme) || state.contentTheme === 'typora-base' || state.contentTheme === 'typora-proof'
+    ? state.contentTheme
+    : state.theme;
+  const selectUnifiedTheme = (themeId: UnifiedThemeId) => {
+    setState((current) => {
+      if (themeId === 'garden' || themeId === 'ledger') {
+        return { ...current, theme: themeId, contentTheme: 'notebook' };
+      }
+      return { ...current, theme: 'garden', contentTheme: themeId as ContentThemeId };
+    });
+  };
   const pageBlocks = useMemo(
     () => activePage.blockIds.map((blockId) => state.blocks.find((block) => block.id === blockId)).filter(Boolean) as Block[],
     [activePage.blockIds, state.blocks]
@@ -1272,9 +1307,15 @@ export function App() {
       const hasChildren = Boolean(childPages.get(page.id)?.length);
       const expanded = state.expandedPageIds.includes(page.id);
       return (
-        <div className="page-tree-row" key={page.id} style={{ '--depth': depth } as React.CSSProperties}>
+        <div
+          className={`page-tree-row file-library-node ${page.id === activePage.id ? 'active' : ''}`}
+          data-is-directory={hasChildren ? 'true' : 'false'}
+          key={page.id}
+          style={{ '--depth': depth } as React.CSSProperties}
+        >
+          <span className="file-node-background" aria-hidden="true" />
           <button
-            className={`page-button ${page.id === activePage.id ? 'active' : ''}`}
+            className={`page-button file-node-content ${page.id === activePage.id ? 'active' : ''}`}
             draggable
             onDragStart={(event) => event.dataTransfer.setData('application/page-id', page.id)}
             onDragOver={(event) => event.preventDefault()}
@@ -1309,7 +1350,7 @@ export function App() {
             >
               {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
             </span>
-            <span>{page.title}</span>
+            <span className="file-node-title file-name">{page.title}</span>
           </button>
           {hasChildren && expanded && <div className="page-tree-children">{renderPageTree(page.id, depth + 1)}</div>}
         </div>
@@ -1324,104 +1365,221 @@ export function App() {
     );
   }
 
-  return (
-    <div className="app-shell typora-theme" data-content-theme={state.contentTheme}>
-      <aside className="sidebar">
+  const renderSearchControl = () => (
+    <div className="search-box">
+      <Search size={16} />
+      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="正文、block、todo" />
+    </div>
+  );
+
+  const toolsPanel = (
+    <section className="sidebar-section tools-panel" aria-label="Tools">
+      <div className="section-row">
+        <div className="section-label">Tools</div>
+      </div>
+      <div className="sidebar-control-list">
+        {renderSearchControl()}
+        <label className="view-toggle"><input type="checkbox" checked={showToolbar} onChange={(event) => setShowToolbar(event.target.checked)} /> Toolbar</label>
+        <label className="view-toggle"><input type="checkbox" checked={showComposerFooter} onChange={(event) => setShowComposerFooter(event.target.checked)} /> Add</label>
+        <label className="control-stack">
+          <span>Theme</span>
+          <select
+            className="theme-select unified-theme-select"
+            value={activeUnifiedTheme}
+            onChange={(event) => selectUnifiedTheme(event.target.value as UnifiedThemeId)}
+            aria-label="Theme"
+          >
+            {unifiedThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
+          </select>
+        </label>
+        <label className="control-stack">
+          <span>Layout</span>
+          <select
+            className="theme-select shell-layout-select"
+            value={state.shellLayout}
+            onChange={(event) => setState((current) => ({ ...current, shellLayout: event.target.value as ShellLayoutId }))}
+            aria-label="Shell layout"
+          >
+            {shellLayouts.map((layout) => <option key={layout.id} value={layout.id}>{layout.label}</option>)}
+          </select>
+        </label>
+        <div className="tool-action-grid">
+          <input
+            ref={markdownInputRef}
+            hidden
+            multiple
+            accept=".md,.markdown,.txt,text/markdown,text/plain"
+            type="file"
+            onChange={(event) => {
+              void importMarkdownFiles(event.target.files);
+              event.currentTarget.value = '';
+            }}
+          />
+          <button className="secondary-button" type="button" onClick={() => markdownInputRef.current?.click()}><FileUp size={15} /> Import MD</button>
+          <button className="secondary-button" type="button" onClick={exportMarkdown}><Download size={15} /> Markdown</button>
+          <button className="secondary-button" type="button" onClick={exportJson}><Upload size={15} /> Backup</button>
+        </div>
+      </div>
+    </section>
+  );
+
+  const filesPanel = (
+    <div className="files-panel sidebar-content-content">
+      {!usesSidebarTabs && (
         <div className="brand-block">
           <p className="eyebrow">{state.theme === 'ledger' ? 'ledger notes' : 'garden notes'}</p>
           <div className="brand-mark"><Sparkles size={20} /></div>
           <h1>Notebook</h1>
           <p className="profile-id">block-first</p>
         </div>
+      )}
 
-        <section className="sidebar-section">
-          <div className="section-row">
-            <div className="section-label">Notebooks</div>
-            <button className="mini-button" type="button" onClick={addNotebook} aria-label="New notebook"><Plus size={14} /></button>
-          </div>
-          <div className="notebook-list">
-            {state.notebooks.map((notebook) => (
-              <button
-                className={`notebook-button ${notebook.id === activeNotebook.id ? 'active' : ''}`}
-                key={notebook.id}
-                type="button"
-                onClick={() => setState((current) => ({
-                  ...current,
-                  activeNotebookId: notebook.id,
-                  activePageId: notebook.pageIds[0] ?? current.activePageId
-                }))}
-              >
-                <NotebookTabs size={15} />
-                {notebook.name}
-              </button>
-            ))}
-          </div>
-        </section>
+      <section className="sidebar-section">
+        <div className="section-row">
+          <div className="section-label">Notebooks</div>
+          <button className="mini-button" type="button" onClick={addNotebook} aria-label="New notebook"><Plus size={14} /></button>
+        </div>
+        <div className="notebook-list file-list">
+          {state.notebooks.map((notebook) => (
+            <button
+              className={`notebook-button file-list-item ${notebook.id === activeNotebook.id ? 'active' : ''}`}
+              key={notebook.id}
+              type="button"
+              onClick={() => setState((current) => ({
+                ...current,
+                activeNotebookId: notebook.id,
+                activePageId: notebook.pageIds[0] ?? current.activePageId
+              }))}
+            >
+              <NotebookTabs size={15} />
+              <span className="file-list-item-file-name">{notebook.name}</span>
+            </button>
+          ))}
+        </div>
+      </section>
 
-        <section className="sidebar-section pages-section">
-          <div className="section-row">
-            <div className="section-label">Pages</div>
-            <button className="mini-button" type="button" onClick={() => addPage(null)} aria-label="New page"><FilePlus size={14} /></button>
-          </div>
-          <div
-            className="page-tree"
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              const draggedId = event.dataTransfer.getData('application/page-id');
-              if (draggedId && event.currentTarget === event.target) movePageUnder(draggedId, null);
-            }}
-          >
-            {renderPageTree(null)}
-          </div>
-        </section>
+      <section className="sidebar-section pages-section">
+        <div className="section-row">
+          <div className="section-label">Pages</div>
+          <button className="mini-button" type="button" onClick={() => addPage(null)} aria-label="New page"><FilePlus size={14} /></button>
+        </div>
+        <div
+          className="page-tree file-library"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            const draggedId = event.dataTransfer.getData('application/page-id');
+            if (draggedId && event.currentTarget === event.target) movePageUnder(draggedId, null);
+          }}
+        >
+          {renderPageTree(null)}
+        </div>
+      </section>
 
+      {!usesSidebarTabs && (
         <section className="sidebar-note">
           <strong>今天也要</strong>
           <span>记录美好的一天哦~</span>
         </section>
-      </aside>
+      )}
+    </div>
+  );
+
+  const outlinePanel = (
+    <section className="panel-card outline-panel" id="outline-content">
+      <div className="panel-title outline-title-wrapper"><PanelRight size={16} /> <span className="outline-title">Outline</span></div>
+      <div className="outline-list typora-toc md-toc md-toc-content outline-content">
+        {outlineEntries.map((entry) => (
+          <button
+            className={`outline-entry outline-item md-toc-item md-toc-h${Math.max(1, entry.level)} outline-kind-${entry.kind}`}
+            key={entry.id}
+            onClick={() => jumpToOutlineEntry(entry)}
+            style={{ '--level': entry.level } as React.CSSProperties}
+            type="button"
+          >
+            <span className="outline-expander" aria-hidden="true">{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
+            <span className="outline-label md-toc-inner">{entry.text}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+
+  const pinnedPanel = (
+    <section className="panel-card desktop-preview pin-panel">
+      <div className="panel-title"><MapPin size={16} /> Pinned</div>
+      {pinnedBlocks.length ? pinnedBlocks.map((block) => (
+        <button
+          className="desktop-card"
+          key={block.id}
+          type="button"
+          onClick={() => openPinnedWindow(block.id)}
+        >
+          <div dangerouslySetInnerHTML={{ __html: block.content.html }} />
+        </button>
+      )) : <p className="muted">Pin blocks to keep them close.</p>}
+    </section>
+  );
+
+  const sidebarTabs: Array<{ id: SidebarTab; label: string; icon: React.ReactNode; panel: React.ReactNode }> = [
+    { id: 'files', label: 'Files', icon: <NotebookTabs size={15} />, panel: filesPanel },
+    { id: 'outline', label: 'Outline', icon: <PanelRight size={15} />, panel: outlinePanel },
+    { id: 'pin', label: 'Pin', icon: <MapPin size={15} />, panel: pinnedPanel },
+    { id: 'tools', label: 'Tools', icon: <Settings2 size={15} />, panel: toolsPanel }
+  ];
+
+  const activeTabPanel = sidebarTabs.find((tab) => tab.id === activeSidebarTab)?.panel ?? filesPanel;
+
+  const sidebar = (
+    <aside
+      id={usesSidebarTabs ? 'typora-sidebar' : undefined}
+      className={`sidebar ${usesSidebarTabs ? `typora-sidebar active-tab-${activeSidebarTab}` : ''}`}
+      data-sidebar-layout={usesSidebarTabs ? 'tabs' : 'stack'}
+    >
+      {usesSidebarTabs ? (
+        <>
+          <div className="sidebar-tabs tab-bar" role="tablist" aria-label="Notebook sidebar">
+            {sidebarTabs.map((tab) => (
+              <button
+                aria-selected={activeSidebarTab === tab.id}
+                className={`sidebar-tab ${activeSidebarTab === tab.id ? 'active sidebar-tab-active' : ''}`}
+                id={tab.id === 'files' ? 'info-panel-tab-file' : tab.id === 'outline' ? 'info-panel-tab-outline' : undefined}
+                key={tab.id}
+                onClick={() => setActiveSidebarTab(tab.id)}
+                role="tab"
+                type="button"
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+          <div id="sidebar-content" className="sidebar-content" role="tabpanel">
+            {activeTabPanel}
+          </div>
+        </>
+      ) : (
+        <>
+          {filesPanel}
+          {toolsPanel}
+        </>
+      )}
+    </aside>
+  );
+
+  return (
+    <div className={`app-shell typora-theme shell-layout-${resolvedShellLayout}`} data-content-theme={state.contentTheme} data-shell-layout={resolvedShellLayout}>
+      {sidebar}
 
       <main className="workspace">
-        <header className="topbar">
-          <div className="search-box">
-            <Search size={16} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="正文、block、todo" />
-          </div>
-          <div className="topbar-actions">
-            <label className="view-toggle"><input type="checkbox" checked={showToolbar} onChange={(event) => setShowToolbar(event.target.checked)} /> Toolbar</label>
-            <label className="view-toggle"><input type="checkbox" checked={showComposerFooter} onChange={(event) => setShowComposerFooter(event.target.checked)} /> Add</label>
-            <select
-              className="theme-select"
-              value={state.theme}
-              onChange={(event) => setState((current) => ({ ...current, theme: event.target.value as ThemeId }))}
-              aria-label="Shell theme"
-            >
-              {themes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
-            </select>
-            <select
-              className="theme-select content-theme-select"
-              value={state.contentTheme}
-              onChange={(event) => setState((current) => ({ ...current, contentTheme: event.target.value as ContentThemeId }))}
-              aria-label="Content theme"
-            >
-              {contentThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
-            </select>
-            <input
-              ref={markdownInputRef}
-              hidden
-              multiple
-              accept=".md,.markdown,.txt,text/markdown,text/plain"
-              type="file"
-              onChange={(event) => {
-                void importMarkdownFiles(event.target.files);
-                event.currentTarget.value = '';
-              }}
-            />
-            <button className="secondary-button" type="button" onClick={() => markdownInputRef.current?.click()}><FileUp size={15} /> Import MD</button>
-            <button className="secondary-button" type="button" onClick={exportMarkdown}><Download size={15} /> Markdown</button>
-            <button className="secondary-button" type="button" onClick={exportJson}><Upload size={15} /> Backup</button>
-          </div>
-        </header>
+        {resolvedShellLayout === 'tri-pane' && (
+          <header className="topbar">
+            {renderSearchControl()}
+            <div className="topbar-actions topbar-status">
+              <span>Tri-pane</span>
+              <button className="secondary-button compact-tools-button" type="button" onClick={() => setActiveSidebarTab('tools')}><Settings2 size={15} /> Tools</button>
+            </div>
+          </header>
+        )}
 
         {importNotice.kind !== 'idle' && (
           <div className={`import-notice ${importNotice.kind}`} role="status" aria-live="polite">
@@ -1524,39 +1682,12 @@ export function App() {
         </section>
       </main>
 
-      <aside className="right-panel">
-        <section className="panel-card">
-          <div className="panel-title"><PanelRight size={16} /> Outline</div>
-          <div className="outline-list typora-toc md-toc md-toc-content">
-            {outlineEntries.map((entry) => (
-              <button
-                className={`outline-entry md-toc-item outline-kind-${entry.kind}`}
-                key={entry.id}
-                onClick={() => jumpToOutlineEntry(entry)}
-                style={{ '--level': entry.level } as React.CSSProperties}
-                type="button"
-              >
-                <span>{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
-                <span>{entry.text}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="panel-card desktop-preview">
-          <div className="panel-title"><MapPin size={16} /> Pinned</div>
-          {pinnedBlocks.length ? pinnedBlocks.map((block) => (
-            <button
-              className="desktop-card"
-              key={block.id}
-              type="button"
-              onClick={() => openPinnedWindow(block.id)}
-            >
-              <div dangerouslySetInnerHTML={{ __html: block.content.html }} />
-            </button>
-          )) : <p className="muted">Pin blocks to keep them close.</p>}
-        </section>
-      </aside>
+      {resolvedShellLayout === 'tri-pane' && (
+        <aside className="right-panel">
+          {outlinePanel}
+          {pinnedPanel}
+        </aside>
+      )}
 
       {openCardBlock && (
         <div className="floating-card-window">

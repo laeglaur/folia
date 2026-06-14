@@ -18,6 +18,21 @@
   --floating-card-body-ink: var(--theme-ink);
 }
 
+.typora-theme[data-content-theme^="typora-"].shell-layout-left-tabs,
+.typora-theme[data-content-theme^="typora-"][data-shell-layout="left-tabs"] {
+  --theme-panel-background: var(--theme-surface-solid);
+}
+
+.typora-theme[data-content-theme^="typora-"].shell-layout-left-tabs #typora-sidebar,
+.typora-theme[data-content-theme^="typora-"][data-shell-layout="left-tabs"] #typora-sidebar {
+  display: flex;
+}
+
+.typora-theme[data-content-theme^="typora-"].shell-layout-left-tabs #typora-sidebar .sidebar-tabs,
+.typora-theme[data-content-theme^="typora-"][data-shell-layout="left-tabs"] #typora-sidebar .sidebar-tabs {
+  display: grid;
+}
+
 .typora-theme[data-content-theme="typora-konayuki"] {
   --theme-bg: #eef8fb;
   --theme-surface-solid: #fbfeff;
@@ -412,6 +427,28 @@
   text-align: left;
   font-size: var(--outline-font-size);
   line-height: var(--outline-line-height);
+}
+
+.typora-theme[data-content-theme^="typora-"] #typora-sidebar .panel-title,
+.typora-theme[data-content-theme^="typora-"] #typora-sidebar .section-label,
+.typora-theme[data-content-theme^="typora-"] #typora-sidebar .control-stack,
+.typora-theme[data-content-theme^="typora-"] #typora-sidebar .view-toggle {
+  color: inherit;
+}
+
+.typora-theme[data-content-theme^="typora-"] #typora-sidebar .desktop-card {
+  color: var(--desktop-card-ink);
+  font-family: var(--editor-font);
+  font-size: var(--desktop-card-font-size);
+  line-height: var(--desktop-card-line-height);
+  letter-spacing: 0;
+}
+
+.typora-theme[data-content-theme^="typora-"] #typora-sidebar .pin-panel .desktop-card {
+  background: var(--desktop-card-background);
+  border: var(--desktop-card-border);
+  border-radius: var(--desktop-card-radius);
+  padding: var(--desktop-card-padding);
 }
 
 .typora-theme[data-content-theme^="typora-"] .right-panel .outline-entry:hover {

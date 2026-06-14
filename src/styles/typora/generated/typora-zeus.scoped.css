@@ -6,7 +6,7 @@
 }
 
 /* --- 1. Global Variable Definitions (Typora System UI) --- */
-.typora-theme[data-content-theme="typora-zeus"] .typora-write {
+.typora-theme[data-content-theme="typora-zeus"] {
     /* --- Core Background & Text --- */
     --bg-color: #1e1e1e;                /* Global background: dark grey */
     --text-color: #d4d4d4;              /* Global text: light grey */
@@ -398,6 +398,7 @@
 
 /* --- 14. Table of Contents (TOC) --- */
 .typora-theme[data-content-theme="typora-zeus"] .md-toc { margin-top: 28px; margin-left: 0px; margin-right: 0px; }
+.typora-theme[data-content-theme="typora-zeus"] .sidebar-tabs { border-bottom: none; }
 
 .typora-theme[data-content-theme="typora-zeus"] .md-toc-content { position: relative; }
 .typora-theme[data-content-theme="typora-zeus"] .md-toc-content .md-toc-item { position: relative; color: #d4d4d4; }
@@ -457,10 +458,14 @@
     color: #ccc;
 }
 
+.typora-theme[data-content-theme="typora-zeus"] .mac-seamless-mode #typora-sidebar {
+    background-color: var(--side-bar-bg-color);
+}
+
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-lang { color: #ce9178; }
 
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .pin-outline #outline-content .outline-active strong,
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .pin-outline .outline-active { color: #e8944c; }
+.typora-theme[data-content-theme="typora-zeus"] .pin-outline #outline-content .outline-active strong,
+.typora-theme[data-content-theme="typora-zeus"] .pin-outline .outline-active { color: #e8944c; }
 
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .code-tooltip {
     border-radius: 4px;
@@ -492,7 +497,7 @@
     background-color: var(--bg-color);
 }
 
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .outline-label { font-family: var(--font-sans-serif); color: #ccc; }
+.typora-theme[data-content-theme="typora-zeus"] .outline-label { font-family: var(--font-sans-serif); color: #ccc; }
 
 .typora-theme[data-content-theme="typora-zeus"] .typora-write h1.md-end-block.md-heading span:first-of-type,
 .typora-theme[data-content-theme="typora-zeus"] .typora-write h2.md-end-block.md-heading span:first-of-type,
@@ -550,8 +555,21 @@
 
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-hr:focus { outline: none; }
 
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .outline-content li,
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .outline-content ul { margin-top: 2px; }
+.typora-theme[data-content-theme="typora-zeus"] .outline-item.outline-item-active {
+    background-color: rgba(232, 148, 76, 0.3);
+    border-radius: 8px;
+    color: #fff;
+}
+
+.typora-theme[data-content-theme="typora-zeus"] .outline-item.outline-item-active span::before { color: #e8944c; }
+
+.typora-theme[data-content-theme="typora-zeus"] .outline-content li,
+.typora-theme[data-content-theme="typora-zeus"] .outline-content ul { margin-top: 2px; }
+
+.typora-theme[data-content-theme="typora-zeus"] .typora-node #typora-sidebar {
+    background-color: var(--side-bar-bg-color);
+    border-right: 1px solid #111;
+}
 
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-empty .md-meta,
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-expand .md-content,

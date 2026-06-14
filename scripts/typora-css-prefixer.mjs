@@ -41,23 +41,13 @@ const themes = [
 ];
 
 const ignoredSelectorPatterns = [
-  /#typora-sidebar\b/,
   /#typora-source\b/,
   /\.CodeMirror\b/,
   /\.cm-s-inner\b/,
-  /\.file-node\b/,
   /\.megamenu\b/,
   /\.context-menu\b/,
   /\.md-search\b/,
   /#md-searchpanel\b/,
-  /\.sidebar\b/,
-  /#sidebar-content\b/,
-  /\.sidebar-content\b/,
-  /\.sidebar-tab\b/,
-  /\.outline-item\b/,
-  /\.file-list\b/,
-  /\.file-list-item\b/,
-  /\.typora-node\b/,
   /\.typora-quick-open\b/,
   /contentmenu/i,
   /footer\b/
@@ -98,6 +88,20 @@ const splitSelectors = (selector) => {
 };
 
 const shouldIgnoreSelector = (selector) => ignoredSelectorPatterns.some((pattern) => pattern.test(selector));
+const ignoredShellSelectorPatterns = [
+  /\.context-menu\b/,
+  /\.popover\b/,
+  /\.dropdown-menu\b/,
+  /\.modal-content\b/,
+  /\.ty-preferences\b/,
+  /\.export-/,
+  /#ty-tooltip\b/,
+  /\.footer-item\b/,
+  /\.sidebar-footer\b/,
+  /#ty-sidebar-footer\b/
+];
+
+const shouldIgnoreShellSelector = (selector) => ignoredShellSelectorPatterns.some((pattern) => pattern.test(selector));
 
 const normalizeTyporaSelector = (selector) =>
   selector
@@ -105,6 +109,9 @@ const normalizeTyporaSelector = (selector) =>
     .replace(/\.typora-export\b/g, '.typora-write');
 
 const isTocSelector = (selector) => /\.md-toc\b|\.md-toc-content\b|\.md-toc-item\b/.test(selector);
+const isRootSelector = (selector) => /^:root\b|^html\b|^body\b/.test(selector.trim());
+const isShellSelector = (selector) =>
+  /#typora-sidebar\b|#sidebar-content\b|\.sidebar\b|\.sidebar-content\b|\.sidebar-tabs\b|\.sidebar-tab\b|\.tab-bar\b|\.outline-title\b|\.outline-title-wrapper\b|\.outline-content\b|\.outline-item\b|\.outline-label\b|\.outline-expander\b|\.file-library-node\b|\.file-node\b|\.file-node-content\b|\.file-node-title\b|\.file-node-background\b|\.file-list\b|\.file-list-item\b|\.file-list-item-file-name\b|\.file-name\b|#info-panel-tab-file\b|#info-panel-tab-outline\b|\.active-tab-files\b|\.active-tab-outline\b|\.pin-outline\b/.test(selector);
 
 const findTyporaRootFontSize = (root) => {
   let rootFontSize = null;
@@ -128,15 +135,28 @@ const rewriteRemUnits = (value) =>
     return `calc(${numericAmount} * var(--typora-root-font-size, 16px))`;
   });
 
-const scopeSelector = (selector, themeId) => {
+const scopeSelector = (selector, themeId, rule) => {
   if (shouldIgnoreSelector(selector)) return null;
 
   const root = `.typora-theme[data-content-theme="${themeId}"]`;
   const write = `${root} .typora-write`;
   let scoped = normalizeTyporaSelector(selector);
 
+  const isVariableOnlyRootRule = isRootSelector(scoped) &&
+    rule.nodes?.some((node) => node.type === 'decl' && node.prop.startsWith('--')) &&
+    rule.nodes?.every((node) => node.type !== 'decl' || node.prop.startsWith('--'));
+
+  if (isVariableOnlyRootRule) {
+    return root;
+  }
+
   if (isTocSelector(scoped)) {
     return `${root} ${scoped.replace(/^\s*\.typora-write\s+/, '')}`;
+  }
+
+  if (isShellSelector(scoped)) {
+    if (shouldIgnoreShellSelector(scoped)) return null;
+    return `${root} ${scoped}`;
   }
 
   scoped = scoped
@@ -164,7 +184,7 @@ const scopeCss = (css, themeId) => {
 
   root.walkRules((rule) => {
     const selectors = splitSelectors(rule.selector)
-      .map((selector) => scopeSelector(selector, themeId))
+      .map((selector) => scopeSelector(selector, themeId, rule))
       .filter(Boolean);
 
     if (!selectors.length) {

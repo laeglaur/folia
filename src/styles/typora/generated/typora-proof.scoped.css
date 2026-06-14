@@ -51,3 +51,7 @@
   text-transform: uppercase;
 }
 
+.typora-theme[data-content-theme="typora-proof"] #typora-sidebar {
+  display: none;
+}
+
