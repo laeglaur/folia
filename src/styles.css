@@ -581,9 +581,14 @@ input, select { color: var(--ink); }
 }
 
 .star-pin-button {
-  width: 24px;
-  height: 24px;
-  transform: translateX(-7px);
+  width: 26px !important;
+  min-width: 26px !important;
+  max-width: 26px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  padding: 0 !important;
+  transform: translateX(-16px);
   background: transparent !important;
   box-shadow: none !important;
 }
@@ -595,8 +600,13 @@ input, select { color: var(--ink); }
 }
 
 .star-pin-button img {
-  width: 20px;
-  height: 20px;
+  display: block;
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
   object-fit: contain;
   opacity: 0.34;
   filter: grayscale(1) saturate(0.7);
@@ -610,7 +620,7 @@ input, select { color: var(--ink); }
 }
 
 .star-pin-button.active img {
-  transform: scale(1.07);
+  transform: none;
 }
 .block-content,
 .composer,

@@ -220,6 +220,7 @@ const shellThemes: Array<{ id: ShellId; label: string }> = [
 
 const starIconUrl = '/app-assets/star.png';
 const fishIconUrl = '/app-assets/blue_red_fish.png';
+const foxIconUrl = '/app-assets/fox_head.png';
 
 const lowlight = createLowlight(common);
 
@@ -2728,6 +2729,14 @@ export function App() {
     </div>
   );
 
+  const renderBlockDivider = (key?: string) => showBlockDividers ? (
+    <hr
+      key={key}
+      className={`block-divider md-hr md-end-block ${themesWithoutNativeDivider.has(state.contentTheme) ? 'uses-default-divider' : 'uses-theme-divider'}`}
+      aria-hidden="true"
+    />
+  ) : null;
+
   const renderWriteSurface = () => (
     <section className="page-surface typora-content-surface typora-write" id="write">
       <input className="page-title" value={activePage.title} onChange={(event) => renamePage(event.target.value)} aria-label="Page title" />
@@ -2737,7 +2746,12 @@ export function App() {
         </div>
       ) : null}
 
-      {pageBlockOrder === 'desc' ? renderComposerCard() : null}
+      {pageBlockOrder === 'desc' ? (
+        <>
+          {renderComposerCard()}
+          {visibleBlocks.length ? renderBlockDivider('composer-to-first-block') : null}
+        </>
+      ) : null}
 
       <div className="block-list">
         {visibleBlocks.map((block, index) => (
@@ -2802,17 +2816,17 @@ export function App() {
                 </button>
               </div>
             </article>
-            {showBlockDividers && index < visibleBlocks.length - 1 && (
-              <hr
-                className={`block-divider md-hr md-end-block ${themesWithoutNativeDivider.has(state.contentTheme) ? 'uses-default-divider' : 'uses-theme-divider'}`}
-                aria-hidden="true"
-              />
-            )}
+            {index < visibleBlocks.length - 1 ? renderBlockDivider(`${block.id}:divider`) : null}
           </Fragment>
         ))}
       </div>
 
-      {pageBlockOrder === 'asc' ? renderComposerCard() : null}
+      {pageBlockOrder === 'asc' ? (
+        <>
+          {visibleBlocks.length ? renderBlockDivider('last-block-to-composer') : null}
+          {renderComposerCard()}
+        </>
+      ) : null}
     </section>
   );
 
@@ -2874,17 +2888,25 @@ export function App() {
     </aside>
   );
 
-  const renderOutlineToggle = (className = 'secondary-button') => (
-    <button
-      className={`${className} ${outlineDrawerOpen ? 'active' : ''}`}
-      type="button"
-      onClick={() => setOutlineDrawerOpen((open) => !open)}
-      aria-pressed={outlineDrawerOpen}
-      aria-label={outlineDrawerOpen ? 'Hide outline' : 'Show outline'}
-    >
-      <span>Outline</span><PanelRight size={15} />
-    </button>
-  );
+  const renderOutlineToggle = (className = 'secondary-button') => {
+    const edgeButton = className.includes('outline-edge-button');
+    return (
+      <button
+        className={`${className} ${outlineDrawerOpen ? 'active' : ''}`}
+        type="button"
+        onClick={() => setOutlineDrawerOpen((open) => !open)}
+        aria-pressed={outlineDrawerOpen}
+        aria-label={outlineDrawerOpen ? 'Hide outline' : 'Show outline'}
+        title={outlineDrawerOpen ? 'Hide outline' : 'Show outline'}
+      >
+        {edgeButton ? (
+          <img className="outline-toggle-image" src={foxIconUrl} alt="" aria-hidden="true" />
+        ) : (
+          <><span>Outline</span><img className="outline-toggle-image" src={foxIconUrl} alt="" aria-hidden="true" /></>
+        )}
+      </button>
+    );
+  };
 
   const renderCalendarView = () => {
     const currentMonthKey = monthKey(calendarMonth);

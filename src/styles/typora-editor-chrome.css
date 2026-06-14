@@ -66,7 +66,7 @@
 
 .typora-app-shell .block {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 24px;
+  grid-template-columns: 22px minmax(0, 1fr) 34px;
   gap: 7px;
   padding: 1px 0;
   border: 0;
@@ -152,9 +152,17 @@
 .typora-app-shell .block-actions .star-pin-button:hover,
 .typora-app-shell .block-actions .star-pin-button.active,
 .typora-app-shell .block-actions .icon-button.star-pin-button.active {
+  width: 26px !important;
+  height: 26px !important;
+  transform: translateX(-18px);
   border-color: transparent;
   background: transparent !important;
   box-shadow: none;
+}
+
+.typora-app-shell .block-actions .star-pin-button img {
+  width: 20px !important;
+  height: 20px !important;
 }
 
 .typora-app-shell .block-rail .fold-button:hover {
