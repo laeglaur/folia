@@ -184,7 +184,7 @@ checks.tableControlsAppearInTable = await page.locator('.table-controls').evalua
   return requiredTitles.every((title) => controls.querySelector(`button[title="${title}"]`)) &&
     text.includes('- row') &&
     text.includes('- col') &&
-    text.includes('- table');
+    text.includes('del');
 });
 await page.locator('.table-controls button[title="Delete table"]').click();
 checks.tableControlDeletesWholeTable = await page.waitForFunction(() => !document.querySelector('.composer table')).then(() => true).catch(() => false);

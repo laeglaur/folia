@@ -3069,7 +3069,7 @@ function TableControls({
       <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableColumnAfter')} title="Add column">+ col</button>
       <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteRow')} title="Delete selected row">- row</button>
       <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteColumn')} title="Delete selected column">- col</button>
-      <button className="table-control-button danger" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDelete')} title="Delete table">- table</button>
+      <button className="table-control-button danger" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDelete')} title="Delete table">del</button>
     </div>
   );
 }
