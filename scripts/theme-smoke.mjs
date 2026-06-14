@@ -188,18 +188,26 @@ checks.konayukiCodeAndTableUseTheme = await (async () => {
     const math = element.querySelector('[data-type="block-math"]');
     const alert = element.querySelector('.md-alert-warning');
     const kbd = element.querySelector('kbd');
-    if (!(pre instanceof HTMLElement) || !(table instanceof HTMLElement) || !(mark instanceof HTMLElement) || !(math instanceof HTMLElement) || !(alert instanceof HTMLElement) || !(kbd instanceof HTMLElement)) return false;
+    const td = element.querySelector('td');
+    const cellParagraph = element.querySelector('td p');
+    if (!(pre instanceof HTMLElement) || !(table instanceof HTMLElement) || !(mark instanceof HTMLElement) || !(math instanceof HTMLElement) || !(alert instanceof HTMLElement) || !(kbd instanceof HTMLElement) || !(td instanceof HTMLElement) || !(cellParagraph instanceof HTMLElement)) return false;
     const preStyles = getComputedStyle(pre);
     const tableStyles = getComputedStyle(table);
     const markStyles = getComputedStyle(mark);
     const mathStyles = getComputedStyle(math);
     const alertStyles = getComputedStyle(alert);
     const kbdStyles = getComputedStyle(kbd);
+    const tdStyles = getComputedStyle(td);
+    const cellParagraphStyles = getComputedStyle(cellParagraph);
     return preStyles.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
       preStyles.backgroundImage === 'none' &&
       preStyles.borderTopStyle !== 'none' &&
       tableStyles.borderCollapse === 'separate' &&
       tableStyles.borderTopColor === 'rgb(226, 221, 211)' &&
+      tdStyles.textAlign === 'left' &&
+      tdStyles.verticalAlign === 'middle' &&
+      cellParagraphStyles.marginTop === '0px' &&
+      cellParagraphStyles.marginBottom === '0px' &&
       markStyles.backgroundColor === 'rgb(255, 243, 205)' &&
       markStyles.boxShadow === 'none' &&
       mathStyles.backgroundColor === preStyles.backgroundColor &&
@@ -271,15 +279,19 @@ for (const theme of ['typora-konayuki', 'typora-swiss']) {
     const string = surface.querySelector('pre.md-fences .hljs-string');
     const table = surface.querySelector('table');
     const th = surface.querySelector('th');
+    const td = surface.querySelector('td');
+    const cellParagraph = surface.querySelector('td p');
     const math = surface.querySelector('[data-type="block-math"]');
     const mathInner = surface.querySelector('[data-type="block-math"] .block-math-inner');
-    if (!(pre instanceof HTMLElement) || !(keyword instanceof HTMLElement) || !(string instanceof HTMLElement) || !(table instanceof HTMLElement) || !(th instanceof HTMLElement) || !(math instanceof HTMLElement) || !(mathInner instanceof HTMLElement)) return false;
+    if (!(pre instanceof HTMLElement) || !(keyword instanceof HTMLElement) || !(string instanceof HTMLElement) || !(table instanceof HTMLElement) || !(th instanceof HTMLElement) || !(td instanceof HTMLElement) || !(cellParagraph instanceof HTMLElement) || !(math instanceof HTMLElement) || !(mathInner instanceof HTMLElement)) return false;
 
     const preStyles = getComputedStyle(pre);
     const keywordStyles = getComputedStyle(keyword);
     const stringStyles = getComputedStyle(string);
     const tableStyles = getComputedStyle(table);
     const thStyles = getComputedStyle(th);
+    const tdStyles = getComputedStyle(td);
+    const cellParagraphStyles = getComputedStyle(cellParagraph);
     const mathStyles = getComputedStyle(math);
     const mathInnerStyles = getComputedStyle(mathInner);
 
@@ -294,6 +306,10 @@ for (const theme of ['typora-konayuki', 'typora-swiss']) {
         tableStyles.borderCollapse === 'separate' &&
         tableStyles.borderTopColor === 'rgb(226, 221, 211)' &&
         thStyles.backgroundColor === 'rgb(247, 244, 239)' &&
+        tdStyles.textAlign === 'left' &&
+        tdStyles.verticalAlign === 'middle' &&
+        cellParagraphStyles.marginTop === '0px' &&
+        cellParagraphStyles.marginBottom === '0px' &&
         mathUsesCodeFrame &&
         mathIsCentered;
     }

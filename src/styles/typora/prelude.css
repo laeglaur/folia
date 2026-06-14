@@ -5,3 +5,13 @@
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc [data-type="block-math"] {
   background-image: none;
 }
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc th,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc td {
+  vertical-align: middle;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc th > p,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc td > p {
+  margin: 0;
+}
