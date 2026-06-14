@@ -88,6 +88,13 @@
   padding: 0;
 }
 
+.typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .outline-item.active,
+.typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .outline-item-active,
+.typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .outline-item.active:hover,
+.typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .outline-item-active:hover {
+  padding-left: 7px;
+}
+
 .typora-app-shell #typora-sidebar .outline-content.md-toc-content {
   margin: 0;
   padding: 0;

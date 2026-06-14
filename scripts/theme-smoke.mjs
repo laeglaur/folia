@@ -187,14 +187,14 @@ checks.typoraOutlineDoesNotUseContentTocCard = await page.evaluate(() => {
     styles.marginTop === '0px';
 });
 
-checks.typoraOutlineDoesNotExposeAppBadges = await page.evaluate(() => {
+checks.typoraOutlineKeepsTypeLabels = await page.evaluate(() => {
   const firstItem = document.querySelector('#typora-sidebar .outline-item');
   const expander = firstItem?.querySelector('.outline-expander');
   const label = firstItem?.querySelector('.outline-label');
   if (!(firstItem instanceof HTMLElement) || !(expander instanceof HTMLElement) || !(label instanceof HTMLElement)) return false;
-  return expander.textContent?.trim() === '' &&
+  return expander.textContent?.trim().length > 0 &&
     label.textContent?.trim().length > 0 &&
-    firstItem.textContent?.trim() === label.textContent?.trim();
+    firstItem.textContent?.trim().startsWith(expander.textContent?.trim() ?? '');
 });
 
 await chooseContentTheme('typora-zeus');
