@@ -430,25 +430,6 @@
   background: transparent;
 }
 
-.typora-theme[data-content-theme^="typora-"] .typora-write .page-title,
-.typora-theme[data-content-theme^="typora-"] .typora-write .page-metadata,
-.typora-theme[data-content-theme^="typora-"] .typora-write .format-toolbar,
-.typora-theme[data-content-theme^="typora-"] .typora-write .composer-footer,
-.typora-theme[data-content-theme^="typora-"] .typora-write .block-rail,
-.typora-theme[data-content-theme^="typora-"] .typora-write .block-actions {
-  color: var(--ink);
-  font-family: var(--ui-font);
-  font-size: revert;
-  line-height: normal;
-  letter-spacing: 0;
-}
-
-.typora-theme[data-content-theme^="typora-"] .typora-write .format-toolbar button,
-.typora-theme[data-content-theme^="typora-"] .typora-write .block-actions button,
-.typora-theme[data-content-theme^="typora-"] .typora-write .block-rail button {
-  font-family: var(--ui-font);
-}
-
 .typora-theme[data-content-theme^="typora-"] .right-panel,
 .typora-theme[data-content-theme^="typora-"] .right-panel .panel-card,
 .typora-theme[data-content-theme^="typora-"] .right-panel .outline-list,

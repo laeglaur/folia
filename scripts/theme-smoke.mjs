@@ -219,6 +219,45 @@ checks.konayukiFileActiveDoesNotNestFrame = await page.evaluate(() => {
     titleStyles.boxShadow === 'none';
 });
 
+checks.typoraEditorChromeBaseOwnsBlockUi = await page.evaluate(() => {
+  const write = document.querySelector('.page-surface.typora-write');
+  const title = document.querySelector('.page-title');
+  const block = document.querySelector('.typora-write .block');
+  const composerCard = document.querySelector('.composer-card');
+  if (!(write instanceof HTMLElement) || !(title instanceof HTMLElement) || !(block instanceof HTMLElement) || !(composerCard instanceof HTMLElement)) return false;
+
+  const writeStyles = getComputedStyle(write);
+  const titleStyles = getComputedStyle(title);
+  const blockStyles = getComputedStyle(block);
+  const composerStyles = getComputedStyle(composerCard);
+  const writeRect = write.getBoundingClientRect();
+  const titleRect = title.getBoundingClientRect();
+
+  return writeStyles.paddingTop === '8px' &&
+    titleRect.top - writeRect.top < 16 &&
+    Number.parseFloat(titleStyles.fontSize) < 36 &&
+    titleStyles.borderRadius === '0px' &&
+    blockStyles.backgroundColor === 'rgba(0, 0, 0, 0)' &&
+    blockStyles.borderTopStyle === 'none' &&
+    blockStyles.borderRadius === '0px' &&
+    composerStyles.backgroundColor === 'rgba(0, 0, 0, 0)' &&
+    composerStyles.borderRadius === '0px' &&
+    Number.parseFloat(composerStyles.marginTop) < 48;
+});
+
+await composer.click();
+checks.typoraEditorToolbarIsCompact = await page.evaluate(() => {
+  const toolbar = document.querySelector('.typora-write .format-toolbar');
+  if (!(toolbar instanceof HTMLElement)) return false;
+  const styles = getComputedStyle(toolbar);
+  const rect = toolbar.getBoundingClientRect();
+  return styles.flexWrap === 'nowrap' &&
+    Number.parseFloat(styles.borderRadius) <= 4 &&
+    rect.height <= 40 &&
+    rect.width > 500 &&
+    styles.boxShadow === 'none';
+});
+
 await page.getByRole('button', { name: 'Outline' }).click();
 checks.typoraOutlineDoesNotUseContentTocCard = await page.evaluate(() => {
   const outline = document.querySelector('#typora-sidebar .outline-content.md-toc-content');

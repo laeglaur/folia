@@ -1,5 +1,7 @@
 .typora-app-shell {
   --typora-shell-sidebar-width: 260px;
+  --typora-shell-workspace-padding: 34px 34px 80px;
+  --typora-shell-page-top: 34px;
   --typora-shell-divider: var(--panel-border-color, color-mix(in srgb, var(--theme-line, #d8d8d8) 72%, transparent));
   --typora-shell-muted: var(--control-text-color, var(--theme-muted, #6b7280));
   --typora-shell-ink: var(--text-color, var(--theme-ink, #202124));
@@ -30,7 +32,7 @@
   min-width: 0;
   height: 100vh;
   overflow: auto;
-  padding: 34px 34px 80px;
+  padding: var(--typora-shell-workspace-padding);
   background: transparent;
 }
 
