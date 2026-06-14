@@ -1537,6 +1537,14 @@ const createEditorExtensions = (
   Placeholder.configure({ placeholder: placeholder ?? '' })
 ];
 
+const deferEditorSideEffect = (callback: () => void) => {
+  if (typeof window === 'undefined') {
+    callback();
+    return;
+  }
+  window.setTimeout(callback, 0);
+};
+
 function RichEditor({
   className,
   html,
@@ -1572,14 +1580,22 @@ function RichEditor({
     },
     onFocus: ({ editor }) => {
       window.__notebookActiveMathEditor = editor;
-      onFocus(editor);
+      deferEditorSideEffect(() => onFocus(editor));
     },
     onSelectionUpdate: ({ editor }) => {
       window.__notebookActiveMathEditor = editor;
-      onSelectionUpdate?.(editor);
+      deferEditorSideEffect(() => onSelectionUpdate?.(editor));
     },
-    onUpdate: ({ editor }) => onUpdate?.(editor.getHTML(), editor.getText()),
-    onBlur: ({ editor }) => onBlur?.(editor.getHTML(), editor.getText())
+    onUpdate: ({ editor }) => {
+      const nextHtml = editor.getHTML();
+      const nextText = editor.getText();
+      deferEditorSideEffect(() => onUpdate?.(nextHtml, nextText));
+    },
+    onBlur: ({ editor }) => {
+      const nextHtml = editor.getHTML();
+      const nextText = editor.getText();
+      deferEditorSideEffect(() => onBlur?.(nextHtml, nextText));
+    }
   });
 
   useEffect(() => {
