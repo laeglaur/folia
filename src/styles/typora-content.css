@@ -150,6 +150,27 @@
   overflow-x: auto;
 }
 
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc pre.md-fences > code,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc pre.md-fences > code.hljs {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  white-space: pre;
+}
+
+.typora-theme[data-content-theme="typora-zeus"] .typora-block-doc pre.md-fences > code,
+.typora-theme[data-content-theme="typora-zeus"] .typora-block-doc pre.md-fences > code.hljs {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc [data-type="block-math"] .block-math-inner {
   text-align: center;
 }

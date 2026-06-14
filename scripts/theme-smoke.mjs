@@ -122,6 +122,29 @@ for (const theme of ['typora-proof', 'typora-konayuki', 'typora-swiss', 'typora-
   checks.typoraThemesAreSelectable = checks.typoraThemesAreSelectable && await page.evaluate((expected) => document.documentElement.dataset.contentTheme === expected, theme);
 }
 
+checks.fencedCodeDoesNotUseInlineCodeChrome = true;
+for (const theme of ['typora-zeus', 'typora-folio', 'typora-flexoki-light']) {
+  await chooseContentTheme(theme);
+  checks.fencedCodeDoesNotUseInlineCodeChrome = checks.fencedCodeDoesNotUseInlineCodeChrome && await page.locator('.typora-write').evaluate((surface) => {
+    const pre = surface.querySelector('pre.md-fences');
+    const blockCode = surface.querySelector('pre.md-fences > code');
+    const inlineCode = surface.querySelector('p code');
+    if (!(pre instanceof HTMLElement) || !(blockCode instanceof HTMLElement) || !(inlineCode instanceof HTMLElement)) return false;
+    const preStyles = getComputedStyle(pre);
+    const blockCodeStyles = getComputedStyle(blockCode);
+    const inlineStyles = getComputedStyle(inlineCode);
+    return blockCodeStyles.backgroundColor === 'rgba(0, 0, 0, 0)' &&
+      blockCodeStyles.borderTopStyle === 'none' &&
+      blockCodeStyles.borderTopWidth === '0px' &&
+      blockCodeStyles.borderRadius === '0px' &&
+      blockCodeStyles.boxShadow === 'none' &&
+      blockCodeStyles.display === 'block' &&
+      blockCodeStyles.color === preStyles.color &&
+      inlineStyles.display === 'inline' &&
+      inlineStyles.paddingLeft !== blockCodeStyles.paddingLeft;
+  });
+}
+
 await chooseContentTheme('typora-proof');
 checks.proofKeepsTyporaShellLayout = await page.evaluate(() => {
   const sidebar = document.querySelector('#typora-sidebar');
