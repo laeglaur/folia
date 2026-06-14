@@ -1,5 +1,6 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
+use std::collections::HashSet;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Read;
@@ -19,6 +20,13 @@ struct ImportedAsset {
     mime_type: String,
     size: u64,
     sha256: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AttachmentCleanupResult {
+    removed_count: usize,
+    removed_bytes: u64,
 }
 
 fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -256,6 +264,53 @@ fn import_asset_bytes_into_store(
     })
 }
 
+fn cleanup_orphan_attachments_in_store(
+    connection: &Connection,
+    app_data_dir: PathBuf,
+    referenced_asset_ids: Vec<String>,
+) -> Result<AttachmentCleanupResult, String> {
+    let referenced: HashSet<String> = referenced_asset_ids.into_iter().collect();
+    let attachments_root = app_data_dir.join(ATTACHMENTS_DIR);
+    let mut statement = connection
+        .prepare("SELECT id, stored_path, size FROM attachments")
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                PathBuf::from(row.get::<_, String>(1)?),
+                row.get::<_, i64>(2)?,
+            ))
+        })
+        .map_err(|error| error.to_string())?;
+
+    let mut removed_count = 0usize;
+    let mut removed_bytes = 0u64;
+    for row in rows {
+        let (id, stored_path, size) = row.map_err(|error| error.to_string())?;
+        if referenced.contains(&id) {
+            continue;
+        }
+        if stored_path.starts_with(&attachments_root) {
+            match fs::remove_file(&stored_path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.to_string()),
+            }
+        }
+        connection
+            .execute("DELETE FROM attachments WHERE id = ?1", params![id])
+            .map_err(|error| error.to_string())?;
+        removed_count += 1;
+        removed_bytes += size.max(0) as u64;
+    }
+
+    Ok(AttachmentCleanupResult {
+        removed_count,
+        removed_bytes,
+    })
+}
+
 #[tauri::command]
 fn load_state_snapshot(app: AppHandle) -> Result<Option<String>, String> {
     let connection = open_database(&app)?;
@@ -304,6 +359,15 @@ fn import_asset_bytes(
     import_asset_bytes_into_store(&connection, app_data_dir(&app)?, filename, mime_type, bytes)
 }
 
+#[tauri::command]
+fn cleanup_orphan_attachments(
+    app: AppHandle,
+    referenced_asset_ids: Vec<String>,
+) -> Result<AttachmentCleanupResult, String> {
+    let connection = open_database(&app)?;
+    cleanup_orphan_attachments_in_store(&connection, app_data_dir(&app)?, referenced_asset_ids)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -312,7 +376,8 @@ pub fn run() {
             load_state_snapshot,
             save_state_snapshot,
             import_local_asset,
-            import_asset_bytes
+            import_asset_bytes,
+            cleanup_orphan_attachments
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -443,5 +508,45 @@ mod tests {
 
         assert_eq!(imported_again.id, imported.id);
         assert_eq!(row_count(&connection), 1);
+    }
+
+    #[test]
+    fn cleanup_orphan_attachments_removes_unreferenced_files_and_rows() {
+        let app_data = tempfile::tempdir().expect("app data temp dir");
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+
+        let kept = import_asset_bytes_into_store(
+            &connection,
+            app_data.path().to_path_buf(),
+            "keep.png".to_string(),
+            "image/png".to_string(),
+            b"keep image payload".to_vec(),
+        )
+        .expect("kept asset import");
+        let removed = import_asset_bytes_into_store(
+            &connection,
+            app_data.path().to_path_buf(),
+            "remove.png".to_string(),
+            "image/png".to_string(),
+            b"remove image payload".to_vec(),
+        )
+        .expect("removed asset import");
+
+        assert_eq!(row_count(&connection), 2);
+        assert!(Path::new(&kept.stored_path).is_file());
+        assert!(Path::new(&removed.stored_path).is_file());
+
+        let result = cleanup_orphan_attachments_in_store(
+            &connection,
+            app_data.path().to_path_buf(),
+            vec![kept.id.clone()],
+        )
+        .expect("cleanup orphan attachments");
+
+        assert_eq!(result.removed_count, 1);
+        assert_eq!(row_count(&connection), 1);
+        assert!(Path::new(&kept.stored_path).is_file());
+        assert!(!Path::new(&removed.stored_path).exists());
     }
 }

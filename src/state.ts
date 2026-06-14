@@ -1,6 +1,6 @@
 import type { AppState, Block, ContentThemeId, Notebook, OperationLogEntry, Page, PageMetadata, ShellId, ThemeId } from './types';
 import { contentThemeIds } from './typora-theme-registry';
-import { invoke, isTauri } from '@tauri-apps/api/core';
+import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import { marked } from 'marked';
 
 const STORAGE_KEY = 'block-first-notebook.state.v1';
@@ -196,7 +196,7 @@ const localizeDataUrlMediaAssets = async (html: string, blockId: string) => {
         mimeType: parsed.mimeType,
         bytes: parsed.bytes
       });
-      element.setAttribute('src', imported.assetUrl);
+      element.setAttribute('src', convertFileSrc(imported.storedPath));
       element.setAttribute('data-asset-id', imported.id);
       element.removeAttribute('data-original-src');
     } catch (error) {
@@ -240,6 +240,30 @@ const prepareStateForPersistence = async (state: AppState): Promise<AppState> =>
   };
 };
 
+const extractReferencedAssetIds = (state: AppState) => {
+  const ids = new Set<string>();
+  state.blocks.forEach((block) => {
+    const container = document.createElement('div');
+    container.innerHTML = block.content.html;
+    container.querySelectorAll<HTMLElement>('[data-asset-id]').forEach((element) => {
+      const id = element.dataset.assetId?.trim();
+      if (id) ids.add(id);
+    });
+  });
+  return [...ids];
+};
+
+const cleanupOrphanAttachments = async (state: AppState) => {
+  if (!isTauri()) return;
+  try {
+    await invoke<AttachmentCleanupResult>('cleanup_orphan_attachments', {
+      referencedAssetIds: extractReferencedAssetIds(state)
+    });
+  } catch (error) {
+    console.warn('Could not clean orphan attachments.', error);
+  }
+};
+
 export const loadState = (): AppState => {
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) {
@@ -275,6 +299,7 @@ export const saveState = async (state: AppState) => {
   if (isTauri()) {
     try {
       await invoke('save_state_snapshot', { stateJson });
+      await cleanupOrphanAttachments(persistableState);
     } catch (error) {
       console.warn('Could not persist notebook state to SQLite.', error);
     }
@@ -350,6 +375,11 @@ type ImportedAsset = {
   mimeType: string;
   size: number;
   sha256: string;
+};
+
+type AttachmentCleanupResult = {
+  removedCount: number;
+  removedBytes: number;
 };
 
 export type MarkdownImportWarning = {

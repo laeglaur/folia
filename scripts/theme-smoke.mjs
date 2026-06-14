@@ -27,7 +27,8 @@ await shellSelect.selectOption('native-garden');
 checks.nativeGardenShell = await page.evaluate(() => Boolean(
   document.querySelector('.app-shell') &&
   document.querySelector('.sidebar') &&
-  document.querySelector('.right-panel') &&
+  document.querySelector('.outline-drawer') &&
+  !document.querySelector('.right-panel') &&
   !document.querySelector('#typora-sidebar')
 ));
 
@@ -486,8 +487,9 @@ checks.ravelEditorChromeKeepsPillIconsCentered = await page.evaluate(() => {
 
 await page.getByRole('button', { name: 'Outline' }).click();
 checks.typoraOutlineDoesNotUseContentTocCard = await page.evaluate(() => {
-  const outline = document.querySelector('#typora-sidebar .outline-content.md-toc-content');
-  if (!(outline instanceof HTMLElement)) return false;
+  const drawer = document.querySelector('.outline-drawer.is-open');
+  const outline = drawer?.querySelector('.outline-content.md-toc-content');
+  if (!(drawer instanceof HTMLElement) || !(outline instanceof HTMLElement)) return false;
   const styles = getComputedStyle(outline);
   return styles.backgroundColor === 'rgba(0, 0, 0, 0)' &&
     styles.borderTopStyle === 'none' &&
@@ -497,7 +499,7 @@ checks.typoraOutlineDoesNotUseContentTocCard = await page.evaluate(() => {
 });
 
 checks.typoraOutlineKeepsTypeLabels = await page.evaluate(() => {
-  const firstItem = document.querySelector('#typora-sidebar .outline-item');
+  const firstItem = document.querySelector('.outline-drawer .outline-item');
   const expander = firstItem?.querySelector('.outline-expander');
   const label = firstItem?.querySelector('.outline-label');
   if (!(firstItem instanceof HTMLElement) || !(expander instanceof HTMLElement) || !(label instanceof HTMLElement)) return false;
@@ -509,7 +511,7 @@ checks.typoraOutlineKeepsTypeLabels = await page.evaluate(() => {
 await chooseContentTheme('typora-zeus');
 checks.zeusShellUsesThemeSidebarBackground = await page.evaluate(() => {
   const sidebar = document.querySelector('#typora-sidebar');
-  const label = document.querySelector('#typora-sidebar .outline-label');
+  const label = document.querySelector('.outline-drawer .outline-label');
   if (!(sidebar instanceof HTMLElement) || !(label instanceof HTMLElement)) return false;
   const sidebarStyles = getComputedStyle(sidebar);
   const labelStyles = getComputedStyle(label);
@@ -520,7 +522,7 @@ checks.zeusShellUsesThemeSidebarBackground = await page.evaluate(() => {
 checks.typoraSidebarContract = await page.evaluate(() => {
   const sidebar = document.querySelector('#typora-sidebar');
   const files = document.querySelector('.file-library-node');
-  const outline = document.querySelector('.outline-item');
+  const outline = document.querySelector('.outline-drawer .outline-item');
   const desk = document.querySelector('.typora-desk-tab');
   const pin = document.querySelector('.typora-pin-card');
   if (!(sidebar instanceof HTMLElement) || !(files instanceof HTMLElement) || !(outline instanceof HTMLElement) || !(desk instanceof HTMLElement) || !(pin instanceof HTMLElement)) return false;
@@ -585,7 +587,8 @@ checks.typoraCalendarTabRemoved = await page.evaluate(() => {
   const sidebarTabs = document.querySelector('.sidebar-tabs');
   const deskTab = sidebarTabs?.querySelector('button:last-child');
   const hasCalendarTab = Array.from(sidebarTabs?.querySelectorAll('button') ?? []).some((button) => button.textContent?.trim() === 'Calendar');
-  return Boolean(sidebarTabs && deskTab && !hasCalendarTab);
+  const hasOutlineTab = Array.from(sidebarTabs?.querySelectorAll('button') ?? []).some((button) => button.textContent?.trim() === 'Outline');
+  return Boolean(sidebarTabs && deskTab && !hasCalendarTab && !hasOutlineTab);
 });
 
 await page.goto(appUrl);

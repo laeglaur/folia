@@ -684,20 +684,21 @@ const ansiToRichHtml = (value: string) => {
 };
 
 const clipboardFilesToHtml = async (files: FileList) => {
-  const fileReaders = [...files].map((file) => new Promise<string | null>((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const src = typeof reader.result === 'string' ? reader.result : '';
-      if (!src) return resolve(null);
-      if (file.type.startsWith('image/')) return resolve(`<img src="${src}" alt="${escapeHtml(file.name)}">`);
-      if (file.type.startsWith('video/')) return resolve(`<video controls src="${src}"></video>`);
-      if (file.type.startsWith('audio/')) return resolve(`<audio controls src="${src}"></audio>`);
-      return resolve(null);
-    };
-    reader.onerror = () => resolve(null);
-    reader.readAsDataURL(file);
-  }));
-  return (await Promise.all(fileReaders)).filter(Boolean).join('');
+  const attachments = [...files].map(async (file) => {
+    try {
+      const kind = inferAttachmentKind(file);
+      const { src, assetId } = await importAttachmentFile(file);
+      const assetAttribute = assetId ? ` data-asset-id="${escapeHtml(assetId)}"` : '';
+      if (kind === 'image') return `<img src="${escapeHtml(src)}" alt="${escapeHtml(file.name)}" title="${escapeHtml(assetId ?? file.name)}"${assetAttribute}>`;
+      if (kind === 'video') return `<video controls src="${escapeHtml(src)}"${assetAttribute}></video>`;
+      if (kind === 'audio') return `<audio controls src="${escapeHtml(src)}"${assetAttribute}></audio>`;
+      return `<a href="${escapeHtml(src)}" download="${escapeHtml(file.name)}"${assetAttribute}>${escapeHtml(file.name)}</a>`;
+    } catch (error) {
+      console.warn('Could not import pasted attachment.', file.name, error);
+      return null;
+    }
+  });
+  return (await Promise.all(attachments)).filter(Boolean).join('');
 };
 
 const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
@@ -1608,7 +1609,8 @@ export function App() {
   const [tableControls, setTableControls] = useState<TableControlsState>({ visible: false, top: 0, left: 0 });
   const [mathEditor, setMathEditor] = useState<MathEditorState | null>(null);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
-  const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'outline' | 'desk'>('files');
+  const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'desk'>('files');
+  const [outlineDrawerOpen, setOutlineDrawerOpen] = useState(false);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('write');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [importNotice, setImportNotice] = useState<ImportNotice>({ kind: 'idle', message: '' });
@@ -1977,6 +1979,7 @@ export function App() {
 
   const jumpToOutlineEntry = (entry: OutlineEntry) => {
     setWorkspaceView('write');
+    setOutlineDrawerOpen(false);
     if (!entry.blockId) {
       document.querySelector<HTMLInputElement>('.page-title')?.focus();
       document.querySelector('.page-surface')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2795,6 +2798,31 @@ export function App() {
     </div>
   );
 
+  const renderOutlineDrawer = (content: React.ReactNode, extraContent?: React.ReactNode) => (
+    <aside className={`outline-drawer ${outlineDrawerOpen ? 'is-open' : ''}`} aria-hidden={!outlineDrawerOpen}>
+      <header className="outline-drawer-head">
+        <div className="panel-title"><PanelRight size={16} /> Outline</div>
+        <button className="mini-button" type="button" onClick={() => setOutlineDrawerOpen(false)} aria-label="Close outline">×</button>
+      </header>
+      <div className="outline-drawer-body">
+        {content}
+        {extraContent}
+      </div>
+    </aside>
+  );
+
+  const renderOutlineToggle = (className = 'secondary-button') => (
+    <button
+      className={`${className} ${outlineDrawerOpen ? 'active' : ''}`}
+      type="button"
+      onClick={() => setOutlineDrawerOpen((open) => !open)}
+      aria-pressed={outlineDrawerOpen}
+      aria-label={outlineDrawerOpen ? 'Hide outline' : 'Show outline'}
+    >
+      <PanelRight size={15} /> Outline
+    </button>
+  );
+
   const renderCalendarView = () => {
     const currentMonthKey = monthKey(calendarMonth);
     const todayKey = localDateKey(new Date());
@@ -3002,23 +3030,19 @@ export function App() {
             <Search size={16} />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="正文、block、todo" />
           </div>
+          {renderOutlineToggle()}
           {renderToolControls(false)}
         </header>
 
         {renderWorkspaceContent()}
       </main>
 
-      <aside className="right-panel">
-        <section className="panel-card">
-          <div className="panel-title"><PanelRight size={16} /> Outline</div>
-          {renderNativeOutline()}
-        </section>
-
-        <section className="panel-card desktop-preview">
+      {renderOutlineDrawer(renderNativeOutline(), (
+        <section className="panel-card desktop-preview outline-drawer-pinned">
           <div className="panel-title"><MapPin size={16} /> Pinned</div>
           {renderPinnedCards()}
         </section>
-      </aside>
+      ))}
 
       {openCardBlock && (
         <div className="floating-card-window">
@@ -3037,8 +3061,7 @@ export function App() {
       <aside id="typora-sidebar" className={`typora-sidebar active-tab-${typoraSidebarTab}`}>
         <div className="sidebar-tabs" role="tablist" aria-label="Sidebar tabs">
           <button className={`sidebar-tab ${typoraSidebarTab === 'files' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('files')}>Files</button>
-          <button className={`sidebar-tab ${typoraSidebarTab === 'outline' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('outline')}>Outline</button>
-        <button className={`sidebar-tab ${typoraSidebarTab === 'desk' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('desk')}>Desk</button>
+          <button className={`sidebar-tab ${typoraSidebarTab === 'desk' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('desk')}>Desk</button>
         </div>
 
         <div id="sidebar-content" className="sidebar-content">
@@ -3094,10 +3117,6 @@ export function App() {
             </div>
           </section>
 
-          <section className={`typora-sidebar-pane ${typoraSidebarTab === 'outline' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'outline'}>
-            {renderTyporaOutline()}
-          </section>
-
           <section className={`typora-sidebar-pane ${typoraSidebarTab === 'desk' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'desk'}>
             <div className="typora-desk-tab">
               <section className="typora-desk-search">
@@ -3118,8 +3137,11 @@ export function App() {
       </aside>
 
       <main className="typora-workspace">
+        {renderOutlineToggle('outline-floating-button')}
         {renderWorkspaceContent()}
       </main>
+
+      {renderOutlineDrawer(renderTyporaOutline())}
 
       {openCardBlock && (
         <div className="floating-card-window">
