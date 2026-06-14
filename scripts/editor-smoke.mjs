@@ -2,7 +2,7 @@ import { chromium } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 
 const modKey = process.platform === 'darwin' ? 'Meta' : 'Control';
-await writeFile('/tmp/notebook-at-test.png', Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64'));
+await writeFile('/tmp/notebook-at-test.svg', '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="320" height="180" fill="#dfe7ff"/><circle cx="245" cy="112" r="34" fill="#6f7fcf"/></svg>');
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({
   permissions: ['clipboard-read', 'clipboard-write']
@@ -241,18 +241,17 @@ await attachmentComposer.click();
 const chooserPromise = page.waitForEvent('filechooser');
 await page.keyboard.type('/at ');
 const chooser = await chooserPromise;
-await chooser.setFiles('/tmp/notebook-at-test.png');
+await chooser.setFiles('/tmp/notebook-at-test.svg');
 await page.waitForFunction(() => Boolean(document.querySelector('.composer img')));
 aliasHtml = await attachmentComposer.evaluate((node) => node.innerHTML);
-checks.attachmentShortcutInsertsImage = aliasHtml.includes('<img') && aliasHtml.includes('notebook-at-test.png');
-await attachmentComposer.locator('img').click({ force: true });
-const resizeHandle = page.locator('.media-resize-handle');
-await resizeHandle.waitFor({ state: 'visible' });
-const handleBox = await resizeHandle.boundingBox();
-if (handleBox) {
-  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+checks.attachmentShortcutInsertsImage = aliasHtml.includes('<img') && aliasHtml.includes('notebook-at-test.svg');
+await attachmentComposer.locator('img').scrollIntoViewIfNeeded();
+const imageBox = await attachmentComposer.locator('img').boundingBox();
+if (imageBox) {
+  await page.mouse.move(imageBox.x + imageBox.width - 4, imageBox.y + imageBox.height - 4);
+  checks.attachmentResizeCornerCursor = await attachmentComposer.locator('img').evaluate((image) => image.style.cursor === 'nwse-resize');
   await page.mouse.down();
-  await page.mouse.move(handleBox.x - 170, handleBox.y + handleBox.height / 2, { steps: 5 });
+  await page.mouse.move(imageBox.x + imageBox.width - 170, imageBox.y + imageBox.height - 4, { steps: 5 });
   await page.mouse.up();
 }
 checks.attachmentResizePersistsWidth = await attachmentComposer.locator('img').evaluate((image) =>

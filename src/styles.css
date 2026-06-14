@@ -489,39 +489,6 @@ input, select { color: var(--ink); }
   color: #a33a2f;
 }
 
-.media-resize-handle {
-  position: absolute;
-  z-index: 6;
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
-  box-shadow: 0 6px 14px rgba(36, 45, 39, 0.08);
-  cursor: nwse-resize;
-  touch-action: none;
-}
-
-.media-resize-handle span {
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid var(--accent);
-  border-bottom: 2px solid var(--accent);
-  opacity: 0.8;
-}
-
-.media-resize-handle:hover {
-  background: var(--chip);
-}
-
-.ProseMirror-selectednode:is(img, video, audio) {
-  outline: 2px solid color-mix(in srgb, var(--accent) 56%, transparent);
-  outline-offset: 3px;
-}
-
 .math-block-editor {
   position: absolute;
   z-index: 7;
@@ -1424,6 +1391,7 @@ input, select { color: var(--ink); }
   gap: 4px;
   overflow: hidden;
   user-select: text;
+  cursor: move;
 }
 
 .card-window-grip {
@@ -1465,6 +1433,7 @@ input, select { color: var(--ink); }
   border-radius: var(--floating-card-mode-radius);
   background: var(--floating-card-mode-background);
   overflow: auto;
+  cursor: text;
 }
 
 .floating-card-head {

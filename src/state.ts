@@ -132,6 +132,114 @@ const normalizeState = (state: AppState): AppState => {
   };
 };
 
+const extensionForMime = (mimeType: string) => {
+  switch (mimeType.toLowerCase()) {
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/png':
+      return 'png';
+    case 'image/gif':
+      return 'gif';
+    case 'image/webp':
+      return 'webp';
+    case 'image/svg+xml':
+      return 'svg';
+    case 'video/mp4':
+      return 'mp4';
+    case 'video/quicktime':
+      return 'mov';
+    case 'video/webm':
+      return 'webm';
+    case 'audio/mpeg':
+      return 'mp3';
+    case 'audio/wav':
+      return 'wav';
+    case 'audio/mp4':
+      return 'm4a';
+    case 'audio/ogg':
+      return 'ogg';
+    case 'audio/flac':
+      return 'flac';
+    default:
+      return 'bin';
+  }
+};
+
+const bytesFromDataUrl = (dataUrl: string) => {
+  const match = dataUrl.match(/^data:([^;,]+)?(;base64)?,(.*)$/s);
+  if (!match) return null;
+  const mimeType = match[1] || 'application/octet-stream';
+  const isBase64 = Boolean(match[2]);
+  const payload = match[3] ?? '';
+  const binary = isBase64 ? atob(payload) : decodeURIComponent(payload);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return { mimeType, bytes: Array.from(bytes) };
+};
+
+const localizeDataUrlMediaAssets = async (html: string, blockId: string) => {
+  if (!isTauri() || !html.includes('data:')) return html;
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  const media = Array.from(container.querySelectorAll<HTMLImageElement | HTMLVideoElement | HTMLAudioElement>('img[src^="data:"], video[src^="data:"], audio[src^="data:"]'));
+
+  await Promise.all(media.map(async (element, index) => {
+    const dataUrl = element.getAttribute('src') ?? '';
+    const parsed = bytesFromDataUrl(dataUrl);
+    if (!parsed) return;
+    const filename = `${blockId}-attachment-${index + 1}.${extensionForMime(parsed.mimeType)}`;
+    try {
+      const imported = await invoke<ImportedAsset>('import_asset_bytes', {
+        filename,
+        mimeType: parsed.mimeType,
+        bytes: parsed.bytes
+      });
+      element.setAttribute('src', imported.assetUrl);
+      element.setAttribute('data-asset-id', imported.id);
+      element.removeAttribute('data-original-src');
+    } catch (error) {
+      console.warn('Could not import inline data asset.', filename, error);
+      element.removeAttribute('src');
+      element.setAttribute('data-asset-error', 'inline asset could not be stored');
+    }
+  }));
+
+  return container.innerHTML;
+};
+
+const sanitizeLargePayloads = (value: unknown): unknown => {
+  if (typeof value === 'string') {
+    if (value.startsWith('data:')) return `[data-url omitted: ${value.length} chars]`;
+    if (value.length > 200_000) return `${value.slice(0, 200_000)}\n[truncated: ${value.length} chars]`;
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(sanitizeLargePayloads);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, sanitizeLargePayloads(entry)]));
+  }
+  return value;
+};
+
+const prepareStateForPersistence = async (state: AppState): Promise<AppState> => {
+  const blocks = isTauri()
+    ? await Promise.all(state.blocks.map(async (block) => {
+      const html = await localizeDataUrlMediaAssets(block.content.html, block.id);
+      return html === block.content.html ? block : { ...block, content: { ...block.content, html } };
+    }))
+    : state.blocks;
+
+  return {
+    ...state,
+    blocks,
+    operations: state.operations.slice(-500).map((entry) => ({
+      ...entry,
+      payload: sanitizeLargePayloads(entry.payload)
+    })) as OperationLogEntry[]
+  };
+};
+
 export const loadState = (): AppState => {
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) {
@@ -161,7 +269,8 @@ export const loadPersistentState = async (): Promise<AppState> => {
 };
 
 export const saveState = async (state: AppState) => {
-  const stateJson = JSON.stringify(state);
+  const persistableState = await prepareStateForPersistence(state);
+  const stateJson = JSON.stringify(persistableState);
 
   if (isTauri()) {
     try {

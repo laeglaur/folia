@@ -189,6 +189,73 @@ fn import_asset_into_store(
     })
 }
 
+fn import_asset_bytes_into_store(
+    connection: &Connection,
+    app_data_dir: PathBuf,
+    filename: String,
+    mime_type_hint: String,
+    bytes: Vec<u8>,
+) -> Result<ImportedAsset, String> {
+    if bytes.is_empty() {
+        return Err("Asset payload is empty".to_string());
+    }
+
+    let mut hasher = Sha256::new();
+    hasher.update(&bytes);
+    let sha256 = format!("{:x}", hasher.finalize());
+    let size = bytes.len() as u64;
+    let extension = PathBuf::from(&filename)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| format!(".{}", extension.to_lowercase()))
+        .unwrap_or_default();
+    let mime_type = if mime_type_hint.trim().is_empty() || mime_type_hint == "application/octet-stream" {
+        mime_from_path(&PathBuf::from(&filename))
+    } else {
+        mime_type_hint
+    };
+    let id = format!("asset_{sha256}");
+    let attachments_dir = app_data_dir.join(ATTACHMENTS_DIR).join(&sha256[0..2]);
+    fs::create_dir_all(&attachments_dir).map_err(|error| error.to_string())?;
+    let stored_path = attachments_dir.join(format!("{sha256}{extension}"));
+
+    if !stored_path.exists() {
+        fs::write(&stored_path, &bytes).map_err(|error| error.to_string())?;
+    }
+
+    connection
+        .execute(
+            "
+            INSERT INTO attachments (id, original_path, stored_path, mime_type, size, sha256, created_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, CURRENT_TIMESTAMP)
+            ON CONFLICT(sha256) DO UPDATE SET
+              original_path = excluded.original_path,
+              stored_path = excluded.stored_path,
+              mime_type = excluded.mime_type,
+              size = excluded.size
+            ",
+            params![
+                id,
+                filename.clone(),
+                stored_path.to_string_lossy(),
+                mime_type.clone(),
+                size as i64,
+                sha256
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(ImportedAsset {
+        id: format!("asset_{sha256}"),
+        original_path: filename,
+        stored_path: stored_path.to_string_lossy().to_string(),
+        asset_url: asset_url_for_path(&stored_path),
+        mime_type,
+        size,
+        sha256,
+    })
+}
+
 #[tauri::command]
 fn load_state_snapshot(app: AppHandle) -> Result<Option<String>, String> {
     let connection = open_database(&app)?;
@@ -226,6 +293,17 @@ fn import_local_asset(app: AppHandle, source_path: String) -> Result<ImportedAss
     import_asset_into_store(&connection, app_data_dir(&app)?, source_path)
 }
 
+#[tauri::command]
+fn import_asset_bytes(
+    app: AppHandle,
+    filename: String,
+    mime_type: String,
+    bytes: Vec<u8>,
+) -> Result<ImportedAsset, String> {
+    let connection = open_database(&app)?;
+    import_asset_bytes_into_store(&connection, app_data_dir(&app)?, filename, mime_type, bytes)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -233,7 +311,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_state_snapshot,
             save_state_snapshot,
-            import_local_asset
+            import_local_asset,
+            import_asset_bytes
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -328,5 +407,41 @@ mod tests {
 
         assert!(error.contains("Asset does not exist"));
         assert_eq!(row_count(&connection), 0);
+    }
+
+    #[test]
+    fn importing_asset_bytes_copies_payload_and_deduplicates_metadata() {
+        let app_data = tempfile::tempdir().expect("app data temp dir");
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        let payload = b"fake mp3 payload for stability".to_vec();
+
+        let imported = import_asset_bytes_into_store(
+            &connection,
+            app_data.path().to_path_buf(),
+            "voice memo.mp3".to_string(),
+            "audio/mpeg".to_string(),
+            payload.clone(),
+        )
+        .expect("byte asset import");
+
+        assert_eq!(imported.original_path, "voice memo.mp3");
+        assert_eq!(imported.mime_type, "audio/mpeg");
+        assert_eq!(imported.size, payload.len() as u64);
+        assert!(Path::new(&imported.stored_path).is_file());
+        assert!(imported.stored_path.ends_with(".mp3"));
+        assert_eq!(row_count(&connection), 1);
+
+        let imported_again = import_asset_bytes_into_store(
+            &connection,
+            app_data.path().to_path_buf(),
+            "voice memo.mp3".to_string(),
+            "audio/mpeg".to_string(),
+            payload,
+        )
+        .expect("second byte asset import");
+
+        assert_eq!(imported_again.id, imported.id);
+        assert_eq!(row_count(&connection), 1);
     }
 }

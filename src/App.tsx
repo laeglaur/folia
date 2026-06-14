@@ -64,7 +64,7 @@ import {
   loadState,
   saveState
 } from './state';
-import { isTauri } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { common, createLowlight } from 'lowlight';
@@ -112,17 +112,15 @@ type TableControlsState = {
   top: number;
   left: number;
 };
-type MediaControlsState = {
-  visible: boolean;
-  top: number;
-  left: number;
-  editor: Editor | null;
+type MediaNodeType = 'image' | 'video' | 'audio';
+type MediaResizeRequest = {
+  editor: Editor;
   pos: number;
-  nodeType: 'image' | 'video' | 'audio';
-  width: number;
-  pixelWidth: number;
-  height: number;
+  nodeType: MediaNodeType;
+  startClientX: number;
+  startWidth: number;
   containerWidth: number;
+  element: HTMLElement;
 };
 type MathEditorState = {
   editor: Editor;
@@ -170,9 +168,8 @@ type RichEditorProps = {
   onShiftEnter?: (editor: Editor) => boolean;
   onMoveBlock?: (direction: -1 | 1) => boolean;
   tableControls?: TableControlsState;
-  mediaControls?: MediaControlsState;
   runTableCommand?: (command: ToolbarCommand) => void;
-  runMediaCommand?: (width: number) => void;
+  onMediaResizeStart?: (request: MediaResizeRequest) => void;
   mathEditor?: MathEditorState | null;
   onMathChange?: (latex: string) => void;
   onMathClose?: () => void;
@@ -373,8 +370,45 @@ const dispatchMathEditRequest = (editor: Editor, pos: number) => {
   window.dispatchEvent(new CustomEvent('notebook:edit-block-math', { detail: { editor, pos } }));
 };
 
-const isResizableMediaNode = (nodeType: string): nodeType is MediaControlsState['nodeType'] =>
+type ImportedAsset = {
+  id: string;
+  originalPath: string;
+  storedPath: string;
+  assetUrl: string;
+  mimeType: string;
+  size: number;
+  sha256: string;
+};
+
+const isResizableMediaNode = (nodeType: string): nodeType is MediaNodeType =>
   nodeType === 'image' || nodeType === 'video' || nodeType === 'audio';
+
+const findMediaNodePosition = (editor: Editor, element: HTMLElement) => {
+  const candidates: number[] = [];
+  try {
+    const pos = editor.view.posAtDOM(element, 0);
+    candidates.push(pos, pos - 1);
+  } catch {
+    return null;
+  }
+  for (const pos of candidates) {
+    if (pos < 0 || pos > editor.state.doc.content.size) continue;
+    const node = editor.state.doc.nodeAt(pos);
+    if (node && isResizableMediaNode(node.type.name)) return { pos, node };
+  }
+  const src = element.getAttribute('src');
+  if (!src) return null;
+  let found: { pos: number; node: ReturnType<Editor['state']['doc']['nodeAt']> } | null = null;
+  editor.state.doc.descendants((node, pos) => {
+    if (found || !isResizableMediaNode(node.type.name)) return true;
+    if (node.attrs.src === src) {
+      found = { pos, node };
+      return false;
+    }
+    return true;
+  });
+  return found;
+};
 
 const inferAttachmentKind = (file: File) => {
   const name = file.name.toLowerCase();
@@ -382,6 +416,36 @@ const inferAttachmentKind = (file: File) => {
   if (file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|ogv|avi|mkv)$/.test(name)) return 'video';
   if (file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac|aiff?)$/.test(name)) return 'audio';
   return 'file';
+};
+
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error(`Could not read ${file.name}`));
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error(`Could not read ${file.name}`));
+    };
+    reader.readAsDataURL(file);
+  });
+
+const importAttachmentFile = async (file: File): Promise<{ src: string; assetId?: string }> => {
+  if (!isTauri()) return { src: await readFileAsDataUrl(file) };
+  const localPath = (file as File & { path?: string }).path;
+  if (localPath) {
+    const imported = await invoke<ImportedAsset>('import_local_asset', { sourcePath: localPath });
+    return { src: imported.assetUrl, assetId: imported.id };
+  }
+  const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
+  const imported = await invoke<ImportedAsset>('import_asset_bytes', {
+    filename: file.name,
+    mimeType: file.type || 'application/octet-stream',
+    bytes
+  });
+  return { src: imported.assetUrl, assetId: imported.id };
 };
 
 const displayMathLatex = (latex: string) => latex === '\\;' ? '' : latex;
@@ -414,14 +478,6 @@ const parseMediaWidth = (element: HTMLElement) => {
   const numeric = Number.parseFloat(width);
   if (!Number.isFinite(numeric)) return null;
   return width.includes('%') ? `${Math.max(20, Math.min(100, numeric))}%` : `${Math.max(80, Math.min(1600, numeric))}px`;
-};
-
-const mediaWidthPercent = (width: unknown) => {
-  if (typeof width !== 'string') return 100;
-  const numeric = Number.parseFloat(width);
-  if (!Number.isFinite(numeric)) return 100;
-  if (width.includes('%')) return Math.max(20, Math.min(100, Math.round(numeric)));
-  return Math.max(20, Math.min(100, Math.round((numeric / 900) * 100)));
 };
 
 const mediaRenderAttributes = (HTMLAttributes: Record<string, unknown>) => {
@@ -1373,9 +1429,8 @@ function RichEditor({
   onShiftEnter,
   onMoveBlock,
   tableControls,
-  mediaControls,
   runTableCommand,
-  runMediaCommand,
+  onMediaResizeStart,
   mathEditor,
   onMathChange,
   onMathClose,
@@ -1383,6 +1438,7 @@ function RichEditor({
 }: RichEditorProps) {
   const externalHtmlRef = useRef(html ?? '');
   const editorHolderRef = useRef<Editor | null>(null);
+  const hoverMediaRef = useRef<HTMLElement | null>(null);
   const editor = useEditor({
     extensions: createEditorExtensions(placeholder, onShiftEnter, onMoveBlock),
     content: html || '',
@@ -1391,11 +1447,6 @@ function RichEditor({
         class: `${className} tiptap-editor typora-block-doc`
       },
       handlePaste: (_view, event) => handleRichPaste(editorHolderRef.current, event),
-      handleClickOn: (_view, pos, node) => {
-        if (!isResizableMediaNode(node.type.name)) return false;
-        editorHolderRef.current?.commands.setNodeSelection(pos);
-        return false;
-      },
       handleDOMEvents: {
         copy: (_view, event) => handleRichCopy(editorHolderRef.current, event)
       }
@@ -1427,14 +1478,66 @@ function RichEditor({
     externalHtmlRef.current = nextHtml;
   }, [editor, html]);
 
+  const clearMediaCursor = () => {
+    if (!hoverMediaRef.current) return;
+    hoverMediaRef.current.style.cursor = '';
+    hoverMediaRef.current = null;
+  };
+
+  const mediaAtPointer = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    const element = target?.closest('img, video, audio');
+    if (!element || !(element instanceof HTMLElement)) return null;
+    const rect = element.getBoundingClientRect();
+    const cornerSize = 24;
+    const inResizeCorner = event.clientX >= rect.right - cornerSize && event.clientY >= rect.bottom - cornerSize;
+    return { element, rect, inResizeCorner };
+  };
+
+  const updateMediaCursor = (event: React.MouseEvent<HTMLDivElement>) => {
+    const media = mediaAtPointer(event);
+    if (hoverMediaRef.current && hoverMediaRef.current !== media?.element) clearMediaCursor();
+    if (!media) return;
+    media.element.style.cursor = media.inResizeCorner ? 'nwse-resize' : '';
+    hoverMediaRef.current = media.element;
+  };
+
+  const startResizeFromPointer = (event: React.MouseEvent<HTMLDivElement>) => {
+    const media = mediaAtPointer(event);
+    const activeEditor = editorHolderRef.current;
+    if (!media?.inResizeCorner || !activeEditor) return false;
+    const found = findMediaNodePosition(activeEditor, media.element);
+    if (!found?.node || !isResizableMediaNode(found.node.type.name)) return false;
+    const editorRoot = activeEditor.view.dom instanceof HTMLElement ? activeEditor.view.dom : null;
+    const editorRect = editorRoot?.getBoundingClientRect();
+    event.preventDefault();
+    event.stopPropagation();
+    hoverMediaRef.current = media.element;
+    onMediaResizeStart?.({
+      editor: activeEditor,
+      pos: found.pos,
+      nodeType: found.node.type.name,
+      startClientX: event.clientX,
+      startWidth: media.rect.width,
+      containerWidth: editorRect?.width ?? 900,
+      element: media.element
+    });
+    return true;
+  };
+
   return (
-    <div className="rich-editor-wrap" onMouseDown={(event) => toggleCollapsibleListItem(event, editor)}>
+    <div
+      className="rich-editor-wrap"
+      onMouseMove={updateMediaCursor}
+      onMouseLeave={clearMediaCursor}
+      onMouseDown={(event) => {
+        if (startResizeFromPointer(event)) return;
+        toggleCollapsibleListItem(event, editor);
+      }}
+    >
       <EditorContent editor={editor} />
       {tableControls?.visible && runTableCommand && (
         <TableControls runCommand={runTableCommand} position={tableControls} />
-      )}
-      {mediaControls?.visible && runMediaCommand && (
-        <MediaResizeHandle position={mediaControls} onResize={runMediaCommand} />
       )}
       {mathEditor && onMathChange && onMathClose && (
         <MathBlockEditor editorState={mathEditor} onChange={onMathChange} onClose={onMathClose} />
@@ -1451,18 +1554,6 @@ export function App() {
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [showToolbar, setShowToolbar] = useState(true);
   const [tableControls, setTableControls] = useState<TableControlsState>({ visible: false, top: 0, left: 0 });
-  const [mediaControls, setMediaControls] = useState<MediaControlsState>({
-    visible: false,
-    top: 0,
-    left: 0,
-    editor: null,
-    pos: 0,
-    nodeType: 'image',
-    width: 100,
-    pixelWidth: 0,
-    height: 0,
-    containerWidth: 900
-  });
   const [mathEditor, setMathEditor] = useState<MathEditorState | null>(null);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
   const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'outline' | 'calendar' | 'desk'>('files');
@@ -1560,6 +1651,17 @@ export function App() {
     ]);
   }, [cardModeBlockId]);
 
+  const configurePinnedCardWindow = async (cardWindow: WebviewWindow) => {
+    await Promise.allSettled([
+      cardWindow.setAlwaysOnTop(true),
+      cardWindow.setVisibleOnAllWorkspaces(true),
+      cardWindow.setSkipTaskbar(true),
+      cardWindow.setDecorations(false),
+      cardWindow.setShadow(true),
+      cardWindow.setFocus()
+    ]);
+  };
+
   const childPages = useMemo(() => {
     const map = new Map<string | null, Page[]>();
     state.pages
@@ -1599,54 +1701,8 @@ export function App() {
     });
   };
 
-  const syncMediaControls = (editor: Editor | null) => {
-    const selection = editor?.state.selection;
-    if (!editor || !selection || !('from' in selection)) {
-      setMediaControls((current) => current.visible ? { ...current, visible: false, top: 0, left: 0, editor: null } : current);
-      return;
-    }
-    const dom = editor.view.nodeDOM(selection.from);
-    const element = dom instanceof HTMLElement ? dom : null;
-    const editorRoot = editor.view.dom instanceof HTMLElement ? editor.view.dom : null;
-    const node = editor.state.doc.nodeAt(selection.from);
-    if (!node || !isResizableMediaNode(node.type.name)) {
-      setMediaControls((current) => current.visible ? { ...current, visible: false, top: 0, left: 0, editor: null } : current);
-      return;
-    }
-    if (!element || !editorRoot) {
-      setMediaControls({
-        visible: true,
-        top: 0,
-        left: 0,
-        editor,
-        pos: selection.from,
-        nodeType: node.type.name,
-        width: mediaWidthPercent(node.attrs.width),
-        pixelWidth: 0,
-        height: 0,
-        containerWidth: 900
-      });
-      return;
-    }
-    const mediaRect = element.getBoundingClientRect();
-    const editorRect = editorRoot.getBoundingClientRect();
-    setMediaControls({
-      visible: true,
-      top: Math.max(0, mediaRect.top - editorRect.top),
-      left: Math.max(0, mediaRect.left - editorRect.left),
-      editor,
-      pos: selection.from,
-      nodeType: node.type.name,
-      width: mediaWidthPercent(node.attrs.width),
-      pixelWidth: mediaRect.width,
-      height: mediaRect.height,
-      containerWidth: Math.max(1, editorRect.width)
-    });
-  };
-
   const syncFloatingControls = (editor: Editor | null) => {
     syncTableControls(editor);
-    syncMediaControls(editor);
   };
 
   const openMathEditor = (editor: Editor, requestedPos: number) => {
@@ -1678,18 +1734,49 @@ export function App() {
     });
   };
 
-  const resizeSelectedMedia = (width: number) => {
-    const editor = mediaControls.editor;
-    if (!editor || !isResizableMediaNode(mediaControls.nodeType)) return;
-    const node = editor.state.doc.nodeAt(mediaControls.pos);
+  const commitMediaWidth = (editor: Editor, pos: number, width: number) => {
+    const node = editor.state.doc.nodeAt(pos);
     if (!node || !isResizableMediaNode(node.type.name)) return;
     const nextWidth = `${Math.max(20, Math.min(100, Math.round(width)))}%`;
-    const transaction = editor.state.tr.setNodeMarkup(mediaControls.pos, undefined, {
+    const transaction = editor.state.tr.setNodeMarkup(pos, undefined, {
       ...node.attrs,
       width: nextWidth
     });
     editor.view.dispatch(transaction);
-    window.setTimeout(() => syncMediaControls(editor), 0);
+    editor.view.focus();
+  };
+
+  const startMediaResize = (request: MediaResizeRequest) => {
+    const { editor, pos, startClientX, startWidth, containerWidth, element } = request;
+    const safeContainerWidth = Math.max(1, containerWidth);
+    const startPercent = Math.max(20, Math.min(100, (startWidth / safeContainerWidth) * 100));
+    let latestPercent = startPercent;
+    const previousUserSelect = document.body.style.userSelect;
+    const previousCursor = document.body.style.cursor;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'nwse-resize';
+    element.classList.add('is-media-resizing');
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      const deltaPercent = ((moveEvent.clientX - startClientX) / safeContainerWidth) * 100;
+      latestPercent = Math.max(20, Math.min(100, startPercent + deltaPercent));
+      element.style.width = `${latestPercent}%`;
+      element.setAttribute('data-width', `${Math.round(latestPercent)}%`);
+    };
+
+    const stopDragging = () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', stopDragging);
+      window.removeEventListener('pointercancel', stopDragging);
+      document.body.style.userSelect = previousUserSelect;
+      document.body.style.cursor = previousCursor;
+      element.classList.remove('is-media-resizing');
+      commitMediaWidth(editor, pos, latestPercent);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', stopDragging, { once: true });
+    window.addEventListener('pointercancel', stopDragging, { once: true });
   };
 
   const activateEditor = (target: EditorTarget) => {
@@ -1722,28 +1809,32 @@ export function App() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = kind === 'image' ? 'image/*' : kind === 'video' ? 'video/*' : kind === 'audio' ? 'audio/*' : 'image/*,video/*,audio/*';
-    input.onchange = () => {
+    input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const src = typeof reader.result === 'string' ? reader.result : '';
-        if (!src) return;
+      try {
+        const { src, assetId } = await importAttachmentFile(file);
         const resolvedKind = kind === 'attachment' ? inferAttachmentKind(file) : kind;
         if (resolvedKind === 'image') {
-          insertAtSavedSelection({ src, alt: file.name });
+          insertAtSavedSelection({ src, alt: file.name, title: assetId ?? file.name });
           return;
         }
         if (resolvedKind === 'file') {
           insertAtSavedSelection(`<a href="${src}" download="${escapeHtml(file.name)}">${escapeHtml(file.name)}</a>`);
           return;
         }
+        const assetAttribute = assetId ? ` data-asset-id="${escapeHtml(assetId)}"` : '';
         const html = resolvedKind === 'video'
-          ? `<video controls src="${src}"></video>`
-          : `<audio controls src="${src}"></audio>`;
+          ? `<video controls src="${escapeHtml(src)}"${assetAttribute}></video>`
+          : `<audio controls src="${escapeHtml(src)}"${assetAttribute}></audio>`;
         insertAtSavedSelection(html);
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        setImportNotice({
+          kind: 'error',
+          message: `Attachment import failed for "${file.name}".`,
+          details: [error instanceof Error ? error.message : String(error)]
+        });
+      }
     };
     input.click();
   };
@@ -2335,10 +2426,10 @@ export function App() {
     const label = `card_${blockId.replace(/[^a-zA-Z0-9_:-]/g, '_')}`;
     const existing = await WebviewWindow.getByLabel(label);
     if (existing) {
-      await existing.setFocus();
+      await configurePinnedCardWindow(existing);
       return;
     }
-    new WebviewWindow(label, {
+    const cardWindow = new WebviewWindow(label, {
       url: `${window.location.pathname}?card=${encodeURIComponent(blockId)}`,
       title: 'Notebook card',
       width: 340,
@@ -2352,8 +2443,19 @@ export function App() {
       visibleOnAllWorkspaces: true,
       skipTaskbar: true,
       resizable: true,
+      visible: true,
+      focus: true,
       center: false
     });
+    void cardWindow.once('tauri://created', () => {
+      void configurePinnedCardWindow(cardWindow);
+    });
+    void cardWindow.once('tauri://error', (event) => {
+      console.warn('Could not create pinned card window.', event.payload);
+    });
+    window.setTimeout(() => {
+      void configurePinnedCardWindow(cardWindow);
+    }, 250);
   };
 
   const renderPageTree = (parentId: string | null = null, depth = 0): React.ReactNode =>
@@ -2530,9 +2632,8 @@ export function App() {
                     }}
                     onSelectionUpdate={syncFloatingControls}
                     tableControls={activeEditor.kind === 'block' && activeEditor.blockId === block.id ? tableControls : undefined}
-                    mediaControls={activeEditor.kind === 'block' && activeEditor.blockId === block.id ? mediaControls : undefined}
                     runTableCommand={runEditorCommand}
-                    runMediaCommand={resizeSelectedMedia}
+                    onMediaResizeStart={startMediaResize}
                     mathEditor={activeEditor.kind === 'block' && activeEditor.blockId === block.id ? mathEditor : null}
                     onMathChange={updateMathEditorLatex}
                     onMathClose={() => setMathEditor(null)}
@@ -2576,9 +2677,8 @@ export function App() {
           }}
           onSelectionUpdate={syncFloatingControls}
           tableControls={activeEditor.kind === 'composer' ? tableControls : undefined}
-          mediaControls={activeEditor.kind === 'composer' ? mediaControls : undefined}
           runTableCommand={runEditorCommand}
-          runMediaCommand={resizeSelectedMedia}
+          onMediaResizeStart={startMediaResize}
           mathEditor={activeEditor.kind === 'composer' ? mathEditor : null}
           onMathChange={updateMathEditorLatex}
           onMathClose={() => setMathEditor(null)}
@@ -2998,12 +3098,17 @@ export function App() {
       }
       setState((current) => ({ ...current, openCardWindowBlockId: null }));
     };
-    const dragCardWindow = () => {
+    const dragCardWindow = (event: React.MouseEvent<HTMLElement>) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('button, a, input, textarea, select, audio, video, .floating-card-body')) return;
       if (isTauri()) void getCurrentWindow().startDragging();
     };
     return (
-      <main className="card-window-page typora-theme" data-content-theme={state.contentTheme} data-shell={state.shell}>
-        <header className="card-window-grip" onMouseDown={dragCardWindow}>
+      <main className="card-window-page typora-theme" data-content-theme={state.contentTheme} data-shell={state.shell} onMouseDown={dragCardWindow}>
+        <header className="card-window-grip" onMouseDown={(event) => {
+          event.stopPropagation();
+          dragCardWindow(event);
+        }}>
           <span>Pin card</span>
           <button type="button" onClick={closeCardWindow} aria-label="Close pinned card">×</button>
         </header>
@@ -3071,48 +3176,6 @@ function TableControls({
       <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteColumn')} title="Delete selected column">- col</button>
       <button className="table-control-button danger" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDelete')} title="Delete table">del</button>
     </div>
-  );
-}
-
-function MediaResizeHandle({
-  position,
-  onResize
-}: {
-  position: MediaControlsState;
-  onResize: (width: number) => void;
-}) {
-  return (
-    <button
-      className="media-resize-handle"
-      type="button"
-      aria-label={`Resize ${position.nodeType}`}
-      style={{
-        top: position.top + Math.max(0, position.height - 12),
-        left: position.left + Math.max(0, position.pixelWidth - 12)
-      }}
-      onPointerDown={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const startX = event.clientX;
-        const startWidth = position.width;
-        const containerWidth = position.containerWidth;
-        const onPointerMove = (moveEvent: PointerEvent) => {
-          const deltaX = moveEvent.clientX - startX;
-          const deltaPercent = (deltaX / Math.max(1, containerWidth)) * 100;
-          onResize(startWidth + deltaPercent);
-        };
-        const stopDragging = () => {
-          window.removeEventListener('pointermove', onPointerMove);
-          window.removeEventListener('pointerup', stopDragging);
-          window.removeEventListener('pointercancel', stopDragging);
-        };
-        window.addEventListener('pointermove', onPointerMove);
-        window.addEventListener('pointerup', stopDragging, { once: true });
-        window.addEventListener('pointercancel', stopDragging, { once: true });
-      }}
-    >
-      <span />
-    </button>
   );
 }
 
