@@ -234,11 +234,15 @@ checks.swissCodeAndTableUseTheme = await (async () => {
   return page.locator('.composer').last().evaluate((element) => {
     const pre = element.querySelector('pre.md-fences');
     const table = element.querySelector('table');
+    const td = element.querySelector('td');
+    const cellParagraph = element.querySelector('td p');
     const h1 = element.querySelector('h1');
     const mark = element.querySelector('mark');
-    if (!(pre instanceof HTMLElement) || !(table instanceof HTMLElement) || !(h1 instanceof HTMLElement) || !(mark instanceof HTMLElement)) return false;
+    if (!(pre instanceof HTMLElement) || !(table instanceof HTMLElement) || !(td instanceof HTMLElement) || !(cellParagraph instanceof HTMLElement) || !(h1 instanceof HTMLElement) || !(mark instanceof HTMLElement)) return false;
     const preStyles = getComputedStyle(pre);
     const tableStyles = getComputedStyle(table);
+    const tdStyles = getComputedStyle(td);
+    const cellParagraphStyles = getComputedStyle(cellParagraph);
     const h1Styles = getComputedStyle(h1);
     const markStyles = getComputedStyle(mark);
     return preStyles.backgroundColor === 'rgb(255, 255, 255)' &&
@@ -246,6 +250,13 @@ checks.swissCodeAndTableUseTheme = await (async () => {
       preStyles.borderTopStyle === 'solid' &&
       preStyles.color === 'rgb(36, 41, 47)' &&
       tableStyles.borderCollapse === 'collapse' &&
+      tableStyles.fontSize === '15px' &&
+      tableStyles.borderTopWidth === '0px' &&
+      tableStyles.borderRadius === '0px' &&
+      tdStyles.fontSize === '15px' &&
+      tdStyles.verticalAlign === 'top' &&
+      cellParagraphStyles.marginTop === '0px' &&
+      cellParagraphStyles.marginBottom === '0px' &&
       h1Styles.borderLeftWidth === '5px' &&
       markStyles.backgroundColor === 'rgb(255, 250, 246)' &&
       markStyles.borderTopStyle === 'solid' &&
@@ -318,6 +329,13 @@ for (const theme of ['typora-konayuki', 'typora-swiss']) {
       preStyles.backgroundColor === 'rgb(255, 255, 255)' &&
       preStyles.backgroundImage === 'none' &&
       tableStyles.borderCollapse === 'collapse' &&
+      tableStyles.fontSize === '15px' &&
+      tableStyles.borderTopWidth === '0px' &&
+      tableStyles.borderRadius === '0px' &&
+      tdStyles.fontSize === '15px' &&
+      tdStyles.verticalAlign === 'top' &&
+      cellParagraphStyles.marginTop === '0px' &&
+      cellParagraphStyles.marginBottom === '0px' &&
       mathUsesCodeFrame &&
       mathIsCentered;
   }, theme);

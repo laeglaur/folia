@@ -6,6 +6,13 @@
   background-image: none;
 }
 
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc table {
+  border: 0;
+  border-radius: 0;
+  font-size: inherit;
+  overflow: visible;
+}
+
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc th,
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc td {
   vertical-align: middle;
