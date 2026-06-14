@@ -66,6 +66,28 @@
   --desktop-card-radius: 0;
 }
 
+.typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .file-node-content {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .file-node-content.active,
+.typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .file-node-content.active:hover {
+  padding: 9px 12px;
+}
+
+.typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .file-node-content.active .file-node-title {
+  display: block;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  padding: 0;
+}
+
 .typora-theme[data-content-theme^="typora-"] .typora-write .block-content,
 .typora-theme[data-content-theme^="typora-"] .typora-write .composer {
   color: inherit;

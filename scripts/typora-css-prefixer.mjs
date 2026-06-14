@@ -145,6 +145,11 @@ const cloneRuleWithDeclarations = (rule, selector, declarationFilter) => {
   return clone.nodes?.length ? clone : null;
 };
 
+const isUnsafeShellDeclaration = (selector, declaration) => {
+  if (!/#typora-sidebar\b/.test(selector)) return false;
+  return declaration.prop === 'display' && declaration.value.trim() === 'none';
+};
+
 const findTyporaRootFontSize = (root) => {
   let rootFontSize = null;
   root.walkRules((rule) => {
@@ -258,7 +263,8 @@ const scopeCss = (css, themeId) => {
         .map((selector) => scopeSelector(selector, themeId, 'shell'))
         .filter(Boolean);
       const uniqueSelectors = [...new Set(selectors)];
-      const cloned = cloneRuleWithDeclarations(rule, uniqueSelectors.join(',\n'), () => true);
+      const selectorText = uniqueSelectors.join(',\n');
+      const cloned = cloneRuleWithDeclarations(rule, selectorText, (declaration) => !isUnsafeShellDeclaration(selectorText, declaration));
       if (cloned) extraRules.push(cloned);
     }
 

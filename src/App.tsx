@@ -1693,7 +1693,7 @@ export function App() {
                 <div className="file-library-node" data-is-directory="true" key={notebook.id}>
                   <span className="file-node-background" aria-hidden="true" />
                   <button
-                    className={`file-node-content ${notebook.id === activeNotebook.id ? 'active' : ''}`}
+                    className="file-node-content notebook-node"
                     type="button"
                     onClick={() => setState((current) => ({
                       ...current,

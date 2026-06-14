@@ -122,6 +122,21 @@ for (const theme of ['typora-proof', 'typora-konayuki', 'typora-swiss', 'typora-
   checks.typoraThemesAreSelectable = checks.typoraThemesAreSelectable && await page.evaluate((expected) => document.documentElement.dataset.contentTheme === expected, theme);
 }
 
+await chooseContentTheme('typora-proof');
+checks.proofKeepsTyporaShellLayout = await page.evaluate(() => {
+  const sidebar = document.querySelector('#typora-sidebar');
+  const workspace = document.querySelector('.typora-workspace');
+  const write = document.querySelector('#write');
+  if (!(sidebar instanceof HTMLElement) || !(workspace instanceof HTMLElement) || !(write instanceof HTMLElement)) return false;
+  const sidebarStyles = getComputedStyle(sidebar);
+  const workspaceRect = workspace.getBoundingClientRect();
+  const writeRect = write.getBoundingClientRect();
+  return sidebarStyles.display !== 'none' &&
+    workspaceRect.width > 900 &&
+    writeRect.width >= 800 &&
+    writeRect.left > workspaceRect.left;
+});
+
 await chooseContentTheme('typora-swiss');
 checks.swissUsesTyporaBaseShell = await page.evaluate(() => {
   const shell = document.querySelector('.typora-app-shell');
@@ -135,6 +150,7 @@ checks.swissUsesTyporaBaseShell = await page.evaluate(() => {
 });
 
 await chooseContentTheme('typora-konayuki');
+await page.getByRole('button', { name: 'Files' }).click();
 checks.konayukiShellOverridesApply = await page.evaluate(() => {
   const sidebar = document.querySelector('#typora-sidebar');
   const fileRow = document.querySelector('.file-node-content.active');
@@ -145,6 +161,18 @@ checks.konayukiShellOverridesApply = await page.evaluate(() => {
     Number.parseFloat(sidebarStyles.borderRadius) >= 10 &&
     sidebarStyles.boxShadow !== 'none' &&
     rowStyles.backgroundImage.includes('gradient');
+});
+
+checks.konayukiFileActiveDoesNotNestFrame = await page.evaluate(() => {
+  const activeRows = [...document.querySelectorAll('.file-node-content.active')];
+  const title = activeRows[0]?.querySelector('.file-node-title');
+  if (activeRows.length !== 1 || !(title instanceof HTMLElement)) return false;
+  const activeStyles = getComputedStyle(activeRows[0]);
+  const titleStyles = getComputedStyle(title);
+  return activeStyles.display === 'grid' &&
+    titleStyles.backgroundImage === 'none' &&
+    titleStyles.borderTopStyle === 'none' &&
+    titleStyles.boxShadow === 'none';
 });
 
 checks.typoraSidebarContract = await page.evaluate(() => {
