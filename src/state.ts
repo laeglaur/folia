@@ -102,7 +102,9 @@ const normalizeContentTheme = (contentTheme?: string): ContentThemeId => {
 
 const shouldConvertStoredMediaSrc = (src: string) => {
   if (!src) return false;
-  if (src.startsWith('/app-assets/') || src.startsWith('data:') || /^https?:\/\//i.test(src)) return false;
+  if (src.startsWith('/app-assets/') || src.startsWith('data:')) return false;
+  if (/^https?:\/\/asset\.localhost\//i.test(src)) return true;
+  if (/^https?:\/\//i.test(src)) return false;
   return src.startsWith('asset://localhost/')
     || src.startsWith('file://')
     || src.startsWith('/Users/')
@@ -111,16 +113,53 @@ const shouldConvertStoredMediaSrc = (src: string) => {
     || src.startsWith('/var/');
 };
 
-const convertStoredMediaSrc = (src: string) => {
-  if (!isTauri() || !shouldConvertStoredMediaSrc(src)) return src;
+const decodeRepeatedly = (value: string) => {
+  let decoded = value;
+  for (let index = 0; index < 8; index += 1) {
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    } catch {
+      break;
+    }
+  }
+  return decoded;
+};
+
+const normalizeAbsolutePath = (value: string) => {
+  const decoded = decodeRepeatedly(value);
+  return decoded.replace(/^\/+(?=(Users|private|Volumes|var)\b)/, '/');
+};
+
+const pathFromStoredMediaSrc = (src: string) => {
   try {
     if (src.startsWith('asset://localhost/') || src.startsWith('file://')) {
-      return convertFileSrc(new URL(src).pathname);
+      return normalizeAbsolutePath(new URL(src).pathname);
     }
-    return convertFileSrc(src);
+    if (/^https?:\/\/asset\.localhost\//i.test(src)) {
+      return normalizeAbsolutePath(new URL(src).pathname);
+    }
   } catch {
-    return src;
+    return null;
   }
+  if (src.startsWith('/Users/') || src.startsWith('/private/') || src.startsWith('/Volumes/') || src.startsWith('/var/')) {
+    return normalizeAbsolutePath(src);
+  }
+  return null;
+};
+
+const assetIdFromStoredMediaSrc = (src: string) => {
+  const path = pathFromStoredMediaSrc(src);
+  const filename = path?.split('/').pop() ?? '';
+  const match = filename.match(/^([a-f0-9]{64})(?:\.[^.]+)?$/i);
+  return match ? `asset_${match[1].toLowerCase()}` : null;
+};
+
+const convertStoredMediaSrc = (src: string) => {
+  if (!isTauri() || !shouldConvertStoredMediaSrc(src)) return src;
+  const path = pathFromStoredMediaSrc(src);
+  return path ? convertFileSrc(path) : src;
 };
 
 const normalizeStoredMediaUrls = (html: string) => {
@@ -129,7 +168,12 @@ const normalizeStoredMediaUrls = (html: string) => {
   container.innerHTML = html;
   container.querySelectorAll<HTMLImageElement | HTMLVideoElement | HTMLAudioElement>('img[src], video[src], audio[src]').forEach((element) => {
     const src = element.getAttribute('src');
-    if (src) element.setAttribute('src', convertStoredMediaSrc(src));
+    if (!src) return;
+    if (!element.getAttribute('data-asset-id')) {
+      const inferredAssetId = assetIdFromStoredMediaSrc(src);
+      if (inferredAssetId) element.setAttribute('data-asset-id', inferredAssetId);
+    }
+    element.setAttribute('src', convertStoredMediaSrc(src));
   });
   return container.innerHTML;
 };
@@ -289,6 +333,10 @@ const extractReferencedAssetIds = (state: AppState) => {
     container.innerHTML = block.content.html;
     container.querySelectorAll<HTMLElement>('[data-asset-id]').forEach((element) => {
       const id = element.dataset.assetId?.trim();
+      if (id) ids.add(id);
+    });
+    container.querySelectorAll<HTMLImageElement | HTMLVideoElement | HTMLAudioElement>('img[src], video[src], audio[src]').forEach((element) => {
+      const id = assetIdFromStoredMediaSrc(element.getAttribute('src') ?? '');
       if (id) ids.add(id);
     });
   });

@@ -554,6 +554,21 @@ const mediaRenderAttributes = (HTMLAttributes: Record<string, unknown>) => {
   };
 };
 
+const mediaAssetAttributes = () => ({
+  assetId: {
+    default: null,
+    parseHTML: (element: HTMLElement) => element.getAttribute('data-asset-id'),
+    renderHTML: (attributes: Record<string, unknown>) =>
+      typeof attributes.assetId === 'string' && attributes.assetId ? { 'data-asset-id': attributes.assetId } : {}
+  },
+  originalSrc: {
+    default: null,
+    parseHTML: (element: HTMLElement) => element.getAttribute('data-original-src'),
+    renderHTML: (attributes: Record<string, unknown>) =>
+      typeof attributes.originalSrc === 'string' && attributes.originalSrc ? { 'data-original-src': attributes.originalSrc } : {}
+  }
+});
+
 const markdownishText = (value: string) =>
   /(^|\n)\s{0,3}(#{1,6}\s|[-*+]\s+|\d+\.\s+|>\s|\[[ xX]\]\s|【】\s)|```|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|==[^=]+==|\[[^\]]+\]\([^)]+\)/.test(value);
 
@@ -1085,6 +1100,7 @@ const NotebookImage = Image.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
+      ...mediaAssetAttributes(),
       width: {
         default: null,
         parseHTML: (element) => parseMediaWidth(element as HTMLElement),
@@ -1113,6 +1129,7 @@ const NotebookVideo = Node.create({
     return {
       src: { default: null },
       controls: { default: true },
+      ...mediaAssetAttributes(),
       width: {
         default: null,
         parseHTML: (element) => parseMediaWidth(element as HTMLElement),
@@ -1145,6 +1162,7 @@ const NotebookAudio = Node.create({
     return {
       src: { default: null },
       controls: { default: true },
+      ...mediaAssetAttributes(),
       width: {
         default: null,
         parseHTML: (element) => parseMediaWidth(element as HTMLElement),

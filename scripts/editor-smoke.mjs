@@ -103,6 +103,23 @@ checks.markdownPasteKeepsStructure = markdownPasteHtml.includes('<strong>bold pa
   markdownPasteHtml.includes('second');
 
 await resetApp();
+const assetIdPasteComposer = page.locator('.composer').last();
+await assetIdPasteComposer.click();
+await page.evaluate(async () => {
+  await navigator.clipboard.write([
+    new ClipboardItem({
+      'text/html': new Blob(['<img src="https://example.com/persist.png" data-asset-id="asset_smoke" data-original-src="/tmp/persist.png" data-width="50%">'], { type: 'text/html' }),
+      'text/plain': new Blob(['persist image'], { type: 'text/plain' })
+    })
+  ]);
+});
+await page.keyboard.press(`${modKey}+V`);
+const assetIdPasteHtml = await assetIdPasteComposer.evaluate((node) => node.innerHTML);
+checks.mediaAssetAttributesSurviveEditor = assetIdPasteHtml.includes('data-asset-id="asset_smoke"') &&
+  assetIdPasteHtml.includes('data-original-src="/tmp/persist.png"') &&
+  assetIdPasteHtml.includes('data-width="50%"');
+
+await resetApp();
 const greenPasteComposer = page.locator('.composer').last();
 await greenPasteComposer.click();
 await page.evaluate(async () => {
