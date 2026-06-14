@@ -66,14 +66,14 @@
   font-family: 'Inconsolata';
   font-style: normal;
   font-weight: 400;
-  src: local('Inconsolata Regular'), url(monospace/Inconsolata-Regular.ttf) format('truetype');
+  src: local('Inconsolata Regular'), url(data:font/ttf;base64,) format('truetype');
 }
 /* latin */
 @font-face {
   font-family: 'Inconsolata';
   font-style: normal;
   font-weight: 700;
-  src: local('Inconsolata Bold'), url(monospace/Inconsolata-Bold.ttf) format('truetype');
+  src: local('Inconsolata Bold'), url(data:font/ttf;base64,) format('truetype');
 }
 
 .typora-theme[data-content-theme="typora-gruvbox-dark"] .typora-write {

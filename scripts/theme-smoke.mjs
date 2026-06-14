@@ -1,4 +1,5 @@
 import { chromium } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
@@ -9,6 +10,9 @@ await page.evaluate(() => localStorage.clear());
 await page.reload();
 
 const checks = {};
+const gruvboxGeneratedCss = await readFile('src/styles/typora/generated/typora-gruvbox-dark.scoped.css', 'utf8');
+checks.typoraMissingAssetsAreInert = gruvboxGeneratedCss.includes('url(data:font/ttf;base64,)') &&
+  !gruvboxGeneratedCss.includes('url(monospace/Inconsolata');
 const shellSelect = page.getByLabel('Shell theme');
 const contentSelect = page.locator('.content-theme-select');
 const chooseContentTheme = async (theme) => {
