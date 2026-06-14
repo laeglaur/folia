@@ -88,6 +88,15 @@
   padding: 0;
 }
 
+.typora-app-shell #typora-sidebar .outline-content.md-toc-content {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .typora-theme[data-content-theme^="typora-"] .typora-write .block-content,
 .typora-theme[data-content-theme^="typora-"] .typora-write .composer {
   color: inherit;

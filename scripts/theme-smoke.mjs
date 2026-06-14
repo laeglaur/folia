@@ -175,6 +175,18 @@ checks.konayukiFileActiveDoesNotNestFrame = await page.evaluate(() => {
     titleStyles.boxShadow === 'none';
 });
 
+await page.getByRole('button', { name: 'Outline' }).click();
+checks.typoraOutlineDoesNotUseContentTocCard = await page.evaluate(() => {
+  const outline = document.querySelector('#typora-sidebar .outline-content.md-toc-content');
+  if (!(outline instanceof HTMLElement)) return false;
+  const styles = getComputedStyle(outline);
+  return styles.backgroundColor === 'rgba(0, 0, 0, 0)' &&
+    styles.borderTopStyle === 'none' &&
+    styles.boxShadow === 'none' &&
+    styles.paddingTop === '0px' &&
+    styles.marginTop === '0px';
+});
+
 checks.typoraSidebarContract = await page.evaluate(() => {
   const sidebar = document.querySelector('#typora-sidebar');
   const files = document.querySelector('.file-library-node');
