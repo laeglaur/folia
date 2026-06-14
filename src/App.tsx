@@ -22,6 +22,7 @@ import {
   PanelRight,
   Plus,
   Quote,
+  Trash2,
   Search,
   Sigma,
   Sparkles,
@@ -55,6 +56,7 @@ import type { AppState, Block, ContentThemeId, Page, ShellId } from './types';
 import {
   appendOperation,
   createBlock,
+  createId,
   createNotebookFromMarkdownDocuments,
   createNotebook,
   createPageFromMarkdown,
@@ -1525,6 +1527,208 @@ export function App() {
     }));
   };
 
+  const descendantsOfPage = (pageId: string, pages: Page[]) => {
+    const childrenByParent = new Map<string | null, Page[]>();
+    pages.forEach((page) => {
+      const key = page.parentId ?? null;
+      childrenByParent.set(key, [...(childrenByParent.get(key) ?? []), page]);
+    });
+    const collected: Page[] = [];
+    const visit = (id: string) => {
+      (childrenByParent.get(id) ?? []).forEach((child) => {
+        collected.push(child);
+        visit(child.id);
+      });
+    };
+    visit(pageId);
+    return collected;
+  };
+
+  const duplicatePageTree = (pageId: string) => {
+    setState((current) => {
+      const rootPage = current.pages.find((page) => page.id === pageId);
+      if (!rootPage) return current;
+      const sourcePages = [rootPage, ...descendantsOfPage(pageId, current.pages)];
+      const pageIdMap = new Map(sourcePages.map((page) => [page.id, createId('page')]));
+      const blockIdMap = new Map<string, string>();
+      sourcePages.forEach((page) => {
+        page.blockIds.forEach((blockId) => blockIdMap.set(blockId, createId('block')));
+      });
+
+      const duplicatedPages = sourcePages.map((page, index) => ({
+        ...page,
+        id: pageIdMap.get(page.id) ?? createId('page'),
+        parentId: page.parentId && pageIdMap.has(page.parentId) ? pageIdMap.get(page.parentId) ?? null : page.parentId,
+        title: index === 0 ? `${page.title} copy` : page.title,
+        blockIds: page.blockIds.map((blockId) => blockIdMap.get(blockId)).filter(Boolean) as string[],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }));
+      const duplicatedBlocks = current.blocks
+        .filter((block) => blockIdMap.has(block.id))
+        .map((block) => ({
+          ...block,
+          id: blockIdMap.get(block.id) ?? createId('block'),
+          pageId: pageIdMap.get(block.pageId) ?? block.pageId,
+          pinned: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }));
+      const duplicatedRootId = duplicatedPages[0]?.id ?? current.activePageId;
+
+      return {
+        ...current,
+        pages: [...current.pages, ...duplicatedPages],
+        blocks: [...current.blocks, ...duplicatedBlocks],
+        notebooks: current.notebooks.map((notebook) =>
+          notebook.id === rootPage.notebookId
+            ? { ...notebook, pageIds: [...notebook.pageIds, ...duplicatedPages.map((page) => page.id)] }
+            : notebook
+        ),
+        activeNotebookId: rootPage.notebookId,
+        activePageId: duplicatedRootId,
+        expandedPageIds: [...new Set([...current.expandedPageIds, ...duplicatedPages.map((page) => page.id)])],
+        operations: appendOperation(current, {
+          entity: 'page',
+          entityId: duplicatedRootId,
+          kind: 'page.duplicate_tree',
+          payload: { sourcePageId: pageId, pageCount: duplicatedPages.length, blockCount: duplicatedBlocks.length }
+        })
+      };
+    });
+  };
+
+  const deletePageTree = (pageId: string) => {
+    const page = state.pages.find((candidate) => candidate.id === pageId);
+    if (!page) return;
+    if (!window.confirm(`Delete "${page.title}" and its nested pages?`)) return;
+    setState((current) => {
+      const rootPage = current.pages.find((candidate) => candidate.id === pageId);
+      if (!rootPage) return current;
+      const deletedPages = [rootPage, ...descendantsOfPage(pageId, current.pages)];
+      const deletedPageIds = new Set(deletedPages.map((deletedPage) => deletedPage.id));
+      const deletedBlockIds = new Set(deletedPages.flatMap((deletedPage) => deletedPage.blockIds));
+      const fallbackPage = current.pages.some((candidate) => candidate.notebookId === rootPage.notebookId && !deletedPageIds.has(candidate.id))
+        ? null
+        : createPage(rootPage.notebookId, 'Inbox');
+      const remainingPages = [
+        ...current.pages.filter((candidate) => !deletedPageIds.has(candidate.id)),
+        ...(fallbackPage ? [fallbackPage] : [])
+      ];
+      const remainingNotebooks = current.notebooks.map((notebook) => ({
+        ...notebook,
+        pageIds: [
+          ...notebook.pageIds.filter((id) => !deletedPageIds.has(id)),
+          ...(fallbackPage && notebook.id === rootPage.notebookId ? [fallbackPage.id] : [])
+        ]
+      }));
+      let activeNotebookId = current.activeNotebookId;
+      let activePageId = current.activePageId;
+      if (deletedPageIds.has(current.activePageId)) {
+        const sameNotebook = remainingPages.find((candidate) => candidate.notebookId === rootPage.notebookId);
+        const fallback = sameNotebook ?? remainingPages[0];
+        if (fallback) {
+          activeNotebookId = fallback.notebookId;
+          activePageId = fallback.id;
+        }
+      }
+      return {
+        ...current,
+        notebooks: remainingNotebooks,
+        pages: remainingPages,
+        blocks: current.blocks.filter((block) => !deletedBlockIds.has(block.id)),
+        activeNotebookId,
+        activePageId,
+        expandedPageIds: current.expandedPageIds.filter((id) => !deletedPageIds.has(id)),
+        operations: appendOperation(current, {
+          entity: 'page',
+          entityId: pageId,
+          kind: 'page.delete_tree',
+          payload: { pageCount: deletedPages.length, blockCount: deletedBlockIds.size }
+        })
+      };
+    });
+  };
+
+  const duplicateNotebook = (notebookId: string) => {
+    setState((current) => {
+      const sourceNotebook = current.notebooks.find((notebook) => notebook.id === notebookId);
+      if (!sourceNotebook) return current;
+      const sourcePages = current.pages.filter((page) => page.notebookId === notebookId);
+      const pageIdMap = new Map(sourcePages.map((page) => [page.id, createId('page')]));
+      const blockIdMap = new Map<string, string>();
+      sourcePages.forEach((page) => {
+        page.blockIds.forEach((blockId) => blockIdMap.set(blockId, createId('block')));
+      });
+      const notebook = { ...createNotebook(`${sourceNotebook.name} copy`), pageIds: sourceNotebook.pageIds.map((id) => pageIdMap.get(id)).filter(Boolean) as string[] };
+      const duplicatedPages = sourcePages.map((page) => ({
+        ...page,
+        id: pageIdMap.get(page.id) ?? createId('page'),
+        notebookId: notebook.id,
+        parentId: page.parentId ? pageIdMap.get(page.parentId) ?? null : null,
+        blockIds: page.blockIds.map((blockId) => blockIdMap.get(blockId)).filter(Boolean) as string[],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }));
+      const duplicatedBlocks = current.blocks
+        .filter((block) => blockIdMap.has(block.id))
+        .map((block) => ({
+          ...block,
+          id: blockIdMap.get(block.id) ?? createId('block'),
+          pageId: pageIdMap.get(block.pageId) ?? block.pageId,
+          pinned: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }));
+
+      return {
+        ...current,
+        notebooks: [...current.notebooks, notebook],
+        pages: [...current.pages, ...duplicatedPages],
+        blocks: [...current.blocks, ...duplicatedBlocks],
+        activeNotebookId: notebook.id,
+        activePageId: notebook.pageIds[0] ?? current.activePageId,
+        expandedPageIds: [...new Set([...current.expandedPageIds, ...duplicatedPages.map((page) => page.id)])],
+        operations: appendOperation(current, {
+          entity: 'notebook',
+          entityId: notebook.id,
+          kind: 'notebook.duplicate',
+          payload: { sourceNotebookId: notebookId, pageCount: duplicatedPages.length, blockCount: duplicatedBlocks.length }
+        })
+      };
+    });
+  };
+
+  const deleteNotebook = (notebookId: string) => {
+    const notebook = state.notebooks.find((candidate) => candidate.id === notebookId);
+    if (!notebook || state.notebooks.length <= 1) return;
+    if (!window.confirm(`Delete notebook "${notebook.name}"?`)) return;
+    setState((current) => {
+      const deletedPages = current.pages.filter((page) => page.notebookId === notebookId);
+      const deletedPageIds = new Set(deletedPages.map((page) => page.id));
+      const deletedBlockIds = new Set(deletedPages.flatMap((page) => page.blockIds));
+      const notebooks = current.notebooks.filter((candidate) => candidate.id !== notebookId);
+      const activeNotebook = current.activeNotebookId === notebookId ? notebooks[0] : current.notebooks.find((candidate) => candidate.id === current.activeNotebookId);
+      const activePageId = activeNotebook?.pageIds.find((id) => !deletedPageIds.has(id)) ?? current.activePageId;
+
+      return {
+        ...current,
+        notebooks,
+        pages: current.pages.filter((page) => !deletedPageIds.has(page.id)),
+        blocks: current.blocks.filter((block) => !deletedBlockIds.has(block.id)),
+        activeNotebookId: activeNotebook?.id ?? notebooks[0]?.id ?? current.activeNotebookId,
+        activePageId,
+        expandedPageIds: current.expandedPageIds.filter((id) => !deletedPageIds.has(id)),
+        operations: appendOperation(current, {
+          entity: 'notebook',
+          entityId: notebookId,
+          kind: 'notebook.delete',
+          payload: { pageCount: deletedPages.length, blockCount: deletedBlockIds.size }
+        })
+      };
+    });
+  };
+
   const renamePage = (title: string) => {
     setState((current) => ({
       ...current,
@@ -1696,44 +1900,50 @@ export function App() {
       const expanded = state.expandedPageIds.includes(page.id);
       return (
         <div className="page-tree-row" key={page.id} style={{ '--depth': depth } as React.CSSProperties}>
-          <button
-            className={`page-button ${page.id === activePage.id ? 'active' : ''}`}
-            draggable
-            onDragStart={(event) => event.dataTransfer.setData('application/page-id', page.id)}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              const draggedId = event.dataTransfer.getData('application/page-id');
-              if (draggedId) movePageUnder(draggedId, page.id);
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== 'Tab') return;
-              event.preventDefault();
-              setState((current) => ({ ...current, activePageId: page.id }));
-              if (event.shiftKey) {
-                const parent = state.pages.find((candidate) => candidate.id === page.parentId);
-                movePageUnder(page.id, parent?.parentId ?? null);
-              } else {
-                const siblings = state.pages.filter((candidate) => candidate.notebookId === page.notebookId && (candidate.parentId ?? null) === (page.parentId ?? null));
-                const index = siblings.findIndex((candidate) => candidate.id === page.id);
-                const previousSibling = siblings[index - 1];
-                if (previousSibling) movePageUnder(page.id, previousSibling.id);
-              }
-            }}
-            onClick={() => setState((current) => ({ ...current, activePageId: page.id }))}
-            type="button"
-          >
-            <span
-              className="page-disclosure"
-              onClick={(event) => {
-                event.stopPropagation();
-                if (hasChildren) togglePageExpanded(page.id);
+          <div className={`page-row-shell ${page.id === activePage.id ? 'active' : ''}`}>
+            <button
+              className={`page-button ${page.id === activePage.id ? 'active' : ''}`}
+              draggable
+              onDragStart={(event) => event.dataTransfer.setData('application/page-id', page.id)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const draggedId = event.dataTransfer.getData('application/page-id');
+                if (draggedId) movePageUnder(draggedId, page.id);
               }}
+              onKeyDown={(event) => {
+                if (event.key !== 'Tab') return;
+                event.preventDefault();
+                setState((current) => ({ ...current, activePageId: page.id }));
+                if (event.shiftKey) {
+                  const parent = state.pages.find((candidate) => candidate.id === page.parentId);
+                  movePageUnder(page.id, parent?.parentId ?? null);
+                } else {
+                  const siblings = state.pages.filter((candidate) => candidate.notebookId === page.notebookId && (candidate.parentId ?? null) === (page.parentId ?? null));
+                  const index = siblings.findIndex((candidate) => candidate.id === page.id);
+                  const previousSibling = siblings[index - 1];
+                  if (previousSibling) movePageUnder(page.id, previousSibling.id);
+                }
+              }}
+              onClick={() => setState((current) => ({ ...current, activePageId: page.id }))}
+              type="button"
             >
-              {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
-            </span>
-            <span>{page.title}</span>
-          </button>
+              <span
+                className="page-disclosure"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (hasChildren) togglePageExpanded(page.id);
+                }}
+              >
+                {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
+              </span>
+              <span>{page.title}</span>
+            </button>
+            <div className="row-actions page-row-actions">
+              <button className="mini-button row-action duplicate-page-button" type="button" onClick={() => duplicatePageTree(page.id)} aria-label={`Duplicate page ${page.title}`}><FilePlus size={13} /></button>
+              <button className="mini-button row-action delete-page-button" type="button" onClick={() => deletePageTree(page.id)} aria-label={`Delete page ${page.title}`}><Trash2 size={13} /></button>
+            </div>
+          </div>
           {hasChildren && expanded && <div className="page-tree-children">{renderPageTree(page.id, depth + 1)}</div>}
         </div>
       );
@@ -1751,44 +1961,50 @@ export function App() {
           style={{ '--depth': depth } as React.CSSProperties}
         >
           <span className="file-node-background" aria-hidden="true" />
-          <button
-            className={`file-node-content ${page.id === activePage.id ? 'active' : ''}`}
-            draggable
-            onDragStart={(event) => event.dataTransfer.setData('application/page-id', page.id)}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              const draggedId = event.dataTransfer.getData('application/page-id');
-              if (draggedId) movePageUnder(draggedId, page.id);
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== 'Tab') return;
-              event.preventDefault();
-              setState((current) => ({ ...current, activePageId: page.id }));
-              if (event.shiftKey) {
-                const parent = state.pages.find((candidate) => candidate.id === page.parentId);
-                movePageUnder(page.id, parent?.parentId ?? null);
-              } else {
-                const siblings = state.pages.filter((candidate) => candidate.notebookId === page.notebookId && (candidate.parentId ?? null) === (page.parentId ?? null));
-                const index = siblings.findIndex((candidate) => candidate.id === page.id);
-                const previousSibling = siblings[index - 1];
-                if (previousSibling) movePageUnder(page.id, previousSibling.id);
-              }
-            }}
-            onClick={() => setState((current) => ({ ...current, activePageId: page.id }))}
-            type="button"
-          >
-            <span
-              className="file-node-open-state"
-              onClick={(event) => {
-                event.stopPropagation();
-                if (hasChildren) togglePageExpanded(page.id);
+          <div className={`file-node-row-shell ${page.id === activePage.id ? 'active' : ''}`}>
+            <button
+              className={`file-node-content ${page.id === activePage.id ? 'active' : ''}`}
+              draggable
+              onDragStart={(event) => event.dataTransfer.setData('application/page-id', page.id)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const draggedId = event.dataTransfer.getData('application/page-id');
+                if (draggedId) movePageUnder(draggedId, page.id);
               }}
+              onKeyDown={(event) => {
+                if (event.key !== 'Tab') return;
+                event.preventDefault();
+                setState((current) => ({ ...current, activePageId: page.id }));
+                if (event.shiftKey) {
+                  const parent = state.pages.find((candidate) => candidate.id === page.parentId);
+                  movePageUnder(page.id, parent?.parentId ?? null);
+                } else {
+                  const siblings = state.pages.filter((candidate) => candidate.notebookId === page.notebookId && (candidate.parentId ?? null) === (page.parentId ?? null));
+                  const index = siblings.findIndex((candidate) => candidate.id === page.id);
+                  const previousSibling = siblings[index - 1];
+                  if (previousSibling) movePageUnder(page.id, previousSibling.id);
+                }
+              }}
+              onClick={() => setState((current) => ({ ...current, activePageId: page.id }))}
+              type="button"
             >
-              {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
-            </span>
-            <span className="file-node-title file-name">{page.title}</span>
-          </button>
+              <span
+                className="file-node-open-state"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (hasChildren) togglePageExpanded(page.id);
+                }}
+              >
+                {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
+              </span>
+              <span className="file-node-title file-name">{page.title}</span>
+            </button>
+            <div className="row-actions file-node-actions">
+              <button className="mini-button row-action duplicate-page-button" type="button" onClick={() => duplicatePageTree(page.id)} aria-label={`Duplicate page ${page.title}`}><FilePlus size={13} /></button>
+              <button className="mini-button row-action delete-page-button" type="button" onClick={() => deletePageTree(page.id)} aria-label={`Delete page ${page.title}`}><Trash2 size={13} /></button>
+            </div>
+          </div>
           {hasChildren && expanded && <div className="file-node-children">{renderTyporaFileTree(page.id, depth + 1)}</div>}
         </div>
       );
@@ -2019,19 +2235,26 @@ export function App() {
           </div>
           <div className="notebook-list">
             {state.notebooks.map((notebook) => (
-              <button
-                className={`notebook-button ${notebook.id === activeNotebook.id ? 'active' : ''}`}
-                key={notebook.id}
-                type="button"
-                onClick={() => setState((current) => ({
-                  ...current,
-                  activeNotebookId: notebook.id,
-                  activePageId: notebook.pageIds[0] ?? current.activePageId
-                }))}
-              >
-                <NotebookTabs size={15} />
-                {notebook.name}
-              </button>
+              <div className={`notebook-row-shell ${notebook.id === activeNotebook.id ? 'active' : ''}`} key={notebook.id}>
+                <button
+                  className={`notebook-button ${notebook.id === activeNotebook.id ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => setState((current) => ({
+                    ...current,
+                    activeNotebookId: notebook.id,
+                    activePageId: notebook.pageIds[0] ?? current.activePageId
+                  }))}
+                >
+                  <NotebookTabs size={15} />
+                  {notebook.name}
+                </button>
+                <div className="row-actions notebook-row-actions">
+                  <button className="mini-button row-action duplicate-notebook-button" type="button" onClick={() => duplicateNotebook(notebook.id)} aria-label={`Duplicate notebook ${notebook.name}`}><FilePlus size={13} /></button>
+                  {state.notebooks.length > 1 ? (
+                    <button className="mini-button row-action delete-notebook-button" type="button" onClick={() => deleteNotebook(notebook.id)} aria-label={`Delete notebook ${notebook.name}`}><Trash2 size={13} /></button>
+                  ) : null}
+                </div>
+              </div>
             ))}
           </div>
         </section>
@@ -2115,18 +2338,26 @@ export function App() {
               {state.notebooks.map((notebook) => (
                 <div className="file-library-node" data-is-directory="true" key={notebook.id}>
                   <span className="file-node-background" aria-hidden="true" />
-                  <button
-                    className="file-node-content notebook-node"
-                    type="button"
-                    onClick={() => setState((current) => ({
-                      ...current,
-                      activeNotebookId: notebook.id,
-                      activePageId: notebook.pageIds[0] ?? current.activePageId
-                    }))}
-                  >
-                    <span className="file-node-open-state"><NotebookTabs size={13} /></span>
-                    <span className="file-node-title file-name">{notebook.name}</span>
-                  </button>
+                  <div className={`file-node-row-shell ${notebook.id === activeNotebook.id ? 'active' : ''}`}>
+                    <button
+                      className="file-node-content notebook-node"
+                      type="button"
+                      onClick={() => setState((current) => ({
+                        ...current,
+                        activeNotebookId: notebook.id,
+                        activePageId: notebook.pageIds[0] ?? current.activePageId
+                      }))}
+                    >
+                      <span className="file-node-open-state"><NotebookTabs size={13} /></span>
+                      <span className="file-node-title file-name">{notebook.name}</span>
+                    </button>
+                    <div className="row-actions file-node-actions">
+                      <button className="mini-button row-action duplicate-notebook-button" type="button" onClick={() => duplicateNotebook(notebook.id)} aria-label={`Duplicate notebook ${notebook.name}`}><FilePlus size={13} /></button>
+                      {state.notebooks.length > 1 ? (
+                        <button className="mini-button row-action delete-notebook-button" type="button" onClick={() => deleteNotebook(notebook.id)} aria-label={`Delete notebook ${notebook.name}`}><Trash2 size={13} /></button>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

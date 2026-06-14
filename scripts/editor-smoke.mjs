@@ -7,10 +7,14 @@ const context = await browser.newContext({
 });
 const page = await context.newPage();
 const appUrl = process.env.APP_URL ?? 'http://127.0.0.1:5173/';
+const resetApp = async () => {
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.locator('.composer').last().waitFor({ state: 'visible' });
+};
 
 await page.goto(appUrl);
-await page.evaluate(() => localStorage.clear());
-await page.reload();
+await resetApp();
 
 const composer = page.locator('.composer').last();
 await composer.click();
@@ -35,16 +39,14 @@ const checks = {
   codeBlock: await composer.locator('pre.md-fences code').count() > 0
 };
 
-await page.evaluate(() => localStorage.clear());
-await page.reload();
+await resetApp();
 const freshComposer = page.locator('.composer').last();
 await freshComposer.click();
 await page.keyboard.type('【】 中文 todo');
 const cnTodoHtml = await freshComposer.evaluate((node) => node.innerHTML);
 checks.cnTodo = cnTodoHtml.includes('data-type="taskList"') && cnTodoHtml.includes('data-todo-style="bracket"') && cnTodoHtml.includes('中文 todo');
 
-await page.evaluate(() => localStorage.clear());
-await page.reload();
+await resetApp();
 const commandComposer = page.locator('.composer').last();
 await commandComposer.click();
 await page.keyboard.type('toggle copy paste');
@@ -65,8 +67,7 @@ await page.keyboard.press(`${modKey}+V`);
 const copiedText = await commandComposer.innerText();
 checks.copyPaste = clipboardText === 'toggle copy paste' && copiedText.includes('toggle copy paste');
 
-await page.evaluate(() => localStorage.clear());
-await page.reload();
+await resetApp();
 const markdownPasteComposer = page.locator('.composer').last();
 await markdownPasteComposer.click();
 await page.evaluate(() => navigator.clipboard.writeText('**bold paste**\n\n- first\n- second'));
@@ -77,8 +78,7 @@ checks.markdownPasteKeepsStructure = markdownPasteHtml.includes('<strong>bold pa
   markdownPasteHtml.includes('first') &&
   markdownPasteHtml.includes('second');
 
-await page.evaluate(() => localStorage.clear());
-await page.reload();
+await resetApp();
 const greenPasteComposer = page.locator('.composer').last();
 await greenPasteComposer.click();
 await page.evaluate(async () => {
@@ -93,8 +93,7 @@ await page.keyboard.press(`${modKey}+V`);
 const greenPasteHtml = await greenPasteComposer.evaluate((node) => node.innerHTML);
 checks.greenHtmlPasteBecomesHighlight = greenPasteHtml.includes('<mark>green terminal text</mark>');
 
-await page.evaluate(() => localStorage.clear());
-await page.reload();
+await resetApp();
 const ansiPasteComposer = page.locator('.composer').last();
 await ansiPasteComposer.click();
 await ansiPasteComposer.evaluate((node) => {
@@ -109,8 +108,7 @@ await ansiPasteComposer.evaluate((node) => {
 const ansiPasteHtml = await ansiPasteComposer.evaluate((node) => node.innerHTML);
 checks.ansiGreenPasteBecomesHighlight = ansiPasteHtml.includes('<mark>ansi green</mark>');
 
-await page.evaluate(() => localStorage.clear());
-await page.reload();
+await resetApp();
 const markComposer = page.locator('.composer').last();
 await markComposer.click();
 await page.keyboard.type('styled marks');
@@ -142,8 +140,7 @@ checks.semanticToolbarButtons = await page.locator('.format-toolbar').evaluate((
   return requiredTitles.every((title) => toolbar.querySelector(`button[title="${title}"]`));
 });
 
-await page.evaluate(() => localStorage.clear());
-await page.reload();
+await resetApp();
 const listComposer = page.locator('.composer').last();
 await page.locator('.content-theme-select').selectOption('typora-swiss');
 await listComposer.click();
@@ -153,8 +150,7 @@ await page.keyboard.type('second task');
 let listHtml = await listComposer.evaluate((node) => node.innerHTML);
 checks.continuousTodoEntry = (listHtml.match(/data-type="taskItem"/g) ?? []).length >= 2 && listHtml.includes('first task') && listHtml.includes('second task');
 
-await page.evaluate(() => localStorage.clear());
-await page.reload();
+await resetApp();
 const bulletComposer = page.locator('.composer').last();
 await page.locator('.content-theme-select').selectOption('typora-swiss');
 await bulletComposer.click();
@@ -171,8 +167,7 @@ checks.toolbarOutdentInSwiss = await bulletComposer.evaluate((node) => {
   return html.includes('child') && (html.match(/<ul/g) ?? []).length === 1;
 });
 
-await page.evaluate(() => localStorage.clear());
-await page.reload();
+await resetApp();
 const enterComposer = page.locator('.composer').last();
 await enterComposer.click();
 await page.keyboard.type('abcde');
@@ -197,8 +192,7 @@ checks.enterAtCaret = await firstBlock.evaluate((node) => {
   return paragraphs[0] === 'abc' && paragraphs[1] === 'de';
 });
 
-await page.evaluate(() => localStorage.clear());
-await page.reload();
+await resetApp();
 const collapseComposer = page.locator('.composer').last();
 await collapseComposer.click();
 await collapseComposer.evaluate((element) => {
@@ -210,6 +204,97 @@ if (parentListItemBox) {
 }
 const collapsedHtml = await collapseComposer.evaluate((node) => node.innerHTML);
 checks.persistedListCollapse = collapsedHtml.includes('data-list-collapsed="true"');
+
+await resetApp();
+await page.evaluate(() => {
+  window.confirm = () => true;
+});
+await page.getByLabel('New page').click();
+await page.locator('.page-title').fill('Parent ops');
+await page.getByLabel('New page').click();
+await page.locator('.page-title').fill('Child ops');
+const childButton = page.getByRole('button', { name: /Child ops/ }).first();
+await childButton.focus();
+await page.keyboard.press('Shift+Tab');
+await childButton.focus();
+await page.keyboard.press('Tab');
+await page.getByLabel('Duplicate page Parent ops').click();
+await page.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  return state.pages?.some((storedPage) => storedPage.title === 'Parent ops copy');
+});
+const stateAfterPageCopy = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+const parentCopy = stateAfterPageCopy.pages.find((storedPage) => storedPage.title === 'Parent ops copy');
+const childCopy = stateAfterPageCopy.pages.find((storedPage) => storedPage.title === 'Child ops' && storedPage.parentId === parentCopy?.id);
+checks.pageTreeDuplicate = Boolean(parentCopy && childCopy);
+await page.evaluate(() => {
+  window.confirm = () => true;
+});
+await page.getByLabel('Delete page Parent ops copy').click();
+await page.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  return !state.pages?.some((storedPage) => storedPage.title === 'Parent ops copy');
+});
+const stateAfterPageDelete = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+checks.pageTreeDelete = !stateAfterPageDelete.pages.some((storedPage) => storedPage.title === 'Parent ops copy') &&
+  stateAfterPageDelete.pages.some((storedPage) => storedPage.title === 'Parent ops');
+
+await page.evaluate(() => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  const child = state.pages?.find((storedPage) => storedPage.title === 'Child ops');
+  if (child) {
+    state.activeNotebookId = child.notebookId;
+    state.activePageId = child.id;
+    localStorage.setItem('block-first-notebook.state.v1', JSON.stringify(state));
+  }
+});
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.locator('.page-title').waitFor({ state: 'visible' });
+await page.getByRole('button', { name: /^Child ops$/ }).first().click();
+await page.locator('.composer').last().click();
+await page.keyboard.type('copy delete body');
+await page.keyboard.press('Shift+Enter');
+await page.getByLabel('Duplicate page Child ops').click();
+await page.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  return state.pages?.filter((storedPage) => storedPage.title === 'Child ops copy').length === 1;
+});
+const stateAfterBlockPageCopy = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+const childPageCopy = stateAfterBlockPageCopy.pages.find((storedPage) => storedPage.title === 'Child ops copy');
+const copiedBlock = stateAfterBlockPageCopy.blocks.find((block) => childPageCopy?.blockIds?.includes(block.id));
+checks.pageDuplicateCopiesBlocks = Boolean(copiedBlock?.content?.plainText?.includes('copy delete body'));
+await page.evaluate(() => {
+  window.confirm = () => true;
+});
+await page.getByLabel('Delete page Child ops copy').click();
+await page.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  return !state.pages?.some((storedPage) => storedPage.title === 'Child ops copy');
+});
+const stateAfterBlockPageDelete = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+checks.pageDeleteRemovesBlocks = !stateAfterBlockPageDelete.blocks.some((block) => block.id === copiedBlock?.id);
+
+await page.getByLabel('Duplicate notebook Notebook').click();
+await page.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  return state.notebooks?.some((notebook) => notebook.name === 'Notebook copy');
+});
+const stateAfterNotebookCopy = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+const notebookCopy = stateAfterNotebookCopy.notebooks.find((notebook) => notebook.name === 'Notebook copy');
+checks.notebookDuplicate = Boolean(notebookCopy && notebookCopy.pageIds.length >= 2 && stateAfterNotebookCopy.pages.some((storedPage) => storedPage.notebookId === notebookCopy.id && storedPage.title === 'Parent ops'));
+await page.evaluate(() => {
+  window.confirm = () => true;
+});
+await page.getByLabel('Delete notebook Notebook copy').click();
+await page.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  return !state.notebooks?.some((notebook) => notebook.name === 'Notebook copy');
+});
+const stateAfterNotebookDelete = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+checks.notebookDelete = !stateAfterNotebookDelete.notebooks.some((notebook) => notebook.name === 'Notebook copy') &&
+  stateAfterNotebookDelete.pages.every((storedPage) => storedPage.notebookId !== notebookCopy?.id) &&
+  stateAfterNotebookDelete.notebooks.some((notebook) => notebook.id === stateAfterNotebookDelete.activeNotebookId) &&
+  stateAfterNotebookDelete.pages.some((storedPage) => storedPage.id === stateAfterNotebookDelete.activePageId);
 
 console.log(JSON.stringify({ checks }, null, 2));
 await browser.close();

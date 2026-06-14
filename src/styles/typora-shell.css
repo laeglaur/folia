@@ -246,6 +246,28 @@
   color: var(--typora-shell-ink);
 }
 
+.typora-app-shell .file-node-row-shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.typora-app-shell .file-node-row-shell .file-node-content {
+  min-width: 0;
+}
+
+.typora-app-shell .file-node-actions {
+  padding-right: 4px;
+}
+
+.typora-app-shell .row-action {
+  width: 20px;
+  height: 20px;
+}
+
 .typora-app-shell .typora-pin-grid {
   display: grid;
   gap: 8px;
