@@ -526,6 +526,59 @@ checks.typoraSidebarContract = await page.evaluate(() => {
     desk.querySelector('.typora-tool-controls') !== null;
 });
 
+await page.evaluate(() => localStorage.clear());
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.locator('.composer').last().waitFor({ state: 'visible' });
+await page.evaluate(() => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  const activePage = state.pages?.find((storedPage) => storedPage.id === state.activePageId);
+  const futureDate = new Date();
+  futureDate.setDate(futureDate.getDate() + 1);
+  const block = {
+    id: 'block_calendar_smoke',
+    pageId: activePage.id,
+    content: {
+      html: '<p>calendar smoke block</p>',
+      plainText: 'calendar smoke block'
+    },
+    collapsed: false,
+    pinned: false,
+    createdAt: futureDate.toISOString(),
+    updatedAt: futureDate.toISOString()
+  };
+  activePage.blockIds = [...activePage.blockIds, block.id];
+  state.blocks = [...state.blocks, block];
+  localStorage.setItem('block-first-notebook.state.v1', JSON.stringify(state));
+});
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.locator('.right-panel .calendar-view').waitFor({ state: 'visible' });
+checks.nativeCalendarShowsBlockEntries = await page.evaluate(() => {
+  const localDateKey = (date) => `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}-${`${date.getDate()}`.padStart(2, '0')}`;
+  const expectedDate = new Date();
+  expectedDate.setDate(expectedDate.getDate() + 1);
+  const calendar = document.querySelector('.right-panel .calendar-view');
+  const entry = calendar?.querySelector('.calendar-entry');
+  const entries = [...(calendar?.querySelectorAll('.calendar-entry') ?? [])];
+  const smokeEntry = entries.find((candidate) => candidate.textContent?.includes('calendar smoke block'));
+  if (!(calendar instanceof HTMLElement) || !(smokeEntry instanceof HTMLElement)) return false;
+  const day = smokeEntry.closest('.calendar-day');
+  return calendar.textContent?.includes('calendar smoke block') &&
+    day instanceof HTMLElement &&
+    day.dataset.date === localDateKey(expectedDate);
+});
+
+await page.getByLabel('Shell theme').selectOption('typora-base');
+await page.getByRole('button', { name: 'Calendar' }).click();
+await page.locator('#typora-sidebar .calendar-view').waitFor({ state: 'visible' });
+checks.typoraCalendarTabShowsBlocks = await page.evaluate(() => {
+  const calendar = document.querySelector('#typora-sidebar .calendar-view');
+  const entry = calendar?.querySelector('.calendar-entry');
+  if (!(calendar instanceof HTMLElement) || !(entry instanceof HTMLElement)) return false;
+  const styles = getComputedStyle(entry);
+  return calendar.textContent?.includes('calendar smoke block') &&
+    Number.parseFloat(styles.fontSize) <= 10.5;
+});
+
 const cardBlockId = 'block_card_smoke';
 await page.evaluate((blockId) => {
   const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');

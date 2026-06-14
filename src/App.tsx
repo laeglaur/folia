@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bold,
   Braces,
+  CalendarDays,
   CheckSquare,
   ChevronDown,
   ChevronRight,
@@ -98,6 +99,10 @@ type OutlineEntry = {
   level: number;
   text: string;
   index: number;
+};
+type CalendarEntry = {
+  block: Block;
+  page: Page;
 };
 type ToolbarCommand =
   | 'bold'
@@ -204,6 +209,30 @@ const listItemLabel = (listItem: Element) => {
   const clone = listItem.cloneNode(true) as HTMLElement;
   clone.querySelectorAll('ul, ol').forEach((node) => node.remove());
   return outlineText(clone.textContent ?? '');
+};
+
+const localDateKey = (value: string | Date) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const monthKey = (date: Date) => `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}`;
+
+const monthLabel = (date: Date) => date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+const calendarDaysForMonth = (date: Date) => {
+  const first = new Date(date.getFullYear(), date.getMonth(), 1);
+  const start = new Date(first);
+  start.setDate(first.getDate() - first.getDay());
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return day;
+  });
 };
 
 const extractOutlineEntries = (page: Page, blocks: Block[]): OutlineEntry[] => {
@@ -1163,7 +1192,8 @@ export function App() {
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [showToolbar, setShowToolbar] = useState(true);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
-  const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'outline' | 'desk'>('files');
+  const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'outline' | 'calendar' | 'desk'>('files');
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [importNotice, setImportNotice] = useState<ImportNotice>({ kind: 'idle', message: '' });
   const composerEditorRef = useRef<Editor | null>(null);
   const blockEditorRefs = useRef<Record<string, Editor | null>>({});
@@ -1199,6 +1229,19 @@ export function App() {
     [activePage.blockIds, state.blocks]
   );
   const outlineEntries = useMemo(() => extractOutlineEntries(activePage, pageBlocks), [activePage, pageBlocks]);
+  const calendarEntriesByDate = useMemo(() => {
+    const pagesById = new Map(state.pages.filter((page) => page.notebookId === activeNotebook.id).map((page) => [page.id, page]));
+    const entries = new Map<string, CalendarEntry[]>();
+    state.blocks.forEach((block) => {
+      const page = pagesById.get(block.pageId);
+      if (!page) return;
+      const key = localDateKey(block.createdAt);
+      if (!key) return;
+      entries.set(key, [...(entries.get(key) ?? []), { block, page }]);
+    });
+    return entries;
+  }, [activeNotebook.id, state.blocks, state.pages]);
+  const calendarDays = useMemo(() => calendarDaysForMonth(calendarMonth), [calendarMonth]);
   const pinnedBlocks = state.blocks.filter((block) => block.pinned);
   const openCardBlock = state.blocks.find((block) => block.id === state.openCardWindowBlockId) ?? null;
   const cardModeBlockId = new URLSearchParams(window.location.search).get('card');
@@ -1398,6 +1441,18 @@ export function App() {
     if (!blockElement) return;
     const target = blockElement.querySelector(`[data-outline-id="${entry.id}"]`) ?? blockElement;
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const jumpToBlock = (pageId: string, blockId: string) => {
+    setState((current) => ({ ...current, activePageId: pageId }));
+    window.requestAnimationFrame(() => {
+      const blockElement = document.getElementById(blockId);
+      blockElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
+  const moveCalendarMonth = (delta: number) => {
+    setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
   };
 
   const moveBlockByKeyboard = (blockId: string, direction: -1 | 1) => {
@@ -2153,6 +2208,54 @@ export function App() {
     </div>
   );
 
+  const renderCalendarView = () => {
+    const currentMonthKey = monthKey(calendarMonth);
+    const todayKey = localDateKey(new Date());
+    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return (
+      <div className="calendar-view" aria-label="Block calendar">
+        <div className="calendar-header">
+          <button className="mini-button" type="button" onClick={() => moveCalendarMonth(-1)} aria-label="Previous month"><ChevronRight className="flip-x" size={14} /></button>
+          <div className="calendar-title">{monthLabel(calendarMonth)}</div>
+          <button className="mini-button" type="button" onClick={() => moveCalendarMonth(1)} aria-label="Next month"><ChevronRight size={14} /></button>
+        </div>
+        <div className="calendar-weekdays" aria-hidden="true">
+          {weekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}
+        </div>
+        <div className="calendar-grid">
+          {calendarDays.map((day) => {
+            const key = localDateKey(day);
+            const entries = calendarEntriesByDate.get(key) ?? [];
+            return (
+              <div
+                className={`calendar-day ${monthKey(day) !== currentMonthKey ? 'is-muted' : ''} ${key === todayKey ? 'is-today' : ''}`}
+                key={key}
+                data-date={key}
+              >
+                <div className="calendar-day-number">{day.getDate()}</div>
+                <div className="calendar-day-entries">
+                  {entries.slice(0, 2).map(({ block, page }) => (
+                    <button
+                      className="calendar-entry"
+                      key={block.id}
+                      type="button"
+                      onClick={() => jumpToBlock(page.id, block.id)}
+                      title={`${page.title}: ${block.content.plainText}`}
+                    >
+                      <span>{page.title}</span>
+                      <span>{firstLines(block.content.plainText, 44)}</span>
+                    </button>
+                  ))}
+                  {entries.length > 2 ? <div className="calendar-more">+{entries.length - 2}</div> : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   const renderPinnedCards = (className = 'desktop-preview', cardClassName = 'desktop-card') => (
     <div className={className}>
       {pinnedBlocks.length ? pinnedBlocks.map((block) => (
@@ -2301,6 +2404,11 @@ export function App() {
           {renderNativeOutline()}
         </section>
 
+        <section className="panel-card">
+          <div className="panel-title"><CalendarDays size={16} /> Calendar</div>
+          {renderCalendarView()}
+        </section>
+
         <section className="panel-card desktop-preview">
           <div className="panel-title"><MapPin size={16} /> Pinned</div>
           {renderPinnedCards()}
@@ -2325,6 +2433,7 @@ export function App() {
         <div className="sidebar-tabs" role="tablist" aria-label="Sidebar tabs">
           <button className={`sidebar-tab ${typoraSidebarTab === 'files' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('files')}>Files</button>
           <button className={`sidebar-tab ${typoraSidebarTab === 'outline' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('outline')}>Outline</button>
+          <button className={`sidebar-tab ${typoraSidebarTab === 'calendar' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('calendar')}>Calendar</button>
           <button className={`sidebar-tab ${typoraSidebarTab === 'desk' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('desk')}>Desk</button>
         </div>
 
@@ -2380,6 +2489,10 @@ export function App() {
 
           <section className={`typora-sidebar-pane ${typoraSidebarTab === 'outline' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'outline'}>
             {renderTyporaOutline()}
+          </section>
+
+          <section className={`typora-sidebar-pane ${typoraSidebarTab === 'calendar' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'calendar'}>
+            {renderCalendarView()}
           </section>
 
           <section className={`typora-sidebar-pane ${typoraSidebarTab === 'desk' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'desk'}>
