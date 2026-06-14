@@ -67,6 +67,7 @@ import {
 } from './state';
 import { isTauri } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { common, createLowlight } from 'lowlight';
 import { marked } from 'marked';
 import 'katex/dist/katex.min.css';
@@ -1227,6 +1228,19 @@ export function App() {
     }));
   };
 
+  useEffect(() => {
+    if (!cardModeBlockId || !isTauri()) return;
+    const cardWindow = getCurrentWindow();
+    void Promise.allSettled([
+      cardWindow.setAlwaysOnTop(true),
+      cardWindow.setVisibleOnAllWorkspaces(true),
+      cardWindow.setSkipTaskbar(true),
+      cardWindow.setDecorations(false),
+      cardWindow.setShadow(true),
+      cardWindow.setFocus()
+    ]);
+  }, [cardModeBlockId]);
+
   const childPages = useMemo(() => {
     const map = new Map<string | null, Page[]>();
     state.pages
@@ -1661,14 +1675,18 @@ export function App() {
     new WebviewWindow(label, {
       url: `${window.location.pathname}?card=${encodeURIComponent(blockId)}`,
       title: 'Notebook card',
-      width: 360,
-      height: 260,
-      minWidth: 260,
-      minHeight: 160,
-      decorations: true,
+      width: 340,
+      height: 220,
+      minWidth: 240,
+      minHeight: 140,
+      decorations: false,
+      transparent: true,
+      shadow: true,
       alwaysOnTop: true,
-      skipTaskbar: false,
-      resizable: true
+      visibleOnAllWorkspaces: true,
+      skipTaskbar: true,
+      resizable: true,
+      center: false
     });
   };
 
@@ -2170,8 +2188,22 @@ export function App() {
   );
 
   if (cardModeBlock) {
+    const closeCardWindow = () => {
+      if (isTauri()) {
+        void getCurrentWindow().close();
+        return;
+      }
+      setState((current) => ({ ...current, openCardWindowBlockId: null }));
+    };
+    const dragCardWindow = () => {
+      if (isTauri()) void getCurrentWindow().startDragging();
+    };
     return (
       <main className="card-window-page typora-theme" data-content-theme={state.contentTheme} data-shell={state.shell}>
+        <header className="card-window-grip" onMouseDown={dragCardWindow}>
+          <span>Pin card</span>
+          <button type="button" onClick={closeCardWindow} aria-label="Close pinned card">×</button>
+        </header>
         <div className="floating-card-body card-mode" dangerouslySetInnerHTML={{ __html: cardModeBlock.content.html }} />
       </main>
     );

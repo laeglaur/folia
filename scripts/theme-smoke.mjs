@@ -526,6 +526,42 @@ checks.typoraSidebarContract = await page.evaluate(() => {
     desk.querySelector('.typora-tool-controls') !== null;
 });
 
+const cardBlockId = 'block_card_smoke';
+await page.evaluate((blockId) => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  state.blocks = [
+    ...(state.blocks ?? []),
+    {
+      id: blockId,
+      pageId: state.activePageId,
+      content: {
+        html: '<p><strong>Pinned</strong> smoke card</p><ul><li>compact item</li></ul>',
+        plainText: 'Pinned smoke card compact item'
+      },
+      collapsed: false,
+      pinned: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+  ];
+  localStorage.setItem('block-first-notebook.state.v1', JSON.stringify(state));
+}, cardBlockId);
+await page.goto(`${appUrl}?card=${cardBlockId}`);
+checks.cardWindowModeIsCompactAndShellFree = await page.evaluate(() => {
+  const page = document.querySelector('.card-window-page');
+  const grip = document.querySelector('.card-window-grip');
+  const body = document.querySelector('.floating-card-body.card-mode');
+  if (!(page instanceof HTMLElement) || !(grip instanceof HTMLElement) || !(body instanceof HTMLElement)) return false;
+  const bodyStyles = getComputedStyle(body);
+  const gripStyles = getComputedStyle(grip);
+  return !document.querySelector('.typora-app-shell') &&
+    !document.querySelector('.app-shell') &&
+    grip.textContent?.includes('Pin card') &&
+    gripStyles.cursor === 'move' &&
+    Number.parseFloat(bodyStyles.fontSize) <= 13.5 &&
+    body.textContent?.includes('Pinned smoke card');
+});
+
 await page.evaluate(() => localStorage.clear());
 console.log(JSON.stringify({ checks }, null, 2));
 await browser.close();
