@@ -207,6 +207,42 @@
   color: var(--typora-shell-active-text);
 }
 
+.typora-app-shell .media-resize-handle {
+  border: 1px solid var(--typora-editor-toolbar-border);
+  border-radius: 4px;
+  background: var(--typora-editor-toolbar-bg);
+  box-shadow: none;
+}
+
+.typora-app-shell .media-resize-handle:hover {
+  background: color-mix(in srgb, var(--typora-shell-active-bg) 82%, transparent);
+}
+
+.typora-app-shell .media-resize-handle span {
+  border-color: var(--typora-shell-accent);
+}
+
+.typora-app-shell .math-block-editor {
+  border: 1px solid var(--typora-editor-toolbar-border);
+  border-radius: 4px;
+  background: var(--typora-editor-toolbar-bg);
+  box-shadow: none;
+}
+
+.typora-app-shell .math-block-editor input {
+  color: var(--typora-shell-text);
+}
+
+.typora-app-shell .math-block-editor-delimiter,
+.typora-app-shell .math-block-editor button {
+  color: var(--typora-shell-muted);
+}
+
+.typora-app-shell .math-block-editor button:hover {
+  background: color-mix(in srgb, var(--typora-shell-active-bg) 82%, transparent);
+  color: var(--typora-shell-active-text);
+}
+
 .typora-app-shell .tool-button {
   flex: 0 0 auto;
   width: 24px;

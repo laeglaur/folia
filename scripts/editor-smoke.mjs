@@ -179,12 +179,15 @@ checks.inlineMathInputRule = inputRulesHtml.includes('data-type="inline-math"') 
 checks.quoteInputRule = inputRulesHtml.includes('<blockquote') && inputRulesHtml.includes('quoted');
 checks.tableInputRule = inputRulesHtml.includes('<table');
 checks.tableControlsAppearInTable = await page.locator('.table-controls').evaluate((controls) => {
-  const requiredTitles = ['Add row', 'Add column', 'Delete selected row', 'Delete selected column'];
+  const requiredTitles = ['Add row', 'Add column', 'Delete selected row', 'Delete selected column', 'Delete table'];
   const text = controls.textContent ?? '';
   return requiredTitles.every((title) => controls.querySelector(`button[title="${title}"]`)) &&
     text.includes('- row') &&
-    text.includes('- col');
+    text.includes('- col') &&
+    text.includes('- table');
 });
+await page.locator('.table-controls button[title="Delete table"]').click();
+checks.tableControlDeletesWholeTable = await page.waitForFunction(() => !document.querySelector('.composer table')).then(() => true).catch(() => false);
 
 await resetApp();
 const strikeInputComposer = page.locator('.composer').last();
@@ -224,8 +227,13 @@ await resetApp();
 const mathDollarComposer = page.locator('.composer').last();
 await mathDollarComposer.click();
 await page.keyboard.type('$$ ');
+await page.locator('.math-block-editor input').waitFor({ state: 'visible' });
+checks.mathBlockDollarEditorFocused = await page.locator('.math-block-editor input').evaluate((input) => document.activeElement === input);
+await page.keyboard.type('E=mc^2');
+await page.keyboard.press('Enter');
 aliasHtml = await mathDollarComposer.evaluate((node) => node.innerHTML);
-checks.mathBlockDollarInputRule = aliasHtml.includes('data-type="block-math"') || aliasHtml.includes('md-math-block');
+checks.mathBlockDollarInputRule = (aliasHtml.includes('data-type="block-math"') || aliasHtml.includes('md-math-block')) &&
+  aliasHtml.includes('data-latex="E=mc^2"');
 
 await resetApp();
 const attachmentComposer = page.locator('.composer').last();
@@ -237,6 +245,19 @@ await chooser.setFiles('/tmp/notebook-at-test.png');
 await page.waitForFunction(() => Boolean(document.querySelector('.composer img')));
 aliasHtml = await attachmentComposer.evaluate((node) => node.innerHTML);
 checks.attachmentShortcutInsertsImage = aliasHtml.includes('<img') && aliasHtml.includes('notebook-at-test.png');
+await attachmentComposer.locator('img').click({ force: true });
+const resizeHandle = page.locator('.media-resize-handle');
+await resizeHandle.waitFor({ state: 'visible' });
+const handleBox = await resizeHandle.boundingBox();
+if (handleBox) {
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x - 170, handleBox.y + handleBox.height / 2, { steps: 5 });
+  await page.mouse.up();
+}
+checks.attachmentResizePersistsWidth = await attachmentComposer.locator('img').evaluate((image) =>
+  Number.parseFloat(image.getAttribute('data-width') ?? '100') < 100
+);
 
 await resetApp();
 const listComposer = page.locator('.composer').last();

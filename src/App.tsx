@@ -72,6 +72,12 @@ import { marked } from 'marked';
 import 'katex/dist/katex.min.css';
 import { contentThemes } from './typora-theme-registry';
 
+declare global {
+  interface Window {
+    __notebookActiveMathEditor?: Editor;
+  }
+}
+
 const themesWithoutNativeDivider = new Set<ContentThemeId>([
   'notebook',
   'typora-base',
@@ -106,6 +112,26 @@ type TableControlsState = {
   top: number;
   left: number;
 };
+type MediaControlsState = {
+  visible: boolean;
+  top: number;
+  left: number;
+  editor: Editor | null;
+  pos: number;
+  nodeType: 'image' | 'video' | 'audio';
+  width: number;
+  pixelWidth: number;
+  height: number;
+  containerWidth: number;
+};
+type MathEditorState = {
+  editor: Editor;
+  pos: number;
+  latex: string;
+  top: number;
+  left: number;
+  width: number;
+};
 type ToolbarCommand =
   | 'bold'
   | 'italic'
@@ -122,6 +148,7 @@ type ToolbarCommand =
   | 'tableColumnAfter'
   | 'tableDeleteRow'
   | 'tableDeleteColumn'
+  | 'tableDelete'
   | 'inlineMath'
   | 'blockMath'
   | 'footnote'
@@ -143,7 +170,12 @@ type RichEditorProps = {
   onShiftEnter?: (editor: Editor) => boolean;
   onMoveBlock?: (direction: -1 | 1) => boolean;
   tableControls?: TableControlsState;
+  mediaControls?: MediaControlsState;
   runTableCommand?: (command: ToolbarCommand) => void;
+  runMediaCommand?: (width: number) => void;
+  mathEditor?: MathEditorState | null;
+  onMathChange?: (latex: string) => void;
+  onMathClose?: () => void;
   editorRef: (editor: Editor | null) => void;
 };
 
@@ -336,12 +368,71 @@ const dispatchAttachmentShortcut = () => {
   window.dispatchEvent(new CustomEvent('notebook:attachment-shortcut'));
 };
 
+const dispatchMathEditRequest = (editor: Editor, pos: number) => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('notebook:edit-block-math', { detail: { editor, pos } }));
+};
+
+const isResizableMediaNode = (nodeType: string): nodeType is MediaControlsState['nodeType'] =>
+  nodeType === 'image' || nodeType === 'video' || nodeType === 'audio';
+
 const inferAttachmentKind = (file: File) => {
   const name = file.name.toLowerCase();
   if (file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|avif|svg|bmp|ico|tiff?)$/.test(name)) return 'image';
   if (file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|ogv|avi|mkv)$/.test(name)) return 'video';
   if (file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac|aiff?)$/.test(name)) return 'audio';
   return 'file';
+};
+
+const displayMathLatex = (latex: string) => latex === '\\;' ? '' : latex;
+
+const findBlockMathPositionNear = (editor: Editor, around: number) => {
+  let found: number | null = null;
+  const from = Math.max(0, around - 4);
+  const to = Math.min(editor.state.doc.content.size, around + 8);
+  editor.state.doc.nodesBetween(from, to, (node, pos) => {
+    if (node.type.name === 'blockMath') {
+      found = pos;
+      return false;
+    }
+    return true;
+  });
+  if (found !== null) return found;
+  editor.state.doc.descendants((node, pos) => {
+    if (found === null && node.type.name === 'blockMath') {
+      found = pos;
+      return false;
+    }
+    return true;
+  });
+  return found;
+};
+
+const parseMediaWidth = (element: HTMLElement) => {
+  const width = element.getAttribute('data-width') ?? element.style.width ?? element.getAttribute('width') ?? '';
+  if (!width) return null;
+  const numeric = Number.parseFloat(width);
+  if (!Number.isFinite(numeric)) return null;
+  return width.includes('%') ? `${Math.max(20, Math.min(100, numeric))}%` : `${Math.max(80, Math.min(1600, numeric))}px`;
+};
+
+const mediaWidthPercent = (width: unknown) => {
+  if (typeof width !== 'string') return 100;
+  const numeric = Number.parseFloat(width);
+  if (!Number.isFinite(numeric)) return 100;
+  if (width.includes('%')) return Math.max(20, Math.min(100, Math.round(numeric)));
+  return Math.max(20, Math.min(100, Math.round((numeric / 900) * 100)));
+};
+
+const mediaRenderAttributes = (HTMLAttributes: Record<string, unknown>) => {
+  const { width, style, ...attributes } = HTMLAttributes;
+  if (typeof width !== 'string' || !width) return HTMLAttributes;
+  const existingStyle = typeof style === 'string' && style.trim() ? `${style.trim().replace(/;?$/, ';')} ` : '';
+  return {
+    ...attributes,
+    'data-width': width,
+    style: `${existingStyle}width: ${width};`
+  };
 };
 
 const markdownishText = (value: string) =>
@@ -869,6 +960,29 @@ const NotebookTaskItem = TaskItem.extend({
   }
 });
 
+const NotebookImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: null,
+        parseHTML: (element) => parseMediaWidth(element as HTMLElement),
+        renderHTML: (attributes) => {
+          if (typeof attributes.width !== 'string' || !attributes.width) return {};
+          return {
+            'data-width': attributes.width,
+            style: `width: ${attributes.width};`
+          };
+        }
+      }
+    };
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['img', mergeAttributes(mediaRenderAttributes(HTMLAttributes))];
+  }
+});
+
 const NotebookVideo = Node.create({
   name: 'video',
   group: 'block',
@@ -877,7 +991,18 @@ const NotebookVideo = Node.create({
   addAttributes() {
     return {
       src: { default: null },
-      controls: { default: true }
+      controls: { default: true },
+      width: {
+        default: null,
+        parseHTML: (element) => parseMediaWidth(element as HTMLElement),
+        renderHTML: (attributes) => {
+          if (typeof attributes.width !== 'string' || !attributes.width) return {};
+          return {
+            'data-width': attributes.width,
+            style: `width: ${attributes.width};`
+          };
+        }
+      }
     };
   },
 
@@ -886,7 +1011,7 @@ const NotebookVideo = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['video', mergeAttributes(HTMLAttributes, { controls: '' })];
+    return ['video', mergeAttributes(mediaRenderAttributes(HTMLAttributes), { controls: '' })];
   }
 });
 
@@ -898,7 +1023,18 @@ const NotebookAudio = Node.create({
   addAttributes() {
     return {
       src: { default: null },
-      controls: { default: true }
+      controls: { default: true },
+      width: {
+        default: null,
+        parseHTML: (element) => parseMediaWidth(element as HTMLElement),
+        renderHTML: (attributes) => {
+          if (typeof attributes.width !== 'string' || !attributes.width) return {};
+          return {
+            'data-width': attributes.width,
+            style: `width: ${attributes.width};`
+          };
+        }
+      }
     };
   },
 
@@ -907,7 +1043,7 @@ const NotebookAudio = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['audio', mergeAttributes(HTMLAttributes, { controls: '' })];
+    return ['audio', mergeAttributes(mediaRenderAttributes(HTMLAttributes), { controls: '' })];
   }
 });
 
@@ -1073,11 +1209,13 @@ const BracketTodoInput = Extension.create({
       new InputRule({
         find: blockMathInputRegex,
         handler: ({ range, chain }) => {
-          chain()
+          const insertedAt = range.from;
+          const inserted = chain()
             .deleteRange(range)
             .insertContentAt(range.from, { type: 'blockMath', attrs: { latex: '\\;' } })
             .setTextSelection(range.from + 1)
             .run();
+          if (inserted) window.setTimeout(() => dispatchMathEditRequest(this.editor, insertedAt), 0);
         }
       }),
       new InputRule({
@@ -1126,10 +1264,12 @@ const NotebookShortcuts = Extension.create<{
       const insertAt = $from.before();
       const chain = editor.chain().deleteRange({ from: $from.start(), to: $from.end() });
       if (transform === 'blockquote') return chain.toggleBlockquote().run();
-      return chain
+      const inserted = chain
         .insertContentAt(insertAt, { type: 'blockMath', attrs: { latex: '\\;' } })
         .setTextSelection(insertAt + 1)
         .run();
+      if (inserted) window.setTimeout(() => dispatchMathEditRequest(editor, insertAt), 0);
+      return inserted;
     };
 
     return {
@@ -1186,7 +1326,7 @@ const createEditorExtensions = (
     defaultProtocol: 'https',
     openOnClick: false
   }),
-  Image.configure({
+  NotebookImage.configure({
     allowBase64: true,
     inline: false
   }),
@@ -1207,6 +1347,12 @@ const createEditorExtensions = (
   FootnoteItem,
   FootnoteSection,
   Mathematics.configure({
+    blockOptions: {
+      onClick: (_node, pos) => {
+        const active = window.__notebookActiveMathEditor;
+        if (active) dispatchMathEditRequest(active, pos);
+      }
+    },
     katexOptions: {
       throwOnError: false
     }
@@ -1227,7 +1373,12 @@ function RichEditor({
   onShiftEnter,
   onMoveBlock,
   tableControls,
+  mediaControls,
   runTableCommand,
+  runMediaCommand,
+  mathEditor,
+  onMathChange,
+  onMathClose,
   editorRef
 }: RichEditorProps) {
   const externalHtmlRef = useRef(html ?? '');
@@ -1240,12 +1391,23 @@ function RichEditor({
         class: `${className} tiptap-editor typora-block-doc`
       },
       handlePaste: (_view, event) => handleRichPaste(editorHolderRef.current, event),
+      handleClickOn: (_view, pos, node) => {
+        if (!isResizableMediaNode(node.type.name)) return false;
+        editorHolderRef.current?.commands.setNodeSelection(pos);
+        return false;
+      },
       handleDOMEvents: {
         copy: (_view, event) => handleRichCopy(editorHolderRef.current, event)
       }
     },
-    onFocus: ({ editor }) => onFocus(editor),
-    onSelectionUpdate: ({ editor }) => onSelectionUpdate?.(editor),
+    onFocus: ({ editor }) => {
+      window.__notebookActiveMathEditor = editor;
+      onFocus(editor);
+    },
+    onSelectionUpdate: ({ editor }) => {
+      window.__notebookActiveMathEditor = editor;
+      onSelectionUpdate?.(editor);
+    },
     onUpdate: ({ editor }) => onUpdate?.(editor.getHTML(), editor.getText()),
     onBlur: ({ editor }) => onBlur?.(editor.getHTML(), editor.getText())
   });
@@ -1271,6 +1433,12 @@ function RichEditor({
       {tableControls?.visible && runTableCommand && (
         <TableControls runCommand={runTableCommand} position={tableControls} />
       )}
+      {mediaControls?.visible && runMediaCommand && (
+        <MediaResizeHandle position={mediaControls} onResize={runMediaCommand} />
+      )}
+      {mathEditor && onMathChange && onMathClose && (
+        <MathBlockEditor editorState={mathEditor} onChange={onMathChange} onClose={onMathClose} />
+      )}
     </div>
   );
 }
@@ -1283,6 +1451,19 @@ export function App() {
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [showToolbar, setShowToolbar] = useState(true);
   const [tableControls, setTableControls] = useState<TableControlsState>({ visible: false, top: 0, left: 0 });
+  const [mediaControls, setMediaControls] = useState<MediaControlsState>({
+    visible: false,
+    top: 0,
+    left: 0,
+    editor: null,
+    pos: 0,
+    nodeType: 'image',
+    width: 100,
+    pixelWidth: 0,
+    height: 0,
+    containerWidth: 900
+  });
+  const [mathEditor, setMathEditor] = useState<MathEditorState | null>(null);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
   const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'outline' | 'calendar' | 'desk'>('files');
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('write');
@@ -1418,6 +1599,99 @@ export function App() {
     });
   };
 
+  const syncMediaControls = (editor: Editor | null) => {
+    const selection = editor?.state.selection;
+    if (!editor || !selection || !('from' in selection)) {
+      setMediaControls((current) => current.visible ? { ...current, visible: false, top: 0, left: 0, editor: null } : current);
+      return;
+    }
+    const dom = editor.view.nodeDOM(selection.from);
+    const element = dom instanceof HTMLElement ? dom : null;
+    const editorRoot = editor.view.dom instanceof HTMLElement ? editor.view.dom : null;
+    const node = editor.state.doc.nodeAt(selection.from);
+    if (!node || !isResizableMediaNode(node.type.name)) {
+      setMediaControls((current) => current.visible ? { ...current, visible: false, top: 0, left: 0, editor: null } : current);
+      return;
+    }
+    if (!element || !editorRoot) {
+      setMediaControls({
+        visible: true,
+        top: 0,
+        left: 0,
+        editor,
+        pos: selection.from,
+        nodeType: node.type.name,
+        width: mediaWidthPercent(node.attrs.width),
+        pixelWidth: 0,
+        height: 0,
+        containerWidth: 900
+      });
+      return;
+    }
+    const mediaRect = element.getBoundingClientRect();
+    const editorRect = editorRoot.getBoundingClientRect();
+    setMediaControls({
+      visible: true,
+      top: Math.max(0, mediaRect.top - editorRect.top),
+      left: Math.max(0, mediaRect.left - editorRect.left),
+      editor,
+      pos: selection.from,
+      nodeType: node.type.name,
+      width: mediaWidthPercent(node.attrs.width),
+      pixelWidth: mediaRect.width,
+      height: mediaRect.height,
+      containerWidth: Math.max(1, editorRect.width)
+    });
+  };
+
+  const syncFloatingControls = (editor: Editor | null) => {
+    syncTableControls(editor);
+    syncMediaControls(editor);
+  };
+
+  const openMathEditor = (editor: Editor, requestedPos: number) => {
+    const pos = findBlockMathPositionNear(editor, requestedPos);
+    if (pos === null) return;
+    const node = editor.state.doc.nodeAt(pos);
+    if (!node || node.type.name !== 'blockMath') return;
+    const dom = editor.view.nodeDOM(pos);
+    const element = dom instanceof HTMLElement ? dom : null;
+    const editorRoot = editor.view.dom instanceof HTMLElement ? editor.view.dom : null;
+    if (!element || !editorRoot) return;
+    const mathRect = element.getBoundingClientRect();
+    const editorRect = editorRoot.getBoundingClientRect();
+    setMathEditor({
+      editor,
+      pos,
+      latex: displayMathLatex(node.attrs.latex ?? ''),
+      top: Math.max(0, mathRect.top - editorRect.top + 8),
+      left: Math.max(0, mathRect.left - editorRect.left + 8),
+      width: Math.max(220, Math.min(mathRect.width - 16, 520))
+    });
+  };
+
+  const updateMathEditorLatex = (latex: string) => {
+    setMathEditor((current) => {
+      if (!current) return current;
+      current.editor.commands.updateBlockMath({ pos: current.pos, latex: latex.trim() ? latex : '\\;' });
+      return { ...current, latex };
+    });
+  };
+
+  const resizeSelectedMedia = (width: number) => {
+    const editor = mediaControls.editor;
+    if (!editor || !isResizableMediaNode(mediaControls.nodeType)) return;
+    const node = editor.state.doc.nodeAt(mediaControls.pos);
+    if (!node || !isResizableMediaNode(node.type.name)) return;
+    const nextWidth = `${Math.max(20, Math.min(100, Math.round(width)))}%`;
+    const transaction = editor.state.tr.setNodeMarkup(mediaControls.pos, undefined, {
+      ...node.attrs,
+      width: nextWidth
+    });
+    editor.view.dispatch(transaction);
+    window.setTimeout(() => syncMediaControls(editor), 0);
+  };
+
   const activateEditor = (target: EditorTarget) => {
     setActiveEditor((current) => {
       if (current.kind !== target.kind) return target;
@@ -1480,6 +1754,16 @@ export function App() {
     return () => window.removeEventListener('notebook:attachment-shortcut', handleAttachmentShortcut);
   }, [activeEditor]);
 
+  useEffect(() => {
+    const handleMathEdit = (event: Event) => {
+      const detail = (event as CustomEvent<{ editor?: Editor; pos?: number }>).detail;
+      if (!detail?.editor || typeof detail.pos !== 'number') return;
+      openMathEditor(detail.editor, detail.pos);
+    };
+    window.addEventListener('notebook:edit-block-math', handleMathEdit);
+    return () => window.removeEventListener('notebook:edit-block-math', handleMathEdit);
+  });
+
   const insertFootnote = () => {
     const editor = getActiveTiptapEditor();
     if (!editor) return;
@@ -1515,6 +1799,7 @@ export function App() {
     if (command === 'tableColumnAfter') editor.chain().focus().addColumnAfter().run();
     if (command === 'tableDeleteRow') editor.chain().focus().deleteRow().run();
     if (command === 'tableDeleteColumn') editor.chain().focus().deleteColumn().run();
+    if (command === 'tableDelete') editor.chain().focus().deleteTable().run();
     if (command === 'inlineMath') {
       const latex = window.prompt('Inline math', 'E = mc^2');
       if (latex?.trim()) editor.chain().focus().insertInlineMath({ latex: latex.trim() }).run();
@@ -2241,11 +2526,16 @@ export function App() {
                     html={htmlWithOutlineAnchors(block.content.html, block.id)}
                     onFocus={(editor) => {
                       activateEditor({ kind: 'block', blockId: block.id });
-                      syncTableControls(editor);
+                      syncFloatingControls(editor);
                     }}
-                    onSelectionUpdate={syncTableControls}
+                    onSelectionUpdate={syncFloatingControls}
                     tableControls={activeEditor.kind === 'block' && activeEditor.blockId === block.id ? tableControls : undefined}
+                    mediaControls={activeEditor.kind === 'block' && activeEditor.blockId === block.id ? mediaControls : undefined}
                     runTableCommand={runEditorCommand}
+                    runMediaCommand={resizeSelectedMedia}
+                    mathEditor={activeEditor.kind === 'block' && activeEditor.blockId === block.id ? mathEditor : null}
+                    onMathChange={updateMathEditorLatex}
+                    onMathClose={() => setMathEditor(null)}
                     onMoveBlock={(direction) => {
                       moveBlockByKeyboard(block.id, direction);
                       return true;
@@ -2282,11 +2572,16 @@ export function App() {
           placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
           onFocus={(editor) => {
             activateEditor({ kind: 'composer' });
-            syncTableControls(editor);
+            syncFloatingControls(editor);
           }}
-          onSelectionUpdate={syncTableControls}
+          onSelectionUpdate={syncFloatingControls}
           tableControls={activeEditor.kind === 'composer' ? tableControls : undefined}
+          mediaControls={activeEditor.kind === 'composer' ? mediaControls : undefined}
           runTableCommand={runEditorCommand}
+          runMediaCommand={resizeSelectedMedia}
+          mathEditor={activeEditor.kind === 'composer' ? mathEditor : null}
+          onMathChange={updateMathEditorLatex}
+          onMathClose={() => setMathEditor(null)}
           onUpdate={(html) => {
             setDraft(html);
           }}
@@ -2774,6 +3069,92 @@ function TableControls({
       <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableColumnAfter')} title="Add column">+ col</button>
       <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteRow')} title="Delete selected row">- row</button>
       <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteColumn')} title="Delete selected column">- col</button>
+      <button className="table-control-button danger" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDelete')} title="Delete table">- table</button>
+    </div>
+  );
+}
+
+function MediaResizeHandle({
+  position,
+  onResize
+}: {
+  position: MediaControlsState;
+  onResize: (width: number) => void;
+}) {
+  return (
+    <button
+      className="media-resize-handle"
+      type="button"
+      aria-label={`Resize ${position.nodeType}`}
+      style={{
+        top: position.top + Math.max(0, position.height - 12),
+        left: position.left + Math.max(0, position.pixelWidth - 12)
+      }}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const startX = event.clientX;
+        const startWidth = position.width;
+        const containerWidth = position.containerWidth;
+        const onPointerMove = (moveEvent: PointerEvent) => {
+          const deltaX = moveEvent.clientX - startX;
+          const deltaPercent = (deltaX / Math.max(1, containerWidth)) * 100;
+          onResize(startWidth + deltaPercent);
+        };
+        const stopDragging = () => {
+          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener('pointerup', stopDragging);
+          window.removeEventListener('pointercancel', stopDragging);
+        };
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', stopDragging, { once: true });
+        window.addEventListener('pointercancel', stopDragging, { once: true });
+      }}
+    >
+      <span />
+    </button>
+  );
+}
+
+function MathBlockEditor({
+  editorState,
+  onChange,
+  onClose
+}: {
+  editorState: MathEditorState;
+  onChange: (latex: string) => void;
+  onClose: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    input.select();
+  }, [editorState.pos]);
+
+  return (
+    <div
+      className="math-block-editor"
+      style={{ top: editorState.top, left: editorState.left, width: editorState.width }}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <span className="math-block-editor-delimiter">$$</span>
+      <input
+        ref={inputRef}
+        value={editorState.latex}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === 'Escape') {
+            event.preventDefault();
+            onClose();
+          }
+        }}
+        placeholder="E = mc^2"
+        aria-label="Math block latex"
+      />
+      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={onClose} aria-label="Close math editor">×</button>
     </div>
   );
 }
