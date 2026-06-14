@@ -1048,7 +1048,7 @@ input, select { color: var(--ink); }
   font-variant-numeric: tabular-nums;
   font-size: 0.86em;
 }
-.outline-entry.list span:first-child {
+.outline-entry.outline-kind-list span:first-child {
   font-size: 1em;
 }
 

@@ -89,6 +89,11 @@ const pageTreeText = await page.locator('.page-tree').innerText();
 const pageText = await page.locator('.page-surface').innerText();
 const pageHtml = await page.locator('.page-surface').evaluate((node) => node.innerHTML);
 const outlineText = await page.locator('.outline-list').innerText();
+const outlineSnapshot = await page.locator('.outline-entry').evaluateAll((entries) => entries.map((entry) => ({
+  className: entry.className,
+  level: (entry instanceof HTMLElement ? entry.style.getPropertyValue('--level') : '').trim(),
+  text: entry.textContent ?? ''
+})));
 const importNoticeText = await page.locator('.import-notice').innerText();
 const importNoticeClass = await page.locator('.import-notice').getAttribute('class');
 const metadataText = await page.locator('.page-metadata').innerText();
@@ -107,12 +112,17 @@ const katexCount = await page.locator('.page-surface .katex').count();
 const kbdCount = await page.locator('.page-surface kbd').count();
 const alertCount = await page.locator('.page-surface .md-alert.md-alert-warning').count();
 const codeFenceCount = await page.locator('.page-surface pre.md-fences code').count();
+const hasBlockOutlineEntry = outlineSnapshot.some((entry) => entry.className.includes('outline-kind-block') && entry.text.includes('Imported Smoke') && entry.text.includes('Section Smoke'));
+const hasHeadingOutlineEntry = outlineSnapshot.some((entry) => entry.className.includes('outline-kind-heading') && entry.text.includes('Section Smoke'));
+const pageAndBlockArePeers = outlineSnapshot.some((entry) => entry.className.includes('outline-kind-page') && entry.level === '1') &&
+  outlineSnapshot.some((entry) => entry.className.includes('outline-kind-block') && entry.level === '1');
+const headingsNestUnderBlocks = outlineSnapshot.some((entry) => entry.className.includes('outline-kind-heading') && entry.text.includes('Imported Smoke') && entry.level === '2');
 
 const checks = {
   title: pageTitle === expectedTitle,
   singleBlock: blockCount === 1,
   pageTree: pageTreeText.includes(expectedTitle),
-  outline: outlineText.includes('Imported Smoke') && outlineText.includes('Section Smoke') && outlineText.includes('Detail Smoke') && outlineText.includes('first bullet'),
+  outline: outlineText.includes('Imported Smoke') && hasBlockOutlineEntry && hasHeadingOutlineEntry && pageAndBlockArePeers && headingsNestUnderBlocks && outlineText.includes('Detail Smoke') && outlineText.includes('first bullet'),
   frontmatterHidden: !pageText.includes('title: Frontmatter Smoke') && !pageText.includes('tags: [travel, literature]') && !pageText.includes('aliases:'),
   metadataUi: metadataText.includes('2026-05-02') && metadataText.includes('draft') && metadataText.includes('#travel') && metadataText.includes('#literature') && metadataText.includes('Hengdian notes') && metadataText.includes('Qin palace'),
   metadataState: storedPage?.metadata?.sourceFilename?.endsWith('.md') && storedPage.metadata.tags.includes('travel') && storedPage.metadata.tags.includes('literature') && storedPage.metadata.date === '2026-05-02' && storedPage.metadata.status === 'draft' && storedPage.metadata.aliases.includes('Hengdian notes') && storedPage.metadata.frontmatter.title === 'Frontmatter Smoke',

@@ -77,7 +77,7 @@ type ImportNotice = {
 };
 type OutlineEntry = {
   id: string;
-  kind: 'page' | 'heading' | 'list';
+  kind: 'page' | 'block' | 'heading' | 'list';
   blockId: string | null;
   level: number;
   text: string;
@@ -205,7 +205,19 @@ const extractOutlineEntries = (page: Page, blocks: Block[]): OutlineEntry[] => {
     index: 0
   }];
 
-  blocks.forEach((block) => {
+  blocks.forEach((block, blockIndex) => {
+    const blockLabel = firstLines(block.content.plainText);
+    if (block.content.plainText.trim()) {
+      entries.push({
+        id: `${block.id}:block`,
+        kind: 'block',
+        blockId: block.id,
+        level: 1,
+        text: blockLabel,
+        index: blockIndex
+      });
+    }
+
     const doc = new DOMParser().parseFromString(block.content.html, 'text/html');
     doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((heading, index) => {
       const text = outlineText(heading.textContent ?? '');
@@ -214,7 +226,7 @@ const extractOutlineEntries = (page: Page, blocks: Block[]): OutlineEntry[] => {
         id: `${block.id}:heading:${index}`,
         kind: 'heading',
         blockId: block.id,
-        level: Number(heading.tagName.slice(1)),
+        level: Number(heading.tagName.slice(1)) + 1,
         text,
         index
       });
@@ -1518,13 +1530,13 @@ export function App() {
           <div className="outline-list typora-toc md-toc md-toc-content">
             {outlineEntries.map((entry) => (
               <button
-                className={`outline-entry md-toc-item ${entry.kind}`}
+                className={`outline-entry md-toc-item outline-kind-${entry.kind}`}
                 key={entry.id}
                 onClick={() => jumpToOutlineEntry(entry)}
                 style={{ '--level': entry.level } as React.CSSProperties}
                 type="button"
               >
-                <span>{entry.kind === 'page' ? 'P' : entry.kind === 'heading' ? `H${entry.level}` : '•'}</span>
+                <span>{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
                 <span>{entry.text}</span>
               </button>
             ))}
