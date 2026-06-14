@@ -45,6 +45,21 @@ await freshComposer.click();
 await page.keyboard.type('【】 中文 todo');
 const cnTodoHtml = await freshComposer.evaluate((node) => node.innerHTML);
 checks.cnTodo = cnTodoHtml.includes('data-type="taskList"') && cnTodoHtml.includes('data-todo-style="bracket"') && cnTodoHtml.includes('中文 todo');
+checks.cnTodoHighlightWrapsCheckbox = await freshComposer.evaluate((node) => {
+  const item = node.querySelector('li[data-todo-style="bracket"]');
+  const checkbox = item?.querySelector('input[type="checkbox"]');
+  const paragraph = item?.querySelector('p');
+  if (!(item instanceof HTMLElement) || !(checkbox instanceof HTMLElement) || !(paragraph instanceof HTMLElement)) return false;
+  const itemStyles = getComputedStyle(item);
+  const itemRect = item.getBoundingClientRect();
+  const checkboxRect = checkbox.getBoundingClientRect();
+  const paragraphRect = paragraph.getBoundingClientRect();
+  return itemStyles.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+    checkboxRect.left >= itemRect.left &&
+    checkboxRect.right <= itemRect.right &&
+    paragraphRect.left >= itemRect.left &&
+    paragraphRect.right <= itemRect.right;
+});
 
 await resetApp();
 const commandComposer = page.locator('.composer').last();

@@ -648,15 +648,27 @@ input, select { color: var(--ink); }
 .composer li[data-todo-style="bracket"] {
   width: fit-content;
   max-width: 100%;
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 6px;
   border-radius: var(--todo-bracket-radius);
   background: var(--bracket-todo);
   box-shadow: 0 0 0 1px var(--bracket-todo-edge) inset;
   padding: var(--todo-bracket-padding);
+  color: var(--bracket-todo-ink);
 }
 
 .block-content li[data-todo-style="bracket"] > label,
 .composer li[data-todo-style="bracket"] > label {
+  align-self: center;
   min-height: var(--todo-bracket-label-min-height);
+  color: inherit;
+}
+
+.block-content li[data-todo-style="bracket"] input[type="checkbox"],
+.composer li[data-todo-style="bracket"] input[type="checkbox"] {
+  accent-color: currentColor;
 }
 
 .block-content li[data-todo-style="bracket"] > div > p:first-child:empty::before,
@@ -1213,6 +1225,44 @@ input, select { color: var(--ink); }
   color: var(--muted);
   font-size: 10px;
   line-height: 1.1;
+}
+
+.calendar-workspace {
+  display: grid;
+  gap: 14px;
+}
+
+.calendar-workspace-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.calendar-workspace-header h2 {
+  margin: 3px 0 0;
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.calendar-workspace .calendar-view {
+  gap: 10px;
+}
+
+.calendar-workspace .calendar-day {
+  min-height: 128px;
+  padding: 7px;
+}
+
+.calendar-workspace .calendar-entry {
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 5px 6px;
+}
+
+.calendar-workspace .calendar-entry span:first-child {
+  font-size: 10.5px;
 }
 
 .desktop-preview { display: grid; gap: var(--desktop-preview-gap); }

@@ -104,6 +104,7 @@ type CalendarEntry = {
   block: Block;
   page: Page;
 };
+type WorkspaceView = 'write' | 'calendar';
 type ToolbarCommand =
   | 'bold'
   | 'italic'
@@ -1193,6 +1194,7 @@ export function App() {
   const [showToolbar, setShowToolbar] = useState(true);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
   const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'outline' | 'calendar' | 'desk'>('files');
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('write');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [importNotice, setImportNotice] = useState<ImportNotice>({ kind: 'idle', message: '' });
   const composerEditorRef = useRef<Editor | null>(null);
@@ -1314,6 +1316,21 @@ export function App() {
   const insertLocalMedia = (kind: 'image' | 'video' | 'audio') => {
     const editor = getActiveTiptapEditor();
     if (!editor) return;
+    const selection = {
+      from: editor.state.selection.from,
+      to: editor.state.selection.to
+    };
+    const insertAtSavedSelection = (content: string | Parameters<Editor['commands']['setImage']>[0]) => {
+      const maxPosition = editor.state.doc.content.size;
+      const from = Math.min(selection.from, maxPosition);
+      const to = Math.min(selection.to, maxPosition);
+      const chain = editor.chain().focus().setTextSelection({ from, to });
+      if (kind === 'image') {
+        chain.setImage(content as Parameters<Editor['commands']['setImage']>[0]).run();
+        return;
+      }
+      chain.insertContent(content as string).run();
+    };
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = kind === 'image' ? 'image/*' : kind === 'video' ? 'video/*' : 'audio/*';
@@ -1325,13 +1342,13 @@ export function App() {
         const src = typeof reader.result === 'string' ? reader.result : '';
         if (!src) return;
         if (kind === 'image') {
-          editor.chain().focus().setImage({ src, alt: file.name }).run();
+          insertAtSavedSelection({ src, alt: file.name });
           return;
         }
         const html = kind === 'video'
           ? `<video controls src="${src}"></video>`
           : `<audio controls src="${src}"></audio>`;
-        editor.chain().focus().insertContent(html).run();
+        insertAtSavedSelection(html);
       };
       reader.readAsDataURL(file);
     };
@@ -1432,6 +1449,7 @@ export function App() {
   const blockIndex = (blockId: string) => activePage.blockIds.indexOf(blockId);
 
   const jumpToOutlineEntry = (entry: OutlineEntry) => {
+    setWorkspaceView('write');
     if (!entry.blockId) {
       document.querySelector<HTMLInputElement>('.page-title')?.focus();
       document.querySelector('.page-surface')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1444,6 +1462,7 @@ export function App() {
   };
 
   const jumpToBlock = (pageId: string, blockId: string) => {
+    setWorkspaceView('write');
     setState((current) => ({ ...current, activePageId: pageId }));
     window.requestAnimationFrame(() => {
       const blockElement = document.getElementById(blockId);
@@ -1969,6 +1988,7 @@ export function App() {
               onKeyDown={(event) => {
                 if (event.key !== 'Tab') return;
                 event.preventDefault();
+                setWorkspaceView('write');
                 setState((current) => ({ ...current, activePageId: page.id }));
                 if (event.shiftKey) {
                   const parent = state.pages.find((candidate) => candidate.id === page.parentId);
@@ -1980,7 +2000,10 @@ export function App() {
                   if (previousSibling) movePageUnder(page.id, previousSibling.id);
                 }
               }}
-              onClick={() => setState((current) => ({ ...current, activePageId: page.id }))}
+              onClick={() => {
+                setWorkspaceView('write');
+                setState((current) => ({ ...current, activePageId: page.id }));
+              }}
               type="button"
             >
               <span
@@ -2030,6 +2053,7 @@ export function App() {
               onKeyDown={(event) => {
                 if (event.key !== 'Tab') return;
                 event.preventDefault();
+                setWorkspaceView('write');
                 setState((current) => ({ ...current, activePageId: page.id }));
                 if (event.shiftKey) {
                   const parent = state.pages.find((candidate) => candidate.id === page.parentId);
@@ -2041,7 +2065,10 @@ export function App() {
                   if (previousSibling) movePageUnder(page.id, previousSibling.id);
                 }
               }}
-              onClick={() => setState((current) => ({ ...current, activePageId: page.id }))}
+              onClick={() => {
+                setWorkspaceView('write');
+                setState((current) => ({ ...current, activePageId: page.id }));
+              }}
               type="button"
             >
               <span
@@ -2256,6 +2283,26 @@ export function App() {
     );
   };
 
+  const renderCalendarWorkspace = () => (
+    <section className="calendar-workspace typora-content-surface typora-write" aria-label="Calendar workspace">
+      <div className="calendar-workspace-header">
+        <div>
+          <p className="section-label">Calendar</p>
+          <h2>Blocks by day</h2>
+        </div>
+        <button className="secondary-button" type="button" onClick={() => setWorkspaceView('write')}>Write</button>
+      </div>
+      {renderCalendarView()}
+    </section>
+  );
+
+  const renderWorkspaceContent = () => (
+    <>
+      {renderImportNotice()}
+      {workspaceView === 'calendar' ? renderCalendarWorkspace() : renderWriteSurface()}
+    </>
+  );
+
   const renderPinnedCards = (className = 'desktop-preview', cardClassName = 'desktop-card') => (
     <div className={className}>
       {pinnedBlocks.length ? pinnedBlocks.map((block) => (
@@ -2314,6 +2361,7 @@ export function App() {
           event.currentTarget.value = '';
         }}
       />
+      <button className={`secondary-button ${workspaceView === 'calendar' ? 'active' : ''}`} type="button" onClick={() => setWorkspaceView(workspaceView === 'calendar' ? 'write' : 'calendar')}><CalendarDays size={15} /> Calendar</button>
       <button className="secondary-button" type="button" onClick={() => markdownInputRef.current?.click()}><FileUp size={15} /> Import MD</button>
       <button className="secondary-button" type="button" onClick={() => markdownFolderInputRef.current?.click()}><FileUp size={15} /> Import folder</button>
       <button className="secondary-button" type="button" onClick={exportMarkdown}><Download size={15} /> Markdown</button>
@@ -2342,11 +2390,14 @@ export function App() {
                 <button
                   className={`notebook-button ${notebook.id === activeNotebook.id ? 'active' : ''}`}
                   type="button"
-                  onClick={() => setState((current) => ({
-                    ...current,
-                    activeNotebookId: notebook.id,
-                    activePageId: notebook.pageIds[0] ?? current.activePageId
-                  }))}
+                  onClick={() => {
+                    setWorkspaceView('write');
+                    setState((current) => ({
+                      ...current,
+                      activeNotebookId: notebook.id,
+                      activePageId: notebook.pageIds[0] ?? current.activePageId
+                    }));
+                  }}
                 >
                   <NotebookTabs size={15} />
                   {notebook.name}
@@ -2394,19 +2445,13 @@ export function App() {
           {renderToolControls(false)}
         </header>
 
-        {renderImportNotice()}
-        {renderWriteSurface()}
+        {renderWorkspaceContent()}
       </main>
 
       <aside className="right-panel">
         <section className="panel-card">
           <div className="panel-title"><PanelRight size={16} /> Outline</div>
           {renderNativeOutline()}
-        </section>
-
-        <section className="panel-card">
-          <div className="panel-title"><CalendarDays size={16} /> Calendar</div>
-          {renderCalendarView()}
         </section>
 
         <section className="panel-card desktop-preview">
@@ -2433,7 +2478,7 @@ export function App() {
         <div className="sidebar-tabs" role="tablist" aria-label="Sidebar tabs">
           <button className={`sidebar-tab ${typoraSidebarTab === 'files' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('files')}>Files</button>
           <button className={`sidebar-tab ${typoraSidebarTab === 'outline' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('outline')}>Outline</button>
-          <button className={`sidebar-tab ${typoraSidebarTab === 'calendar' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('calendar')}>Calendar</button>
+          <button className={`sidebar-tab ${typoraSidebarTab === 'calendar' ? 'active' : ''}`} type="button" onClick={() => { setTyporaSidebarTab('calendar'); setWorkspaceView('calendar'); }}>Calendar</button>
           <button className={`sidebar-tab ${typoraSidebarTab === 'desk' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('desk')}>Desk</button>
         </div>
 
@@ -2451,11 +2496,14 @@ export function App() {
                     <button
                       className="file-node-content notebook-node"
                       type="button"
-                      onClick={() => setState((current) => ({
-                        ...current,
-                        activeNotebookId: notebook.id,
-                        activePageId: notebook.pageIds[0] ?? current.activePageId
-                      }))}
+                      onClick={() => {
+                        setWorkspaceView('write');
+                        setState((current) => ({
+                          ...current,
+                          activeNotebookId: notebook.id,
+                          activePageId: notebook.pageIds[0] ?? current.activePageId
+                        }));
+                      }}
                     >
                       <span className="file-node-open-state"><NotebookTabs size={13} /></span>
                       <span className="file-node-title file-name">{notebook.name}</span>
@@ -2492,7 +2540,9 @@ export function App() {
           </section>
 
           <section className={`typora-sidebar-pane ${typoraSidebarTab === 'calendar' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'calendar'}>
-            {renderCalendarView()}
+            <div className="typora-calendar-tab">
+              <button className="secondary-button" type="button" onClick={() => setWorkspaceView('calendar')}><CalendarDays size={15} /> Open calendar</button>
+            </div>
           </section>
 
           <section className={`typora-sidebar-pane ${typoraSidebarTab === 'desk' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'desk'}>
@@ -2515,8 +2565,7 @@ export function App() {
       </aside>
 
       <main className="typora-workspace">
-        {renderImportNotice()}
-        {renderWriteSurface()}
+        {renderWorkspaceContent()}
       </main>
 
       {openCardBlock && (

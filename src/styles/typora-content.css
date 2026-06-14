@@ -34,6 +34,9 @@
   --desktop-card-ink: var(--theme-ink);
   --floating-card-background: color-mix(in srgb, var(--theme-surface-solid) 92%, var(--theme-chip));
   --floating-card-body-ink: var(--theme-ink);
+  --bracket-todo: color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface-solid));
+  --bracket-todo-ink: var(--theme-nav-active-ink);
+  --bracket-todo-edge: color-mix(in srgb, var(--theme-accent) 26%, transparent);
 }
 
 .typora-theme[data-content-theme="typora-konayuki"] {
@@ -272,6 +275,33 @@
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(li.task-list-item, li.md-task-list-item, li[data-type="taskItem"]) > div > p:first-child,
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc li.task-list-item.md-task-list-item[data-type="taskItem"] > div > p:first-child {
   margin-top: 0;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li[data-type="taskItem"][data-todo-style="bracket"] {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.45em;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: var(--todo-bracket-radius);
+  background: var(--bracket-todo);
+  box-shadow: 0 0 0 1px var(--bracket-todo-edge) inset;
+  padding: var(--todo-bracket-padding);
+  color: var(--bracket-todo-ink);
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li[data-type="taskItem"][data-todo-style="bracket"] > label {
+  min-height: var(--todo-bracket-label-min-height);
+  color: inherit;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li[data-type="taskItem"][data-todo-style="bracket"] > label input[type="checkbox"] {
+  accent-color: currentColor;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li[data-type="taskItem"][data-todo-style="bracket"] > div > p:first-child {
+  color: inherit;
 }
 
 :where(.typora-theme[data-content-theme^="typora-"] .typora-block-doc kbd,

@@ -268,22 +268,19 @@
   height: 20px;
 }
 
-.typora-app-shell .calendar-view {
-  color: var(--typora-shell-ink);
+.typora-app-shell .typora-calendar-tab {
+  display: grid;
+  gap: 8px;
 }
 
-.typora-app-shell .calendar-day {
-  min-height: 64px;
-  border-color: var(--typora-shell-divider);
+.typora-app-shell .typora-calendar-tab .secondary-button {
+  width: 100%;
+  justify-content: flex-start;
+  min-height: 30px;
+  border: 1px solid var(--typora-shell-divider);
   border-radius: 4px;
-  background: color-mix(in srgb, var(--typora-shell-panel) 70%, transparent);
-  padding: 3px;
-}
-
-.typora-app-shell .calendar-entry {
-  background: color-mix(in srgb, var(--typora-shell-ink) 10%, transparent);
-  color: var(--typora-shell-ink);
-  font-size: 10px;
+  background: color-mix(in srgb, var(--typora-shell-panel) 72%, transparent);
+  color: inherit;
 }
 
 .typora-app-shell .typora-pin-grid {
