@@ -67,6 +67,7 @@ import {
 import { isTauri } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { common, createLowlight } from 'lowlight';
+import { marked } from 'marked';
 import 'katex/dist/katex.min.css';
 import { contentThemes } from './typora-theme-registry';
 
@@ -107,8 +108,14 @@ type ToolbarCommand =
   | 'blockquote'
   | 'link'
   | 'table'
+  | 'tableRowAfter'
+  | 'tableColumnAfter'
+  | 'tableDeleteRow'
+  | 'tableDeleteColumn'
   | 'inlineMath'
   | 'blockMath'
+  | 'footnote'
+  | 'horizontalRule'
   | 'image'
   | 'video'
   | 'audio'
@@ -274,6 +281,156 @@ const todoInputRegex = /^\s*(\[\]|【】)\s$/;
 const codeBlockInputRegex = /^\s*(```|\/code)\s$/;
 const blockMathInputRegex = /^\s*(\$\$|\/math)\s$/;
 const blockquoteInputRegex = /^\s*(>|\/quote)\s$/;
+const ansiRegex = /\x1b\[[0-9;]*m/g;
+const hasAnsi = (value: string) => {
+  ansiRegex.lastIndex = 0;
+  return ansiRegex.test(value);
+};
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+const markdownishText = (value: string) =>
+  /(^|\n)\s{0,3}(#{1,6}\s|[-*+]\s+|\d+\.\s+|>\s|\[[ xX]\]\s|【】\s)|```|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|==[^=]+==|\[[^\]]+\]\([^)]+\)/.test(value);
+
+const markdownToRichHtml = (value: string) => {
+  const withHighlights = value.replace(/==([^=\n][\s\S]*?[^=\n])==/g, '<mark>$1</mark>');
+  return marked.parse(withHighlights, { async: false }) as string;
+};
+
+const plainTextToHtml = (value: string) => {
+  const normalized = value.replace(/\r\n?/g, '\n');
+  if (markdownishText(normalized)) return markdownToRichHtml(normalized);
+  return normalized
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
+    .join('');
+};
+
+const isGreenishColor = (value: string | null) => {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  const rgb = normalized.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (rgb) {
+    const [, r, g, b] = rgb.map(Number);
+    return g > 95 && g > r * 1.25 && g > b * 1.15;
+  }
+  const hex = normalized.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/);
+  if (!hex) return normalized.includes('green');
+  const raw = hex[1].length === 3
+    ? hex[1].split('').map((char) => char + char).join('')
+    : hex[1];
+  const r = Number.parseInt(raw.slice(0, 2), 16);
+  const g = Number.parseInt(raw.slice(2, 4), 16);
+  const b = Number.parseInt(raw.slice(4, 6), 16);
+  return g > 95 && g > r * 1.25 && g > b * 1.15;
+};
+
+const normalizePastedHtml = (html: string) => {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('span, font').forEach((element) => {
+    const htmlElement = element as HTMLElement;
+    const color = htmlElement.style.color || htmlElement.getAttribute('color');
+    if (!isGreenishColor(color)) return;
+    const mark = doc.createElement('mark');
+    while (htmlElement.firstChild) mark.appendChild(htmlElement.firstChild);
+    htmlElement.replaceWith(mark);
+  });
+  return doc.body.innerHTML || html;
+};
+
+const ansiToRichHtml = (value: string) => {
+  let green = false;
+  let cursor = 0;
+  const chunks: string[] = [];
+  const pushText = (text: string) => {
+    if (!text) return;
+    const escaped = escapeHtml(text).replace(/\n/g, '<br>');
+    chunks.push(green ? `<mark>${escaped}</mark>` : escaped);
+  };
+
+  ansiRegex.lastIndex = 0;
+  for (const match of value.matchAll(ansiRegex)) {
+    pushText(value.slice(cursor, match.index));
+    const codes = match[0].slice(2, -1).split(';').filter(Boolean).map(Number);
+    if (codes.length === 0 || codes.includes(0) || codes.includes(39)) green = false;
+    if (codes.includes(32) || codes.includes(92)) green = true;
+    cursor = (match.index ?? 0) + match[0].length;
+  }
+  pushText(value.slice(cursor));
+  return `<p>${chunks.join('')}</p>`;
+};
+
+const clipboardFilesToHtml = async (files: FileList) => {
+  const fileReaders = [...files].map((file) => new Promise<string | null>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = typeof reader.result === 'string' ? reader.result : '';
+      if (!src) return resolve(null);
+      if (file.type.startsWith('image/')) return resolve(`<img src="${src}" alt="${escapeHtml(file.name)}">`);
+      if (file.type.startsWith('video/')) return resolve(`<video controls src="${src}"></video>`);
+      if (file.type.startsWith('audio/')) return resolve(`<audio controls src="${src}"></audio>`);
+      return resolve(null);
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  }));
+  return (await Promise.all(fileReaders)).filter(Boolean).join('');
+};
+
+const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
+  if (!editor) return false;
+  const clipboard = event.clipboardData;
+  if (!clipboard) return false;
+
+  if (clipboard.files.length) {
+    event.preventDefault();
+    void clipboardFilesToHtml(clipboard.files).then((html) => {
+      if (html) editor.chain().focus().insertContent(html).run();
+    });
+    return true;
+  }
+
+  const html = clipboard.getData('text/html');
+  const markdown = clipboard.getData('text/markdown') || clipboard.getData('text/x-markdown');
+  const text = clipboard.getData('text/plain');
+  const nextHtml = html
+    ? normalizePastedHtml(html)
+    : markdown
+      ? markdownToRichHtml(markdown)
+      : hasAnsi(text)
+        ? ansiToRichHtml(text)
+        : markdownishText(text)
+          ? markdownToRichHtml(text)
+          : '';
+
+  if (!nextHtml) return false;
+  event.preventDefault();
+  editor.chain().focus().insertContent(nextHtml).run();
+  return true;
+};
+
+const handleRichCopy = (editor: Editor | null, event: ClipboardEvent) => {
+  if (!editor) return false;
+  const clipboard = event.clipboardData;
+  const selection = window.getSelection();
+  if (!clipboard || !selection || selection.rangeCount === 0 || selection.isCollapsed) return false;
+  if (!editor.view.dom.contains(selection.anchorNode) || !editor.view.dom.contains(selection.focusNode)) return false;
+
+  const container = document.createElement('div');
+  container.appendChild(selection.getRangeAt(0).cloneContents());
+  const html = container.innerHTML;
+  if (!html.trim()) return false;
+  clipboard.setData('text/html', html);
+  clipboard.setData('text/markdown', htmlToMarkdown(html));
+  clipboard.setData('text/plain', selection.toString());
+  event.preventDefault();
+  return true;
+};
 
 const syncDomSelectionToEditor = (editor: Editor) => {
   const selection = window.getSelection();
@@ -843,12 +1000,17 @@ function RichEditor({
   editorRef
 }: RichEditorProps) {
   const externalHtmlRef = useRef(html ?? '');
+  const editorHolderRef = useRef<Editor | null>(null);
   const editor = useEditor({
     extensions: createEditorExtensions(placeholder, onShiftEnter, onMoveBlock),
     content: html || '',
     editorProps: {
       attributes: {
         class: `${className} tiptap-editor typora-block-doc`
+      },
+      handlePaste: (_view, event) => handleRichPaste(editorHolderRef.current, event),
+      handleDOMEvents: {
+        copy: (_view, event) => handleRichCopy(editorHolderRef.current, event)
       }
     },
     onFocus: ({ editor }) => onFocus(editor),
@@ -857,6 +1019,7 @@ function RichEditor({
   });
 
   useEffect(() => {
+    editorHolderRef.current = editor;
     editorRef(editor);
     return () => editorRef(null);
   }, [editor, editorRef]);
@@ -972,6 +1135,46 @@ export function App() {
     });
   };
 
+  const insertLocalMedia = (kind: 'image' | 'video' | 'audio') => {
+    const editor = getActiveTiptapEditor();
+    if (!editor) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = kind === 'image' ? 'image/*' : kind === 'video' ? 'video/*' : 'audio/*';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const src = typeof reader.result === 'string' ? reader.result : '';
+        if (!src) return;
+        if (kind === 'image') {
+          editor.chain().focus().setImage({ src, alt: file.name }).run();
+          return;
+        }
+        const html = kind === 'video'
+          ? `<video controls src="${src}"></video>`
+          : `<audio controls src="${src}"></audio>`;
+        editor.chain().focus().insertContent(html).run();
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
+
+  const insertFootnote = () => {
+    const editor = getActiveTiptapEditor();
+    if (!editor) return;
+    const label = window.prompt('Footnote label', '1')?.trim();
+    if (!label) return;
+    const content = window.prompt('Footnote text', '')?.trim();
+    const id = label.replace(/[^\w-]+/g, '-') || `fn-${Date.now().toString(36)}`;
+    editor.chain().focus().insertContent(
+      `<sup class="md-footnote" data-footnote-id="${id}"><a href="#fn-${id}" id="fnref-${id}" contenteditable="false">[${escapeHtml(label)}]</a></sup>` +
+      `<section class="footnotes" data-type="footnotes"><div class="md-def-footnote" data-type="footnote-item" data-footnote-id="${id}" id="fn-${id}"><p>${escapeHtml(content ?? '')}</p></div></section>`
+    ).run();
+  };
+
   const runEditorCommand = (command: ToolbarCommand) => {
     const editor = getActiveTiptapEditor();
     if (!editor) return;
@@ -1000,6 +1203,10 @@ export function App() {
     if (command === 'table') {
       editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
     }
+    if (command === 'tableRowAfter') editor.chain().focus().addRowAfter().run();
+    if (command === 'tableColumnAfter') editor.chain().focus().addColumnAfter().run();
+    if (command === 'tableDeleteRow') editor.chain().focus().deleteRow().run();
+    if (command === 'tableDeleteColumn') editor.chain().focus().deleteColumn().run();
     if (command === 'inlineMath') {
       const latex = window.prompt('Inline math', 'E = mc^2');
       if (latex?.trim()) editor.chain().focus().insertInlineMath({ latex: latex.trim() }).run();
@@ -1008,19 +1215,18 @@ export function App() {
       const latex = window.prompt('Block math', '\\int_0^1 x^2 dx');
       if (latex?.trim()) editor.chain().focus().insertBlockMath({ latex: latex.trim() }).run();
     }
+    if (command === 'footnote') insertFootnote();
+    if (command === 'horizontalRule') editor.chain().focus().setHorizontalRule().run();
     if (command === 'image') {
-      const src = window.prompt('Image URL');
-      if (src?.trim()) editor.chain().focus().setImage({ src: src.trim() }).run();
+      insertLocalMedia('image');
     }
-    if (command === 'video' || command === 'audio' || command === 'embed') {
+    if (command === 'video' || command === 'audio') {
+      insertLocalMedia(command);
+    }
+    if (command === 'embed') {
       const src = window.prompt(`${command[0].toUpperCase()}${command.slice(1)} URL`);
       if (!src?.trim()) return;
-      const html =
-        command === 'video'
-          ? `<video controls src="${src.trim()}"></video>`
-          : command === 'audio'
-            ? `<audio controls src="${src.trim()}"></audio>`
-            : `<iframe class="media-embed md-media" src="${src.trim()}" title="Embedded media" loading="lazy" allowfullscreen="true"></iframe>`;
+      const html = `<iframe class="media-embed md-media" src="${src.trim()}" title="Embedded media" loading="lazy" allowfullscreen="true"></iframe>`;
       editor.chain().focus().insertContent(html).run();
     }
     if (command === 'bulletList') chain.toggleBulletList().run();
@@ -1809,8 +2015,14 @@ function Toolbar({
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('codeBlock')} title="Code block"><Braces size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('blockquote')} title="Quote"><Quote size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('table')} title="Table"><Table2 size={16} /></button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableRowAfter')} title="Add table row">+R</button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableColumnAfter')} title="Add table column">+C</button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteRow')} title="Delete table row">-R</button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteColumn')} title="Delete table column">-C</button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('inlineMath')} title="Inline math"><Sigma size={16} /></button>
       <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('blockMath')} title="Block math">Σ</button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('footnote')} title="Footnote">fn</button>
+      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('horizontalRule')} title="Horizontal rule">HR</button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('image')} title="Image"><ImageIcon size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('video')} title="Video"><Video size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('audio')} title="Audio"><Volume2 size={16} /></button>

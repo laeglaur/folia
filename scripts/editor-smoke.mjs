@@ -67,6 +67,50 @@ checks.copyPaste = clipboardText === 'toggle copy paste' && copiedText.includes(
 
 await page.evaluate(() => localStorage.clear());
 await page.reload();
+const markdownPasteComposer = page.locator('.composer').last();
+await markdownPasteComposer.click();
+await page.evaluate(() => navigator.clipboard.writeText('**bold paste**\n\n- first\n- second'));
+await page.keyboard.press(`${modKey}+V`);
+const markdownPasteHtml = await markdownPasteComposer.evaluate((node) => node.innerHTML);
+checks.markdownPasteKeepsStructure = markdownPasteHtml.includes('<strong>bold paste</strong>') &&
+  markdownPasteHtml.includes('<ul') &&
+  markdownPasteHtml.includes('first') &&
+  markdownPasteHtml.includes('second');
+
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+const greenPasteComposer = page.locator('.composer').last();
+await greenPasteComposer.click();
+await page.evaluate(async () => {
+  await navigator.clipboard.write([
+    new ClipboardItem({
+      'text/html': new Blob(['<span style="color: rgb(0, 180, 80)">green terminal text</span>'], { type: 'text/html' }),
+      'text/plain': new Blob(['green terminal text'], { type: 'text/plain' })
+    })
+  ]);
+});
+await page.keyboard.press(`${modKey}+V`);
+const greenPasteHtml = await greenPasteComposer.evaluate((node) => node.innerHTML);
+checks.greenHtmlPasteBecomesHighlight = greenPasteHtml.includes('<mark>green terminal text</mark>');
+
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+const ansiPasteComposer = page.locator('.composer').last();
+await ansiPasteComposer.click();
+await ansiPasteComposer.evaluate((node) => {
+  const clipboardData = new DataTransfer();
+  clipboardData.setData('text/plain', '\u001b[32mansi green\u001b[0m');
+  node.dispatchEvent(new ClipboardEvent('paste', {
+    clipboardData,
+    bubbles: true,
+    cancelable: true
+  }));
+});
+const ansiPasteHtml = await ansiPasteComposer.evaluate((node) => node.innerHTML);
+checks.ansiGreenPasteBecomesHighlight = ansiPasteHtml.includes('<mark>ansi green</mark>');
+
+await page.evaluate(() => localStorage.clear());
+await page.reload();
 const markComposer = page.locator('.composer').last();
 await markComposer.click();
 await page.keyboard.type('styled marks');
@@ -82,8 +126,14 @@ checks.semanticToolbarButtons = await page.locator('.format-toolbar').evaluate((
     'Link',
     'Quote',
     'Table',
+    'Add table row',
+    'Add table column',
+    'Delete table row',
+    'Delete table column',
     'Inline math',
     'Block math',
+    'Footnote',
+    'Horizontal rule',
     'Image',
     'Video',
     'Audio',
