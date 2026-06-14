@@ -2437,7 +2437,7 @@ export function App() {
       minWidth: 240,
       minHeight: 140,
       decorations: false,
-      transparent: true,
+      transparent: false,
       shadow: true,
       alwaysOnTop: true,
       visibleOnAllWorkspaces: true,
