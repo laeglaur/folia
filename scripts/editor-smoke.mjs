@@ -136,24 +136,81 @@ checks.strike = markHtml.includes('<s>') && markHtml.includes('styled marks');
 checks.semanticToolbarButtons = await page.locator('.format-toolbar').evaluate((toolbar) => {
   const requiredTitles = [
     'Keyboard key',
-    'Link',
     'Quote',
     'Table',
+    'Inline math',
+    'Block math',
+    'Footnote',
+    'Attachment'
+  ];
+  const removedTitles = [
+    'Link',
     'Add table row',
     'Add table column',
     'Delete table row',
     'Delete table column',
-    'Inline math',
-    'Block math',
-    'Footnote',
     'Horizontal rule',
     'Image',
     'Video',
     'Audio',
     'Embed'
   ];
-  return requiredTitles.every((title) => toolbar.querySelector(`button[title="${title}"]`));
+  return requiredTitles.every((title) => toolbar.querySelector(`button[title="${title}"]`)) &&
+    removedTitles.every((title) => !toolbar.querySelector(`button[title="${title}"]`));
 });
+
+await resetApp();
+const inputRulesComposer = page.locator('.composer').last();
+await inputRulesComposer.click();
+await page.keyboard.type('~underlined~');
+await page.keyboard.press('Enter');
+await page.keyboard.type('$a+b$');
+await page.keyboard.press('Enter');
+await page.keyboard.type('> ');
+await page.keyboard.type('quoted');
+await page.keyboard.press('Enter');
+await page.keyboard.type('/table ');
+await page.waitForFunction(() => document.querySelector('.composer table'));
+let inputRulesHtml = await inputRulesComposer.evaluate((node) => node.innerHTML);
+checks.underlineInputRule = inputRulesHtml.includes('<u>underlined</u>');
+checks.inlineMathInputRule = inputRulesHtml.includes('data-type="inline-math"') || inputRulesHtml.includes('math-inline') || inputRulesHtml.includes('a+b');
+checks.quoteInputRule = inputRulesHtml.includes('<blockquote') && inputRulesHtml.includes('quoted');
+checks.tableInputRule = inputRulesHtml.includes('<table');
+checks.tableControlsAppearInTable = await page.locator('.table-controls').evaluate((controls) => {
+  const requiredTitles = ['Add row', 'Add column', 'Delete selected row', 'Delete selected column'];
+  return requiredTitles.every((title) => controls.querySelector(`button[title="${title}"]`));
+});
+
+await resetApp();
+await page.evaluate(() => {
+  window.prompt = () => 'https://example.com/embed';
+});
+const embeddedLinkComposer = page.locator('.composer').last();
+await embeddedLinkComposer.click();
+await page.keyboard.type('/link ');
+inputRulesHtml = await embeddedLinkComposer.evaluate((node) => node.innerHTML);
+checks.embeddedLinkInputRule = inputRulesHtml.includes('iframe') && inputRulesHtml.includes('https://example.com/embed');
+
+await resetApp();
+const mathBlockComposer = page.locator('.composer').last();
+await mathBlockComposer.click();
+await page.keyboard.type('/math');
+await page.keyboard.press('Enter');
+inputRulesHtml = await mathBlockComposer.evaluate((node) => node.innerHTML);
+checks.mathBlockEnterRule = inputRulesHtml.includes('data-type="block-math"') || inputRulesHtml.includes('md-math-block');
+
+await resetApp();
+const aliasComposer = page.locator('.composer').last();
+await aliasComposer.click();
+await page.keyboard.type('[[[ ');
+let aliasHtml = await aliasComposer.evaluate((node) => node.innerHTML);
+checks.tableTripleBracketInputRule = aliasHtml.includes('<table');
+await resetApp();
+const mathDollarComposer = page.locator('.composer').last();
+await mathDollarComposer.click();
+await page.keyboard.type('$$ ');
+aliasHtml = await mathDollarComposer.evaluate((node) => node.innerHTML);
+checks.mathBlockDollarInputRule = aliasHtml.includes('data-type="block-math"') || aliasHtml.includes('md-math-block');
 
 await resetApp();
 const listComposer = page.locator('.composer').last();

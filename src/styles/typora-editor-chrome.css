@@ -189,6 +189,25 @@
   display: none;
 }
 
+.typora-app-shell .table-controls {
+  margin: -2px 0 8px;
+  border: 1px solid var(--typora-editor-toolbar-border);
+  border-radius: 4px;
+  background: var(--typora-editor-toolbar-bg);
+  box-shadow: none;
+  font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
+}
+
+.typora-app-shell .table-control-button {
+  border-radius: 3px;
+  color: var(--typora-shell-muted);
+}
+
+.typora-app-shell .table-control-button:hover {
+  background: color-mix(in srgb, var(--typora-shell-active-bg) 82%, transparent);
+  color: var(--typora-shell-active-text);
+}
+
 .typora-app-shell .tool-button {
   flex: 0 0 auto;
   width: 24px;

@@ -10,16 +10,15 @@ import {
   FilePlus,
   FileUp,
   Highlighter,
-  Image as ImageIcon,
   Indent,
   Italic,
   Keyboard,
-  Link as LinkIcon,
   List,
   ListOrdered,
   MapPin,
   NotebookTabs,
   Outdent,
+  Paperclip,
   PanelRight,
   Plus,
   Quote,
@@ -31,10 +30,7 @@ import {
   Table2,
   Type,
   Underline as UnderlineIcon,
-  Upload,
-  Video,
-  Volume2,
-  PanelTop
+  Upload
 } from 'lucide-react';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -52,7 +48,7 @@ import { TableRow } from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { ListItem } from '@tiptap/extension-list';
-import { Extension, InputRule, Mark, Node, mergeAttributes } from '@tiptap/core';
+import { Extension, InputRule, Mark, Node, markInputRule, mergeAttributes } from '@tiptap/core';
 import type { AppState, Block, ContentThemeId, Page, ShellId } from './types';
 import {
   appendOperation,
@@ -116,7 +112,6 @@ type ToolbarCommand =
   | 'inlineCode'
   | 'codeBlock'
   | 'blockquote'
-  | 'link'
   | 'table'
   | 'tableRowAfter'
   | 'tableColumnAfter'
@@ -125,11 +120,7 @@ type ToolbarCommand =
   | 'inlineMath'
   | 'blockMath'
   | 'footnote'
-  | 'horizontalRule'
-  | 'image'
-  | 'video'
-  | 'audio'
-  | 'embed'
+  | 'attachment'
   | 'kbd'
   | 'bulletList'
   | 'orderedList'
@@ -143,6 +134,7 @@ type RichEditorProps = {
   onFocus: (editor: Editor) => void;
   onUpdate?: (html: string, plainText: string) => void;
   onBlur?: (html: string, plainText: string) => void;
+  onSelectionUpdate?: (editor: Editor) => void;
   onShiftEnter?: (editor: Editor) => boolean;
   onMoveBlock?: (direction: -1 | 1) => boolean;
   editorRef: (editor: Editor | null) => void;
@@ -313,8 +305,12 @@ const stripOutlineAnchors = (html: string) => {
 
 const todoInputRegex = /^\s*(\[\]|【】)\s$/;
 const codeBlockInputRegex = /^\s*(```|\/code)\s$/;
+const tableInputRegex = /^\s*(\/table|\[\[\[)\s$/;
 const blockMathInputRegex = /^\s*(\$\$|\/math)\s$/;
 const blockquoteInputRegex = /^\s*(>|\/quote)\s$/;
+const inlineMathInputRegex = /\$([^$\n]+?)\$$/;
+const embeddedLinkInputRegex = /^\s*\/link\s$/;
+const attachmentInputRegex = /^\s*\/at\s$/;
 const ansiRegex = /\x1b\[[0-9;]*m/g;
 const hasAnsi = (value: string) => {
   ansiRegex.lastIndex = 0;
@@ -327,6 +323,11 @@ const escapeHtml = (value: string) =>
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+
+const dispatchAttachmentShortcut = () => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('notebook:attachment-shortcut'));
+};
 
 const markdownishText = (value: string) =>
   /(^|\n)\s{0,3}(#{1,6}\s|[-*+]\s+|\d+\.\s+|>\s|\[[ xX]\]\s|【】\s)|```|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|==[^=]+==|\[[^\]]+\]\([^)]+\)/.test(value);
@@ -1013,6 +1014,21 @@ const BracketTodoInput = Extension.create({
 
   addInputRules() {
     return [
+      markInputRule({
+        find: /~([^~\n]+)~$/,
+        type: this.editor.schema.marks.underline
+      }),
+      new InputRule({
+        find: inlineMathInputRegex,
+        handler: ({ range, match, chain }) => {
+          const latex = match[1]?.trim();
+          if (!latex) return;
+          chain()
+            .deleteRange(range)
+            .insertInlineMath({ latex })
+            .run();
+        }
+      }),
       new InputRule({
         find: todoInputRegex,
         handler: ({ range, match, chain }) => {
@@ -1032,10 +1048,19 @@ const BracketTodoInput = Extension.create({
         }
       }),
       new InputRule({
-        find: blockMathInputRegex,
+        find: tableInputRegex,
         handler: ({ range, commands }) => {
           commands.deleteRange(range);
-          commands.insertBlockMath({ latex: '\\;' });
+          commands.insertTable({ rows: 3, cols: 3, withHeaderRow: true });
+        }
+      }),
+      new InputRule({
+        find: blockMathInputRegex,
+        handler: ({ range, chain }) => {
+          chain()
+            .deleteRange(range)
+            .insertContentAt(range.from, { type: 'blockMath', attrs: { latex: '\\;' } })
+            .run();
         }
       }),
       new InputRule({
@@ -1043,6 +1068,22 @@ const BracketTodoInput = Extension.create({
         handler: ({ range, commands }) => {
           commands.deleteRange(range);
           commands.toggleBlockquote();
+        }
+      }),
+      new InputRule({
+        find: embeddedLinkInputRegex,
+        handler: ({ range, commands }) => {
+          commands.deleteRange(range);
+          const src = window.prompt('Embedded URL', 'https://');
+          if (!src?.trim()) return;
+          commands.insertContent(`<iframe class="media-embed md-media" src="${escapeHtml(src.trim())}" title="Embedded media" loading="lazy" allowfullscreen="true"></iframe>`);
+        }
+      }),
+      new InputRule({
+        find: attachmentInputRegex,
+        handler: ({ range, commands }) => {
+          commands.deleteRange(range);
+          dispatchAttachmentShortcut();
         }
       })
     ];
@@ -1054,16 +1095,34 @@ const NotebookShortcuts = Extension.create<{
   onMoveBlock?: (direction: -1 | 1) => boolean;
 }>({
   name: 'notebookShortcuts',
+  priority: 1000,
 
   addKeyboardShortcuts() {
+    const replaceCurrentParagraph = (editor: Editor, transform: 'blockquote' | 'blockMath') => {
+      syncDomSelectionToEditor(editor);
+      const { state } = editor;
+      const { $from } = state.selection;
+      if ($from.parent.type.name !== 'paragraph') return false;
+      const text = $from.parent.textContent.trim();
+      if (transform === 'blockquote' && !['>', '/quote'].includes(text)) return false;
+      if (transform === 'blockMath' && !['$$', '/math'].includes(text)) return false;
+      const insertAt = $from.before();
+      const chain = editor.chain().deleteRange({ from: $from.start(), to: $from.end() });
+      if (transform === 'blockquote') return chain.toggleBlockquote().run();
+      return chain.insertContentAt(insertAt, { type: 'blockMath', attrs: { latex: '\\;' } }).run();
+    };
+
     return {
       'Mod-h': () => this.editor.commands.toggleHighlight(),
+      Space: () => replaceCurrentParagraph(this.editor, 'blockquote') || replaceCurrentParagraph(this.editor, 'blockMath'),
       Enter: () => {
         syncDomSelectionToEditor(this.editor);
         const { state } = this.editor;
         const { $from } = state.selection;
         const text = $from.parent.textContent.trim();
-        if ($from.parent.type.name !== 'paragraph' || !['```', '/code'].includes(text)) return false;
+        if ($from.parent.type.name !== 'paragraph') return false;
+        if (replaceCurrentParagraph(this.editor, 'blockMath')) return true;
+        if (!['```', '/code'].includes(text)) return false;
         return this.editor
           .chain()
           .deleteRange({ from: $from.start(), to: $from.end() })
@@ -1144,6 +1203,7 @@ function RichEditor({
   onFocus,
   onUpdate,
   onBlur,
+  onSelectionUpdate,
   onShiftEnter,
   onMoveBlock,
   editorRef
@@ -1163,6 +1223,7 @@ function RichEditor({
       }
     },
     onFocus: ({ editor }) => onFocus(editor),
+    onSelectionUpdate: ({ editor }) => onSelectionUpdate?.(editor),
     onUpdate: ({ editor }) => onUpdate?.(editor.getHTML(), editor.getText()),
     onBlur: ({ editor }) => onBlur?.(editor.getHTML(), editor.getText())
   });
@@ -1192,6 +1253,7 @@ export function App() {
   const [activeEditor, setActiveEditor] = useState<EditorTarget>({ kind: 'composer' });
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [showToolbar, setShowToolbar] = useState(true);
+  const [tableControlsVisible, setTableControlsVisible] = useState(false);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
   const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'outline' | 'calendar' | 'desk'>('files');
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('write');
@@ -1304,6 +1366,10 @@ export function App() {
     return blockEditorRefs.current[activeEditor.blockId] ?? null;
   };
 
+  const syncTableControls = (editor: Editor | null) => {
+    setTableControlsVisible(Boolean(editor?.isActive('table')));
+  };
+
   const activateEditor = (target: EditorTarget) => {
     setActiveEditor((current) => {
       if (current.kind !== target.kind) return target;
@@ -1313,7 +1379,7 @@ export function App() {
     });
   };
 
-  const insertLocalMedia = (kind: 'image' | 'video' | 'audio') => {
+  const insertLocalMedia = (kind: 'image' | 'video' | 'audio' | 'attachment') => {
     const editor = getActiveTiptapEditor();
     if (!editor) return;
     const selection = {
@@ -1333,7 +1399,7 @@ export function App() {
     };
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = kind === 'image' ? 'image/*' : kind === 'video' ? 'video/*' : 'audio/*';
+    input.accept = kind === 'image' ? 'image/*' : kind === 'video' ? 'video/*' : kind === 'audio' ? 'audio/*' : 'image/*,video/*,audio/*';
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
@@ -1341,11 +1407,24 @@ export function App() {
       reader.onload = () => {
         const src = typeof reader.result === 'string' ? reader.result : '';
         if (!src) return;
-        if (kind === 'image') {
+        const resolvedKind = kind === 'attachment'
+          ? file.type.startsWith('image/')
+            ? 'image'
+            : file.type.startsWith('video/')
+              ? 'video'
+              : file.type.startsWith('audio/')
+                ? 'audio'
+                : 'file'
+          : kind;
+        if (resolvedKind === 'image') {
           insertAtSavedSelection({ src, alt: file.name });
           return;
         }
-        const html = kind === 'video'
+        if (resolvedKind === 'file') {
+          insertAtSavedSelection(`<a href="${src}" download="${escapeHtml(file.name)}">${escapeHtml(file.name)}</a>`);
+          return;
+        }
+        const html = resolvedKind === 'video'
           ? `<video controls src="${src}"></video>`
           : `<audio controls src="${src}"></audio>`;
         insertAtSavedSelection(html);
@@ -1354,6 +1433,12 @@ export function App() {
     };
     input.click();
   };
+
+  useEffect(() => {
+    const handleAttachmentShortcut = () => insertLocalMedia('attachment');
+    window.addEventListener('notebook:attachment-shortcut', handleAttachmentShortcut);
+    return () => window.removeEventListener('notebook:attachment-shortcut', handleAttachmentShortcut);
+  }, [activeEditor]);
 
   const insertFootnote = () => {
     const editor = getActiveTiptapEditor();
@@ -1383,16 +1468,6 @@ export function App() {
     if (command === 'codeBlock') chain.toggleCodeBlock().run();
     if (command === 'blockquote') chain.toggleBlockquote().run();
     if (command === 'kbd') chain.toggleMark('keyboardKey').run();
-    if (command === 'link') {
-      const previousUrl = editor.getAttributes('link').href as string | undefined;
-      const url = window.prompt('Link URL', previousUrl ?? 'https://');
-      if (url === null) return;
-      if (!url.trim()) {
-        editor.chain().focus().unsetLink().run();
-        return;
-      }
-      editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run();
-    }
     if (command === 'table') {
       editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
     }
@@ -1409,19 +1484,7 @@ export function App() {
       if (latex?.trim()) editor.chain().focus().insertBlockMath({ latex: latex.trim() }).run();
     }
     if (command === 'footnote') insertFootnote();
-    if (command === 'horizontalRule') editor.chain().focus().setHorizontalRule().run();
-    if (command === 'image') {
-      insertLocalMedia('image');
-    }
-    if (command === 'video' || command === 'audio') {
-      insertLocalMedia(command);
-    }
-    if (command === 'embed') {
-      const src = window.prompt(`${command[0].toUpperCase()}${command.slice(1)} URL`);
-      if (!src?.trim()) return;
-      const html = `<iframe class="media-embed md-media" src="${src.trim()}" title="Embedded media" loading="lazy" allowfullscreen="true"></iframe>`;
-      editor.chain().focus().insertContent(html).run();
-    }
+    if (command === 'attachment') insertLocalMedia('attachment');
     if (command === 'bulletList') chain.toggleBulletList().run();
     if (command === 'orderedList') chain.toggleOrderedList().run();
     if (command === 'indent') {
@@ -2129,14 +2192,21 @@ export function App() {
               </div>
               <div className="block-body">
                 {showToolbar && activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
-                  <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
+                  <>
+                    <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
+                    {tableControlsVisible && <TableControls runCommand={runEditorCommand} />}
+                  </>
                 )}
                 {!block.collapsed ? (
                   <RichEditor
                     editorRef={(editor) => { blockEditorRefs.current[block.id] = editor; }}
                     className="block-content editable"
                     html={htmlWithOutlineAnchors(block.content.html, block.id)}
-                    onFocus={() => activateEditor({ kind: 'block', blockId: block.id })}
+                    onFocus={(editor) => {
+                      activateEditor({ kind: 'block', blockId: block.id });
+                      syncTableControls(editor);
+                    }}
+                    onSelectionUpdate={syncTableControls}
                     onMoveBlock={(direction) => {
                       moveBlockByKeyboard(block.id, direction);
                       return true;
@@ -2165,13 +2235,20 @@ export function App() {
 
       <div className="composer-card">
         {showToolbar && activeEditor.kind === 'composer' && (
-          <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
+          <>
+            <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
+            {tableControlsVisible && <TableControls runCommand={runEditorCommand} />}
+          </>
         )}
         <RichEditor
           editorRef={(editor) => { composerEditorRef.current = editor; }}
           className="composer"
           placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
-          onFocus={() => activateEditor({ kind: 'composer' })}
+          onFocus={(editor) => {
+            activateEditor({ kind: 'composer' });
+            syncTableControls(editor);
+          }}
+          onSelectionUpdate={syncTableControls}
           onUpdate={(html) => {
             setDraft(html);
           }}
@@ -2628,22 +2705,13 @@ function Toolbar({
       <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('h3')} title="Heading 3">H3</button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={applyInlineCode} title="Inline code"><Type size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('kbd')} title="Keyboard key"><Keyboard size={16} /></button>
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('link')} title="Link"><LinkIcon size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('codeBlock')} title="Code block"><Braces size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('blockquote')} title="Quote"><Quote size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('table')} title="Table"><Table2 size={16} /></button>
-      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableRowAfter')} title="Add table row">+R</button>
-      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableColumnAfter')} title="Add table column">+C</button>
-      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteRow')} title="Delete table row">-R</button>
-      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteColumn')} title="Delete table column">-C</button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('inlineMath')} title="Inline math"><Sigma size={16} /></button>
       <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('blockMath')} title="Block math">Σ</button>
       <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('footnote')} title="Footnote">fn</button>
-      <button className="tool-button text-tool" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('horizontalRule')} title="Horizontal rule">HR</button>
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('image')} title="Image"><ImageIcon size={16} /></button>
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('video')} title="Video"><Video size={16} /></button>
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('audio')} title="Audio"><Volume2 size={16} /></button>
-      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('embed')} title="Embed"><PanelTop size={16} /></button>
+      <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('attachment')} title="Attachment"><Paperclip size={16} /></button>
       <span className="toolbar-divider" />
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('bulletList')} title="Bullet list"><List size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('orderedList')} title="Numbered list"><ListOrdered size={16} /></button>
@@ -2651,6 +2719,17 @@ function Toolbar({
       <span className="toolbar-divider" />
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('indent')} title="Indent: Tab"><Indent size={16} /></button>
       <button className="tool-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('outdent')} title="Outdent: Shift Tab"><Outdent size={16} /></button>
+    </div>
+  );
+}
+
+function TableControls({ runCommand }: { runCommand: (command: ToolbarCommand) => void }) {
+  return (
+    <div className="table-controls" aria-label="Table controls">
+      <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableRowAfter')} title="Add row">+ row</button>
+      <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableColumnAfter')} title="Add column">+ col</button>
+      <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteRow')} title="Delete selected row">del row</button>
+      <button className="table-control-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('tableDeleteColumn')} title="Delete selected column">del col</button>
     </div>
   );
 }
