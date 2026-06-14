@@ -42,18 +42,10 @@ await page.evaluate(() => localStorage.clear());
 await page.reload();
 
 const checks = {};
-const themeSelect = page.locator('.unified-theme-select');
-const openToolsPanel = async () => {
-  const toolsTab = page.locator('.sidebar-tab').filter({ hasText: 'Tools' });
-  if (await toolsTab.count()) await toolsTab.click();
-};
-const selectUnifiedTheme = async (theme) => {
-  if (!(await themeSelect.isVisible())) await openToolsPanel();
-  await themeSelect.selectOption(theme);
-};
+const shellSelect = page.getByLabel('Shell theme');
 
 for (const theme of themes) {
-  await selectUnifiedTheme(theme);
+  await shellSelect.selectOption(theme);
   checks[`${theme}:dataset`] = await page.evaluate((expected) => document.documentElement.dataset.theme === expected, theme);
   checks[`${theme}:tokens`] = await page.evaluate(() => {
     const styles = getComputedStyle(document.documentElement);
@@ -83,7 +75,7 @@ checks.ledgerDiffersFromGarden = await page.evaluate(() => {
   );
 });
 
-await selectUnifiedTheme('ledger');
+await shellSelect.selectOption('ledger');
 checks.ledgerCanHideDecorativeSidebar = await page.evaluate(() => {
   const eyebrow = document.querySelector('.eyebrow');
   const title = document.querySelector('.brand-block h1');
@@ -93,26 +85,10 @@ checks.ledgerCanHideDecorativeSidebar = await page.evaluate(() => {
   return [eyebrow, title, profile, note].every((element) => getComputedStyle(element).display === 'none');
 });
 
-const selectContentTheme = async (theme) => {
-  if (theme === 'notebook') {
-    await selectUnifiedTheme('garden');
-    return;
-  }
-  await selectUnifiedTheme(theme);
-};
-const showOutlinePanel = async () => {
-  const outlineTab = page.locator('.sidebar-tab').filter({ hasText: 'Outline' });
-  if (await outlineTab.count()) await outlineTab.click();
-};
-await selectContentTheme('notebook');
+const contentSelect = page.locator('.content-theme-select');
+await contentSelect.selectOption('notebook');
 const notebookContentFont = await page.locator('.composer').last().evaluate((element) => getComputedStyle(element).fontFamily);
-checks.notebookAutoUsesTriPane = await page.evaluate(() => {
-  const shell = document.querySelector('.app-shell');
-  return shell instanceof HTMLElement &&
-    shell.dataset.shellLayout === 'tri-pane' &&
-    Boolean(document.querySelector('.right-panel')) &&
-    !document.querySelector('#typora-sidebar');
-});
+const sidebarFontBeforeContentTheme = await page.locator('.sidebar').evaluate((element) => getComputedStyle(element).fontFamily);
 
 const composer = page.locator('.composer').last();
 await composer.click();
@@ -145,9 +121,8 @@ await composer.evaluate((element) => {
   `);
 });
 
-await selectContentTheme('typora-base');
+await contentSelect.selectOption('typora-base');
 checks.contentThemeDataset = await page.evaluate(() => document.documentElement.dataset.contentTheme === 'typora-base');
-await showOutlinePanel();
 checks.typoraScopeHooks = await page.evaluate(() => {
   const shell = document.querySelector('.typora-theme[data-content-theme="typora-base"]');
   const write = document.querySelector('.page-surface.typora-write');
@@ -167,38 +142,13 @@ checks.contentThemeChangesWritingSurface = await page.locator('.composer').last(
   getComputedStyle(element).fontFamily !== previousFont,
   notebookContentFont
 );
-checks.typoraAutoUsesLeftTabs = await page.evaluate(() => {
-  const shell = document.querySelector('.app-shell');
-  const sidebar = document.querySelector('#typora-sidebar');
-  const tabs = [...document.querySelectorAll('.sidebar-tab')].map((tab) => tab.textContent?.trim());
-  return shell instanceof HTMLElement &&
-    sidebar instanceof HTMLElement &&
-    shell.dataset.shellLayout === 'left-tabs' &&
-    !document.querySelector('.right-panel') &&
-    ['Files', 'Outline', 'Pin', 'Tools'].every((label) => tabs.includes(label));
-});
-checks.layoutCanForceTriPaneForTypora = await (async () => {
-  await page.locator('.sidebar-tab').filter({ hasText: 'Tools' }).click();
-  await page.locator('.shell-layout-select').selectOption('tri-pane');
-  return page.evaluate(() => {
-    const shell = document.querySelector('.app-shell');
-    return shell instanceof HTMLElement &&
-      shell.dataset.shellLayout === 'tri-pane' &&
-      Boolean(document.querySelector('.right-panel')) &&
-      !document.querySelector('#typora-sidebar');
-  });
-})();
-await page.locator('.shell-layout-select').selectOption('auto');
-checks.leftTabsCanShowOutlineAndPin = await (async () => {
-  await page.locator('.sidebar-tab').filter({ hasText: 'Outline' }).click();
-  const outlineVisible = await page.locator('#typora-sidebar .outline-panel .outline-entry').first().isVisible();
-  await page.locator('.sidebar-tab').filter({ hasText: 'Pin' }).click();
-  const pinVisible = await page.locator('#typora-sidebar .pin-panel .desktop-card').first().isVisible();
-  return outlineVisible && pinVisible;
-})();
+checks.contentThemeDoesNotStyleSidebarFont = await page.locator('.sidebar').evaluate((element, previousFont) =>
+  getComputedStyle(element).fontFamily === previousFont,
+  sidebarFontBeforeContentTheme
+);
 
 const assertNoHorizontalOverflow = async (theme) => {
-  await selectContentTheme(theme);
+  await contentSelect.selectOption(theme);
   return page.evaluate(() => {
     const shell = document.querySelector('.app-shell');
     const pageSurface = document.querySelector('.page-surface');
@@ -217,7 +167,7 @@ const assertNoHorizontalOverflow = async (theme) => {
 };
 
 checks.typoraProofGeneratedCssApplies = await (async () => {
-  await selectContentTheme('typora-proof');
+  await contentSelect.selectOption('typora-proof');
   return page.locator('.composer').last().evaluate((element) => {
     const styles = getComputedStyle(element);
     return styles.fontFamily.includes('Times New Roman') &&
@@ -225,13 +175,12 @@ checks.typoraProofGeneratedCssApplies = await (async () => {
       Math.abs(Number.parseFloat(styles.lineHeight) - 30.26) < 1;
   });
 })();
-await showOutlinePanel();
 checks.typoraProofTocMapsToRightOutline = await page.locator('.outline-entry.md-toc-item').first().evaluate((element) =>
   getComputedStyle(element).textTransform === 'uppercase'
 );
 
 checks.konayukiCodeAndTableUseTheme = await (async () => {
-  await selectContentTheme('typora-konayuki');
+  await contentSelect.selectOption('typora-konayuki');
   return page.locator('.composer').last().evaluate((element) => {
     const pre = element.querySelector('pre.md-fences');
     const table = element.querySelector('table');
@@ -281,7 +230,7 @@ checks.konayukiTaskCheckboxAligns = await page.locator('.composer').last().evalu
 checks.konayukiNoOverflow = await assertNoHorizontalOverflow('typora-konayuki');
 
 checks.swissCodeAndTableUseTheme = await (async () => {
-  await selectContentTheme('typora-swiss');
+  await contentSelect.selectOption('typora-swiss');
   return page.locator('.composer').last().evaluate((element) => {
     const pre = element.querySelector('pre.md-fences');
     const table = element.querySelector('table');
@@ -333,7 +282,7 @@ await page.locator('.page-title').waitFor({ state: 'visible' });
 
 checks.importedThemeDemoCodeTableMath = true;
 for (const theme of ['typora-konayuki', 'typora-swiss']) {
-  await selectContentTheme(theme);
+  await contentSelect.selectOption(theme);
   await page.waitForTimeout(150);
   checks.importedThemeDemoCodeTableMath = checks.importedThemeDemoCodeTableMath && await page.locator('.page-surface').evaluate((surface, currentTheme) => {
     const pre = surface.querySelector('pre.md-fences');
@@ -393,23 +342,13 @@ for (const theme of ['typora-konayuki', 'typora-swiss']) {
 }
 
 checks.zeusDarkThemeKeepsOutlineReadable = await (async () => {
-  await selectContentTheme('typora-zeus');
-  await showOutlinePanel();
+  await contentSelect.selectOption('typora-zeus');
   return page.locator('.outline-entry.md-toc-item').first().evaluate((element) => {
     const styles = getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    return styles.display !== 'none' &&
-      styles.visibility !== 'hidden' &&
-      styles.color !== 'rgba(0, 0, 0, 0)' &&
-      Number.parseFloat(styles.opacity) > 0.2 &&
-      Number.parseFloat(styles.fontSize) > 0 &&
-      rect.width > 20 &&
-      rect.height > 8;
+    return styles.color !== 'rgb(212, 212, 212)' && Number.parseFloat(styles.fontSize) > 0;
   });
 })();
 
-const pinTab = page.locator('.sidebar-tab').filter({ hasText: 'Pin' });
-if (await pinTab.count()) await pinTab.click();
 checks.typoraKeepsPinnedCardsCompactAcrossThemes = await page.locator('.desktop-card').first().evaluate((element) => {
   const styles = getComputedStyle(element);
   return Number.parseFloat(styles.fontSize) <= 13.5 &&
@@ -419,7 +358,7 @@ checks.typoraKeepsPinnedCardsCompactAcrossThemes = await page.locator('.desktop-
 
 checks.typoraThemesAreSelectable = true;
 for (const theme of typoraThemes) {
-  await selectContentTheme(theme);
+  await contentSelect.selectOption(theme);
   const themeApplied = await page.evaluate((expected) => document.documentElement.dataset.contentTheme === expected, theme);
   const sidebarVisible = await page.locator('.sidebar').evaluate((element) => getComputedStyle(element).display !== 'none');
   const pageVisible = await page.locator('.page-surface').evaluate((element) => {

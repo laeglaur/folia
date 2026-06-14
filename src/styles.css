@@ -29,10 +29,6 @@ input, select { color: var(--ink); }
   padding: var(--layout-shell-padding);
 }
 
-.app-shell.shell-layout-left-tabs {
-  grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr);
-}
-
 .app-shell::before {
   position: fixed;
   left: 0;
@@ -64,61 +60,6 @@ input, select { color: var(--ink); }
 }
 
 .sidebar::-webkit-scrollbar { width: 0; height: 0; }
-
-.sidebar[data-sidebar-layout="tabs"] {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 0;
-  overflow: hidden;
-  border-radius: 0;
-  background: var(--panel-solid);
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
-.sidebar-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-  padding: 0;
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.sidebar-tab {
-  display: inline-grid;
-  place-items: center;
-  gap: 2px;
-  min-width: 0;
-  min-height: 38px;
-  border-radius: 0;
-  background: transparent;
-  color: var(--muted);
-  font-size: 10.5px;
-  line-height: 1.1;
-}
-
-.sidebar-tab span {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sidebar-tab:hover,
-.sidebar-tab.active {
-  background: var(--theme-nav-active-background);
-  color: var(--theme-nav-active-ink);
-}
-
-.sidebar-content {
-  min-height: 0;
-  overflow: auto;
-  padding: 10px;
-}
-
-.files-panel {
-  min-width: 0;
-}
 
 .right-panel {
   position: sticky;
@@ -211,25 +152,7 @@ input, select { color: var(--ink); }
   font-size: var(--nav-item-font-size);
 }
 
-.page-tree-row {
-  position: relative;
-  display: grid;
-  gap: var(--nav-tree-row-gap);
-  padding-left: calc(var(--depth) * var(--nav-depth-indent));
-}
-
-.file-node-background {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: var(--nav-item-radius);
-  pointer-events: none;
-}
-
-.file-library-node.active > .file-node-background {
-  background: var(--theme-nav-active-background);
-}
-
+.page-tree-row { display: grid; gap: var(--nav-tree-row-gap); padding-left: calc(var(--depth) * var(--nav-depth-indent)); }
 .page-tree-children { display: grid; gap: var(--nav-tree-row-gap); }
 
 .page-disclosure {
@@ -303,34 +226,6 @@ input, select { color: var(--ink); }
 .sidebar-note strong,
 .sidebar-note span { display: block; font-weight: 400; }
 
-.sidebar-control-list {
-  display: grid;
-  gap: 8px;
-  margin-top: var(--nav-list-margin-top);
-}
-
-.control-stack {
-  display: grid;
-  gap: 5px;
-  color: var(--muted);
-  font-size: 11.5px;
-}
-
-.control-stack .theme-select,
-.sidebar-control-list .theme-select {
-  width: 100%;
-  min-width: 0;
-}
-
-.tool-action-grid {
-  display: grid;
-  gap: 7px;
-}
-
-.tool-action-grid .secondary-button {
-  width: 100%;
-}
-
 .workspace { min-width: 0; display: flex; flex-direction: column; }
 
 .topbar {
@@ -360,16 +255,6 @@ input, select { color: var(--ink); }
   color: var(--muted);
 }
 
-.sidebar .search-box {
-  width: 100%;
-  min-width: 0;
-  box-shadow: none;
-}
-
-.shell-layout-left-tabs .page-surface {
-  margin-top: 0;
-}
-
 .search-box input {
   width: 100%;
   border: 0;
@@ -378,15 +263,6 @@ input, select { color: var(--ink); }
 }
 
 .topbar-actions { display: flex; align-items: center; gap: var(--topbar-actions-gap); }
-
-.topbar-status {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.compact-tools-button {
-  display: none;
-}
 
 .view-toggle {
   min-height: var(--view-toggle-height);
@@ -1176,18 +1052,6 @@ input, select { color: var(--ink); }
   font-size: 1em;
 }
 
-.sidebar .panel-card {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  padding: 0;
-  box-shadow: none;
-}
-
-.sidebar .desktop-preview {
-  gap: 8px;
-}
-
 .desktop-preview { display: grid; gap: var(--desktop-preview-gap); }
 .desktop-card {
   width: 100%;
@@ -1248,13 +1112,11 @@ input, select { color: var(--ink); }
 @media (max-width: 1120px) {
   .app-shell { grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr); }
   .right-panel { display: none; }
-  .compact-tools-button { display: inline-flex; }
 }
 
 @media (max-width: 760px) {
   .app-shell { grid-template-columns: 1fr; padding: var(--mobile-shell-padding); }
   .sidebar { position: static; max-height: none; }
-  .sidebar[data-sidebar-layout="tabs"] { max-height: none; }
   .topbar { flex-direction: column; align-items: stretch; }
   .search-box { width: 100%; }
   .topbar-actions { flex-wrap: wrap; }

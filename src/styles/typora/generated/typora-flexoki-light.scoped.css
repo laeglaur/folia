@@ -8,7 +8,7 @@
  * Designed for reading and writing on digital screens
  */
 
-.typora-theme[data-content-theme="typora-flexoki-light"] {
+.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write {
   /* ============================================ */
   /* FLEXOKI COLOR PALETTE - LIGHT MODE         */
   /* ============================================ */
@@ -635,37 +635,7 @@
 /* SIDEBAR                                     */
 /* ============================================ */
 
-.typora-theme[data-content-theme="typora-flexoki-light"] #typora-sidebar {
-  background-color: var(--side-bar-bg-color);
-  border-right: 1px solid var(--flexoki-100);
-  box-shadow: 2px 0 8px rgba(16, 15, 15, 0.04);
-}
-
-.typora-theme[data-content-theme="typora-flexoki-light"] .sidebar-menu {
-  color: var(--control-text-color);
-}
-
 /* File Items */
-.typora-theme[data-content-theme="typora-flexoki-light"] .file-list-item {
-  border-bottom: 0;
-  border-left: 3px solid transparent;
-  transition: all 0.2s ease;
-}
-
-.typora-theme[data-content-theme="typora-flexoki-light"] .file-list-item:hover {
-  background-color: var(--item-hover-bg-color);
-  border-left-color: var(--flexoki-cyan-light);
-}
-
-.typora-theme[data-content-theme="typora-flexoki-light"] .file-list-item.active {
-  background-color: var(--active-file-bg-color);
-  border-left-color: var(--active-file-border-color);
-  color: var(--active-file-text-color);
-}
-
-.typora-theme[data-content-theme="typora-flexoki-light"] .file-list-item-file-ext-part {
-  opacity: 0.7;
-}
 
 /* Sidebar Footer */
 
@@ -944,11 +914,6 @@
 .typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .window-header {
   background-color: var(--side-bar-bg-color);
   border-bottom: 1px solid var(--menu-divider-color);
-}
-
-.typora-theme[data-content-theme="typora-flexoki-light"] .sidebar {
-  background-color: var(--side-bar-bg-color) !important;
-  border-right: 1px solid var(--flexoki-100);
 }
 
 .typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .nav-group-item {

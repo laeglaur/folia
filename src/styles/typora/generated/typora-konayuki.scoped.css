@@ -15,7 +15,7 @@
    Tokens (Fonts & Colors First)
    ======================================== */
 
-	.typora-theme[data-content-theme="typora-konayuki"] {
+	.typora-theme[data-content-theme="typora-konayuki"] .typora-write {
     /* Fonts */
     --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
         "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
@@ -1123,206 +1123,15 @@
    Sidebar - Slate Card Style
    ======================================== */
 
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar,
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar {
-    background: linear-gradient(160deg, var(--sidebar-bg), var(--sidebar-bg-2));
-    color: var(--sidebar-text);
-    border: 1px solid var(--sidebar-border-strong);
-    border-radius: var(--radius-large);
-    margin: 8px;
-    margin-top: 8px !important;
-    margin-bottom: 8px !important;
-    height: calc(100vh - 16px);
-    max-height: calc(100vh - 16px);
-    padding: 12px 10px 14px;
-    box-shadow: var(--sidebar-shadow);
-    box-sizing: border-box;
-    overflow: hidden;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar-content,
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar #sidebar-content,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar #sidebar-content {
-    background: transparent;
-    color: var(--sidebar-text);
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar-tabs,
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar-tabs .tab-bar {
-    background: transparent;
-    border-top: 1px solid var(--sidebar-divider-color);
-}
-
 /* File-list mode: make footer layout match file-tree mode (avoid absolute/fixed positioning differences) */
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar.use-file-list-style {
-    display: flex !important;
-    flex-direction: column !important;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar.use-file-list-style > .sidebar-content {
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-}
 
 /* Windows: keep footer absolute, but reserve space so it doesn't cover content */
-.typora-theme[data-content-theme="typora-konayuki"] body.os-windows #typora-sidebar #sidebar-content,
-.typora-theme[data-content-theme="typora-konayuki"] body.os-windows #typora-sidebar .sidebar-content,
-.typora-theme[data-content-theme="typora-konayuki"] body.os-windows .sidebar #sidebar-content,
-.typora-theme[data-content-theme="typora-konayuki"] body.os-windows .sidebar .sidebar-content,
-.typora-theme[data-content-theme="typora-konayuki"] body.os-windows-10 #typora-sidebar #sidebar-content,
-.typora-theme[data-content-theme="typora-konayuki"] body.os-windows-10 #typora-sidebar .sidebar-content,
-.typora-theme[data-content-theme="typora-konayuki"] body.os-windows-10 .sidebar #sidebar-content,
-.typora-theme[data-content-theme="typora-konayuki"] body.os-windows-10 .sidebar .sidebar-content {
-    left: 0;
-    right: 0;
-    bottom: 48px;
-    padding-left: 8px;
-    padding-right: 8px;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] body.os-windows #typora-sidebar.use-file-list-style,
-.typora-theme[data-content-theme="typora-konayuki"] body.os-windows-10 #typora-sidebar.use-file-list-style {
-    position: relative;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar-tab,
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar-tab:hover {
-    color: var(--sidebar-muted);
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar-tab.active,
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar-tab-active,
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar-tab.active:hover {
-    color: var(--sidebar-text);
-    border-bottom: 2px solid var(--sidebar-accent);
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar input[type="text"],
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar input[type="text"] {
-    background: var(--sidebar-input-bg);
-    color: var(--sidebar-text);
-    border: 1px solid var(--sidebar-border-strong);
-    border-radius: 12px;
-    padding: calc(0.45 * var(--typora-root-font-size, 16px)) calc(0.75 * var(--typora-root-font-size, 16px));
-    box-shadow: inset 0 1px 0 var(--sidebar-input-inset-highlight);
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar input[type="text"]::placeholder {
-    color: var(--sidebar-muted);
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] .sidebar input[type="text"]:focus {
-    border-color: var(--sidebar-accent);
-    box-shadow: 0 0 0 3px var(--sidebar-focus-ring-color);
-}
 
 /* Prevent horizontal scrollbar for long filenames/titles */
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar #sidebar-content,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .sidebar-content {
-    overflow-x: hidden;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-list-item,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-item {
-    overflow-x: hidden;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-title,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-name,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-list-item-file-name,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-label {
-    display: inline-block;
-    max-width: 100%;
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    vertical-align: bottom;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-list-item,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-item {
-    display: block;
-    color: var(--sidebar-muted);
-    border-radius: 12px;
-    transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-item {
-    display: flex;
-    align-items: center;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-expander {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-    width: 16px;
-    min-width: 16px;
-    flex: 0 0 16px;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-expander::before,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-expander-icon {
-    display: block;
-    line-height: 1;
-    transform: translateY(0.5px);
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-item-wrapper.outline-item-single > .outline-item .outline-expander,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-item-wrapper.outline-item-signle > .outline-item .outline-expander,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-item-wrapper:not(:has(> .outline-children > .outline-item-wrapper)) > .outline-item .outline-expander {
-    visibility: hidden;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] body.no-collapse-outline #typora-sidebar .outline-expander {
-    visibility: hidden;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-label {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-list-item.active,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content.active,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content.active .file-node-title,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-item.active,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-item-active {
-    color: var(--sidebar-text);
-    padding: 12px 18px;
-    background: linear-gradient(90deg, var(--sidebar-active), var(--sidebar-active-gradient-end));
-    border: 1px solid var(--sidebar-active-border-color);
-    border-radius: 12px;
-    box-shadow: 0 8px 22px var(--sidebar-active-shadow-color);
-}
 
 /* Keep active item stable on hover (avoid Typora default hover padding/radius overrides) */
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-list-item.active:hover,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content.active:hover,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-item.active:hover,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-item-active:hover {
-    padding: 12px 18px;
-    border-radius: 12px;
-}
 
 /* Hover effect: underline text only (no background/padding shift) */
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-list-item:hover .file-node-title,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content:hover .file-node-title,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-list-item:hover .file-list-item-file-name,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content:hover .file-list-item-file-name,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-list-item:hover .file-name,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content:hover .file-name,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-item:hover .outline-label,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .outline-item-active:hover .outline-label,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-list-item.active:hover .file-node-title,
-.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content.active:hover .file-node-title {
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-}
 
 /* Sidebar popovers / context menus */
 
