@@ -11,7 +11,7 @@
     "test:markdown": "node scripts/markdown-import-smoke.mjs",
     "test:markdown-folder": "node scripts/markdown-folder-import-smoke.mjs",
     "test:theme": "node scripts/theme-smoke.mjs",
-    "build:typora-css": "node scripts/typora-css-prefixer.mjs",
+    "build:typora-css": "node scripts/typora-css-prefixer.mjs && node scripts/generate-typora-mark-bridge.mjs",
     "audit:typora-themes": "node scripts/audit-typora-themes.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

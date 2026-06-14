@@ -61,6 +61,7 @@ await composer.evaluate((element) => {
     '<blockquote class="md-end-block"><p class="md-end-block">Quote alias</p></blockquote>',
     '<ul class="md-list"><li class="md-list-item md-end-block" data-list-collapsed="false"><p class="md-end-block">Parent</p><ul class="md-list"><li class="md-list-item md-end-block" data-list-collapsed="false"><p class="md-end-block">Child</p></li></ul></li></ul>',
     '<ul class="contains-task-list task-list md-list" data-type="taskList"><li data-checked="false" data-type="taskItem" class="task-list-item md-task-list-item md-end-block" data-list-collapsed="false" data-todo-style="plain"><label contenteditable="false"><input type="checkbox"><span></span></label><div><p class="md-end-block">task alias</p></div></li></ul>',
+    '<ul class="contains-task-list task-list md-list" data-type="taskList"><li data-checked="false" data-type="taskItem" class="task-list-item md-task-list-item md-end-block" data-list-collapsed="false" data-todo-style="bracket"><label contenteditable="false"><input type="checkbox"><span></span></label><div><p class="md-end-block">bracket task alias</p></div></li></ul>',
     '<pre class="md-fences md-end-block"><code>function ok(value) {\n  const doubled = value * 2;\n  return doubled;\n}</code></pre>',
     '<table class="md-table"><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>',
     '<div class="md-math-block mathjax-block" data-type="block-math">x^2</div>'
@@ -84,8 +85,9 @@ const contentThemeCheck = async (theme) => {
     const cellParagraph = surface.querySelector('td p');
     const h1 = surface.querySelector('h1');
     const mark = surface.querySelector('mark');
+    const bracketTask = surface.querySelector('li[data-type="taskItem"][data-todo-style="bracket"]');
     const math = surface.querySelector('[data-type="block-math"]');
-    if (!(pre instanceof HTMLElement) || !(table instanceof HTMLElement) || !(td instanceof HTMLElement) || !(cellParagraph instanceof HTMLElement) || !(h1 instanceof HTMLElement) || !(mark instanceof HTMLElement) || !(math instanceof HTMLElement)) return false;
+    if (!(pre instanceof HTMLElement) || !(table instanceof HTMLElement) || !(td instanceof HTMLElement) || !(cellParagraph instanceof HTMLElement) || !(h1 instanceof HTMLElement) || !(mark instanceof HTMLElement) || !(bracketTask instanceof HTMLElement) || !(math instanceof HTMLElement)) return false;
 
     const preStyles = getComputedStyle(pre);
     const tableStyles = getComputedStyle(table);
@@ -93,6 +95,7 @@ const contentThemeCheck = async (theme) => {
     const cellParagraphStyles = getComputedStyle(cellParagraph);
     const h1Styles = getComputedStyle(h1);
     const markStyles = getComputedStyle(mark);
+    const bracketTaskStyles = getComputedStyle(bracketTask);
     const mathStyles = getComputedStyle(math);
 
     if (currentTheme === 'typora-swiss') {
@@ -103,6 +106,10 @@ const contentThemeCheck = async (theme) => {
         cellParagraphStyles.marginTop === '0px' &&
         h1Styles.borderLeftWidth === '5px' &&
         markStyles.borderTopStyle === 'solid' &&
+        bracketTaskStyles.backgroundColor === markStyles.backgroundColor &&
+        bracketTaskStyles.color === markStyles.color &&
+        bracketTaskStyles.borderTopStyle === markStyles.borderTopStyle &&
+        bracketTaskStyles.borderRadius === markStyles.borderRadius &&
         mathStyles.backgroundColor === preStyles.backgroundColor;
     }
 
@@ -111,7 +118,10 @@ const contentThemeCheck = async (theme) => {
         tableStyles.borderCollapse === 'separate' &&
         tdStyles.verticalAlign === 'middle' &&
         mathStyles.backgroundColor === preStyles.backgroundColor &&
-        markStyles.backgroundColor !== 'rgba(0, 0, 0, 0)';
+        markStyles.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+        bracketTaskStyles.backgroundColor === markStyles.backgroundColor &&
+        bracketTaskStyles.color === markStyles.color &&
+        bracketTaskStyles.borderRadius === markStyles.borderRadius;
     }
 
     return true;
