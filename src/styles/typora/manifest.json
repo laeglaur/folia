@@ -82,5 +82,53 @@
     "rawCss": "src/styles/typora/raw/typora-ravel-light.css",
     "scopedCss": "src/styles/typora/generated/typora-ravel-light.scoped.css",
     "sourceUrl": null
+  },
+  {
+    "id": "typora-chocolate-box",
+    "label": "Chocolate Box",
+    "rawCss": "src/styles/typora/raw/typora-chocolate-box.css",
+    "scopedCss": "src/styles/typora/generated/typora-chocolate-box.scoped.css",
+    "sourceUrl": null,
+    "assetBaseDir": "src/styles/typora/raw/typora-chocolate-box"
+  },
+  {
+    "id": "typora-torillic",
+    "label": "Torillic",
+    "rawCss": "src/styles/typora/raw/typora-torillic.css",
+    "scopedCss": "src/styles/typora/generated/typora-torillic.scoped.css",
+    "sourceUrl": null,
+    "assetBaseDir": "src/styles/typora/raw/typora-torillic"
+  },
+  {
+    "id": "typora-eloquent",
+    "label": "Eloquent",
+    "rawCss": "src/styles/typora/raw/typora-eloquent.css",
+    "scopedCss": "src/styles/typora/generated/typora-eloquent.scoped.css",
+    "sourceUrl": null,
+    "assetBaseDir": "src/styles/typora/raw/typora-eloquent"
+  },
+  {
+    "id": "typora-law",
+    "label": "Law",
+    "rawCss": "src/styles/typora/raw/typora-law.css",
+    "scopedCss": "src/styles/typora/generated/typora-law.scoped.css",
+    "sourceUrl": null,
+    "assetBaseDir": "src/styles/typora/raw/typora-law"
+  },
+  {
+    "id": "typora-blackout",
+    "label": "Blackout",
+    "rawCss": "src/styles/typora/raw/typora-blackout.css",
+    "scopedCss": "src/styles/typora/generated/typora-blackout.scoped.css",
+    "sourceUrl": null,
+    "assetBaseDir": "src/styles/typora/raw/typora-blackout"
+  },
+  {
+    "id": "typora-salamander",
+    "label": "Salamander",
+    "rawCss": "src/styles/typora/raw/typora-salamander.css",
+    "scopedCss": "src/styles/typora/generated/typora-salamander.scoped.css",
+    "sourceUrl": null,
+    "assetBaseDir": "src/styles/typora/raw/typora-salamander"
   }
 ]

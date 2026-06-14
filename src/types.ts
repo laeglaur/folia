@@ -14,7 +14,13 @@ export type ContentThemeId =
   | 'typora-gruvbox-dark'
   | 'typora-bit-clean-light'
   | 'typora-print'
-  | 'typora-ravel-light';
+  | 'typora-ravel-light'
+  | 'typora-chocolate-box'
+  | 'typora-torillic'
+  | 'typora-eloquent'
+  | 'typora-law'
+  | 'typora-blackout'
+  | 'typora-salamander';
 
 export interface Notebook {
   id: string;

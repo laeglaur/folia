@@ -132,7 +132,13 @@ const selectableTyporaThemes = [
   'typora-gruvbox-dark',
   'typora-bit-clean-light',
   'typora-print',
-  'typora-ravel-light'
+  'typora-ravel-light',
+  'typora-chocolate-box',
+  'typora-torillic',
+  'typora-eloquent',
+  'typora-law',
+  'typora-blackout',
+  'typora-salamander'
 ];
 
 checks.typoraThemesAreSelectable = true;
@@ -164,6 +170,14 @@ for (const theme of ['typora-inkwell', 'typora-gruvbox-dark', 'typora-bit-clean-
       titleRect.top - writeRect.top < 18 &&
       (printThemeKeepsPrintSizing || screenThemeKeepsOverflowSafety);
   }, theme);
+}
+
+checks.newTyporaThemeAssetsAreRouted = true;
+for (const theme of ['typora-chocolate-box', 'typora-torillic', 'typora-eloquent', 'typora-law', 'typora-salamander']) {
+  const generatedCss = await readFile(`src/styles/typora/generated/${theme}.scoped.css`, 'utf8');
+  const urls = [...generatedCss.matchAll(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g)].map((match) => match[2].trim());
+  checks.newTyporaThemeAssetsAreRouted = checks.newTyporaThemeAssetsAreRouted &&
+    urls.every((url) => /^(data:|https?:|\/typora-assets\/|#)/i.test(url));
 }
 
 const nativeGardenTableHeader = 'rgba(229, 247, 240, 0.82)';

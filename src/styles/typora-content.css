@@ -11,6 +11,12 @@
 @import "./typora/generated/typora-bit-clean-light.scoped.css";
 @import "./typora/generated/typora-print.scoped.css";
 @import "./typora/generated/typora-ravel-light.scoped.css";
+@import "./typora/generated/typora-chocolate-box.scoped.css";
+@import "./typora/generated/typora-torillic.scoped.css";
+@import "./typora/generated/typora-eloquent.scoped.css";
+@import "./typora/generated/typora-law.scoped.css";
+@import "./typora/generated/typora-blackout.scoped.css";
+@import "./typora/generated/typora-salamander.scoped.css";
 
 .typora-theme[data-content-theme^="typora-"] {
   --theme-body-background: linear-gradient(180deg, color-mix(in srgb, var(--theme-bg) 92%, white), var(--theme-bg));

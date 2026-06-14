@@ -189,7 +189,7 @@ const scopeCss = (css, themeId) => {
   const typoraRootFontSize = findTyporaRootFontSize(root);
 
   root.walkAtRules((rule) => {
-    if (rule.name === 'include-when-export') rule.remove();
+    if (rule.name === 'include-when-export' || rule.name === 'charset') rule.remove();
   });
 
   root.walkDecls((declaration) => {

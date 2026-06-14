@@ -1,0 +1,399 @@
+/* ============================================================
+   salamander.css — Typora theme
+   Warm dark theme matching blog.salamander.mobi
+   ============================================================ */
+
+/* ---- Typora built-in variables ---- */
+:root {
+  --bg-color:                 #0E0A06;
+  --side-bar-bg-color:        #0A0806;
+  --text-color:               #CAB292;
+  --select-text-bg-color:     rgba(214, 131, 27, 0.25);
+  --select-text-font-color:   #F5E6C8;
+  --active-file-bg-color:     #1F1611;
+  --active-file-text-color:   #F5E6C8;
+  --active-file-border-color: #D6831B;
+  --item-hover-bg-color:      rgba(214, 131, 27, 0.08);
+  --item-hover-text-color:    #E8D5A9;
+  --control-text-color:       #7D5E3D;
+  --window-border:            1px solid #3D2C18;
+  --primary-color:            #D6831B;
+
+  /* Salamander palette */
+  --sal-bg:            #0E0A06;
+  --sal-bg-code:       #170F0F;
+  --sal-bg-table-head: #1F1611;
+  --sal-bg-alt:        #120C08;
+  --sal-border:        #3D2C18;
+  --sal-border-bright: #5A3E22;
+  --sal-text:          #CAB292;
+  --sal-h1:            #F5E6C8;
+  --sal-h2:            #E8D5A9;
+  --sal-h3:            #D6A161;  /* used for h3, h4, h5 */
+  --sal-accent:        #D6831B;
+  --sal-link:          #9A7A58;
+  --sal-bq-text:       #B8894A;
+  --sal-bq-border:     #D48219;
+  --sal-math:          #C8923C;
+  --sal-muted:         #7D5E3D;
+}
+
+/* ---- Font faces ---- */
+@font-face { font-family: 'Plus Jakarta Sans'; font-style: normal;  font-weight: 300; font-display: block; src: url(salamander/plus-jakarta-sans-300.woff2) format('woff2'); }
+@font-face { font-family: 'Plus Jakarta Sans'; font-style: normal;  font-weight: 400; font-display: block; src: url(salamander/plus-jakarta-sans-400.woff2) format('woff2'); }
+@font-face { font-family: 'Plus Jakarta Sans'; font-style: italic;  font-weight: 400; font-display: block; src: url(salamander/plus-jakarta-sans-400-italic.woff2) format('woff2'); }
+@font-face { font-family: 'Plus Jakarta Sans'; font-style: normal;  font-weight: 500; font-display: block; src: url(salamander/plus-jakarta-sans-500.woff2) format('woff2'); }
+@font-face { font-family: 'Plus Jakarta Sans'; font-style: normal;  font-weight: 600; font-display: block; src: url(salamander/plus-jakarta-sans-600.woff2) format('woff2'); }
+@font-face { font-family: 'Plus Jakarta Sans'; font-style: normal;  font-weight: 700; font-display: block; src: url(salamander/plus-jakarta-sans-700.woff2) format('woff2'); }
+
+@font-face { font-family: 'Syne'; font-style: normal; font-weight: 600; font-display: block; src: url(salamander/syne-600.woff2) format('woff2'); }
+@font-face { font-family: 'Syne'; font-style: normal; font-weight: 700; font-display: block; src: url(salamander/syne-700.woff2) format('woff2'); }
+
+@font-face { font-family: 'JetBrains Mono'; font-style: normal;  font-weight: 400; font-display: block; src: url(salamander/jetbrains-mono-400.woff2) format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: italic;  font-weight: 400; font-display: block; src: url(salamander/jetbrains-mono-400-italic.woff2) format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal;  font-weight: 700; font-display: block; src: url(salamander/jetbrains-mono-700.woff2) format('woff2'); }
+
+/* ---- Base ---- */
+html, body {
+  background: var(--sal-bg);
+  color: var(--sal-text);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+#write {
+  padding: 48px 64px;
+  max-width: none;
+  width: 100%;
+}
+
+/* ---- Headings ---- */
+h1, h2, h3, h4, h5, h6,
+[mdlike='h1'], [mdlike='h2'], [mdlike='h3'],
+[mdlike='h4'], [mdlike='h5'], [mdlike='h6'] {
+  font-family: 'Syne', sans-serif;
+  line-height: 1.2;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+h1, [mdlike='h1'] { color: var(--sal-h1); font-size: 2.2rem; font-weight: 700; }
+h2, [mdlike='h2'] { color: var(--sal-h2); font-size: 1.5rem; font-weight: 600; border-bottom: 1px solid var(--sal-border-bright); padding-bottom: 0.25em; }
+h3, [mdlike='h3'] { color: var(--sal-h3); font-size: 1.2rem; font-weight: 600; }
+h4, [mdlike='h4'] { color: var(--sal-h3); font-size: 1rem;   font-weight: 700; }
+h5, [mdlike='h5'] { color: var(--sal-h3); font-size: 0.9rem; font-weight: 700; }
+h6, [mdlike='h6'] { color: var(--sal-muted); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* ---- Inline text ---- */
+a { color: var(--sal-link); text-decoration: none; }
+a:hover { color: var(--sal-accent); text-decoration: underline; }
+
+strong, b { color: var(--sal-h1); font-weight: 600; }
+em, i { font-style: italic; }
+del, s { color: var(--sal-muted); text-decoration: line-through; }
+
+mark {
+  background: rgba(214, 131, 27, 0.18);
+  border-bottom: 2px solid rgba(214, 131, 27, 0.7);
+  border-radius: 2px;
+  color: var(--sal-h1);
+  padding: 0 2px;
+}
+
+/* Inline code */
+code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85em;
+  background: var(--sal-bg-code);
+  color: var(--sal-accent);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  border: 1px solid var(--sal-border);
+}
+
+/* Text selection */
+::selection {
+  background: rgba(214, 131, 27, 0.25);
+  color: var(--sal-h1);
+}
+
+/* ---- Code blocks ---- */
+.md-fences {
+  background: var(--sal-bg-code);
+  border: 1px solid var(--sal-border);
+  border-radius: 6px;
+  padding: 20px 24px;
+  margin-bottom: 1em;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--sal-h2);
+  overflow-x: auto;
+}
+
+.md-fences .CodeMirror,
+.CodeMirror.cm-s-inner {
+  background: transparent;
+  color: var(--sal-h2);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.CodeMirror-gutters {
+  background: var(--sal-bg-code);
+  border-right: 1px solid var(--sal-border);
+}
+
+.CodeMirror-linenumber { color: var(--sal-muted); }
+
+/* ---- Syntax highlighting ---- */
+.cm-s-inner .cm-keyword    { color: #D6831B; }
+.cm-s-inner .cm-operator   { color: #D6831B; }
+.cm-s-inner .cm-string     { color: #B8CA92; }
+.cm-s-inner .cm-string-2   { color: #A8C080; }
+.cm-s-inner .cm-comment    { color: #7D5E3D; font-style: italic; }
+.cm-s-inner .cm-number     { color: #D6A161; }
+.cm-s-inner .cm-atom       { color: #D6A161; }
+.cm-s-inner .cm-variable   { color: #E8D5A9; }
+.cm-s-inner .cm-variable-2 { color: #CAB292; }
+.cm-s-inner .cm-variable-3 { color: #CAB292; }
+.cm-s-inner .cm-def        { color: #F5E6C8; }
+.cm-s-inner .cm-property   { color: #CAB292; }
+.cm-s-inner .cm-tag        { color: #D6831B; }
+.cm-s-inner .cm-attribute  { color: #B8CA92; }
+.cm-s-inner .cm-qualifier  { color: #D6A161; }
+.cm-s-inner .cm-meta       { color: #7D5E3D; }
+.cm-s-inner .cm-header     { color: var(--sal-h1); font-weight: bold; }
+.cm-s-inner .cm-link       { color: var(--sal-link); }
+.cm-s-inner .cm-error      { color: #C84848; }
+.cm-s-inner .cm-bracket    { color: #CAB292; }
+.cm-s-inner .cm-builtin    { color: #D6A161; }
+.cm-s-inner .cm-type       { color: #D6A161; }
+
+/* ---- Blockquotes ---- */
+blockquote {
+  border-left: 2px solid var(--sal-bq-border);
+  margin: 1em 0;
+  padding: 2px 0 2px 20px;
+  font-style: italic;
+  color: var(--sal-bq-text);
+}
+
+blockquote p { color: var(--sal-bq-text); }
+
+/* ---- Horizontal rules ---- */
+hr {
+  border: none;
+  border-top: 1px solid var(--sal-border-bright);
+  margin: 2em 0;
+}
+
+/* ---- YAML front matter ---- */
+pre.md-meta-block {
+  background: var(--sal-bg-code);
+  border: 1px solid var(--sal-border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: var(--sal-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  margin-bottom: 1.5em;
+}
+
+/* ---- Lists ---- */
+ul, ol {
+  padding-left: 2em;
+  margin-bottom: 1em;
+}
+
+li { margin-bottom: 0.25em; }
+
+ul > li::marker { color: var(--sal-accent); }
+ol > li::marker { color: var(--sal-accent); }
+
+/* Nested lists */
+ul ul, ol ol, ul ol, ol ul { margin-bottom: 0; }
+
+/* ---- Task lists ---- */
+#write .task-list {
+  list-style-type: none;
+  padding-left: 2em;
+}
+
+#write .task-list-item {
+  position: relative;
+  padding-left: 0;
+  margin: 0.25rem 0;
+}
+
+#write .task-list-item input[type="checkbox"] {
+  position: absolute;
+  left: -1.3em;
+  top: 0.2em;
+  width: 1em;
+  height: 1em;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1.5px solid var(--sal-muted);
+  border-radius: 3px;
+  background: transparent;
+  margin: 0;
+  display: inline-block;
+  cursor: default;
+}
+
+#write .task-list-item input[type="checkbox"]:checked {
+  background: var(--sal-accent);
+  border-color: var(--sal-accent);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.5 8.5l3 3 6-6' stroke='%230E0A06' stroke-width='2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+#write .task-list-item.task-list-done > p { color: var(--sal-muted); }
+
+/* ---- Tables ---- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1em;
+  font-size: 0.9rem;
+}
+
+thead { background: var(--sal-bg-table-head); }
+
+th {
+  color: var(--sal-h3);
+  font-weight: 600;
+  font-family: 'Syne', sans-serif;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--sal-border);
+}
+
+td {
+  padding: 6px 12px;
+  border: 1px solid var(--sal-border);
+  color: var(--sal-text);
+}
+
+tbody tr:nth-child(even) td { background: var(--sal-bg-alt); }
+
+/* Table resize handle */
+.md-table-resize-popover { background: var(--sal-bg-code); border: 1px solid var(--sal-border); }
+
+/* ---- Math (KaTeX / MathJax) ---- */
+.md-math-block,
+[mdtype="math_block"] {
+  background: var(--sal-bg-code) !important;
+  border: 1px solid var(--sal-border) !important;
+  border-radius: 6px;
+  padding: 16px 24px !important;
+  color: var(--sal-math);
+}
+
+.md-math-block .md-rawblock-container,
+[mdtype="math_block"] .md-rawblock-container {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.MathJax, .MathJax_Display,
+.katex, .katex-display { color: var(--sal-math); }
+
+/* Hide auto equation numbers */
+.MathJax_Display .MathJax_eqn_num,
+mjx-labels { display: none !important; }
+
+.md-math-block .katex,
+.md-math-block .katex-display,
+.md-math-block .katex-html,
+.md-math-block .katex * { color: var(--sal-math); }
+
+/* Inline math */
+.md-inline-math,
+.md-inline-math svg,
+.md-inline-math .katex,
+.md-inline-math .katex * { color: var(--sal-math); fill: var(--sal-math); }
+
+/* ---- Mermaid diagrams ---- */
+.md-diagram-panel {
+  background: var(--sal-bg-code);
+  border: 1px solid var(--sal-border);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+/* Node shapes */
+.md-diagram-panel svg .node rect,
+.md-diagram-panel svg .node circle,
+.md-diagram-panel svg .node ellipse,
+.md-diagram-panel svg .node polygon {
+  fill: #0A0706;
+  stroke: var(--sal-border-bright);
+  stroke-width: 1.5px;
+}
+
+/* Node labels */
+.md-diagram-panel svg .label,
+.md-diagram-panel svg text { fill: var(--sal-text); color: var(--sal-text); }
+
+/* Edges */
+.md-diagram-panel svg .edgePath path { stroke: var(--sal-accent); }
+.md-diagram-panel svg .arrowheadPath { fill: var(--sal-accent); }
+
+/* Cluster / subgraph */
+.md-diagram-panel svg .cluster rect { fill: var(--sal-bg-code); stroke: var(--sal-border); }
+
+/* ---- Sidebar ---- */
+#typora-sidebar {
+  background: var(--side-bar-bg-color);
+  border-right: var(--window-border);
+}
+
+.sidebar-content,
+.file-list-item,
+.file-node-content {
+  color: var(--sal-muted);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+}
+
+.file-list-item:hover .file-node-content,
+.file-node-content:hover {
+  background: var(--item-hover-bg-color);
+  color: var(--item-hover-text-color);
+}
+
+.file-list-item.active .file-node-content,
+.file-node-item.active .file-node-content {
+  background: var(--active-file-bg-color);
+  color: var(--active-file-text-color);
+  border-left: 2px solid var(--active-file-border-color);
+}
+
+.sidebar-search-input {
+  background: var(--sal-bg-code);
+  border: 1px solid var(--sal-border);
+  color: var(--sal-text);
+  border-radius: 4px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* ---- Source mode ---- */
+#typora-source .CodeMirror {
+  background: var(--sal-bg);
+  color: var(--sal-text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* ---- Scrollbars ---- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--sal-bg); }
+::-webkit-scrollbar-thumb { background: var(--sal-border-bright); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--sal-accent); }

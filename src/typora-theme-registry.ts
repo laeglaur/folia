@@ -14,7 +14,13 @@ export const contentThemes: Array<{ id: ContentThemeId; label: string }> = [
   { id: 'typora-gruvbox-dark', label: 'Gruvbox Dark' },
   { id: 'typora-bit-clean-light', label: 'Bit Clean Light' },
   { id: 'typora-print', label: 'Print' },
-  { id: 'typora-ravel-light', label: 'Ravel Light' }
+  { id: 'typora-ravel-light', label: 'Ravel Light' },
+  { id: 'typora-chocolate-box', label: 'Chocolate Box' },
+  { id: 'typora-torillic', label: 'Torillic' },
+  { id: 'typora-eloquent', label: 'Eloquent' },
+  { id: 'typora-law', label: 'Law' },
+  { id: 'typora-blackout', label: 'Blackout' },
+  { id: 'typora-salamander', label: 'Salamander' }
 ];
 
 export const contentThemeIds = new Set<ContentThemeId>(contentThemes.map((theme) => theme.id));
