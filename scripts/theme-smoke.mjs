@@ -581,19 +581,41 @@ checks.nativeCalendarShowsBlockEntries = await page.evaluate(() => {
 });
 
 await page.getByLabel('Shell theme').selectOption('typora-base');
-await page.locator('.sidebar-tabs').getByRole('button', { name: 'Calendar' }).click();
-await page.locator('.typora-workspace .calendar-workspace .calendar-view').waitFor({ state: 'visible' });
-checks.typoraCalendarTabShowsBlocks = await page.evaluate(() => {
-  const calendar = document.querySelector('.typora-workspace .calendar-workspace .calendar-view');
-  const entry = calendar?.querySelector('.calendar-entry');
-  if (!(calendar instanceof HTMLElement) || !(entry instanceof HTMLElement)) return false;
-  const sidebarCalendar = document.querySelector('#typora-sidebar .calendar-view');
-  const day = calendar.querySelector('.calendar-day');
-  if (!(day instanceof HTMLElement)) return false;
-  return calendar.textContent?.includes('calendar smoke block') &&
-    sidebarCalendar === null &&
-    day.getBoundingClientRect().height >= 100;
+checks.typoraCalendarTabRemoved = await page.evaluate(() => {
+  const sidebarTabs = document.querySelector('.sidebar-tabs');
+  const deskTab = sidebarTabs?.querySelector('button:last-child');
+  const hasCalendarTab = Array.from(sidebarTabs?.querySelectorAll('button') ?? []).some((button) => button.textContent?.trim() === 'Calendar');
+  return Boolean(sidebarTabs && deskTab && !hasCalendarTab);
 });
+
+await page.goto(appUrl);
+await page.locator('.composer').last().waitFor({ state: 'visible' });
+await page.locator('.composer').last().click();
+await page.keyboard.type('```');
+await page.keyboard.press('Enter');
+await page.keyboard.type('const foldable = true;');
+const codeFoldBefore = await page.evaluate(() => {
+  const pre = document.querySelector('.composer pre.md-fences.notebook-code-block');
+  const button = pre?.querySelector('.code-fold-button');
+  const summary = pre?.querySelector('.code-block-summary');
+  const code = pre?.querySelector('code');
+  if (!(pre instanceof HTMLElement) || !(button instanceof HTMLElement) || !(summary instanceof HTMLElement) || !(code instanceof HTMLElement)) return false;
+  return getComputedStyle(summary).display === 'none' && getComputedStyle(code).display !== 'none';
+});
+await page.locator('.composer .code-fold-button').click();
+const codeFoldAfter = await page.evaluate(() => {
+  const pre = document.querySelector('.composer pre.md-fences.notebook-code-block');
+  const summary = pre?.querySelector('.code-block-summary');
+  const code = pre?.querySelector('code');
+  if (!(pre instanceof HTMLElement) || !(summary instanceof HTMLElement) || !(code instanceof HTMLElement)) return false;
+  const summaryAfter = getComputedStyle(summary).display;
+  const codeAfter = getComputedStyle(code).display;
+  return pre.dataset.codeCollapsed === 'true' &&
+    summaryAfter !== 'none' &&
+    summary.textContent?.includes('const foldable') &&
+    codeAfter === 'none';
+});
+checks.codeBlockCanCollapseInline = codeFoldBefore && codeFoldAfter;
 
 const cardBlockId = 'block_card_smoke';
 await page.evaluate((blockId) => {
@@ -604,7 +626,7 @@ await page.evaluate((blockId) => {
       id: blockId,
       pageId: state.activePageId,
       content: {
-        html: '<p><strong>Pinned</strong> smoke card</p><ul><li>compact item</li></ul>',
+        html: '<p><strong>Pinned</strong> smoke card</p><ul><li>compact item</li></ul><ul data-type="taskList"><li data-checked="false" data-type="taskItem" data-todo-style="plain"><label><input type="checkbox"><span></span></label><div><p>task item</p></div></li></ul>',
         plainText: 'Pinned smoke card compact item'
       },
       collapsed: false,
@@ -620,15 +642,32 @@ checks.cardWindowModeIsCompactAndShellFree = await page.evaluate(() => {
   const page = document.querySelector('.card-window-page');
   const grip = document.querySelector('.card-window-grip');
   const body = document.querySelector('.floating-card-body.card-mode');
-  if (!(page instanceof HTMLElement) || !(grip instanceof HTMLElement) || !(body instanceof HTMLElement)) return false;
+  const list = document.querySelector('.card-mode-editor ul');
+  const task = document.querySelector('.card-mode-editor li[data-checked]');
+  if (!(page instanceof HTMLElement) || !(grip instanceof HTMLElement) || !(body instanceof HTMLElement) || !(list instanceof HTMLElement) || !(task instanceof HTMLElement)) return false;
   const bodyStyles = getComputedStyle(body);
   const gripStyles = getComputedStyle(grip);
+  const listStyles = getComputedStyle(list);
+  const taskStyles = getComputedStyle(task);
   return !document.querySelector('.typora-app-shell') &&
     !document.querySelector('.app-shell') &&
-    grip.textContent?.includes('Pin card') &&
+    !grip.textContent?.includes('Pin card') &&
     gripStyles.cursor === 'move' &&
     Number.parseFloat(bodyStyles.fontSize) <= 13.5 &&
+    Number.parseFloat(listStyles.paddingLeft) <= 18 &&
+    Number.parseFloat(taskStyles.columnGap) <= 5 &&
     body.textContent?.includes('Pinned smoke card');
+});
+
+await page.goto(`${appUrl}?card=${cardBlockId}`);
+const cardModeEditor = page.locator('.card-window-page .card-mode-editor');
+await cardModeEditor.click();
+await page.keyboard.type('!');
+checks.cardWindowEditable = await page.evaluate(() => {
+  const editor = document.querySelector('.card-window-page .card-mode-editor');
+  const toolbar = document.querySelector('.card-window-page .format-toolbar');
+  if (!(editor instanceof HTMLElement) || toolbar) return false;
+  return editor.textContent?.includes('!') ?? false;
 });
 
 await page.evaluate(() => localStorage.clear());

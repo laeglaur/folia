@@ -32,9 +32,10 @@ import {
   Underline as UnderlineIcon,
   Upload
 } from 'lucide-react';
-import { EditorContent, useEditor, type Editor } from '@tiptap/react';
+import { EditorContent, NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import type { NodeViewProps } from '@tiptap/core';
 import Highlight from '@tiptap/extension-highlight';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
@@ -64,7 +65,7 @@ import {
   loadState,
   saveState
 } from './state';
-import { invoke, isTauri } from '@tauri-apps/api/core';
+import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { common, createLowlight } from 'lowlight';
@@ -370,6 +371,11 @@ const dispatchMathEditRequest = (editor: Editor, pos: number) => {
   window.dispatchEvent(new CustomEvent('notebook:edit-block-math', { detail: { editor, pos } }));
 };
 
+const codeBlockSummary = (value: string) => {
+  const lines = value.split('\n').map((line) => line.trim()).filter(Boolean);
+  return blockTextPreview(lines[0] ?? 'Empty code block', 88);
+};
+
 type ImportedAsset = {
   id: string;
   originalPath: string;
@@ -412,7 +418,7 @@ const findMediaNodePosition = (editor: Editor, element: HTMLElement) => {
 
 const inferAttachmentKind = (file: File) => {
   const name = file.name.toLowerCase();
-  if (file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|avif|svg|bmp|ico|tiff?)$/.test(name)) return 'image';
+  if (file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|avif|svg|bmp|ico|tiff?|heic|heif)$/.test(name)) return 'image';
   if (file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|ogv|avi|mkv)$/.test(name)) return 'video';
   if (file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac|aiff?)$/.test(name)) return 'audio';
   return 'file';
@@ -437,7 +443,7 @@ const importAttachmentFile = async (file: File): Promise<{ src: string; assetId?
   const localPath = (file as File & { path?: string }).path;
   if (localPath) {
     const imported = await invoke<ImportedAsset>('import_local_asset', { sourcePath: localPath });
-    return { src: imported.assetUrl, assetId: imported.id };
+    return { src: convertFileSrc(imported.storedPath), assetId: imported.id };
   }
   const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
   const imported = await invoke<ImportedAsset>('import_asset_bytes', {
@@ -445,7 +451,7 @@ const importAttachmentFile = async (file: File): Promise<{ src: string; assetId?
     mimeType: file.type || 'application/octet-stream',
     bytes
   });
-  return { src: imported.assetUrl, assetId: imported.id };
+  return { src: convertFileSrc(imported.storedPath), assetId: imported.id };
 };
 
 const displayMathLatex = (latex: string) => latex === '\\;' ? '' : latex;
@@ -1128,6 +1134,52 @@ const NotebookEmbed = Node.create({
   }
 });
 
+function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
+  const collapsed = Boolean(node.attrs.codeCollapsed);
+  const summary = codeBlockSummary(node.textContent);
+
+  return (
+    <NodeViewWrapper
+      as="pre"
+      className={`md-fences md-end-block cm-s-inner notebook-code-block ${collapsed ? 'is-code-collapsed' : ''}`}
+      data-code-collapsed={collapsed ? 'true' : 'false'}
+    >
+      <button
+        className="code-fold-button"
+        type="button"
+        contentEditable={false}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => updateAttributes({ codeCollapsed: !collapsed })}
+        aria-label={collapsed ? 'Expand code block' : 'Collapse code block'}
+        title={collapsed ? 'Expand code block' : 'Collapse code block'}
+      >
+        <ChevronRight size={13} />
+      </button>
+      <span className="code-block-summary" contentEditable={false}>{summary}</span>
+      <NodeViewContent as={'code' as never} />
+    </NodeViewWrapper>
+  );
+}
+
+const NotebookCodeBlock = CodeBlockLowlight.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      codeCollapsed: {
+        default: false,
+        parseHTML: (element) => element.getAttribute('data-code-collapsed') === 'true',
+        renderHTML: (attributes) => ({
+          'data-code-collapsed': attributes.codeCollapsed ? 'true' : 'false'
+        })
+      }
+    };
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(CodeBlockView);
+  }
+});
+
 const FootnoteReference = Node.create({
   name: 'footnoteReference',
   group: 'inline',
@@ -1366,7 +1418,7 @@ const createEditorExtensions = (
     link: false,
     underline: false
   }),
-  CodeBlockLowlight.configure({
+  NotebookCodeBlock.configure({
     lowlight,
     defaultLanguage: null,
     HTMLAttributes: {
@@ -1556,7 +1608,7 @@ export function App() {
   const [tableControls, setTableControls] = useState<TableControlsState>({ visible: false, top: 0, left: 0 });
   const [mathEditor, setMathEditor] = useState<MathEditorState | null>(null);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
-  const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'outline' | 'calendar' | 'desk'>('files');
+  const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'outline' | 'desk'>('files');
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('write');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [importNotice, setImportNotice] = useState<ImportNotice>({ kind: 'idle', message: '' });
@@ -1608,7 +1660,7 @@ export function App() {
   }, [activeNotebook.id, state.blocks, state.pages]);
   const calendarDays = useMemo(() => calendarDaysForMonth(calendarMonth), [calendarMonth]);
   const pinnedBlocks = state.blocks.filter((block) => block.pinned);
-  const openCardBlock = state.blocks.find((block) => block.id === state.openCardWindowBlockId) ?? null;
+  const openCardBlock = isTauri() ? null : state.blocks.find((block) => block.id === state.openCardWindowBlockId) ?? null;
   const cardModeBlockId = new URLSearchParams(window.location.search).get('card');
   const cardModeBlock = state.blocks.find((block) => block.id === cardModeBlockId) ?? null;
   const visibleBlocks = query.trim()
@@ -1795,16 +1847,12 @@ export function App() {
       from: editor.state.selection.from,
       to: editor.state.selection.to
     };
-    const insertAtSavedSelection = (content: string | Parameters<Editor['commands']['setImage']>[0]) => {
+    const insertAtSavedSelection = (content: string) => {
       const maxPosition = editor.state.doc.content.size;
       const from = Math.min(selection.from, maxPosition);
       const to = Math.min(selection.to, maxPosition);
       const chain = editor.chain().focus().setTextSelection({ from, to });
-      if (typeof content === 'object') {
-        chain.setImage(content as Parameters<Editor['commands']['setImage']>[0]).run();
-        return;
-      }
-      chain.insertContent(content as string).run();
+      chain.insertContent(content).run();
     };
     const input = document.createElement('input');
     input.type = 'file';
@@ -1815,15 +1863,15 @@ export function App() {
       try {
         const { src, assetId } = await importAttachmentFile(file);
         const resolvedKind = kind === 'attachment' ? inferAttachmentKind(file) : kind;
+        const assetAttribute = assetId ? ` data-asset-id="${escapeHtml(assetId)}"` : '';
         if (resolvedKind === 'image') {
-          insertAtSavedSelection({ src, alt: file.name, title: assetId ?? file.name });
+          insertAtSavedSelection(`<img src="${escapeHtml(src)}" alt="${escapeHtml(file.name)}" title="${escapeHtml(assetId ?? file.name)}"${assetAttribute}>`);
           return;
         }
         if (resolvedKind === 'file') {
           insertAtSavedSelection(`<a href="${src}" download="${escapeHtml(file.name)}">${escapeHtml(file.name)}</a>`);
           return;
         }
-        const assetAttribute = assetId ? ` data-asset-id="${escapeHtml(assetId)}"` : '';
         const html = resolvedKind === 'video'
           ? `<video controls src="${escapeHtml(src)}"${assetAttribute}></video>`
           : `<audio controls src="${escapeHtml(src)}"${assetAttribute}></audio>`;
@@ -2420,8 +2468,10 @@ export function App() {
   };
 
   const openPinnedWindow = async (blockId: string) => {
-    setState((current) => ({ ...current, openCardWindowBlockId: blockId }));
-    if (!isTauri()) return;
+    if (!isTauri()) {
+      setState((current) => ({ ...current, openCardWindowBlockId: blockId }));
+      return;
+    }
 
     const label = `card_${blockId.replace(/[^a-zA-Z0-9_:-]/g, '_')}`;
     const existing = await WebviewWindow.getByLabel(label);
@@ -2988,8 +3038,7 @@ export function App() {
         <div className="sidebar-tabs" role="tablist" aria-label="Sidebar tabs">
           <button className={`sidebar-tab ${typoraSidebarTab === 'files' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('files')}>Files</button>
           <button className={`sidebar-tab ${typoraSidebarTab === 'outline' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('outline')}>Outline</button>
-          <button className={`sidebar-tab ${typoraSidebarTab === 'calendar' ? 'active' : ''}`} type="button" onClick={() => { setTyporaSidebarTab('calendar'); setWorkspaceView('calendar'); }}>Calendar</button>
-          <button className={`sidebar-tab ${typoraSidebarTab === 'desk' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('desk')}>Desk</button>
+        <button className={`sidebar-tab ${typoraSidebarTab === 'desk' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('desk')}>Desk</button>
         </div>
 
         <div id="sidebar-content" className="sidebar-content">
@@ -3049,12 +3098,6 @@ export function App() {
             {renderTyporaOutline()}
           </section>
 
-          <section className={`typora-sidebar-pane ${typoraSidebarTab === 'calendar' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'calendar'}>
-            <div className="typora-calendar-tab">
-              <button className="secondary-button" type="button" onClick={() => setWorkspaceView('calendar')}><CalendarDays size={15} /> Open calendar</button>
-            </div>
-          </section>
-
           <section className={`typora-sidebar-pane ${typoraSidebarTab === 'desk' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'desk'}>
             <div className="typora-desk-tab">
               <section className="typora-desk-search">
@@ -3105,14 +3148,29 @@ export function App() {
     };
     return (
       <main className="card-window-page typora-theme" data-content-theme={state.contentTheme} data-shell={state.shell} onMouseDown={dragCardWindow}>
-        <header className="card-window-grip" onMouseDown={(event) => {
+        <header className="card-window-grip" aria-label="Pinned card controls" onMouseDown={(event) => {
           event.stopPropagation();
           dragCardWindow(event);
         }}>
-          <span>Pin card</span>
+          <span aria-hidden="true" />
           <button type="button" onClick={closeCardWindow} aria-label="Close pinned card">×</button>
         </header>
-        <div className="floating-card-body card-mode" dangerouslySetInnerHTML={{ __html: cardModeBlock.content.html }} />
+        <div className="floating-card-body card-mode">
+          <RichEditor
+            editorRef={(editor) => { blockEditorRefs.current[cardModeBlock.id] = editor; }}
+            className="card-mode-editor"
+            html={cardModeBlock.content.html}
+            onFocus={(editor) => {
+              activateEditor({ kind: 'block', blockId: cardModeBlock.id });
+              syncFloatingControls(editor);
+            }}
+            onSelectionUpdate={syncFloatingControls}
+            onUpdate={(html, plainText) => updateBlock(cardModeBlock.id, html, plainText)}
+            onBlur={(html, plainText) => updateBlock(cardModeBlock.id, html, plainText)}
+            onMoveBlock={() => false}
+            onMediaResizeStart={startMediaResize}
+          />
+        </div>
       </main>
     );
   }

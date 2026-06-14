@@ -624,6 +624,44 @@ input, select { color: var(--ink); }
   line-height: var(--floating-card-body-line-height);
 }
 
+.floating-card-body :where(ul, ol),
+.desktop-card :where(ul, ol) {
+  margin: 0 0 6px;
+  padding-left: 1.15em;
+}
+
+.floating-card-body li,
+.desktop-card li {
+  margin: 1px 0;
+  padding-left: 0;
+}
+
+.floating-card-body ul[data-type="taskList"],
+.desktop-card ul[data-type="taskList"] {
+  padding-left: 0;
+  list-style: none;
+}
+
+.floating-card-body li[data-checked],
+.desktop-card li[data-checked] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 4px;
+}
+
+.floating-card-body li[data-checked] > label,
+.desktop-card li[data-checked] > label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+}
+
+.floating-card-body li[data-checked] p,
+.desktop-card li[data-checked] p {
+  margin: 0 0 4px;
+}
+
 .block-content,
 .composer {
   min-height: var(--block-content-min-height);
@@ -876,6 +914,71 @@ input, select { color: var(--ink); }
   line-height: var(--code-block-line-height);
   overflow: auto;
   box-shadow: var(--code-block-shadow);
+}
+
+.block-content pre.md-fences,
+.composer pre.md-fences {
+  position: relative;
+  padding-top: 28px;
+  white-space: pre !important;
+}
+
+.block-content pre.md-fences > code,
+.composer pre.md-fences > code {
+  display: block;
+  white-space: pre !important;
+}
+
+.block-content pre.md-fences > code > [data-node-view-content-react],
+.composer pre.md-fences > code > [data-node-view-content-react] {
+  white-space: pre !important;
+}
+
+.notebook-code-block .code-fold-button {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-2) 82%, transparent);
+  color: var(--muted);
+  display: inline-grid;
+  place-items: center;
+  z-index: 2;
+}
+
+.notebook-code-block .code-fold-button svg {
+  transition: transform 120ms ease;
+}
+
+.notebook-code-block .code-block-summary {
+  position: absolute;
+  top: 7px;
+  left: 34px;
+  right: 12px;
+  z-index: 1;
+  display: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  font-size: 0.88em;
+  line-height: 18px;
+  pointer-events: none;
+}
+
+.notebook-code-block.is-code-collapsed > .code-block-summary {
+  display: block;
+}
+
+.notebook-code-block.is-code-collapsed > .code-fold-button svg {
+  transform: rotate(-90deg);
+}
+
+.block-content pre.md-fences.notebook-code-block.is-code-collapsed > code,
+.composer pre.md-fences.notebook-code-block.is-code-collapsed > code {
+  display: none;
 }
 
 .block-content code,
@@ -1398,7 +1501,8 @@ input, select { color: var(--ink); }
   height: var(--floating-card-grip-height);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 8px;
   padding: var(--floating-card-grip-padding);
   border: var(--floating-card-grip-border);
   border-radius: var(--floating-card-grip-radius);
@@ -1409,6 +1513,10 @@ input, select { color: var(--ink); }
   -webkit-user-select: none;
   user-select: none;
   cursor: move;
+}
+
+.card-window-grip > span {
+  display: none;
 }
 
 .card-window-grip button {
@@ -1434,6 +1542,46 @@ input, select { color: var(--ink); }
   background: var(--floating-card-mode-background);
   overflow: auto;
   cursor: text;
+}
+
+.card-mode-editor {
+  min-height: calc(100vh - var(--floating-card-grip-height) - 34px);
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  outline: 0;
+}
+
+.card-mode-editor ul,
+.card-mode-editor ol {
+  margin: 0 0 6px;
+  padding-left: 1.15em;
+}
+
+.card-mode-editor li {
+  margin: 1px 0;
+  padding-left: 0;
+}
+
+.card-mode-editor li[data-checked] {
+  column-gap: 4px;
+}
+
+.card-mode-editor li[data-todo-style="bracket"] {
+  padding: 1px 7px 1px 5px;
+  min-height: 22px;
+}
+
+.card-mode-editor li[data-checked] > label {
+  min-height: 22px;
+}
+
+.card-mode-editor > :first-child {
+  margin-top: 0;
+}
+
+.card-mode-editor > :last-child {
+  margin-bottom: 0;
 }
 
 .floating-card-head {

@@ -162,6 +162,68 @@
   text-overflow: ellipsis;
 }
 
+.typora-app-shell .typora-block-doc pre.md-fences.notebook-code-block {
+  position: relative;
+  padding-top: max(28px, var(--code-block-padding-top, 0px));
+  white-space: pre !important;
+}
+
+.typora-app-shell .typora-block-doc pre.md-fences.notebook-code-block > code {
+  display: block;
+  white-space: pre !important;
+}
+
+.typora-app-shell .typora-block-doc pre.md-fences.notebook-code-block > code > [data-node-view-content-react] {
+  white-space: pre !important;
+}
+
+.typora-app-shell .notebook-code-block .code-fold-button {
+  position: absolute;
+  top: 7px;
+  left: 8px;
+  z-index: 2;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--typora-shell-divider) 52%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--typora-shell-panel) 82%, transparent);
+  color: var(--typora-shell-muted);
+  box-shadow: none;
+}
+
+.typora-app-shell .notebook-code-block .code-fold-button:hover {
+  background: var(--typora-editor-control-hover-bg);
+  color: var(--typora-shell-ink);
+}
+
+.typora-app-shell .notebook-code-block .code-block-summary {
+  position: absolute;
+  top: 7px;
+  left: 32px;
+  right: 10px;
+  z-index: 1;
+  display: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--typora-shell-muted);
+  font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
+  font-size: 11.5px;
+  line-height: 18px;
+  pointer-events: none;
+}
+
+.typora-app-shell .notebook-code-block.is-code-collapsed > .code-block-summary {
+  display: block;
+}
+
+.typora-app-shell .typora-block-doc pre.md-fences.notebook-code-block.is-code-collapsed > code {
+  display: none;
+}
+
 .typora-app-shell .format-toolbar {
   position: relative;
   z-index: 4;
