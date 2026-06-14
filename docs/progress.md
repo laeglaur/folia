@@ -43,6 +43,24 @@ Updated: 2026-06-13
 - Media import supports common URLs and local attachment copying, but there is no in-editor media picker/uploader yet.
 - Block-internal columns/layout groups are still not implemented.
 
+## Current Editor Shortcuts
+
+- `Cmd/Ctrl+B`, `Cmd/Ctrl+I`, `Cmd/Ctrl+H`: bold, italic, highlight toggle.
+- `Tab`, `Shift+Tab`: indent and outdent the current bullet, numbered item, or task item.
+- `Cmd/Ctrl+↑`, `Cmd/Ctrl+↓`: move the current block up or down.
+- `Shift+Enter`: commit the composer into a block, or create the next block from an existing block.
+- `Enter`: native rich-editor behavior; in lists and todos it continues the list, and an empty list item exits the list.
+- `[] `: start a plain task item.
+- `【】 `: start a highlighted bracket task item.
+- `- `: start a bullet list.
+- `1. `: start a numbered list.
+- `# `, `## `, `### `: start headings.
+- `==text==`: highlight imported or pasted Markdown text; toolbar/`Cmd/Ctrl+H` handles selected rich text.
+- `` `text` ``: inline code through Markdown parsing/import; toolbar handles selected rich text.
+- Three backticks or `/code`: start a code block when typed alone in an empty paragraph.
+- `> ` or `/quote`: start a blockquote.
+- `$$ ` or `/math`: start a block math node.
+
 ## Not Started
 
 - Calendar view.

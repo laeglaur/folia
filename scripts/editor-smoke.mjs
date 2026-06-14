@@ -32,7 +32,7 @@ const checks = {
   plainTodo: html.includes('data-todo-style="plain"') && html.includes('todo item'),
   highlight: html.includes('<mark'),
   inlineCode: html.includes('<code>inline</code>'),
-  codeBlock: html.includes('<pre class="md-fences md-end-block"><code>') || html.includes('<pre><code>')
+  codeBlock: await composer.locator('pre.md-fences code').count() > 0
 };
 
 await page.evaluate(() => localStorage.clear());
@@ -90,6 +90,35 @@ checks.semanticToolbarButtons = await page.locator('.format-toolbar').evaluate((
     'Embed'
   ];
   return requiredTitles.every((title) => toolbar.querySelector(`button[title="${title}"]`));
+});
+
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+const listComposer = page.locator('.composer').last();
+await page.locator('.content-theme-select').selectOption('typora-swiss');
+await listComposer.click();
+await page.keyboard.type('[] first task');
+await page.keyboard.press('Enter');
+await page.keyboard.type('second task');
+let listHtml = await listComposer.evaluate((node) => node.innerHTML);
+checks.continuousTodoEntry = (listHtml.match(/data-type="taskItem"/g) ?? []).length >= 2 && listHtml.includes('first task') && listHtml.includes('second task');
+
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+const bulletComposer = page.locator('.composer').last();
+await page.locator('.content-theme-select').selectOption('typora-swiss');
+await bulletComposer.click();
+await page.locator('.format-toolbar .tool-button[title="Bullet list"]').click();
+await page.keyboard.type('parent');
+await page.keyboard.press('Enter');
+await page.keyboard.type('child');
+await page.locator('.format-toolbar .tool-button[title="Indent: Tab"]').click();
+listHtml = await bulletComposer.evaluate((node) => node.innerHTML);
+checks.toolbarIndentInSwiss = listHtml.includes('<ul') && listHtml.includes('<ul') && listHtml.includes('child');
+await page.locator('.format-toolbar .tool-button[title="Outdent: Shift Tab"]').click();
+checks.toolbarOutdentInSwiss = await bulletComposer.evaluate((node) => {
+  const html = node.innerHTML;
+  return html.includes('child') && (html.match(/<ul/g) ?? []).length === 1;
 });
 
 await page.evaluate(() => localStorage.clear());

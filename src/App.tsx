@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import Highlight from '@tiptap/extension-highlight';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
@@ -65,6 +66,7 @@ import {
 } from './state';
 import { isTauri } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { common, createLowlight } from 'lowlight';
 import 'katex/dist/katex.min.css';
 
 type EditorTarget = { kind: 'composer' } | { kind: 'block'; blockId: string };
@@ -169,6 +171,8 @@ const contentThemes: Array<{ id: ContentThemeId; label: string }> = [
   { id: 'typora-bonne-nouvelle', label: 'Bonne nouvelle' },
   { id: 'typora-flexoki-light', label: 'Flexoki Light' }
 ];
+
+const lowlight = createLowlight(common);
 
 const blockTextPreview = (text: string, max = 56) => {
   const compact = text.replace(/\s+/g, ' ').trim();
@@ -276,6 +280,12 @@ const syncDomSelectionToEditor = (editor: Editor) => {
   } catch {
     // Browser selections can briefly point at non-editable chrome; keep the current editor state then.
   }
+};
+
+const runListIndentCommand = (editor: Editor, direction: 'in' | 'out') => {
+  syncDomSelectionToEditor(editor);
+  const command = direction === 'in' ? 'sinkListItem' : 'liftListItem';
+  return editor.commands[command]('taskItem') || editor.commands[command]('listItem');
 };
 
 const typoraClass = (existing: unknown, ...aliases: string[]) => {
@@ -707,7 +717,7 @@ const BracketTodoInput = Extension.create({
         find: blockMathInputRegex,
         handler: ({ range, commands }) => {
           commands.deleteRange(range);
-          commands.insertBlockMath({ latex: '' });
+          commands.insertBlockMath({ latex: '\\;' });
         }
       }),
       new InputRule({
@@ -735,8 +745,7 @@ const NotebookShortcuts = Extension.create<{
         const { state } = this.editor;
         const { $from } = state.selection;
         const text = $from.parent.textContent.trim();
-        if ($from.parent.type.name !== 'paragraph') return false;
-        if (!['```', '/code'].includes(text)) return this.editor.commands.splitBlock();
+        if ($from.parent.type.name !== 'paragraph' || !['```', '/code'].includes(text)) return false;
         return this.editor
           .chain()
           .deleteRange({ from: $from.start(), to: $from.end() })
@@ -746,8 +755,8 @@ const NotebookShortcuts = Extension.create<{
       'Shift-Enter': () => this.options.onShiftEnter?.(this.editor) ?? false,
       'Mod-ArrowUp': () => this.options.onMoveBlock?.(-1) ?? false,
       'Mod-ArrowDown': () => this.options.onMoveBlock?.(1) ?? false,
-      Tab: () => this.editor.commands.sinkListItem('listItem') || this.editor.commands.sinkListItem('taskItem'),
-      'Shift-Tab': () => this.editor.commands.liftListItem('listItem') || this.editor.commands.liftListItem('taskItem')
+      Tab: () => runListIndentCommand(this.editor, 'in'),
+      'Shift-Tab': () => runListIndentCommand(this.editor, 'out')
     };
   }
 });
@@ -759,9 +768,17 @@ const createEditorExtensions = (
 ) => [
   StarterKit.configure({
     heading: { levels: [1, 2, 3, 4, 5, 6] },
+    codeBlock: false,
     listItem: false,
     link: false,
     underline: false
+  }),
+  CodeBlockLowlight.configure({
+    lowlight,
+    defaultLanguage: null,
+    HTMLAttributes: {
+      class: 'md-fences md-end-block cm-s-inner'
+    }
   }),
   TyporaAliases,
   Highlight,
@@ -977,10 +994,12 @@ export function App() {
     if (command === 'bulletList') chain.toggleBulletList().run();
     if (command === 'orderedList') chain.toggleOrderedList().run();
     if (command === 'indent') {
-      if (!chain.sinkListItem('listItem').run()) editor.chain().focus().sinkListItem('taskItem').run();
+      editor.commands.focus();
+      runListIndentCommand(editor, 'in');
     }
     if (command === 'outdent') {
-      if (!chain.liftListItem('listItem').run()) editor.chain().focus().liftListItem('taskItem').run();
+      editor.commands.focus();
+      runListIndentCommand(editor, 'out');
     }
   };
 

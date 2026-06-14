@@ -1,4 +1,7 @@
 import { chromium } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 const themes = ['garden', 'ledger'];
 const typoraThemes = [
@@ -14,6 +17,25 @@ const typoraThemes = [
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 const appUrl = process.env.APP_URL ?? 'http://127.0.0.1:5173/';
+const themeDemoPath = join(tmpdir(), `notebook-theme-demo-${Date.now()}.md`);
+
+await writeFile(themeDemoPath, [
+  '# Theme Demo Smoke',
+  '',
+  '```python',
+  'import os',
+  'client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))',
+  'print("ready")',
+  '```',
+  '',
+  '$$',
+  'q(x_t \\mid x_{t-1})=\\mathcal N\\bigl(x_t;\\sqrt{1-\\beta_t}\\,x_{t-1},\\,\\beta_t\\mathbf I\\bigr)',
+  '$$',
+  '',
+  '| 项目 / Item | 数量 / Qty |',
+  '| --- | --- |',
+  '| 铅笔 / Pencil | 2 |'
+].join('\n'));
 
 await page.goto(appUrl);
 await page.evaluate(() => localStorage.clear());
@@ -174,11 +196,14 @@ checks.konayukiCodeAndTableUseTheme = await (async () => {
     const alertStyles = getComputedStyle(alert);
     const kbdStyles = getComputedStyle(kbd);
     return preStyles.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+      preStyles.backgroundImage === 'none' &&
       preStyles.borderTopStyle !== 'none' &&
       tableStyles.borderCollapse === 'separate' &&
+      tableStyles.borderTopColor === 'rgb(226, 221, 211)' &&
       markStyles.backgroundColor === 'rgb(255, 243, 205)' &&
       markStyles.boxShadow === 'none' &&
       mathStyles.backgroundColor === preStyles.backgroundColor &&
+      mathStyles.backgroundImage === 'none' &&
       alertStyles.borderLeftStyle === 'solid' &&
       alertStyles.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
       kbdStyles.borderTopStyle === 'solid';
@@ -229,6 +254,56 @@ checks.swissTaskCheckboxAligns = await page.locator('.composer').last().evaluate
   return Math.abs(inputCenter - firstLineCenter) < 8;
 });
 checks.swissNoOverflow = await assertNoHorizontalOverflow('typora-swiss');
+
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+await page.locator('input[type="file"]').setInputFiles(themeDemoPath);
+await page.locator('.page-title').waitFor({ state: 'visible' });
+
+checks.importedThemeDemoCodeTableMath = true;
+for (const theme of ['typora-konayuki', 'typora-swiss']) {
+  await contentSelect.selectOption(theme);
+  await page.waitForTimeout(150);
+  checks.importedThemeDemoCodeTableMath = checks.importedThemeDemoCodeTableMath && await page.locator('.page-surface').evaluate((surface, currentTheme) => {
+    const pre = surface.querySelector('pre.md-fences');
+    const keyword = surface.querySelector('pre.md-fences .hljs-keyword');
+    const string = surface.querySelector('pre.md-fences .hljs-string');
+    const table = surface.querySelector('table');
+    const th = surface.querySelector('th');
+    const math = surface.querySelector('[data-type="block-math"]');
+    const mathInner = surface.querySelector('[data-type="block-math"] .block-math-inner');
+    if (!(pre instanceof HTMLElement) || !(keyword instanceof HTMLElement) || !(string instanceof HTMLElement) || !(table instanceof HTMLElement) || !(th instanceof HTMLElement) || !(math instanceof HTMLElement) || !(mathInner instanceof HTMLElement)) return false;
+
+    const preStyles = getComputedStyle(pre);
+    const keywordStyles = getComputedStyle(keyword);
+    const stringStyles = getComputedStyle(string);
+    const tableStyles = getComputedStyle(table);
+    const thStyles = getComputedStyle(th);
+    const mathStyles = getComputedStyle(math);
+    const mathInnerStyles = getComputedStyle(mathInner);
+
+    const codeIsTokenized = keywordStyles.color !== preStyles.color && stringStyles.color !== preStyles.color;
+    const mathIsCentered = mathInnerStyles.textAlign === 'center';
+    const mathUsesCodeFrame = mathStyles.backgroundColor === preStyles.backgroundColor && mathStyles.borderTopStyle === preStyles.borderTopStyle;
+
+    if (currentTheme === 'typora-konayuki') {
+      return codeIsTokenized &&
+        preStyles.backgroundImage === 'none' &&
+        preStyles.borderTopColor === 'rgb(233, 227, 216)' &&
+        tableStyles.borderCollapse === 'separate' &&
+        tableStyles.borderTopColor === 'rgb(226, 221, 211)' &&
+        thStyles.backgroundColor === 'rgb(247, 244, 239)' &&
+        mathUsesCodeFrame &&
+        mathIsCentered;
+    }
+
+    return codeIsTokenized &&
+      preStyles.backgroundColor === 'rgb(255, 255, 255)' &&
+      tableStyles.borderCollapse === 'collapse' &&
+      mathUsesCodeFrame &&
+      mathIsCentered;
+  }, theme);
+}
 
 checks.zeusDarkThemeKeepsOutlineReadable = await (async () => {
   await contentSelect.selectOption('typora-zeus');

@@ -105,6 +105,7 @@ const blockMathCount = await page.locator('.page-surface [data-type="block-math"
 const katexCount = await page.locator('.page-surface .katex').count();
 const kbdCount = await page.locator('.page-surface kbd').count();
 const alertCount = await page.locator('.page-surface .md-alert.md-alert-warning').count();
+const codeFenceCount = await page.locator('.page-surface pre.md-fences code').count();
 
 const checks = {
   title: pageTitle === 'Frontmatter Smoke',
@@ -133,7 +134,7 @@ const checks = {
   inlineCode: pageHtml.includes('<code>inline</code>'),
   kbd: kbdCount === 2 && pageText.includes('Cmd') && pageText.includes('K'),
   highlight: pageHtml.includes('<mark'),
-  codeBlock: (pageHtml.includes('<pre class="md-fences md-end-block"><code>') || pageHtml.includes('<pre><code>')) && pageText.includes('const imported = true;'),
+  codeBlock: codeFenceCount >= 1 && pageText.includes('const imported = true;'),
   indentedFence: pageHtml.includes('┌────┬────┐') && !pageText.includes('```'),
   importNotice: importNoticeClass?.includes('success') && importNoticeText.includes('Imported 1 page with 1 block')
 };
