@@ -161,13 +161,21 @@ export const loadPersistentState = async (): Promise<AppState> => {
 };
 
 export const saveState = async (state: AppState) => {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  if (!isTauri()) return;
+  const stateJson = JSON.stringify(state);
+
+  if (isTauri()) {
+    try {
+      await invoke('save_state_snapshot', { stateJson });
+    } catch (error) {
+      console.warn('Could not persist notebook state to SQLite.', error);
+    }
+    return;
+  }
 
   try {
-    await invoke('save_state_snapshot', { stateJson: JSON.stringify(state) });
+    window.localStorage.setItem(STORAGE_KEY, stateJson);
   } catch (error) {
-    console.warn('Could not persist notebook state to SQLite.', error);
+    console.warn('Could not persist notebook state to browser localStorage.', error);
   }
 };
 

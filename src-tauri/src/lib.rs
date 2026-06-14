@@ -41,6 +41,8 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
         .execute_batch(
             "
             PRAGMA journal_mode = WAL;
+            PRAGMA synchronous = NORMAL;
+            PRAGMA busy_timeout = 5000;
             PRAGMA foreign_keys = ON;
 
             CREATE TABLE IF NOT EXISTS app_state (
@@ -200,8 +202,9 @@ fn load_state_snapshot(app: AppHandle) -> Result<Option<String>, String> {
 
 #[tauri::command]
 fn save_state_snapshot(app: AppHandle, state_json: String) -> Result<(), String> {
-    let connection = open_database(&app)?;
-    connection
+    let mut connection = open_database(&app)?;
+    let transaction = connection.transaction().map_err(|error| error.to_string())?;
+    transaction
         .execute(
             "
             INSERT INTO app_state (id, state_json, updated_at)
@@ -213,6 +216,7 @@ fn save_state_snapshot(app: AppHandle, state_json: String) -> Result<(), String>
             params![state_json],
         )
         .map_err(|error| error.to_string())?;
+    transaction.commit().map_err(|error| error.to_string())?;
     Ok(())
 }
 
