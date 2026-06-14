@@ -192,6 +192,38 @@
   color: var(--typora-shell-ink);
 }
 
+.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-rail .fold-button,
+.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-actions .icon-button,
+.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .tool-button {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-rail .fold-button,
+.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-actions .icon-button {
+  width: 32px;
+  height: 22px;
+}
+
+.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .tool-button {
+  width: 32px;
+  height: 24px;
+}
+
+.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .text-tool {
+  width: 38px;
+}
+
+.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-rail .fold-button svg,
+.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-actions .icon-button svg,
+.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .tool-button svg {
+  display: block;
+  margin: 0;
+}
+
 .typora-app-shell .highlight-tool {
   color: var(--typora-shell-ink);
 }

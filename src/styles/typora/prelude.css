@@ -11,6 +11,8 @@
   --typora-fallback-code-text: var(--code-text-color, color-mix(in srgb, var(--typora-fallback-text) 88%, var(--typora-fallback-accent)));
   --typora-fallback-mark-bg: color-mix(in srgb, var(--typora-fallback-accent) 26%, var(--typora-fallback-bg));
   --typora-fallback-mark-text: color-mix(in srgb, var(--typora-fallback-text) 88%, white);
+  --typora-fallback-table-header-bg: var(--table-header-bg, color-mix(in srgb, var(--typora-fallback-panel) 86%, var(--typora-fallback-text)));
+  --typora-fallback-table-header-text: var(--table-header-color, var(--heading-secondary, var(--heading-color, var(--typora-fallback-text))));
 }
 
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc {
@@ -74,6 +76,11 @@
 
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(th, td) {
   border-color: var(--typora-fallback-line);
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(th) {
+  background: var(--typora-fallback-table-header-bg);
+  color: var(--typora-fallback-table-header-text);
 }
 
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(kbd, .md-kbd) {

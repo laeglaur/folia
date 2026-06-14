@@ -162,6 +162,24 @@ for (const theme of ['typora-inkwell', 'typora-gruvbox-dark', 'typora-bit-clean-
   }, theme);
 }
 
+const nativeGardenTableHeader = 'rgba(229, 247, 240, 0.82)';
+checks.typoraTableHeadersDoNotUseNativeGardenFallback = true;
+for (const theme of ['typora-print', 'typora-inkwell', 'typora-ravel-light']) {
+  await chooseContentTheme(theme);
+  checks.typoraTableHeadersDoNotUseNativeGardenFallback = checks.typoraTableHeadersDoNotUseNativeGardenFallback && await page.locator('.typora-write').evaluate((surface, currentTheme, gardenHeader) => {
+    const th = surface.querySelector('th');
+    if (!(th instanceof HTMLElement)) return false;
+    const styles = getComputedStyle(th);
+    const background = styles.backgroundColor;
+    const expectedThemeHeader = currentTheme === 'typora-print'
+      ? 'rgb(240, 240, 240)'
+      : currentTheme === 'typora-inkwell'
+        ? 'rgb(241, 245, 249)'
+        : null;
+    return background !== gardenHeader && (!expectedThemeHeader || background === expectedThemeHeader);
+  }, theme, nativeGardenTableHeader);
+}
+
 checks.fencedCodeDoesNotUseInlineCodeChrome = true;
 for (const theme of ['typora-zeus', 'typora-folio', 'typora-flexoki-light']) {
   await chooseContentTheme(theme);
@@ -296,6 +314,29 @@ checks.typoraEditorToolbarIsCompact = await page.evaluate(() => {
     rect.height <= 40 &&
     rect.width > 500 &&
     styles.boxShadow === 'none';
+});
+
+await chooseContentTheme('typora-ravel-light');
+checks.ravelEditorChromeKeepsPillIconsCentered = await page.evaluate(() => {
+  const elements = [
+    document.querySelector('.typora-write .tool-button'),
+    document.querySelector('.typora-write .fold-button')
+  ];
+  return elements.every((element) => {
+    if (!(element instanceof HTMLElement)) return false;
+    const icon = element.querySelector('svg');
+    if (!(icon instanceof SVGElement)) return false;
+    const styles = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    const iconRect = icon.getBoundingClientRect();
+    const dx = Math.abs((iconRect.left + iconRect.width / 2) - (rect.left + rect.width / 2));
+    const dy = Math.abs((iconRect.top + iconRect.height / 2) - (rect.top + rect.height / 2));
+    return styles.borderRadius === '999px' &&
+      styles.paddingLeft === '0px' &&
+      styles.paddingRight === '0px' &&
+      dx < 0.5 &&
+      dy < 0.5;
+  });
 });
 
 await page.getByRole('button', { name: 'Outline' }).click();
