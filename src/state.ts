@@ -100,6 +100,26 @@ const normalizeContentTheme = (contentTheme?: string): ContentThemeId => {
   return 'notebook';
 };
 
+const convertLegacyAssetSrc = (src: string) => {
+  if (!isTauri() || !src.startsWith('asset://localhost/')) return src;
+  try {
+    return convertFileSrc(new URL(src).pathname);
+  } catch {
+    return src;
+  }
+};
+
+const normalizeStoredMediaUrls = (html: string) => {
+  if (!isTauri() || !html.includes('asset://localhost/')) return html;
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  container.querySelectorAll<HTMLImageElement | HTMLVideoElement | HTMLAudioElement>('img[src], video[src], audio[src]').forEach((element) => {
+    const src = element.getAttribute('src');
+    if (src) element.setAttribute('src', convertLegacyAssetSrc(src));
+  });
+  return container.innerHTML;
+};
+
 const normalizeState = (state: AppState): AppState => {
   const theme = normalizeTheme(state.theme);
   const contentTheme = normalizeContentTheme(state.contentTheme);
@@ -115,12 +135,20 @@ const normalizeState = (state: AppState): AppState => {
     pages: state.pages.map((page) => ({
       ...page,
       parentId: page.parentId ?? null,
+      blockOrder: page.blockOrder === 'desc' ? 'desc' : 'asc',
       metadata: {
         ...createEmptyPageMetadata(),
         ...(page.metadata ?? {}),
         tags: page.metadata?.tags ?? [],
         aliases: page.metadata?.aliases ?? [],
         frontmatter: page.metadata?.frontmatter ?? {}
+      }
+    })),
+    blocks: state.blocks.map((block) => ({
+      ...block,
+      content: {
+        ...block.content,
+        html: normalizeStoredMediaUrls(block.content.html)
       }
     })),
     shell,
@@ -337,6 +365,7 @@ export const createPage = (notebookId: string, title = 'Untitled', parentId: str
   parentId,
   title,
   blockIds: [],
+  blockOrder: 'asc',
   metadata: createEmptyPageMetadata(),
   createdAt: now(),
   updatedAt: now()
@@ -644,7 +673,7 @@ const localizeMediaAssets = async (html: string, filename: string) => {
     if (!sourcePath) return;
     try {
       const imported = await invoke<ImportedAsset>('import_local_asset', { sourcePath });
-      element.setAttribute('src', imported.assetUrl);
+      element.setAttribute('src', convertFileSrc(imported.storedPath));
       element.setAttribute('data-asset-id', imported.id);
       element.setAttribute('data-original-src', src);
     } catch (error) {
@@ -786,21 +815,80 @@ export const htmlToMarkdown = (html: string) => {
   const container = document.createElement('div');
   container.innerHTML = html;
 
-  container.querySelectorAll('strong, b').forEach((node) => {
-    node.replaceWith(`**${node.textContent ?? ''}**`);
-  });
-  container.querySelectorAll('em, i').forEach((node) => {
-    node.replaceWith(`*${node.textContent ?? ''}*`);
-  });
-  container.querySelectorAll('code').forEach((node) => {
-    node.replaceWith(`\`${node.textContent ?? ''}\``);
-  });
-  container.querySelectorAll('li').forEach((node) => {
-    node.replaceWith(`- ${node.textContent ?? ''}\n`);
-  });
-  container.querySelectorAll('p, div').forEach((node) => {
-    node.append('\n');
-  });
+  const escapeMarkdown = (value: string) => value.replace(/\u00a0/g, ' ');
 
-  return (container.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim();
+  const textForChildren = (node: Node, depth = 0): string =>
+    Array.from(node.childNodes).map((child) => nodeToMarkdown(child, depth)).join('');
+
+  const listItemBody = (element: HTMLElement, depth: number) => {
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll(':scope > ul, :scope > ol').forEach((list) => list.remove());
+    clone.querySelectorAll(':scope > div > ul, :scope > div > ol').forEach((list) => list.remove());
+    clone.querySelectorAll(':scope > label').forEach((label) => label.remove());
+    const body = textForChildren(clone, depth).replace(/\n+/g, ' ').trim();
+    return body || (clone.textContent ?? '').replace(/\s+/g, ' ').trim();
+  };
+
+  const nestedLists = (element: HTMLElement, depth: number) =>
+    Array.from(element.querySelectorAll(':scope > ul, :scope > ol, :scope > div > ul, :scope > div > ol'))
+      .map((list) => nodeToMarkdown(list, depth + 1))
+      .join('');
+
+  function nodeToMarkdown(node: Node, depth = 0): string {
+    if (node.nodeType === Node.TEXT_NODE) return escapeMarkdown(node.textContent ?? '');
+    if (!(node instanceof HTMLElement)) return textForChildren(node, depth);
+
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'br') return '\n';
+    if (tag === 'strong' || tag === 'b') return `**${textForChildren(node, depth)}**`;
+    if (tag === 'em' || tag === 'i') return `*${textForChildren(node, depth)}*`;
+    if (tag === 'u') return `~${textForChildren(node, depth)}~`;
+    if (tag === 's' || tag === 'del') return `~~${textForChildren(node, depth)}~~`;
+    if (tag === 'mark') return `==${textForChildren(node, depth)}==`;
+    if (tag === 'code' && node.parentElement?.tagName.toLowerCase() !== 'pre') return `\`${node.textContent ?? ''}\``;
+    if (tag === 'pre') return `\n\`\`\`\n${node.textContent?.replace(/\n$/, '') ?? ''}\n\`\`\`\n`;
+    if (/^h[1-6]$/.test(tag)) return `${'#'.repeat(Number(tag.slice(1)))} ${textForChildren(node, depth).trim()}\n\n`;
+    if (tag === 'p') return `${textForChildren(node, depth).trim()}\n\n`;
+    if (tag === 'blockquote') {
+      const body = textForChildren(node, depth).trim().split('\n').map((line) => `> ${line}`).join('\n');
+      return `${body}\n\n`;
+    }
+    if (tag === 'ul' || tag === 'ol') {
+      const ordered = tag === 'ol';
+      const start = Number.parseInt(node.getAttribute('start') ?? '1', 10) || 1;
+      return Array.from(node.children)
+        .filter((child): child is HTMLElement => child instanceof HTMLElement && child.tagName.toLowerCase() === 'li')
+        .map((item, index) => {
+          const indent = '  '.repeat(depth);
+          const checked = item.getAttribute('data-checked');
+          const marker = checked === 'true' ? '- [x]' : checked === 'false' ? '- [ ]' : ordered ? `${start + index}.` : '-';
+          return `${indent}${marker} ${listItemBody(item, depth)}\n${nestedLists(item, depth)}`;
+        })
+        .join('');
+    }
+    if (tag === 'table') {
+      const rows = Array.from(node.querySelectorAll('tr')).map((row) =>
+        Array.from(row.children).map((cell) => (cell.textContent ?? '').replace(/\s+/g, ' ').trim())
+      );
+      if (!rows.length) return '';
+      const columnCount = Math.max(...rows.map((row) => row.length));
+      const normalized = rows.map((row) => Array.from({ length: columnCount }, (_, index) => row[index] ?? ''));
+      const [header, ...body] = normalized;
+      return [
+        `| ${header.join(' | ')} |`,
+        `| ${header.map(() => '---').join(' | ')} |`,
+        ...body.map((row) => `| ${row.join(' | ')} |`)
+      ].join('\n') + '\n\n';
+    }
+    if (tag === 'img') return `![${node.getAttribute('alt') ?? ''}](${node.getAttribute('src') ?? ''})`;
+    if (tag === 'video' || tag === 'audio') return node.getAttribute('src') ? `${node.getAttribute('src')}\n\n` : '';
+    if (tag === 'a') {
+      const href = node.getAttribute('href') ?? '';
+      return `[${textForChildren(node, depth) || href}](${href})`;
+    }
+    if (tag === 'div' || tag === 'section') return textForChildren(node, depth);
+    return textForChildren(node, depth);
+  }
+
+  return textForChildren(container).replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 };

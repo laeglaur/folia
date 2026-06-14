@@ -218,6 +218,9 @@ const shellThemes: Array<{ id: ShellId; label: string }> = [
   { id: 'typora-base', label: 'Typora Base' }
 ];
 
+const starIconUrl = '/app-assets/star.png';
+const fishIconUrl = '/app-assets/blue_red_fish.png';
+
 const lowlight = createLowlight(common);
 
 const blockTextPreview = (text: string, max = 56) => {
@@ -348,6 +351,7 @@ const blockquoteInputRegex = /^\s*(>|\/quote)\s$/;
 const inlineMathInputRegex = /\$([^$\n]+?)\$$/;
 const embeddedLinkInputRegex = /^\s*\/link\s$/;
 const attachmentInputRegex = /^\s*\/at\s$/;
+const dateInputRegex = /^\s*\/date\s$/;
 const ansiRegex = /\x1b\[[0-9;]*m/g;
 const hasAnsi = (value: string) => {
   ansiRegex.lastIndex = 0;
@@ -455,6 +459,25 @@ const importAttachmentFile = async (file: File): Promise<{ src: string; assetId?
 };
 
 const displayMathLatex = (latex: string) => latex === '\\;' ? '' : latex;
+
+const formatDateTime = (value: Date) =>
+  value.toLocaleString(undefined, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+const blockTimestampLabel = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  const hours = `${date.getHours()}`.padStart(2, '0');
+  const minutes = `${date.getMinutes()}`.padStart(2, '0');
+  return `${month}.${day} ${hours}:${minutes}`;
+};
 
 const findBlockMathPositionNear = (editor: Editor, around: number) => {
   let found: number | null = null;
@@ -744,9 +767,10 @@ const handleRichCopy = (editor: Editor | null, event: ClipboardEvent) => {
   container.appendChild(selection.getRangeAt(0).cloneContents());
   const html = container.innerHTML;
   if (!html.trim()) return false;
+  const markdown = htmlToMarkdown(html);
   clipboard.setData('text/html', html);
-  clipboard.setData('text/markdown', htmlToMarkdown(html));
-  clipboard.setData('text/plain', selection.toString());
+  clipboard.setData('text/markdown', markdown);
+  clipboard.setData('text/plain', markdown);
   event.preventDefault();
   return true;
 };
@@ -1349,6 +1373,13 @@ const BracketTodoInput = Extension.create({
           commands.deleteRange(range);
           dispatchAttachmentShortcut();
         }
+      }),
+      new InputRule({
+        find: dateInputRegex,
+        handler: ({ range, commands }) => {
+          commands.deleteRange(range);
+          commands.insertContent(formatDateTime(new Date()));
+        }
       })
     ];
   }
@@ -1609,7 +1640,6 @@ export function App() {
   const [tableControls, setTableControls] = useState<TableControlsState>({ visible: false, top: 0, left: 0 });
   const [mathEditor, setMathEditor] = useState<MathEditorState | null>(null);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
-  const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'desk'>('files');
   const [outlineDrawerOpen, setOutlineDrawerOpen] = useState(false);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('write');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
@@ -1647,7 +1677,12 @@ export function App() {
     () => activePage.blockIds.map((blockId) => state.blocks.find((block) => block.id === blockId)).filter(Boolean) as Block[],
     [activePage.blockIds, state.blocks]
   );
-  const outlineEntries = useMemo(() => extractOutlineEntries(activePage, pageBlocks), [activePage, pageBlocks]);
+  const pageBlockOrder = activePage.blockOrder === 'desc' ? 'desc' : 'asc';
+  const orderedPageBlocks = useMemo(
+    () => pageBlockOrder === 'desc' ? [...pageBlocks].reverse() : pageBlocks,
+    [pageBlockOrder, pageBlocks]
+  );
+  const outlineEntries = useMemo(() => extractOutlineEntries(activePage, orderedPageBlocks), [activePage, orderedPageBlocks]);
   const calendarEntriesByDate = useMemo(() => {
     const pagesById = new Map(state.pages.filter((page) => page.notebookId === activeNotebook.id).map((page) => [page.id, page]));
     const entries = new Map<string, CalendarEntry[]>();
@@ -1666,8 +1701,8 @@ export function App() {
   const cardModeBlockId = new URLSearchParams(window.location.search).get('card');
   const cardModeBlock = state.blocks.find((block) => block.id === cardModeBlockId) ?? null;
   const visibleBlocks = query.trim()
-    ? pageBlocks.filter((block) => block.content.plainText.toLowerCase().includes(query.trim().toLowerCase()))
-    : pageBlocks;
+    ? orderedPageBlocks.filter((block) => block.content.plainText.toLowerCase().includes(query.trim().toLowerCase()))
+    : orderedPageBlocks;
   const showBlockDividers = state.shell === 'typora-base';
   const metadataChips = [
     activePage.metadata?.date,
@@ -2028,7 +2063,13 @@ export function App() {
       ...current,
       blocks: [...current.blocks, block],
       pages: current.pages.map((page) =>
-        page.id === activePage.id ? { ...page, blockIds: [...page.blockIds, block.id], updatedAt: new Date().toISOString() } : page
+        page.id === activePage.id
+          ? {
+            ...page,
+            blockIds: (page.blockOrder === 'desc' ? [block.id, ...page.blockIds] : [...page.blockIds, block.id]),
+            updatedAt: new Date().toISOString()
+          }
+          : page
       ),
       operations: appendOperation(current, { entity: 'block', entityId: block.id, kind: 'block.create', payload: block })
     }));
@@ -2060,6 +2101,21 @@ export function App() {
         block.id === blockId ? { ...block, [key]: !block[key], updatedAt: new Date().toISOString() } : block
       ),
       operations: appendOperation(current, { entity: 'block', entityId: blockId, kind: `block.toggle_${key}`, payload: { key } })
+    }));
+  };
+
+  const setPageBlockOrder = (blockOrder: 'asc' | 'desc') => {
+    setState((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id === activePage.id ? { ...page, blockOrder, updatedAt: new Date().toISOString() } : page
+      ),
+      operations: appendOperation(current, {
+        entity: 'page',
+        entityId: activePage.id,
+        kind: 'page.set_block_order',
+        payload: { blockOrder }
+      })
     }));
   };
 
@@ -2635,6 +2691,43 @@ export function App() {
       );
     });
 
+  const renderComposerCard = () => (
+    <div className="composer-card">
+      {showToolbar && activeEditor.kind === 'composer' && (
+        <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
+      )}
+      <RichEditor
+        editorRef={(editor) => { composerEditorRef.current = editor; }}
+        className="composer"
+        placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
+        onFocus={(editor) => {
+          activateEditor({ kind: 'composer' });
+          syncFloatingControls(editor);
+        }}
+        onSelectionUpdate={syncFloatingControls}
+        tableControls={activeEditor.kind === 'composer' ? tableControls : undefined}
+        runTableCommand={runEditorCommand}
+        onMediaResizeStart={startMediaResize}
+        mathEditor={activeEditor.kind === 'composer' ? mathEditor : null}
+        onMathChange={updateMathEditorLatex}
+        onMathClose={() => setMathEditor(null)}
+        onUpdate={(html) => {
+          setDraft(html);
+        }}
+        onShiftEnter={() => {
+          commitDraft();
+          return true;
+        }}
+      />
+      {showComposerFooter && (
+        <div className="composer-footer">
+          <span>{draft ? 'Ready to become a block' : 'Waiting for a thought'}</span>
+          <button className="primary-button" type="button" onClick={commitDraft}><Plus size={16} /> Add block</button>
+        </div>
+      )}
+    </div>
+  );
+
   const renderWriteSurface = () => (
     <section className="page-surface typora-content-surface typora-write" id="write">
       <input className="page-title" value={activePage.title} onChange={(event) => renamePage(event.target.value)} aria-label="Page title" />
@@ -2643,6 +2736,8 @@ export function App() {
           {metadataChips.map((chip, index) => <span key={`${chip}-${index}`}>{chip}</span>)}
         </div>
       ) : null}
+
+      {pageBlockOrder === 'desc' ? renderComposerCard() : null}
 
       <div className="block-list">
         {visibleBlocks.map((block, index) => (
@@ -2671,6 +2766,7 @@ export function App() {
                 </button>
               </div>
               <div className="block-body">
+                <time className="block-created-at" dateTime={block.createdAt}>{blockTimestampLabel(block.createdAt)}</time>
                 {showToolbar && activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
                   <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
                 )}
@@ -2701,8 +2797,8 @@ export function App() {
                 )}
               </div>
               <div className="block-actions">
-                <button className={`icon-button ghost ${block.pinned ? 'active' : ''}`} onClick={() => toggleBlock(block.id, 'pinned')} aria-label="Pin block" type="button">
-                  <MapPin size={15} />
+                <button className={`icon-button ghost star-pin-button ${block.pinned ? 'active' : ''}`} onClick={() => toggleBlock(block.id, 'pinned')} aria-label="Pin block" type="button">
+                  <img src={starIconUrl} alt="" aria-hidden="true" />
                 </button>
               </div>
             </article>
@@ -2716,40 +2812,7 @@ export function App() {
         ))}
       </div>
 
-      <div className="composer-card">
-        {showToolbar && activeEditor.kind === 'composer' && (
-          <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
-        )}
-        <RichEditor
-          editorRef={(editor) => { composerEditorRef.current = editor; }}
-          className="composer"
-          placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
-          onFocus={(editor) => {
-            activateEditor({ kind: 'composer' });
-            syncFloatingControls(editor);
-          }}
-          onSelectionUpdate={syncFloatingControls}
-          tableControls={activeEditor.kind === 'composer' ? tableControls : undefined}
-          runTableCommand={runEditorCommand}
-          onMediaResizeStart={startMediaResize}
-          mathEditor={activeEditor.kind === 'composer' ? mathEditor : null}
-          onMathChange={updateMathEditorLatex}
-          onMathClose={() => setMathEditor(null)}
-          onUpdate={(html) => {
-            setDraft(html);
-          }}
-          onShiftEnter={() => {
-            commitDraft();
-            return true;
-          }}
-        />
-        {showComposerFooter && (
-          <div className="composer-footer">
-            <span>{draft ? 'Ready to become a block' : 'Waiting for a thought'}</span>
-            <button className="primary-button" type="button" onClick={commitDraft}><Plus size={16} /> Add block</button>
-          </div>
-        )}
-      </div>
+      {pageBlockOrder === 'asc' ? renderComposerCard() : null}
     </section>
   );
 
@@ -2819,7 +2882,7 @@ export function App() {
       aria-pressed={outlineDrawerOpen}
       aria-label={outlineDrawerOpen ? 'Hide outline' : 'Show outline'}
     >
-      <PanelRight size={15} /> Outline
+      <span>Outline</span><PanelRight size={15} />
     </button>
   );
 
@@ -2910,6 +2973,14 @@ export function App() {
     <div className={compact ? 'typora-tool-controls' : 'topbar-actions'}>
       <label className="view-toggle"><input type="checkbox" checked={showToolbar} onChange={(event) => setShowToolbar(event.target.checked)} /> Toolbar</label>
       <label className="view-toggle"><input type="checkbox" checked={showComposerFooter} onChange={(event) => setShowComposerFooter(event.target.checked)} /> Add</label>
+      <label className="view-toggle">
+        <span>Newest first</span>
+        <input
+          type="checkbox"
+          checked={pageBlockOrder === 'desc'}
+          onChange={(event) => setPageBlockOrder(event.target.checked ? 'desc' : 'asc')}
+        />
+      </label>
       <select
         className="theme-select shell-theme-select"
         value={state.shell}
@@ -2955,6 +3026,18 @@ export function App() {
       <button className="secondary-button" type="button" onClick={exportMarkdown}><Download size={15} /> Markdown</button>
       <button className="secondary-button" type="button" onClick={exportJson}><Upload size={15} /> Backup</button>
     </div>
+  );
+
+  const renderFishDesk = () => (
+    <aside className="fish-desk" aria-label="Desk controls">
+      <button className="fish-desk-trigger" type="button" aria-label="Open Desk controls">
+        <img src={fishIconUrl} alt="" aria-hidden="true" />
+      </button>
+      <div className="fish-desk-panel">
+        <div className="fish-desk-title">Desk</div>
+        {renderToolControls(true)}
+      </div>
+    </aside>
   );
 
   const renderNativeShell = () => (
@@ -3030,24 +3113,28 @@ export function App() {
             <Search size={16} />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="正文、block、todo" />
           </div>
-          {renderOutlineToggle()}
-          {renderToolControls(false)}
         </header>
 
         {renderWorkspaceContent()}
       </main>
 
-      {renderOutlineDrawer(renderNativeOutline(), (
-        <section className="panel-card desktop-preview outline-drawer-pinned">
+      <aside className="right-panel">
+        <section className="panel-card">
+          <div className="panel-title"><PanelRight size={16} /> Outline</div>
+          {renderNativeOutline()}
+        </section>
+        <section className="panel-card desktop-preview">
           <div className="panel-title"><MapPin size={16} /> Pinned</div>
           {renderPinnedCards()}
         </section>
-      ))}
+      </aside>
+
+      {renderFishDesk()}
 
       {openCardBlock && (
         <div className="floating-card-window">
           <div className="floating-card-head">
-            <span>Desktop card</span>
+            <span />
             <button type="button" onClick={() => setState((current) => ({ ...current, openCardWindowBlockId: null }))}>×</button>
           </div>
           <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: openCardBlock.content.html }} />
@@ -3057,15 +3144,16 @@ export function App() {
   );
 
   const renderTyporaShell = () => (
-    <div className="typora-app-shell typora-theme" data-content-theme={state.contentTheme} data-shell={state.shell}>
-      <aside id="typora-sidebar" className={`typora-sidebar active-tab-${typoraSidebarTab}`}>
-        <div className="sidebar-tabs" role="tablist" aria-label="Sidebar tabs">
-          <button className={`sidebar-tab ${typoraSidebarTab === 'files' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('files')}>Files</button>
-          <button className={`sidebar-tab ${typoraSidebarTab === 'desk' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('desk')}>Desk</button>
-        </div>
-
+    <div className={`typora-app-shell typora-theme ${outlineDrawerOpen ? 'outline-open' : ''}`} data-content-theme={state.contentTheme} data-shell={state.shell}>
+      <aside id="typora-sidebar" className="typora-sidebar active-tab-files">
         <div id="sidebar-content" className="sidebar-content">
-          <section className={`typora-sidebar-pane ${typoraSidebarTab === 'files' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'files'}>
+          <section className="typora-sidebar-pane is-active">
+            <section className="typora-desk-search">
+              <div className="search-box typora-search-box">
+                <Search size={16} />
+                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" />
+              </div>
+            </section>
             <div className="typora-sidebar-section-header">
               <span>Notebooks</span>
               <button className="mini-button" type="button" onClick={addNotebook} aria-label="New notebook"><Plus size={14} /></button>
@@ -3116,37 +3204,22 @@ export function App() {
               {renderTyporaFileTree(null)}
             </div>
           </section>
-
-          <section className={`typora-sidebar-pane ${typoraSidebarTab === 'desk' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'desk'}>
-            <div className="typora-desk-tab">
-              <section className="typora-desk-search">
-                <div className="search-box typora-search-box">
-                  <Search size={16} />
-                  <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" />
-                </div>
-              </section>
-              <section className="typora-tools">
-                {renderToolControls(true)}
-              </section>
-              <section className="typora-pin-list">
-                {renderPinnedCards('typora-pin-grid', 'typora-pin-card')}
-              </section>
-            </div>
-          </section>
         </div>
       </aside>
 
       <main className="typora-workspace">
-        {renderOutlineToggle('outline-floating-button')}
+        {renderOutlineToggle('outline-edge-button')}
         {renderWorkspaceContent()}
       </main>
 
       {renderOutlineDrawer(renderTyporaOutline())}
 
+      {renderFishDesk()}
+
       {openCardBlock && (
         <div className="floating-card-window">
           <div className="floating-card-head">
-            <span>Desktop card</span>
+            <span />
             <button type="button" onClick={() => setState((current) => ({ ...current, openCardWindowBlockId: null }))}>×</button>
           </div>
           <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: openCardBlock.content.html }} />

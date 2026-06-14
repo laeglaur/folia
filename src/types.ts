@@ -50,6 +50,7 @@ export interface Page {
   parentId: string | null;
   title: string;
   blockIds: string[];
+  blockOrder?: 'asc' | 'desc';
   metadata: PageMetadata;
   createdAt: string;
   updatedAt: string;

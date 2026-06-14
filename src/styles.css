@@ -23,7 +23,7 @@ input, select { color: var(--ink); }
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr);
+  grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr) var(--layout-right-panel-width);
   gap: var(--layout-shell-gap);
   min-height: 100vh;
   padding: var(--layout-shell-padding);
@@ -45,7 +45,7 @@ input, select { color: var(--ink); }
   align-self: start;
   border: var(--panel-border);
   border-radius: var(--shape-panel-radius);
-  background: var(--theme-panel-background);
+  background: var(--theme-surface-solid, #fffdf7);
   box-shadow: var(--shadow);
   backdrop-filter: var(--panel-backdrop-filter);
 }
@@ -569,6 +569,49 @@ input, select { color: var(--ink); }
 .block:not(.is-collapsed) .block-rail .fold-button svg {
   transform: rotate(90deg);
 }
+.block-created-at {
+  display: inline-block;
+  width: fit-content;
+  margin: 0 0 4px;
+  color: color-mix(in srgb, var(--muted) 76%, transparent);
+  font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
+  font-size: 10.5px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.star-pin-button {
+  width: 24px;
+  height: 24px;
+  transform: translateX(-7px);
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.star-pin-button:hover,
+.star-pin-button.active {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.star-pin-button img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  opacity: 0.34;
+  filter: grayscale(1) saturate(0.7);
+  transition: opacity 120ms ease, filter 120ms ease, transform 120ms ease;
+}
+
+.star-pin-button:hover img,
+.star-pin-button.active img {
+  opacity: 1;
+  filter: none;
+}
+
+.star-pin-button.active img {
+  transform: scale(1.07);
+}
 .block-content,
 .composer,
 .floating-card-body,
@@ -952,6 +995,10 @@ input, select { color: var(--ink); }
   transition: transform 120ms ease;
 }
 
+.notebook-code-block:not(.is-code-collapsed) > .code-fold-button svg {
+  transform: rotate(90deg);
+}
+
 .notebook-code-block .code-block-summary {
   position: absolute;
   top: 7px;
@@ -970,10 +1017,6 @@ input, select { color: var(--ink); }
 
 .notebook-code-block.is-code-collapsed > .code-block-summary {
   display: block;
-}
-
-.notebook-code-block.is-code-collapsed > .code-fold-button svg {
-  transform: rotate(-90deg);
 }
 
 .block-content pre.md-fences.notebook-code-block.is-code-collapsed > code,
@@ -1307,29 +1350,6 @@ input, select { color: var(--ink); }
   font-size: 1em;
 }
 
-.outline-drawer {
-  position: fixed;
-  top: 18px;
-  right: 18px;
-  bottom: 18px;
-  z-index: 18;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  width: min(330px, calc(100vw - 36px));
-  border: 1px solid var(--line);
-  border-radius: var(--panel-card-radius);
-  background: var(--theme-panel-background);
-  color: var(--ink);
-  box-shadow: var(--shadow);
-  transform: translateX(calc(100% + 28px));
-  transition: transform 160ms ease;
-  overflow: hidden;
-}
-
-.outline-drawer.is-open {
-  transform: translateX(0);
-}
-
 .outline-drawer-head {
   display: flex;
   align-items: center;
@@ -1354,29 +1374,6 @@ input, select { color: var(--ink); }
 
 .outline-drawer-pinned {
   box-shadow: none;
-}
-
-.outline-floating-button {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  justify-self: end;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 30px;
-  margin: 0 0 10px auto;
-  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--theme-panel-background) 90%, transparent);
-  color: var(--muted);
-  padding: 0 10px;
-}
-
-.outline-floating-button:hover,
-.outline-floating-button.active {
-  background: var(--theme-nav-active-background);
-  color: var(--theme-nav-active-ink);
 }
 
 .flip-x {
@@ -1544,6 +1541,99 @@ input, select { color: var(--ink); }
   line-height: var(--desktop-card-line-height);
 }
 
+.desktop-card img,
+.typora-pin-card img {
+  max-height: 96px;
+  object-fit: contain;
+}
+
+.fish-desk {
+  position: fixed;
+  right: 22px;
+  bottom: 18px;
+  z-index: 28;
+  display: grid;
+  justify-items: end;
+  pointer-events: none;
+}
+
+.fish-desk-trigger {
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 44px;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.fish-desk-trigger img {
+  width: 54px;
+  height: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 15px color-mix(in srgb, #000 16%, transparent));
+}
+
+.fish-desk-panel {
+  pointer-events: auto;
+  position: absolute;
+  right: 0;
+  bottom: 48px;
+  display: grid;
+  gap: 9px;
+  width: min(255px, calc(100vw - 32px));
+  max-height: min(620px, calc(100vh - 86px));
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 8px;
+  background: var(--theme-surface-solid, #fffdf7);
+  box-shadow: 0 18px 42px color-mix(in srgb, #000 18%, transparent);
+  transform: translateY(8px) scale(0.98);
+  transform-origin: bottom right;
+  transition: transform 140ms ease, visibility 140ms ease;
+  visibility: hidden;
+}
+
+.fish-desk:hover .fish-desk-panel,
+.fish-desk:focus-within .fish-desk-panel {
+  transform: translateY(0) scale(1);
+  visibility: visible;
+}
+
+.fish-desk-title {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.fish-desk .typora-tool-controls {
+  display: grid;
+  gap: 8px;
+}
+
+.fish-desk .typora-tool-controls .view-toggle,
+.fish-desk .typora-tool-controls .theme-select,
+.fish-desk .typora-tool-controls .secondary-button {
+  width: 100%;
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--topbar-control-radius);
+  background: var(--theme-panel-background);
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.fish-desk .typora-tool-controls .view-toggle,
+.fish-desk .typora-tool-controls .secondary-button {
+  justify-content: flex-start;
+}
+
 .floating-card-window {
   position: fixed;
   right: var(--floating-card-right);
@@ -1672,6 +1762,7 @@ input, select { color: var(--ink); }
 
 @media (max-width: 1120px) {
   .app-shell { grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr); }
+  .right-panel { display: none; }
 }
 
 @media (max-width: 760px) {

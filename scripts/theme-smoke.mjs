@@ -13,8 +13,14 @@ const checks = {};
 const gruvboxGeneratedCss = await readFile('src/styles/typora/generated/typora-gruvbox-dark.scoped.css', 'utf8');
 checks.typoraMissingAssetsAreInert = gruvboxGeneratedCss.includes('url(data:font/ttf;base64,)') &&
   !gruvboxGeneratedCss.includes('url(monospace/Inconsolata');
-const shellSelect = page.getByLabel('Shell theme');
 const contentSelect = page.locator('.content-theme-select');
+const chooseShell = async (shell) => {
+  await page.locator('.shell-theme-select').first().evaluate((element, value) => {
+    element.value = value;
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  }, shell);
+  await page.waitForFunction((expected) => document.documentElement.dataset.shell === expected, shell);
+};
 const chooseContentTheme = async (theme) => {
   await contentSelect.first().evaluate((element, value) => {
     element.value = value;
@@ -23,16 +29,16 @@ const chooseContentTheme = async (theme) => {
   await page.waitForFunction((expected) => document.documentElement.dataset.contentTheme === expected, theme);
 };
 
-await shellSelect.selectOption('native-garden');
+await chooseShell('native-garden');
 checks.nativeGardenShell = await page.evaluate(() => Boolean(
   document.querySelector('.app-shell') &&
   document.querySelector('.sidebar') &&
-  document.querySelector('.outline-drawer') &&
-  !document.querySelector('.right-panel') &&
+  document.querySelector('.right-panel') &&
+  !document.querySelector('.outline-drawer') &&
   !document.querySelector('#typora-sidebar')
 ));
 
-await shellSelect.selectOption('native-ledger');
+await chooseShell('native-ledger');
 checks.nativeLedgerDiffers = await page.evaluate(() => {
   const sidebar = document.querySelector('.sidebar');
   const note = document.querySelector('.sidebar-note');
@@ -42,12 +48,12 @@ checks.nativeLedgerDiffers = await page.evaluate(() => {
   return sidebarStyles.position === 'sticky' && noteStyles.display === 'none';
 });
 
-await shellSelect.selectOption('typora-base');
-await page.getByRole('button', { name: 'Desk' }).click();
+await chooseShell('typora-base');
 await chooseContentTheme('notebook');
 checks.typoraShellSwitches = await page.evaluate(() => Boolean(
   document.querySelector('.typora-app-shell') &&
   document.querySelector('#typora-sidebar') &&
+  document.querySelector('.fish-desk') &&
   !document.querySelector('.brand-block') &&
   !document.querySelector('.sidebar-note') &&
   !document.querySelector('.topbar')
@@ -396,7 +402,6 @@ checks.swissUsesTyporaBaseShell = await page.evaluate(() => {
 });
 
 await chooseContentTheme('typora-konayuki');
-await page.getByRole('button', { name: 'Files' }).click();
 checks.konayukiShellOverridesApply = await page.evaluate(() => {
   const sidebar = document.querySelector('#typora-sidebar');
   const fileRow = document.querySelector('.file-node-content.active');
@@ -523,19 +528,18 @@ checks.typoraSidebarContract = await page.evaluate(() => {
   const sidebar = document.querySelector('#typora-sidebar');
   const files = document.querySelector('.file-library-node');
   const outline = document.querySelector('.outline-drawer .outline-item');
-  const desk = document.querySelector('.typora-desk-tab');
-  const pin = document.querySelector('.typora-pin-card');
-  if (!(sidebar instanceof HTMLElement) || !(files instanceof HTMLElement) || !(outline instanceof HTMLElement) || !(desk instanceof HTMLElement) || !(pin instanceof HTMLElement)) return false;
+  const desk = document.querySelector('.fish-desk');
+  const deskTools = document.querySelector('.fish-desk .typora-tool-controls');
+  if (!(sidebar instanceof HTMLElement) || !(files instanceof HTMLElement) || !(outline instanceof HTMLElement) || !(desk instanceof HTMLElement) || !(deskTools instanceof HTMLElement)) return false;
   const fileNodeContent = files.querySelector('.file-node-content');
   if (!(fileNodeContent instanceof HTMLElement)) return false;
   const fileStyles = getComputedStyle(fileNodeContent);
   const outlineStyles = getComputedStyle(outline);
-  const pinStyles = getComputedStyle(pin);
   return getComputedStyle(sidebar).display !== 'none' &&
     fileStyles.borderRadius !== '999px' &&
     outlineStyles.borderRadius !== '999px' &&
-    Number.parseFloat(pinStyles.fontSize) <= 13.5 &&
-    desk.querySelector('.typora-tool-controls') !== null;
+    desk.querySelector('.fish-desk-trigger img') !== null &&
+    deskTools.querySelector('.shell-theme-select') !== null;
 });
 
 await page.evaluate(() => localStorage.clear());
@@ -563,7 +567,8 @@ await page.evaluate(() => {
   localStorage.setItem('block-first-notebook.state.v1', JSON.stringify(state));
 });
 await page.reload({ waitUntil: 'domcontentloaded' });
-await page.locator('.topbar-actions').getByRole('button', { name: /Calendar/ }).click();
+await page.locator('.fish-desk-trigger').hover();
+await page.locator('.fish-desk .secondary-button').filter({ hasText: 'Calendar' }).click();
 await page.locator('.workspace .calendar-workspace .calendar-view').waitFor({ state: 'visible' });
 checks.nativeCalendarShowsBlockEntries = await page.evaluate(() => {
   const localDateKey = (date) => `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}-${`${date.getDate()}`.padStart(2, '0')}`;
@@ -582,13 +587,12 @@ checks.nativeCalendarShowsBlockEntries = await page.evaluate(() => {
     day.dataset.date === localDateKey(expectedDate);
 });
 
-await page.getByLabel('Shell theme').selectOption('typora-base');
+await chooseShell('typora-base');
 checks.typoraCalendarTabRemoved = await page.evaluate(() => {
   const sidebarTabs = document.querySelector('.sidebar-tabs');
-  const deskTab = sidebarTabs?.querySelector('button:last-child');
   const hasCalendarTab = Array.from(sidebarTabs?.querySelectorAll('button') ?? []).some((button) => button.textContent?.trim() === 'Calendar');
   const hasOutlineTab = Array.from(sidebarTabs?.querySelectorAll('button') ?? []).some((button) => button.textContent?.trim() === 'Outline');
-  return Boolean(sidebarTabs && deskTab && !hasCalendarTab && !hasOutlineTab);
+  return !sidebarTabs && !hasCalendarTab && !hasOutlineTab && Boolean(document.querySelector('.fish-desk .typora-tool-controls'));
 });
 
 await page.goto(appUrl);

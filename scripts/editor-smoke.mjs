@@ -14,6 +14,13 @@ const resetApp = async () => {
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.locator('.composer').last().waitFor({ state: 'visible' });
 };
+const chooseContentTheme = async (theme) => {
+  await page.locator('.content-theme-select').first().evaluate((element, value) => {
+    element.value = value;
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  }, theme);
+  await page.waitForFunction((expected) => document.documentElement.dataset.contentTheme === expected, theme);
+};
 
 await page.goto(appUrl);
 await resetApp();
@@ -260,7 +267,7 @@ checks.attachmentResizePersistsWidth = await attachmentComposer.locator('img').e
 
 await resetApp();
 const listComposer = page.locator('.composer').last();
-await page.locator('.content-theme-select').selectOption('typora-swiss');
+await chooseContentTheme('typora-swiss');
 await listComposer.click();
 await page.keyboard.type('[] first task');
 await page.keyboard.press('Enter');
@@ -270,7 +277,7 @@ checks.continuousTodoEntry = (listHtml.match(/data-type="taskItem"/g) ?? []).len
 
 await resetApp();
 const bulletComposer = page.locator('.composer').last();
-await page.locator('.content-theme-select').selectOption('typora-swiss');
+await chooseContentTheme('typora-swiss');
 await bulletComposer.click();
 await page.locator('.format-toolbar .tool-button[title="Bullet list"]').click();
 await page.keyboard.type('parent');
