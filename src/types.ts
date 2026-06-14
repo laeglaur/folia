@@ -9,7 +9,12 @@ export type ContentThemeId =
   | 'typora-folio'
   | 'typora-zeus'
   | 'typora-bonne-nouvelle'
-  | 'typora-flexoki-light';
+  | 'typora-flexoki-light'
+  | 'typora-inkwell'
+  | 'typora-gruvbox-dark'
+  | 'typora-bit-clean-light'
+  | 'typora-print'
+  | 'typora-ravel-light';
 
 export interface Notebook {
   id: string;

@@ -6,6 +6,11 @@
 @import "./typora/generated/typora-zeus.scoped.css";
 @import "./typora/generated/typora-bonne-nouvelle.scoped.css";
 @import "./typora/generated/typora-flexoki-light.scoped.css";
+@import "./typora/generated/typora-inkwell.scoped.css";
+@import "./typora/generated/typora-gruvbox-dark.scoped.css";
+@import "./typora/generated/typora-bit-clean-light.scoped.css";
+@import "./typora/generated/typora-print.scoped.css";
+@import "./typora/generated/typora-ravel-light.scoped.css";
 
 .typora-theme[data-content-theme^="typora-"] {
   --theme-body-background: linear-gradient(180deg, color-mix(in srgb, var(--theme-bg) 92%, white), var(--theme-bg));
@@ -163,12 +168,6 @@
   font: inherit;
   line-height: inherit;
   white-space: pre;
-}
-
-.typora-theme[data-content-theme="typora-zeus"] .typora-block-doc pre.md-fences > code,
-.typora-theme[data-content-theme="typora-zeus"] .typora-block-doc pre.md-fences > code.hljs {
-  padding-left: 12px;
-  padding-right: 12px;
 }
 
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc [data-type="block-math"] .block-math-inner {

@@ -47,5 +47,40 @@
     "rawCss": "src/styles/typora/raw/typora-flexoki-light.css",
     "scopedCss": "src/styles/typora/generated/typora-flexoki-light.scoped.css",
     "sourceUrl": "https://raw.githubusercontent.com/guidovicino/flexoki-typora/main/flexoki-light.css"
+  },
+  {
+    "id": "typora-inkwell",
+    "label": "Inkwell",
+    "rawCss": "src/styles/typora/raw/typora-inkwell.css",
+    "scopedCss": "src/styles/typora/generated/typora-inkwell.scoped.css",
+    "sourceUrl": null
+  },
+  {
+    "id": "typora-gruvbox-dark",
+    "label": "Gruvbox Dark",
+    "rawCss": "src/styles/typora/raw/typora-gruvbox-dark.css",
+    "scopedCss": "src/styles/typora/generated/typora-gruvbox-dark.scoped.css",
+    "sourceUrl": null
+  },
+  {
+    "id": "typora-bit-clean-light",
+    "label": "Bit Clean Light",
+    "rawCss": "src/styles/typora/raw/typora-bit-clean-light.css",
+    "scopedCss": "src/styles/typora/generated/typora-bit-clean-light.scoped.css",
+    "sourceUrl": null
+  },
+  {
+    "id": "typora-print",
+    "label": "Print",
+    "rawCss": "src/styles/typora/raw/typora-print.css",
+    "scopedCss": "src/styles/typora/generated/typora-print.scoped.css",
+    "sourceUrl": null
+  },
+  {
+    "id": "typora-ravel-light",
+    "label": "Ravel Light",
+    "rawCss": "src/styles/typora/raw/typora-ravel-light.css",
+    "scopedCss": "src/styles/typora/generated/typora-ravel-light.scoped.css",
+    "sourceUrl": null
   }
 ]

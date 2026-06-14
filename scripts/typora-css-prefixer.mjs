@@ -2,43 +2,8 @@ import postcss from 'postcss';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
-const themes = [
-  {
-    id: 'typora-proof',
-    input: 'src/styles/typora/raw/typora-proof.css',
-    output: 'src/styles/typora/generated/typora-proof.scoped.css'
-  },
-  {
-    id: 'typora-konayuki',
-    label: 'Konayuki',
-    sourceUrl: 'https://raw.githubusercontent.com/aerandirsf/Konayuki/main/konayuki-light.css'
-  },
-  {
-    id: 'typora-swiss',
-    label: 'Swiss',
-    sourceUrl: 'https://raw.githubusercontent.com/ChivaLryCieux/swiss-theme/main/swiss.css'
-  },
-  {
-    id: 'typora-folio',
-    label: 'Folio',
-    sourceUrl: 'https://raw.githubusercontent.com/liyoulu/typora-folio-theme/main/folio.css'
-  },
-  {
-    id: 'typora-zeus',
-    label: 'Zeus',
-    sourceUrl: 'https://raw.githubusercontent.com/zmtsikriteas/zeus-typora-theme/main/zeus.css'
-  },
-  {
-    id: 'typora-bonne-nouvelle',
-    label: 'Bonne nouvelle',
-    sourceUrl: 'https://raw.githubusercontent.com/senges/typora-bonne-nouvelle/main/bonne-nouvelle.css'
-  },
-  {
-    id: 'typora-flexoki-light',
-    label: 'Flexoki Light',
-    sourceUrl: 'https://raw.githubusercontent.com/guidovicino/flexoki-typora/main/flexoki-light.css'
-  }
-];
+const manifestPath = join(process.cwd(), 'src/styles/typora/manifest.json');
+const themes = JSON.parse(await readFile(manifestPath, 'utf8'));
 
 const ignoredSelectorPatterns = [
   /#typora-source\b/,
@@ -300,7 +265,7 @@ const scopeCss = (css, themeId) => {
 };
 
 const rewriteRelativeAssetUrls = (css, sourceUrl) => {
-  if (!sourceUrl) return css;
+  if (!sourceUrl || !/^https?:/i.test(sourceUrl)) return css;
   return css.replace(/url\((['"]?)([^'")]+)\1\)/g, (match, quote, url) => {
     const trimmed = url.trim();
     if (/^(?:data:|https?:|asset:|\/|#)/i.test(trimmed)) return match;
@@ -323,18 +288,18 @@ const readThemeCss = async (theme) => {
     return { css: await response.text(), fromCache: false };
   }
 
-  const inputPath = join(process.cwd(), theme.input);
+  const inputPath = join(process.cwd(), rawPathFor(theme));
   return { css: await readFile(inputPath, 'utf8'), fromCache: true };
 };
 
-const rawPathFor = (theme) => theme.input ?? `src/styles/typora/raw/${theme.id}.css`;
-const outputPathFor = (theme) => theme.output ?? `src/styles/typora/generated/${theme.id}.scoped.css`;
+const rawPathFor = (theme) => theme.rawCss ?? theme.input ?? `src/styles/typora/raw/${theme.id}.css`;
+const outputPathFor = (theme) => theme.scopedCss ?? theme.output ?? `src/styles/typora/generated/${theme.id}.scoped.css`;
 
 for (const theme of themes) {
   const rawPath = rawPathFor(theme);
   const outputPath = join(process.cwd(), outputPathFor(theme));
   const { css: rawCss, fromCache } = await readThemeCss(theme);
-  const cssForScoping = rewriteRelativeAssetUrls(rawCss, theme.sourceUrl);
+  const cssForScoping = rewriteRelativeAssetUrls(rawCss, theme.sourceUrl ?? theme.rawCss);
 
   if (theme.sourceUrl && !fromCache) {
     const rawOutputPath = join(process.cwd(), rawPath);

@@ -68,6 +68,7 @@ import { isTauri } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { common, createLowlight } from 'lowlight';
 import 'katex/dist/katex.min.css';
+import { contentThemes } from './typora-theme-registry';
 
 type EditorTarget = { kind: 'composer' } | { kind: 'block'; blockId: string };
 type ImportNotice = {
@@ -159,18 +160,6 @@ const shellThemes: Array<{ id: ShellId; label: string }> = [
   { id: 'native-garden', label: 'Native Garden' },
   { id: 'native-ledger', label: 'Native Ledger' },
   { id: 'typora-base', label: 'Typora Base' }
-];
-
-const contentThemes: Array<{ id: ContentThemeId; label: string }> = [
-  { id: 'notebook', label: 'Notebook' },
-  { id: 'typora-base', label: 'Typora base' },
-  { id: 'typora-proof', label: 'Typora proof' },
-  { id: 'typora-konayuki', label: 'Konayuki' },
-  { id: 'typora-swiss', label: 'Swiss' },
-  { id: 'typora-folio', label: 'Folio' },
-  { id: 'typora-zeus', label: 'Zeus' },
-  { id: 'typora-bonne-nouvelle', label: 'Bonne nouvelle' },
-  { id: 'typora-flexoki-light', label: 'Flexoki Light' }
 ];
 
 const lowlight = createLowlight(common);

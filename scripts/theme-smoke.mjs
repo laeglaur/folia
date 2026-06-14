@@ -116,10 +116,50 @@ const contentThemeCheck = async (theme) => {
 
 checks.swissCodeAndTableUseTheme = await contentThemeCheck('typora-swiss');
 checks.konayukiCodeAndTableUseTheme = await contentThemeCheck('typora-konayuki');
+const selectableTyporaThemes = [
+  'typora-proof',
+  'typora-konayuki',
+  'typora-swiss',
+  'typora-folio',
+  'typora-zeus',
+  'typora-bonne-nouvelle',
+  'typora-flexoki-light',
+  'typora-inkwell',
+  'typora-gruvbox-dark',
+  'typora-bit-clean-light',
+  'typora-print',
+  'typora-ravel-light'
+];
+
 checks.typoraThemesAreSelectable = true;
-for (const theme of ['typora-proof', 'typora-konayuki', 'typora-swiss', 'typora-folio', 'typora-zeus', 'typora-bonne-nouvelle', 'typora-flexoki-light']) {
+for (const theme of selectableTyporaThemes) {
   await chooseContentTheme(theme);
   checks.typoraThemesAreSelectable = checks.typoraThemesAreSelectable && await page.evaluate((expected) => document.documentElement.dataset.contentTheme === expected, theme);
+}
+
+checks.localRawTyporaThemesKeepBaseLayout = true;
+for (const theme of ['typora-inkwell', 'typora-gruvbox-dark', 'typora-bit-clean-light', 'typora-print', 'typora-ravel-light']) {
+  await chooseContentTheme(theme);
+  checks.localRawTyporaThemesKeepBaseLayout = checks.localRawTyporaThemesKeepBaseLayout && await page.locator('.typora-write').evaluate((surface, currentTheme) => {
+    const write = document.querySelector('.page-surface.typora-write');
+    const pre = surface.querySelector('pre.md-fences');
+    const table = surface.querySelector('table');
+    const title = document.querySelector('.page-title');
+    if (!(write instanceof HTMLElement) || !(pre instanceof HTMLElement) || !(table instanceof HTMLElement) || !(title instanceof HTMLElement)) return false;
+    const writeRect = write.getBoundingClientRect();
+    const titleRect = title.getBoundingClientRect();
+    const preStyles = getComputedStyle(pre);
+    const tableStyles = getComputedStyle(table);
+    const printThemeKeepsPrintSizing = currentTheme === 'typora-print' &&
+      preStyles.overflowX === 'visible' &&
+      tableStyles.display === 'table';
+    const screenThemeKeepsOverflowSafety = preStyles.overflowX === 'auto' &&
+      tableStyles.display === 'table';
+
+    return writeRect.width >= 760 &&
+      titleRect.top - writeRect.top < 18 &&
+      (printThemeKeepsPrintSizing || screenThemeKeepsOverflowSafety);
+  }, theme);
 }
 
 checks.fencedCodeDoesNotUseInlineCodeChrome = true;

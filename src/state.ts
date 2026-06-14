@@ -1,4 +1,5 @@
 import type { AppState, Block, ContentThemeId, Notebook, OperationLogEntry, Page, PageMetadata, ShellId, ThemeId } from './types';
+import { contentThemeIds } from './typora-theme-registry';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { marked } from 'marked';
 
@@ -93,18 +94,6 @@ const normalizeShell = (shell: string | undefined, theme: ThemeId, contentTheme:
   if (shellIds.has(shell as ShellId)) return shell as ShellId;
   return shellFromLegacyState(theme, contentTheme);
 };
-
-const contentThemeIds = new Set<ContentThemeId>([
-  'notebook',
-  'typora-base',
-  'typora-proof',
-  'typora-konayuki',
-  'typora-swiss',
-  'typora-folio',
-  'typora-zeus',
-  'typora-bonne-nouvelle',
-  'typora-flexoki-light'
-]);
 
 const normalizeContentTheme = (contentTheme?: string): ContentThemeId => {
   if (contentThemeIds.has(contentTheme as ContentThemeId)) return contentTheme as ContentThemeId;
