@@ -6,66 +6,48 @@
 }
 
 /* --- 1. Global Variable Definitions (Typora System UI) --- */
-.typora-theme[data-content-theme="typora-zeus"] .typora-write {
-    /* --- Core Background & Text --- */
-    --bg-color: #1e1e1e;                /* Global background: dark grey */
-    --text-color: #d4d4d4;              /* Global text: light grey */
-    --side-bar-bg-color: #252526;       /* Sidebar background */
-    --control-text-color: #d4d4d4;      /* Control text */
+.typora-theme[data-content-theme="typora-zeus"] {
+    --bg-color: #1e1e1e;
+    --text-color: #d4d4d4;
+    --side-bar-bg-color: #252526;
+    --control-text-color: #d4d4d4;
     --control-text-hover-color: #fff;
-
-    /* --- Window & Panel Borders --- */
     --window-border: 1px solid #454545;
-    --panel-border-color: #454545;      /* Panel divider color */
-    --table-border-color: #454545;      /* Table border color */
-
-    /* --- Sidebar & List States --- */
-    --active-file-bg-color: #37373d;       /* Sidebar selected file background */
-    --active-file-border-color: #2196f3;   /* Sidebar selected left border */
-    --active-file-text-color: #fff;        /* Sidebar selected text */
-
-    /* List/menu/settings hover background */
+    --panel-border-color: #454545;
+    --table-border-color: #454545;
+    --active-file-bg-color: #37373d;
+    --active-file-border-color: #2196f3;
+    --active-file-text-color: #fff;
     --item-hover-bg-color: #094771;
     --item-hover-text-color: #fff;
-
-    /* --- Search & Input Fields --- */
-    --search-select-bg-color: #094771;     /* Search result selected background */
+    --search-select-bg-color: #094771;
     --search-select-text-color: #fff;
-    --focus-ring-color: #2196f3;           /* Input focus ring */
-
-    /* --- Text Selection --- */
+    --focus-ring-color: #2196f3;
     --select-text-bg-color: rgba(33, 150, 243, 0.4);
     --select-text-font-color: #fff;
-
-    /* --- Source Code & Special Panels --- */
-    --rawblock-edit-panel-bd: #2d2d2d;     /* Formula/HTML block edit panel background */
-    --color-popover-bg-color: #252526;     /* Color picker background */
-
-    /* --- Markdown Element Colors --- */
-    --md-char-color: #666;                 /* Markup character color */
-    --heading-char-color: #666;            /* Heading # character color */
-    --meta-content-color: #5b808d;         /* Metadata color */
-    --blur-text-color: #777;               /* Unfocused text color */
-
-    /* --- Buttons & Drag --- */
-    --active-toggle-btn-color: #2196f3;    /* Toggle button active color */
-    --drag-placeholder-color: #2196f3;     /* Drag placeholder */
+    --rawblock-edit-panel-bd: #2d2d2d;
+    --color-popover-bg-color: #252526;
+    --md-char-color: #666;
+    --heading-char-color: #666;
+    --meta-content-color: #5b808d;
+    --blur-text-color: #777;
+    --active-toggle-btn-color: #2196f3;
+    --drag-placeholder-color: #2196f3;
     --primary-btn-border-color: #2196f3;
     --primary-btn-text-color: #fff;
-
-    /* --- Zeus Theme Variables --- */
     --primary-color: #2196f3;
     --primary-hover: #64b5f6;
     --code-bg: #2d2d2d;
     --border-color: #454545;
-
-    /* --- Font Settings --- */
     --font-sans-serif: "Open Sans","Clear Sans", "Helvetica Neue", Helvetica, Arial, 'Segoe UI Emoji', 'SF Pro', sans-serif;
     --font-monospace: "Cascadia Code" !important;
     --code-font: "Cascadia Code" !important;
-
-    /* --- Mermaid --- */
     --mermaid-theme: dark;
+}
+
+.typora-theme[data-content-theme="typora-zeus"].typora-app-shell {
+    font-size: 14px;
+    background-color: var(--bg-color);
 }
 
 .typora-theme[data-content-theme="typora-zeus"] .typora-write {
@@ -74,6 +56,13 @@
 }
 
 /* --- 2. Body Base Styles --- */
+.typora-theme[data-content-theme="typora-zeus"].typora-app-shell {
+    font-family: var(--font-sans-serif);
+    color: #d4d4d4;
+    background-color: var(--bg-color);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+}
 .typora-theme[data-content-theme="typora-zeus"] .typora-write {
     font-family: var(--font-sans-serif);
     color: #d4d4d4;
@@ -398,6 +387,8 @@
 
 /* --- 14. Table of Contents (TOC) --- */
 .typora-theme[data-content-theme="typora-zeus"] .md-toc { margin-top: 28px; margin-left: 0px; margin-right: 0px; }
+.typora-theme[data-content-theme="typora-zeus"].typora-app-shell .sidebar-tabs { border-bottom: none;
+}
 
 .typora-theme[data-content-theme="typora-zeus"] .md-toc-content { position: relative; }
 .typora-theme[data-content-theme="typora-zeus"] .md-toc-content .md-toc-item { position: relative; color: #d4d4d4; }
@@ -441,12 +432,6 @@
 }
 
 /* Context menu styles */
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .dropdown-menu {
-    background-color: #2d2d2d !important;
-    border: 1px solid var(--border-color) !important;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.6) !important;
-    color: #ccc !important;
-}
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .menu-item.active {
     background-color: var(--item-hover-bg-color) !important;
     color: #fff !important;
@@ -455,6 +440,10 @@
     background: transparent;
     border: 1px solid #555;
     color: #ccc;
+}
+
+.typora-theme[data-content-theme="typora-zeus"].typora-app-shell .mac-seamless-mode #typora-sidebar {
+    background-color: var(--side-bar-bg-color);
 }
 
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-lang { color: #ce9178; }
@@ -492,7 +481,8 @@
     background-color: var(--bg-color);
 }
 
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .outline-label { font-family: var(--font-sans-serif); color: #ccc; }
+.typora-theme[data-content-theme="typora-zeus"].typora-app-shell .outline-label { font-family: var(--font-sans-serif); color: #ccc;
+}
 
 .typora-theme[data-content-theme="typora-zeus"] .typora-write h1.md-end-block.md-heading span:first-of-type,
 .typora-theme[data-content-theme="typora-zeus"] .typora-write h2.md-end-block.md-heading span:first-of-type,
@@ -517,13 +507,6 @@
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-alert.md-alert-important { background: rgba(133, 102, 251, 0.15); color: #b39ddb; }
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-alert.md-alert-warning { background: rgba(216, 161, 50, 0.15); color: #ffd54f; }
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-alert.md-alert-caution { background: rgba(209, 47, 58, 0.15); color: #e57373; }
-
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .modal-content {
-    border-radius: 8px;
-    background-color: #2d2d2d;
-    color: #ccc;
-    border: 1px solid var(--border-color);
-}
 
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-notification button,
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .modal-dialog .btn,
@@ -550,8 +533,18 @@
 
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-hr:focus { outline: none; }
 
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .outline-content li,
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .outline-content ul { margin-top: 2px; }
+.typora-theme[data-content-theme="typora-zeus"].typora-app-shell .outline-item.outline-item-active {
+    background-color: rgba(232, 148, 76, 0.3);
+    border-radius: 8px;
+    color: #fff;
+}
+
+.typora-theme[data-content-theme="typora-zeus"].typora-app-shell .outline-item.outline-item-active span::before { color: #e8944c;
+}
+
+.typora-theme[data-content-theme="typora-zeus"].typora-app-shell .outline-content li,
+.typora-theme[data-content-theme="typora-zeus"].typora-app-shell .outline-content ul { margin-top: 2px;
+}
 
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-empty .md-meta,
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .md-expand .md-content,
@@ -706,8 +699,7 @@
 /* 4. Settings Panel Deep Override */
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .ty-preferences .window-content,
 .typora-theme[data-content-theme="typora-zeus"] .typora-write .ty-preferences .nav-group-item,
-.typora-theme[data-content-theme="typora-zeus"] .typora-write #setting-window,
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .modal-content {
+.typora-theme[data-content-theme="typora-zeus"] .typora-write #setting-window {
     background-color: #1e1e1e !important;
     color: #ccc !important;
 }
@@ -728,6 +720,6 @@
 }
 
 
-.typora-theme[data-content-theme="typora-zeus"] .typora-write {
+.typora-theme[data-content-theme="typora-zeus"] {
     --typora-root-font-size: 14px;
 }

@@ -51,7 +51,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { ListItem } from '@tiptap/extension-list';
 import { Extension, InputRule, Mark, Node, mergeAttributes } from '@tiptap/core';
-import type { AppState, Block, ContentThemeId, Page, ThemeId } from './types';
+import type { AppState, Block, ContentThemeId, Page, ShellId } from './types';
 import {
   appendOperation,
   createBlock,
@@ -155,9 +155,10 @@ const toggleCollapsibleListItem = (event: React.MouseEvent<HTMLDivElement>, edit
   setListItemCollapsed(editor, listItem, collapsed);
 };
 
-const themes: Array<{ id: ThemeId; label: string }> = [
-  { id: 'garden', label: 'Garden' },
-  { id: 'ledger', label: 'Ledger' }
+const shellThemes: Array<{ id: ShellId; label: string }> = [
+  { id: 'native-garden', label: 'Native Garden' },
+  { id: 'native-ledger', label: 'Native Ledger' },
+  { id: 'typora-base', label: 'Typora Base' }
 ];
 
 const contentThemes: Array<{ id: ContentThemeId; label: string }> = [
@@ -881,6 +882,7 @@ export function App() {
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [showToolbar, setShowToolbar] = useState(true);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
+  const [typoraSidebarTab, setTyporaSidebarTab] = useState<'files' | 'outline' | 'desk'>('files');
   const [importNotice, setImportNotice] = useState<ImportNotice>({ kind: 'idle', message: '' });
   const composerEditorRef = useRef<Editor | null>(null);
   const blockEditorRefs = useRef<Record<string, Editor | null>>({});
@@ -901,7 +903,9 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = state.theme;
+    const nativeTheme = state.shell === 'native-ledger' ? 'ledger' : 'garden';
+    document.documentElement.dataset.theme = nativeTheme;
+    document.documentElement.dataset.shell = state.shell;
     document.documentElement.dataset.contentTheme = state.contentTheme;
     if (persistenceReadyRef.current) void saveState(state);
   }, [state]);
@@ -926,6 +930,22 @@ export function App() {
     ...(activePage.metadata?.tags ?? []).map((tag) => `#${tag}`),
     ...(activePage.metadata?.aliases ?? [])
   ].filter(Boolean) as string[];
+
+  const setShell = (shell: ShellId) => {
+    setState((current) => ({
+      ...current,
+      shell,
+      theme: shell === 'native-ledger' ? 'ledger' : shell === 'native-garden' ? 'garden' : current.theme
+    }));
+  };
+
+  const setContentTheme = (contentTheme: ContentThemeId) => {
+    setState((current) => ({
+      ...current,
+      contentTheme,
+      shell: contentTheme.startsWith('typora-') ? 'typora-base' : current.shell
+    }));
+  };
 
   const childPages = useMemo(() => {
     const map = new Map<string | null, Page[]>();
@@ -1316,19 +1336,254 @@ export function App() {
       );
     });
 
-  if (cardModeBlock) {
-    return (
-      <main className="card-window-page typora-theme" data-content-theme={state.contentTheme}>
-        <div className="floating-card-body card-mode" dangerouslySetInnerHTML={{ __html: cardModeBlock.content.html }} />
-      </main>
-    );
-  }
+  const renderTyporaFileTree = (parentId: string | null = null, depth = 0): React.ReactNode =>
+    (childPages.get(parentId) ?? []).map((page) => {
+      const hasChildren = Boolean(childPages.get(page.id)?.length);
+      const expanded = state.expandedPageIds.includes(page.id);
+      return (
+        <div
+          className="file-library-node"
+          data-is-directory={hasChildren ? 'true' : 'false'}
+          key={page.id}
+          style={{ '--depth': depth } as React.CSSProperties}
+        >
+          <span className="file-node-background" aria-hidden="true" />
+          <button
+            className={`file-node-content ${page.id === activePage.id ? 'active' : ''}`}
+            draggable
+            onDragStart={(event) => event.dataTransfer.setData('application/page-id', page.id)}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              const draggedId = event.dataTransfer.getData('application/page-id');
+              if (draggedId) movePageUnder(draggedId, page.id);
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'Tab') return;
+              event.preventDefault();
+              setState((current) => ({ ...current, activePageId: page.id }));
+              if (event.shiftKey) {
+                const parent = state.pages.find((candidate) => candidate.id === page.parentId);
+                movePageUnder(page.id, parent?.parentId ?? null);
+              } else {
+                const siblings = state.pages.filter((candidate) => candidate.notebookId === page.notebookId && (candidate.parentId ?? null) === (page.parentId ?? null));
+                const index = siblings.findIndex((candidate) => candidate.id === page.id);
+                const previousSibling = siblings[index - 1];
+                if (previousSibling) movePageUnder(page.id, previousSibling.id);
+              }
+            }}
+            onClick={() => setState((current) => ({ ...current, activePageId: page.id }))}
+            type="button"
+          >
+            <span
+              className="file-node-open-state"
+              onClick={(event) => {
+                event.stopPropagation();
+                if (hasChildren) togglePageExpanded(page.id);
+              }}
+            >
+              {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
+            </span>
+            <span className="file-node-title file-name">{page.title}</span>
+          </button>
+          {hasChildren && expanded && <div className="file-node-children">{renderTyporaFileTree(page.id, depth + 1)}</div>}
+        </div>
+      );
+    });
 
-  return (
-    <div className="app-shell typora-theme" data-content-theme={state.contentTheme}>
+  const renderWriteSurface = () => (
+    <section className="page-surface typora-content-surface typora-write" id="write">
+      <input className="page-title" value={activePage.title} onChange={(event) => renamePage(event.target.value)} aria-label="Page title" />
+      {metadataChips.length ? (
+        <div className="page-metadata" aria-label="Page metadata">
+          {metadataChips.map((chip, index) => <span key={`${chip}-${index}`}>{chip}</span>)}
+        </div>
+      ) : null}
+
+      <div className="block-list">
+        {visibleBlocks.map((block) => (
+          <article
+            className={`block ${block.collapsed ? 'is-collapsed' : ''} ${draggingBlockId === block.id ? 'is-dragging' : ''}`}
+            key={block.id}
+            id={block.id}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              reorderBlock(event.dataTransfer.getData('text/plain'), block.id);
+              setDraggingBlockId(null);
+            }}
+          >
+            <div
+              className="block-rail"
+              draggable
+              onDragStart={(event) => {
+                setDraggingBlockId(block.id);
+                event.dataTransfer.setData('text/plain', block.id);
+              }}
+              onDragEnd={() => setDraggingBlockId(null)}
+            >
+              <button className="fold-button" onClick={() => toggleBlock(block.id, 'collapsed')} aria-label="Collapse block" type="button">
+                <ChevronRight size={15} />
+              </button>
+            </div>
+            <div className="block-body">
+              {showToolbar && activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
+                <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
+              )}
+              {!block.collapsed ? (
+                <RichEditor
+                  editorRef={(editor) => { blockEditorRefs.current[block.id] = editor; }}
+                  className="block-content editable"
+                  html={htmlWithOutlineAnchors(block.content.html, block.id)}
+                  onFocus={() => activateEditor({ kind: 'block', blockId: block.id })}
+                  onMoveBlock={(direction) => {
+                    moveBlockByKeyboard(block.id, direction);
+                    return true;
+                  }}
+                  onBlur={(html, plainText) => updateBlock(block.id, html, plainText)}
+                />
+              ) : (
+                <div className="block-content preview">{firstLines(block.content.plainText)}</div>
+              )}
+            </div>
+            <div className="block-actions">
+              <button className={`icon-button ghost ${block.pinned ? 'active' : ''}`} onClick={() => toggleBlock(block.id, 'pinned')} aria-label="Pin block" type="button">
+                <MapPin size={15} />
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="composer-card">
+        {showToolbar && activeEditor.kind === 'composer' && (
+          <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
+        )}
+        <RichEditor
+          editorRef={(editor) => { composerEditorRef.current = editor; }}
+          className="composer"
+          placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
+          onFocus={() => activateEditor({ kind: 'composer' })}
+          onUpdate={(html) => {
+            setDraft(html);
+          }}
+          onShiftEnter={() => {
+            commitDraft();
+            return true;
+          }}
+        />
+        {showComposerFooter && (
+          <div className="composer-footer">
+            <span>{draft ? 'Ready to become a block' : 'Waiting for a thought'}</span>
+            <button className="primary-button" type="button" onClick={commitDraft}><Plus size={16} /> Add block</button>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
+  const renderImportNotice = () => importNotice.kind !== 'idle' ? (
+    <div className={`import-notice ${importNotice.kind}`} role="status" aria-live="polite">
+      <span>{importNotice.message}</span>
+      {importNotice.details?.length ? (
+        <ul>
+          {importNotice.details.map((detail) => <li key={detail}>{detail}</li>)}
+        </ul>
+      ) : null}
+    </div>
+  ) : null;
+
+  const renderNativeOutline = () => (
+    <div className="outline-list typora-toc md-toc md-toc-content">
+      {outlineEntries.map((entry) => (
+        <button
+          className={`outline-entry md-toc-item outline-kind-${entry.kind}`}
+          key={entry.id}
+          onClick={() => jumpToOutlineEntry(entry)}
+          style={{ '--level': entry.level } as React.CSSProperties}
+          type="button"
+        >
+          <span>{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
+          <span>{entry.text}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderTyporaOutline = () => (
+    <div id="outline-content" className="outline-content typora-toc md-toc md-toc-content">
+      {outlineEntries.map((entry) => (
+        <button
+          className={`outline-item md-toc-item outline-kind-${entry.kind} ${entry.blockId === null ? 'outline-item-active active' : ''}`}
+          key={entry.id}
+          onClick={() => jumpToOutlineEntry(entry)}
+          style={{ '--level': entry.level } as React.CSSProperties}
+          type="button"
+        >
+          <span className="outline-expander">{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
+          <span className="outline-label">{entry.text}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderPinnedCards = (className = 'desktop-preview', cardClassName = 'desktop-card') => (
+    <div className={className}>
+      {pinnedBlocks.length ? pinnedBlocks.map((block) => (
+        <button
+          className={cardClassName}
+          key={block.id}
+          type="button"
+          onClick={() => openPinnedWindow(block.id)}
+        >
+          <div dangerouslySetInnerHTML={{ __html: block.content.html }} />
+        </button>
+      )) : <p className="muted">Pin blocks to keep them close.</p>}
+    </div>
+  );
+
+  const renderToolControls = (compact = false) => (
+    <div className={compact ? 'typora-tool-controls' : 'topbar-actions'}>
+      <label className="view-toggle"><input type="checkbox" checked={showToolbar} onChange={(event) => setShowToolbar(event.target.checked)} /> Toolbar</label>
+      <label className="view-toggle"><input type="checkbox" checked={showComposerFooter} onChange={(event) => setShowComposerFooter(event.target.checked)} /> Add</label>
+      <select
+        className="theme-select shell-theme-select"
+        value={state.shell}
+        onChange={(event) => setShell(event.target.value as ShellId)}
+        aria-label="Shell theme"
+      >
+        {shellThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
+      </select>
+      <select
+        className="theme-select content-theme-select"
+        value={state.contentTheme}
+        onChange={(event) => setContentTheme(event.target.value as ContentThemeId)}
+        aria-label="Content theme"
+      >
+        {contentThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
+      </select>
+      <input
+        ref={markdownInputRef}
+        hidden
+        multiple
+        accept=".md,.markdown,.txt,text/markdown,text/plain"
+        type="file"
+        onChange={(event) => {
+          void importMarkdownFiles(event.target.files);
+          event.currentTarget.value = '';
+        }}
+      />
+      <button className="secondary-button" type="button" onClick={() => markdownInputRef.current?.click()}><FileUp size={15} /> Import MD</button>
+      <button className="secondary-button" type="button" onClick={exportMarkdown}><Download size={15} /> Markdown</button>
+      <button className="secondary-button" type="button" onClick={exportJson}><Upload size={15} /> Backup</button>
+    </div>
+  );
+
+  const renderNativeShell = () => (
+    <div className="app-shell typora-theme" data-content-theme={state.contentTheme} data-shell={state.shell}>
       <aside className="sidebar">
         <div className="brand-block">
-          <p className="eyebrow">{state.theme === 'ledger' ? 'ledger notes' : 'garden notes'}</p>
+          <p className="eyebrow">{state.shell === 'native-ledger' ? 'ledger notes' : 'garden notes'}</p>
           <div className="brand-mark"><Sparkles size={20} /></div>
           <h1>Notebook</h1>
           <p className="profile-id">block-first</p>
@@ -1387,174 +1642,22 @@ export function App() {
             <Search size={16} />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="正文、block、todo" />
           </div>
-          <div className="topbar-actions">
-            <label className="view-toggle"><input type="checkbox" checked={showToolbar} onChange={(event) => setShowToolbar(event.target.checked)} /> Toolbar</label>
-            <label className="view-toggle"><input type="checkbox" checked={showComposerFooter} onChange={(event) => setShowComposerFooter(event.target.checked)} /> Add</label>
-            <select
-              className="theme-select"
-              value={state.theme}
-              onChange={(event) => setState((current) => ({ ...current, theme: event.target.value as ThemeId }))}
-              aria-label="Shell theme"
-            >
-              {themes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
-            </select>
-            <select
-              className="theme-select content-theme-select"
-              value={state.contentTheme}
-              onChange={(event) => setState((current) => ({ ...current, contentTheme: event.target.value as ContentThemeId }))}
-              aria-label="Content theme"
-            >
-              {contentThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
-            </select>
-            <input
-              ref={markdownInputRef}
-              hidden
-              multiple
-              accept=".md,.markdown,.txt,text/markdown,text/plain"
-              type="file"
-              onChange={(event) => {
-                void importMarkdownFiles(event.target.files);
-                event.currentTarget.value = '';
-              }}
-            />
-            <button className="secondary-button" type="button" onClick={() => markdownInputRef.current?.click()}><FileUp size={15} /> Import MD</button>
-            <button className="secondary-button" type="button" onClick={exportMarkdown}><Download size={15} /> Markdown</button>
-            <button className="secondary-button" type="button" onClick={exportJson}><Upload size={15} /> Backup</button>
-          </div>
+          {renderToolControls(false)}
         </header>
 
-        {importNotice.kind !== 'idle' && (
-          <div className={`import-notice ${importNotice.kind}`} role="status" aria-live="polite">
-            <span>{importNotice.message}</span>
-            {importNotice.details?.length ? (
-              <ul>
-                {importNotice.details.map((detail) => <li key={detail}>{detail}</li>)}
-              </ul>
-            ) : null}
-          </div>
-        )}
-
-        <section className="page-surface typora-content-surface typora-write">
-          <input className="page-title" value={activePage.title} onChange={(event) => renamePage(event.target.value)} aria-label="Page title" />
-          {metadataChips.length ? (
-            <div className="page-metadata" aria-label="Page metadata">
-              {metadataChips.map((chip, index) => <span key={`${chip}-${index}`}>{chip}</span>)}
-            </div>
-          ) : null}
-
-          <div className="block-list">
-            {visibleBlocks.map((block) => (
-              <article
-                className={`block ${block.collapsed ? 'is-collapsed' : ''} ${draggingBlockId === block.id ? 'is-dragging' : ''}`}
-                key={block.id}
-                id={block.id}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  reorderBlock(event.dataTransfer.getData('text/plain'), block.id);
-                  setDraggingBlockId(null);
-                }}
-              >
-                <div
-                  className="block-rail"
-                  draggable
-                  onDragStart={(event) => {
-                    setDraggingBlockId(block.id);
-                    event.dataTransfer.setData('text/plain', block.id);
-                  }}
-                  onDragEnd={() => setDraggingBlockId(null)}
-                >
-                  <button className="fold-button" onClick={() => toggleBlock(block.id, 'collapsed')} aria-label="Collapse block" type="button">
-                    <ChevronRight size={15} />
-                  </button>
-                </div>
-                <div className="block-body">
-                  {showToolbar && activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
-                    <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
-                  )}
-                  {!block.collapsed ? (
-                    <RichEditor
-                      editorRef={(editor) => { blockEditorRefs.current[block.id] = editor; }}
-                      className="block-content editable"
-                      html={htmlWithOutlineAnchors(block.content.html, block.id)}
-                      onFocus={() => activateEditor({ kind: 'block', blockId: block.id })}
-                      onMoveBlock={(direction) => {
-                        moveBlockByKeyboard(block.id, direction);
-                        return true;
-                      }}
-                      onBlur={(html, plainText) => updateBlock(block.id, html, plainText)}
-                    />
-                  ) : (
-                    <div className="block-content preview">{firstLines(block.content.plainText)}</div>
-                  )}
-                </div>
-                <div className="block-actions">
-                  <button className={`icon-button ghost ${block.pinned ? 'active' : ''}`} onClick={() => toggleBlock(block.id, 'pinned')} aria-label="Pin block" type="button">
-                    <MapPin size={15} />
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          <div className="composer-card">
-            {showToolbar && activeEditor.kind === 'composer' && (
-              <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
-            )}
-            <RichEditor
-              editorRef={(editor) => { composerEditorRef.current = editor; }}
-              className="composer"
-              placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
-              onFocus={() => activateEditor({ kind: 'composer' })}
-              onUpdate={(html) => {
-                setDraft(html);
-              }}
-              onShiftEnter={() => {
-                commitDraft();
-                return true;
-              }}
-            />
-            {showComposerFooter && (
-              <div className="composer-footer">
-                <span>{draft ? 'Ready to become a block' : 'Waiting for a thought'}</span>
-                <button className="primary-button" type="button" onClick={commitDraft}><Plus size={16} /> Add block</button>
-              </div>
-            )}
-          </div>
-        </section>
+        {renderImportNotice()}
+        {renderWriteSurface()}
       </main>
 
       <aside className="right-panel">
         <section className="panel-card">
           <div className="panel-title"><PanelRight size={16} /> Outline</div>
-          <div className="outline-list typora-toc md-toc md-toc-content">
-            {outlineEntries.map((entry) => (
-              <button
-                className={`outline-entry md-toc-item outline-kind-${entry.kind}`}
-                key={entry.id}
-                onClick={() => jumpToOutlineEntry(entry)}
-                style={{ '--level': entry.level } as React.CSSProperties}
-                type="button"
-              >
-                <span>{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
-                <span>{entry.text}</span>
-              </button>
-            ))}
-          </div>
+          {renderNativeOutline()}
         </section>
 
         <section className="panel-card desktop-preview">
           <div className="panel-title"><MapPin size={16} /> Pinned</div>
-          {pinnedBlocks.length ? pinnedBlocks.map((block) => (
-            <button
-              className="desktop-card"
-              key={block.id}
-              type="button"
-              onClick={() => openPinnedWindow(block.id)}
-            >
-              <div dangerouslySetInnerHTML={{ __html: block.content.html }} />
-            </button>
-          )) : <p className="muted">Pin blocks to keep them close.</p>}
+          {renderPinnedCards()}
         </section>
       </aside>
 
@@ -1569,6 +1672,107 @@ export function App() {
       )}
     </div>
   );
+
+  const renderTyporaShell = () => (
+    <div className="typora-app-shell typora-theme" data-content-theme={state.contentTheme} data-shell={state.shell}>
+      <aside id="typora-sidebar" className={`typora-sidebar active-tab-${typoraSidebarTab}`}>
+        <div className="sidebar-tabs" role="tablist" aria-label="Sidebar tabs">
+          <button className={`sidebar-tab ${typoraSidebarTab === 'files' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('files')}>Files</button>
+          <button className={`sidebar-tab ${typoraSidebarTab === 'outline' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('outline')}>Outline</button>
+          <button className={`sidebar-tab ${typoraSidebarTab === 'desk' ? 'active' : ''}`} type="button" onClick={() => setTyporaSidebarTab('desk')}>Desk</button>
+        </div>
+
+        <div id="sidebar-content" className="sidebar-content">
+          <section className={`typora-sidebar-pane ${typoraSidebarTab === 'files' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'files'}>
+            <div className="typora-sidebar-section-header">
+              <span>Notebooks</span>
+              <button className="mini-button" type="button" onClick={addNotebook} aria-label="New notebook"><Plus size={14} /></button>
+            </div>
+            <div className="file-library">
+              {state.notebooks.map((notebook) => (
+                <div className="file-library-node" data-is-directory="true" key={notebook.id}>
+                  <span className="file-node-background" aria-hidden="true" />
+                  <button
+                    className={`file-node-content ${notebook.id === activeNotebook.id ? 'active' : ''}`}
+                    type="button"
+                    onClick={() => setState((current) => ({
+                      ...current,
+                      activeNotebookId: notebook.id,
+                      activePageId: notebook.pageIds[0] ?? current.activePageId
+                    }))}
+                  >
+                    <span className="file-node-open-state"><NotebookTabs size={13} /></span>
+                    <span className="file-node-title file-name">{notebook.name}</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="typora-sidebar-section-header">
+              <span>Pages</span>
+              <button className="mini-button" type="button" onClick={() => addPage(null)} aria-label="New page"><FilePlus size={14} /></button>
+            </div>
+            <div
+              className="file-library"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                const draggedId = event.dataTransfer.getData('application/page-id');
+                if (draggedId && event.currentTarget === event.target) movePageUnder(draggedId, null);
+              }}
+            >
+              {renderTyporaFileTree(null)}
+            </div>
+          </section>
+
+          <section className={`typora-sidebar-pane ${typoraSidebarTab === 'outline' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'outline'}>
+            {renderTyporaOutline()}
+          </section>
+
+          <section className={`typora-sidebar-pane ${typoraSidebarTab === 'desk' ? 'is-active' : ''}`} aria-hidden={typoraSidebarTab !== 'desk'}>
+            <div className="typora-desk-tab">
+              <section className="typora-desk-search">
+                <div className="search-box typora-search-box">
+                  <Search size={16} />
+                  <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" />
+                </div>
+              </section>
+              <section className="typora-tools">
+                {renderToolControls(true)}
+              </section>
+              <section className="typora-pin-list">
+                {renderPinnedCards('typora-pin-grid', 'typora-pin-card')}
+              </section>
+            </div>
+          </section>
+        </div>
+      </aside>
+
+      <main className="typora-workspace">
+        {renderImportNotice()}
+        {renderWriteSurface()}
+      </main>
+
+      {openCardBlock && (
+        <div className="floating-card-window">
+          <div className="floating-card-head">
+            <span>Desktop card</span>
+            <button type="button" onClick={() => setState((current) => ({ ...current, openCardWindowBlockId: null }))}>×</button>
+          </div>
+          <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: openCardBlock.content.html }} />
+        </div>
+      )}
+    </div>
+  );
+
+  if (cardModeBlock) {
+    return (
+      <main className="card-window-page typora-theme" data-content-theme={state.contentTheme} data-shell={state.shell}>
+        <div className="floating-card-body card-mode" dangerouslySetInnerHTML={{ __html: cardModeBlock.content.html }} />
+      </main>
+    );
+  }
+
+  return state.shell === 'typora-base' ? renderTyporaShell() : renderNativeShell();
 }
 
 function Toolbar({

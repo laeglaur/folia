@@ -48,7 +48,7 @@
   src: url("https://raw.githubusercontent.com/liyoulu/typora-folio-theme/main/folio-fonts/FZPanHuBaoZhuangTiS-W07-SB.TTF") format("truetype");
 }
 
-.typora-theme[data-content-theme="typora-folio"] .typora-write {
+.typora-theme[data-content-theme="typora-folio"]{
   --folio-bg: #e9e6e1;
   --folio-paper: #fffdfa;
   --folio-shadow: rgba(74, 59, 47, 0.12);
@@ -74,10 +74,22 @@
     Monaco, Consolas, monospace;
 }
 
+.typora-theme[data-content-theme="typora-folio"].typora-app-shell{
+  font-size: 17px;
+  -webkit-font-smoothing: antialiased;
+}
+
 .typora-theme[data-content-theme="typora-folio"] .typora-write {
   font-size: 17px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.typora-theme[data-content-theme="typora-folio"].typora-app-shell{
+  background: var(--folio-bg);
+  color: var(--folio-text);
+  font-family: var(--folio-serif);
+  line-height: 1.82;
 }
 
 .typora-theme[data-content-theme="typora-folio"] .typora-write {
@@ -341,7 +353,53 @@
   margin-left: calc(1.8 * var(--typora-root-font-size, 16px));
 }
 
-.typora-theme[data-content-theme="typora-folio"] .typora-write{
+.typora-theme[data-content-theme="typora-folio"].typora-app-shell #typora-sidebar{
+  background: #ece7df;
+  border-right: 1px solid rgba(116, 93, 74, 0.12);
+  color: var(--folio-text);
+  font-family: var(--folio-ui);
+}
+
+.typora-theme[data-content-theme="typora-folio"].typora-app-shell #typora-sidebar .outline-title-wrapper,
+.typora-theme[data-content-theme="typora-folio"].typora-app-shell #typora-sidebar .sidebar-tabs{
+  background: transparent;
+  border-color: rgba(116, 93, 74, 0.12);
+}
+
+.typora-theme[data-content-theme="typora-folio"].typora-app-shell #typora-sidebar .outline-title{
+  color: var(--folio-muted);
+  font-size: calc(0.72 * var(--typora-root-font-size, 16px));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.typora-theme[data-content-theme="typora-folio"].typora-app-shell #typora-sidebar .outline-content{
+  padding: calc(0.6 * var(--typora-root-font-size, 16px)) calc(0.6 * var(--typora-root-font-size, 16px)) calc(1 * var(--typora-root-font-size, 16px));
+}
+
+.typora-theme[data-content-theme="typora-folio"].typora-app-shell #typora-sidebar .outline-content .outline-item{
+  border-radius: 3px;
+  color: var(--folio-text);
+  font-size: calc(0.84 * var(--typora-root-font-size, 16px));
+  line-height: 1.35;
+  padding: calc(0.14 * var(--typora-root-font-size, 16px)) calc(0.42 * var(--typora-root-font-size, 16px));
+}
+
+.typora-theme[data-content-theme="typora-folio"].typora-app-shell #typora-sidebar .outline-content .outline-label{
+  font-family: var(--folio-ui);
+}
+
+.typora-theme[data-content-theme="typora-folio"].typora-app-shell #typora-sidebar .outline-content .outline-item:hover,
+.typora-theme[data-content-theme="typora-folio"].typora-app-shell #typora-sidebar .outline-content .outline-item-active{
+  background: rgba(177, 123, 77, 0.1);
+  color: var(--folio-heading);
+}
+
+.typora-theme[data-content-theme="typora-folio"].typora-app-shell #typora-sidebar .outline-expander::before{
+  opacity: 0.5;
+}
+
+.typora-theme[data-content-theme="typora-folio"]{
   --typora-root-font-size: 17px;
 }
 

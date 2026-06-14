@@ -1,4 +1,5 @@
 export type ThemeId = 'garden' | 'ledger';
+export type ShellId = 'native-garden' | 'native-ledger' | 'typora-base';
 export type ContentThemeId =
   | 'notebook'
   | 'typora-base'
@@ -66,6 +67,7 @@ export interface AppState {
   blocks: Block[];
   activeNotebookId: string;
   activePageId: string;
+  shell: ShellId;
   theme: ThemeId;
   contentTheme: ContentThemeId;
   openCardWindowBlockId: string | null;

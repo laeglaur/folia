@@ -1,4 +1,4 @@
-import type { AppState, Block, ContentThemeId, Notebook, OperationLogEntry, Page, PageMetadata, ThemeId } from './types';
+import type { AppState, Block, ContentThemeId, Notebook, OperationLogEntry, Page, PageMetadata, ShellId, ThemeId } from './types';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { marked } from 'marked';
 
@@ -68,6 +68,7 @@ export const createInitialState = (): AppState => ({
   ],
   activeNotebookId: starterNotebookId,
   activePageId: starterPageId,
+  shell: 'native-garden',
   theme: 'garden',
   contentTheme: 'notebook',
   openCardWindowBlockId: null,
@@ -79,6 +80,18 @@ const normalizeTheme = (theme?: string): ThemeId => {
   if (theme === 'archive') return 'ledger';
   if (theme === 'garden' || theme === 'ledger') return theme;
   return 'garden';
+};
+
+const shellIds = new Set<ShellId>(['native-garden', 'native-ledger', 'typora-base']);
+
+const shellFromLegacyState = (theme: ThemeId, contentTheme: ContentThemeId): ShellId => {
+  if (contentTheme.startsWith('typora-') && contentTheme !== 'typora-base') return 'typora-base';
+  return theme === 'ledger' ? 'native-ledger' : 'native-garden';
+};
+
+const normalizeShell = (shell: string | undefined, theme: ThemeId, contentTheme: ContentThemeId): ShellId => {
+  if (shellIds.has(shell as ShellId)) return shell as ShellId;
+  return shellFromLegacyState(theme, contentTheme);
 };
 
 const contentThemeIds = new Set<ContentThemeId>([
@@ -98,29 +111,37 @@ const normalizeContentTheme = (contentTheme?: string): ContentThemeId => {
   return 'notebook';
 };
 
-const normalizeState = (state: AppState): AppState => ({
-  ...state,
-  notebooks: state.notebooks.map((notebook) => ({
-    ...notebook,
-    pageIds: notebook.pageIds ?? state.pages.filter((page) => page.notebookId === notebook.id).map((page) => page.id)
-  })),
-  pages: state.pages.map((page) => ({
-    ...page,
-    parentId: page.parentId ?? null,
-    metadata: {
-      ...createEmptyPageMetadata(),
-      ...(page.metadata ?? {}),
-      tags: page.metadata?.tags ?? [],
-      aliases: page.metadata?.aliases ?? [],
-      frontmatter: page.metadata?.frontmatter ?? {}
-    }
-  })),
-  theme: normalizeTheme(state.theme),
-  contentTheme: normalizeContentTheme(state.contentTheme),
-  openCardWindowBlockId: state.openCardWindowBlockId ?? null,
-  expandedPageIds: state.expandedPageIds ?? state.pages.map((page) => page.id),
-  operations: state.operations ?? []
-});
+const normalizeState = (state: AppState): AppState => {
+  const theme = normalizeTheme(state.theme);
+  const contentTheme = normalizeContentTheme(state.contentTheme);
+  const shell = normalizeShell(state.shell, theme, contentTheme);
+  const nativeTheme = shell === 'native-ledger' ? 'ledger' : 'garden';
+
+  return {
+    ...state,
+    notebooks: state.notebooks.map((notebook) => ({
+      ...notebook,
+      pageIds: notebook.pageIds ?? state.pages.filter((page) => page.notebookId === notebook.id).map((page) => page.id)
+    })),
+    pages: state.pages.map((page) => ({
+      ...page,
+      parentId: page.parentId ?? null,
+      metadata: {
+        ...createEmptyPageMetadata(),
+        ...(page.metadata ?? {}),
+        tags: page.metadata?.tags ?? [],
+        aliases: page.metadata?.aliases ?? [],
+        frontmatter: page.metadata?.frontmatter ?? {}
+      }
+    })),
+    shell,
+    theme: shell === 'typora-base' ? theme : nativeTheme,
+    contentTheme,
+    openCardWindowBlockId: state.openCardWindowBlockId ?? null,
+    expandedPageIds: state.expandedPageIds ?? state.pages.map((page) => page.id),
+    operations: state.operations ?? []
+  };
+};
 
 export const loadState = (): AppState => {
   const raw = window.localStorage.getItem(STORAGE_KEY);

@@ -8,12 +8,7 @@
  * Designed for reading and writing on digital screens
  */
 
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write {
-  /* ============================================ */
-  /* FLEXOKI COLOR PALETTE - LIGHT MODE         */
-  /* ============================================ */
-
-  /* Base Colors */
+.typora-theme[data-content-theme="typora-flexoki-light"] {
   --flexoki-black: #100F0F;
   --flexoki-paper: #FFFCF0;
   --flexoki-50: #F2F0E5;
@@ -27,8 +22,6 @@
   --flexoki-850: #343331;
   --flexoki-900: #282726;
   --flexoki-950: #1C1B1A;
-
-  /* Accent Colors - Light Mode uses 600 variants */
   --flexoki-red: #AF3029;
   --flexoki-orange: #BC5215;
   --flexoki-yellow: #AD8301;
@@ -37,8 +30,6 @@
   --flexoki-blue: #205EA6;
   --flexoki-purple: #5E409D;
   --flexoki-magenta: #A02F6F;
-
-  /* Secondary Accent Colors (400 variants for highlights) */
   --flexoki-red-light: #D14D41;
   --flexoki-orange-light: #DA702C;
   --flexoki-yellow-light: #D0A215;
@@ -47,79 +38,51 @@
   --flexoki-blue-light: #4385BE;
   --flexoki-purple-light: #8B7EC8;
   --flexoki-magenta-light: #CE5D97;
-
-  /* ============================================ */
-  /* TYPORA THEME VARIABLES                      */
-  /* ============================================ */
-
-  /* Background Colors */
   --bg-color: var(--flexoki-paper);
   --bg-color1: var(--flexoki-paper);
   --bg-color2: var(--flexoki-50);
   --bg-color3: var(--flexoki-100);
   --bg-color4: var(--flexoki-850);
   --bg-color5: var(--flexoki-50);
-
-  /* Text Colors */
   --text-color: var(--flexoki-black);
   --text-color1: var(--flexoki-black);
   --text-color2: var(--flexoki-600);
   --text-color3: var(--flexoki-300);
   --text-color4: var(--flexoki-paper);
   --text-color5: var(--flexoki-600);
-
-  /* UI Colors */
   --link-color: var(--flexoki-cyan);
   --primary-color: var(--flexoki-cyan);
   --primary-btn-border-color: var(--flexoki-200);
   --primary-btn-text-color: var(--flexoki-black);
-
-  /* Border Colors */
   --window-border: 1px solid var(--flexoki-100);
   --table-border-color: var(--flexoki-200);
   --table-thead-color: transparent;
   --table-bg-color: transparent;
   --table-bg-darker-color: transparent;
-
-  /* Hover Colors */
   --hover-bg-color1: var(--flexoki-100);
   --hover-bg-color2: var(--flexoki-150);
   --hover-bg-color3: var(--flexoki-200);
   --hover-text-color: var(--flexoki-black);
-
-  /* Active Colors */
   --active-color: var(--flexoki-200);
   --active-file-bg-color: var(--flexoki-100);
   --active-file-text-color: var(--flexoki-black);
   --active-file-border-color: var(--flexoki-cyan);
-
-  /* Input Colors */
   --input-color: var(--flexoki-paper);
   --select-color: var(--flexoki-100);
   --button-color: var(--flexoki-100);
-
-  /* Divider Colors */
   --menu-divider-color: var(--flexoki-200);
   --node-border: var(--flexoki-200);
   --node-fill: var(--flexoki-50);
-
-  /* Scrollbar Colors */
   --scrollbar-thumb-color: var(--flexoki-300);
   --scrollbar-track-color: transparent;
-
-  /* Sidebar Colors */
   --side-bar-bg-color: var(--flexoki-50);
   --control-text-color: var(--flexoki-black);
   --control-text-hover-color: var(--flexoki-black);
   --item-hover-bg-color: var(--flexoki-100);
   --item-hover-text-color: var(--flexoki-black);
-
-  /* Focus Colors */
   --focus-color: var(--flexoki-cyan);
   --focus-ring-color: var(--flexoki-cyan-light);
   --blur-text-color: var(--flexoki-300);
-
-  /* Code Block Colors */
   --code-bg-color: var(--flexoki-50);
   --code-red-color: var(--flexoki-red);
   --code-orange-color: var(--flexoki-orange);
@@ -132,18 +95,10 @@
   --code-grey-color: var(--flexoki-300);
   --code-select-bg-color: var(--flexoki-200);
   --code-cursor-color: var(--flexoki-cyan);
-
-  /* Selection Colors */
   --select-text-bg-color: var(--flexoki-200);
   --search-select-bg-color: var(--flexoki-yellow-light);
-
-  /* Misc Colors */
   --rawblock-edit-panel-bd: var(--flexoki-50);
   --theme-select-color: var(--flexoki-cyan-light);
-
-  /* ============================================ */
-  /* TYPOGRAPHY                                  */
-  /* ============================================ */
 
   --sans-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "system-ui", sans-serif;
   --monospace: "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace;
@@ -153,8 +108,20 @@
 /* BASE STYLES                                 */
 /* ============================================ */
 
+.typora-theme[data-content-theme="typora-flexoki-light"].typora-app-shell {
+  font-size: 16px;
+}
+
 .typora-theme[data-content-theme="typora-flexoki-light"] .typora-write {
   font-size: 16px;
+}
+
+.typora-theme[data-content-theme="typora-flexoki-light"].typora-app-shell {
+  font-family: var(--sans-serif);
+  color: var(--text-color1);
+  background: var(--bg-color1);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
 .typora-theme[data-content-theme="typora-flexoki-light"] .typora-write {
@@ -635,7 +602,37 @@
 /* SIDEBAR                                     */
 /* ============================================ */
 
+.typora-theme[data-content-theme="typora-flexoki-light"].typora-app-shell #typora-sidebar {
+  background-color: var(--side-bar-bg-color);
+  border-right: 1px solid var(--flexoki-100);
+  box-shadow: 2px 0 8px rgba(16, 15, 15, 0.04);
+}
+
+.typora-theme[data-content-theme="typora-flexoki-light"].typora-app-shell .sidebar-menu {
+  color: var(--control-text-color);
+}
+
 /* File Items */
+.typora-theme[data-content-theme="typora-flexoki-light"].typora-app-shell .file-list-item {
+  border-bottom: 0;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.typora-theme[data-content-theme="typora-flexoki-light"].typora-app-shell .file-list-item:hover {
+  background-color: var(--item-hover-bg-color);
+  border-left-color: var(--flexoki-cyan-light);
+}
+
+.typora-theme[data-content-theme="typora-flexoki-light"].typora-app-shell .file-list-item.active {
+  background-color: var(--active-file-bg-color);
+  border-left-color: var(--active-file-border-color);
+  color: var(--active-file-text-color);
+}
+
+.typora-theme[data-content-theme="typora-flexoki-light"].typora-app-shell .file-list-item-file-ext-part {
+  opacity: 0.7;
+}
 
 /* Sidebar Footer */
 
@@ -753,37 +750,9 @@
 /* CONTEXT MENU                                */
 /* ============================================ */
 
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .dropdown-menu {
-  background-color: var(--bg-color2);
-  border: 1px solid var(--flexoki-100);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(16, 15, 15, 0.15);
-}
-
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .dropdown-menu .divider {
-  border-top: 1px solid var(--menu-divider-color);
-}
-
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .dropdown-menu > li > a {
-  color: var(--text-color1);
-  transition: all 0.2s ease;
-}
-
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .dropdown-menu > li > a:hover {
-  background-color: var(--hover-bg-color1);
-  color: var(--hover-text-color);
-}
-
 /* ============================================ */
 /* MODALS AND DIALOGS                          */
 /* ============================================ */
-
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .modal-content {
-  background-color: var(--bg-color1);
-  border: 1px solid var(--flexoki-100);
-  border-radius: 4px;
-  box-shadow: 0 8px 24px rgba(16, 15, 15, 0.2);
-}
 
 .typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .modal-backdrop {
   background-color: var(--flexoki-black);
@@ -795,6 +764,10 @@
 /* ============================================ */
 
 @media print {
+  .typora-theme[data-content-theme="typora-flexoki-light"].typora-app-shell {
+    background: white;
+    color: black;
+  }
   .typora-theme[data-content-theme="typora-flexoki-light"] .typora-write {
     background: white;
     color: black;
@@ -916,6 +889,11 @@
   border-bottom: 1px solid var(--menu-divider-color);
 }
 
+.typora-theme[data-content-theme="typora-flexoki-light"].typora-app-shell #typora-sidebar {
+  background-color: var(--side-bar-bg-color) !important;
+  border-right: 1px solid var(--flexoki-100);
+}
+
 .typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .nav-group-item {
   color: var(--text-color1) !important;
   border-radius: 4px;
@@ -928,7 +906,7 @@
   color: var(--hover-text-color) !important;
 }
 
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write {
+.typora-theme[data-content-theme="typora-flexoki-light"] {
   --typora-root-font-size: 16px;
 }
 

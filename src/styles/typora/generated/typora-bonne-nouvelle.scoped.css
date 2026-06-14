@@ -10,7 +10,7 @@
  *
  */
 
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write {
+.typora-theme[data-content-theme="typora-bonne-nouvelle"] {
     --bg-color:  #18171d;
     --side-bar-bg-color: #242229;
     --text-color: #b8bfc6;
@@ -28,6 +28,14 @@
     --primary-color: #6dc1e7;
     --rawblock-edit-panel-bd: #333;
     --search-select-bg-color: #428bca;
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell {
+    font-size: 12pt;
+    font-family: "Courier Screenplay", "Courier New", "Courier", monospace;
+    line-height: 1;
+    background-color: #18171d;
+    color: #b8bfc6;
 }
 
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write {
@@ -150,10 +158,6 @@
     color: #b8bfc6;
 }
 
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .popover-title {
-    background: transparent;
-}
-
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .md-image>.md-meta {
     color: #BBBBBB;
     background: transparent;
@@ -170,8 +174,6 @@
     background-color: #18171d;
 }
 
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .dropdown-menu .btn:hover,
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .dropdown-menu .btn:focus,
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .md-toc .btn:hover,
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .md-toc .btn:focus {
     color: white;
@@ -187,53 +189,54 @@
     background-color: #9b9b9b;
 }
 
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .outline-expander:before {
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .outline-expander:before {
     top: 2px;
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell #typora-sidebar {
+    box-shadow: none;
+    border-right: 1px dashed;
+    border-right: none;
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .sidebar-tabs {
+    border-bottom:0;
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell #typora-sidebar:hover .outline-title-wrapper {
+    border-left: 1px dashed;
 }
 
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .outline-title-wrapper .btn {
     color: inherit;
 }
 
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .outline-label:hover {
-    text-decoration: none;
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .outline-item {
+    padding-top: 5px;
+    padding-bottom: 5px;
 }
 
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .modal-content {
-    background: var(--bg-color);
-    border: 0;
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .outline-item:hover {
+    background-color: inherit;
+    font-weight: bold;
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .outline-label:hover {
+    text-decoration: none;
 }
 
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .modal-title {
     font-size: 1.5em;
 }
 
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .modal-content input {
-    background-color: rgba(26, 21, 21, 0.51);
-    color: white;
-}
-
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .modal-content .input-group-addon {
-    color: white;
-}
-
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .modal-backdrop {
     background-color: rgba(174, 174, 174, 0.7);
-}
-
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .modal-content .btn-primary {
-    border-color: var(--primary-color);
 }
 
 /** UI for electron */
 
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write #spell-check-panel {
     background-color: #42464A;
-}
-
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .dropdown-menu .divider {
-    background-color: #777777;
-    opacity: 1;
 }
 
 @media (max-width: 1000px) {
@@ -318,10 +321,10 @@
     color: #fff;
 }
 
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .active-tab-files #info-panel-tab-file,
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .active-tab-files #info-panel-tab-file:hover,
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .active-tab-outline #info-panel-tab-outline,
-.typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .active-tab-outline #info-panel-tab-outline:hover {
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .active-tab-files #info-panel-tab-file,
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .active-tab-files #info-panel-tab-file:hover,
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .active-tab-outline #info-panel-tab-outline,
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .active-tab-outline #info-panel-tab-outline:hover {
     color: #eee;
 }
 
@@ -335,6 +338,37 @@
     border:solid 1px;
     box-shadow: 4px 4px 20px rgba(0, 0, 0, 0.79);
     background-color: var(--bg-color);
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .file-list-item {
+    border-bottom:none;
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .file-list-item-summary {
+    opacity: 1;
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .file-list-item.active:first-child {
+    border-top: none;
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .file-node-background {
+    height: 32px;
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .file-library-node.active>.file-node-content,
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .file-list-item.active {
+    color: white;
+    color: var(--active-file-text-color);
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .file-library-node.active>.file-node-background {
+    background-color: #45454a;
+    background-color: var(--active-file-bg-color);
+}
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .file-list-item.active {
+    background-color: #45454a;
+    background-color: var(--active-file-bg-color);
 }
 
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write #ty-tooltip {
@@ -373,12 +407,29 @@
     box-shadow: none;
 }
 
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell [data-is-directory="true"] .file-node-content {
+    margin-bottom: 0;
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .file-node-title {
+    line-height: 22px;
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .html-for-mac .file-node-open-state,
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell .html-for-mac .file-node-icon {
+    line-height: 26px;
+}
+
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write ::-webkit-scrollbar-thumb {
     background: rgba(230, 230, 230, 0.30);
 }
 
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write ::-webkit-scrollbar-thumb:active {
     background: rgba(230, 230, 230, 0.50);
+}
+
+.typora-theme[data-content-theme="typora-bonne-nouvelle"].typora-app-shell #typora-sidebar:hover div.sidebar-content-content::-webkit-scrollbar-thumb:horizontal {
+    background: rgba(230, 230, 230, 0.30);
 }
 
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] .typora-write .nav-group-item:active {

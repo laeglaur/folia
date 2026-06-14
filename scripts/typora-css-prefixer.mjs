@@ -41,22 +41,16 @@ const themes = [
 ];
 
 const ignoredSelectorPatterns = [
-  /#typora-sidebar\b/,
   /#typora-source\b/,
   /\.CodeMirror\b/,
   /\.cm-s-inner\b/,
-  /\.file-node\b/,
   /\.megamenu\b/,
   /\.context-menu\b/,
+  /\.popover\b/,
+  /\.dropdown-menu\b/,
+  /\.modal-content\b/,
   /\.md-search\b/,
   /#md-searchpanel\b/,
-  /\.sidebar\b/,
-  /#sidebar-content\b/,
-  /\.sidebar-content\b/,
-  /\.sidebar-tab\b/,
-  /\.outline-item\b/,
-  /\.file-list\b/,
-  /\.file-list-item\b/,
   /\.typora-node\b/,
   /\.typora-quick-open\b/,
   /contentmenu/i,
@@ -106,6 +100,51 @@ const normalizeTyporaSelector = (selector) =>
 
 const isTocSelector = (selector) => /\.md-toc\b|\.md-toc-content\b|\.md-toc-item\b/.test(selector);
 
+const isRootSelector = (selector) => /^(:root|html|body)\b/.test(selector.trim());
+
+const shellSelectorPatterns = [
+  /#typora-sidebar\b/,
+  /\.sidebar\b/,
+  /#sidebar-content\b/,
+  /\.sidebar-content\b/,
+  /\.sidebar-tabs\b/,
+  /\.sidebar-tab\b/,
+  /\.sidebar-tab-active\b/,
+  /\.active-tab-/,
+  /\.file-library\b/,
+  /\.file-library-node\b/,
+  /\.file-node-/,
+  /\.file-name\b/,
+  /\.file-list\b/,
+  /\.file-list-item\b/,
+  /\.outline-content\b/,
+  /\.outline-item\b/,
+  /\.outline-label\b/,
+  /\.outline-expander\b/
+];
+
+const isShellSelector = (selector) => shellSelectorPatterns.some((pattern) => pattern.test(selector));
+
+const ruleHasOnlyCustomProperties = (rule) => {
+  let hasDeclaration = false;
+  let onlyVariables = true;
+  rule.walkDecls((declaration) => {
+    hasDeclaration = true;
+    if (!declaration.prop.startsWith('--')) onlyVariables = false;
+  });
+  return hasDeclaration && onlyVariables;
+};
+
+const cloneRuleWithDeclarations = (rule, selector, declarationFilter) => {
+  if (!selector.trim()) return null;
+  const clone = postcss.rule({ selector });
+  rule.each((node) => {
+    if (node.type !== 'decl') return;
+    if (declarationFilter(node)) clone.append(node.clone());
+  });
+  return clone.nodes?.length ? clone : null;
+};
+
 const findTyporaRootFontSize = (root) => {
   let rootFontSize = null;
   root.walkRules((rule) => {
@@ -128,12 +167,34 @@ const rewriteRemUnits = (value) =>
     return `calc(${numericAmount} * var(--typora-root-font-size, 16px))`;
   });
 
-const scopeSelector = (selector, themeId) => {
+const scopeSelector = (selector, themeId, mode = 'content') => {
   if (shouldIgnoreSelector(selector)) return null;
 
   const root = `.typora-theme[data-content-theme="${themeId}"]`;
+  const shell = `${root}.typora-app-shell`;
   const write = `${root} .typora-write`;
   let scoped = normalizeTyporaSelector(selector);
+
+  if (mode === 'vars') return root;
+
+  if (mode === 'shell') {
+    scoped = scoped
+      .replace(/^html\s+body\b/, '')
+      .replace(/^html\b/, '')
+      .replace(/^body\b/, '')
+      .replace(/^content\b/, '.typora-workspace')
+      .replace(/^#typora-sidebar\b/, '#typora-sidebar')
+      .replace(/^\.sidebar-content\b/, '.sidebar-content')
+      .replace(/^\.sidebar-tabs\b/, '.sidebar-tabs')
+      .replace(/^\.sidebar-tab\b/, '.sidebar-tab')
+      .replace(/^\.sidebar(?=[\s.#:[>+~]|$)/, '#typora-sidebar')
+      .trim();
+
+    if (!scoped || scoped === ',') return shell;
+    if (scoped.startsWith('#typora-sidebar')) return `${shell} ${scoped}`;
+    if (scoped.startsWith('.typora-workspace')) return `${shell} ${scoped}`;
+    return `${shell} ${scoped}`;
+  }
 
   if (isTocSelector(scoped)) {
     return `${root} ${scoped.replace(/^\s*\.typora-write\s+/, '')}`;
@@ -163,22 +224,62 @@ const scopeCss = (css, themeId) => {
   });
 
   root.walkRules((rule) => {
-    const selectors = splitSelectors(rule.selector)
-      .map((selector) => scopeSelector(selector, themeId))
+    const originalSelectors = splitSelectors(rule.selector);
+    const rootVariableSelectors = originalSelectors.filter((selector) => isRootSelector(selector) && ruleHasOnlyCustomProperties(rule));
+    const shellSelectors = originalSelectors.filter((selector) => isShellSelector(selector));
+    const canvasSelectors = originalSelectors.filter((selector) => isRootSelector(selector) && !ruleHasOnlyCustomProperties(rule));
+    const contentSelectors = originalSelectors.filter((selector) => !isShellSelector(selector) && !(isRootSelector(selector) && ruleHasOnlyCustomProperties(rule)));
+
+    const extraRules = [];
+
+    if (rootVariableSelectors.length) {
+      const selectors = rootVariableSelectors
+        .map((selector) => scopeSelector(selector, themeId, 'vars'))
+        .filter(Boolean);
+      const uniqueSelectors = [...new Set(selectors)];
+      const cloned = cloneRuleWithDeclarations(rule, uniqueSelectors.join(',\n'), () => true);
+      if (cloned) extraRules.push(cloned);
+    }
+
+    if (canvasSelectors.length) {
+      const selectors = canvasSelectors
+        .map((selector) => scopeSelector(selector, themeId, 'shell'))
+        .filter(Boolean);
+      const uniqueSelectors = [...new Set(selectors)];
+      const cloned = cloneRuleWithDeclarations(rule, uniqueSelectors.join(',\n'), (declaration) =>
+        ['background', 'background-color', 'background-image', 'color', 'font-family', 'font-size', 'line-height', '-webkit-font-smoothing'].includes(declaration.prop) ||
+        declaration.prop.startsWith('--')
+      );
+      if (cloned) extraRules.push(cloned);
+    }
+
+    if (shellSelectors.length) {
+      const selectors = shellSelectors
+        .map((selector) => scopeSelector(selector, themeId, 'shell'))
+        .filter(Boolean);
+      const uniqueSelectors = [...new Set(selectors)];
+      const cloned = cloneRuleWithDeclarations(rule, uniqueSelectors.join(',\n'), () => true);
+      if (cloned) extraRules.push(cloned);
+    }
+
+    const selectors = contentSelectors
+      .map((selector) => scopeSelector(selector, themeId, 'content'))
       .filter(Boolean);
 
     if (!selectors.length) {
+      extraRules.forEach((extraRule) => rule.parent?.insertBefore(rule, extraRule));
       rule.remove();
       return;
     }
 
     rule.selector = [...new Set(selectors)].join(',\n');
+    extraRules.forEach((extraRule) => rule.parent?.insertBefore(rule, extraRule));
   });
 
   if (typoraRootFontSize) {
     root.append(
       postcss.rule({
-        selector: `.typora-theme[data-content-theme="${themeId}"] .typora-write`,
+        selector: `.typora-theme[data-content-theme="${themeId}"]`,
         nodes: [
           postcss.decl({
             prop: '--typora-root-font-size',
