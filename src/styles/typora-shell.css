@@ -1,10 +1,10 @@
 .typora-app-shell {
   --typora-shell-sidebar-width: 260px;
-  --typora-shell-divider: color-mix(in srgb, var(--theme-line, #d8d8d8) 72%, transparent);
-  --typora-shell-muted: var(--theme-muted, #6b7280);
-  --typora-shell-ink: var(--theme-ink, #202124);
-  --typora-shell-bg: var(--bg, var(--theme-bg, #f6f6f4));
-  --typora-shell-panel: var(--card, var(--theme-surface-solid, #ffffff));
+  --typora-shell-divider: var(--panel-border-color, color-mix(in srgb, var(--theme-line, #d8d8d8) 72%, transparent));
+  --typora-shell-muted: var(--control-text-color, var(--theme-muted, #6b7280));
+  --typora-shell-ink: var(--text-color, var(--theme-ink, #202124));
+  --typora-shell-bg: var(--bg-color, var(--bg, var(--theme-bg, #f6f6f4)));
+  --typora-shell-panel: var(--side-bar-bg-color, var(--card, var(--theme-surface-solid, #ffffff)));
   display: grid;
   grid-template-columns: var(--typora-shell-sidebar-width) minmax(0, 1fr);
   min-height: 100vh;
@@ -21,7 +21,7 @@
   min-width: 0;
   overflow: hidden;
   border-right: 1px solid var(--typora-shell-divider);
-  background: color-mix(in srgb, var(--typora-shell-panel) 86%, var(--typora-shell-bg));
+  background: var(--side-bar-bg-color, color-mix(in srgb, var(--typora-shell-panel) 86%, var(--typora-shell-bg)));
   color: var(--typora-shell-muted);
   box-shadow: none;
 }

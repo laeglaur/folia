@@ -1520,7 +1520,7 @@ export function App() {
           style={{ '--level': entry.level } as React.CSSProperties}
           type="button"
         >
-          <span className="outline-expander">{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
+          <span className="outline-expander" aria-hidden="true" />
           <span className="outline-label">{entry.text}</span>
         </button>
       ))}

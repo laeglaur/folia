@@ -187,6 +187,27 @@ checks.typoraOutlineDoesNotUseContentTocCard = await page.evaluate(() => {
     styles.marginTop === '0px';
 });
 
+checks.typoraOutlineDoesNotExposeAppBadges = await page.evaluate(() => {
+  const firstItem = document.querySelector('#typora-sidebar .outline-item');
+  const expander = firstItem?.querySelector('.outline-expander');
+  const label = firstItem?.querySelector('.outline-label');
+  if (!(firstItem instanceof HTMLElement) || !(expander instanceof HTMLElement) || !(label instanceof HTMLElement)) return false;
+  return expander.textContent?.trim() === '' &&
+    label.textContent?.trim().length > 0 &&
+    firstItem.textContent?.trim() === label.textContent?.trim();
+});
+
+await chooseContentTheme('typora-zeus');
+checks.zeusShellUsesThemeSidebarBackground = await page.evaluate(() => {
+  const sidebar = document.querySelector('#typora-sidebar');
+  const label = document.querySelector('#typora-sidebar .outline-label');
+  if (!(sidebar instanceof HTMLElement) || !(label instanceof HTMLElement)) return false;
+  const sidebarStyles = getComputedStyle(sidebar);
+  const labelStyles = getComputedStyle(label);
+  return sidebarStyles.backgroundColor === 'rgb(37, 37, 38)' &&
+    labelStyles.color === 'rgb(204, 204, 204)';
+});
+
 checks.typoraSidebarContract = await page.evaluate(() => {
   const sidebar = document.querySelector('#typora-sidebar');
   const files = document.querySelector('.file-library-node');
