@@ -241,6 +241,19 @@ export type MarkdownImportWarning = {
   message: string;
 };
 
+export type MarkdownFolderDocument = {
+  relativePath: string;
+  markdown: string;
+};
+
+export type MarkdownFolderImportResult = {
+  notebook: Notebook;
+  pages: Page[];
+  blocks: Block[];
+  warnings: MarkdownImportWarning[];
+  expandedPageIds: string[];
+};
+
 type ParsedFrontmatter = {
   body: string;
   metadata: PageMetadata;
@@ -527,6 +540,88 @@ export const createPageFromMarkdown = async (notebookId: string, filename: strin
     },
     blocks,
     warnings
+  };
+};
+
+const normalizeRelativePath = (path: string) =>
+  path
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .split('/')
+    .filter((part) => part && part !== '.')
+    .join('/');
+
+const basenameFromPath = (path: string) => normalizeRelativePath(path).split('/').pop() ?? path;
+
+const dirnameFromPath = (path: string) => {
+  const normalized = normalizeRelativePath(path);
+  const parts = normalized.split('/');
+  parts.pop();
+  return parts.join('/');
+};
+
+const titleFromFolderSegment = (segment: string) => segment.trim() || 'Folder';
+
+export const createNotebookFromMarkdownDocuments = async (
+  rootName: string,
+  documents: MarkdownFolderDocument[]
+): Promise<MarkdownFolderImportResult> => {
+  const normalizedDocuments = documents
+    .map((document) => ({
+      ...document,
+      relativePath: normalizeRelativePath(document.relativePath)
+    }))
+    .filter((document) => /\.(md|markdown|txt)$/i.test(document.relativePath))
+    .sort((a, b) => a.relativePath.localeCompare(b.relativePath, undefined, { numeric: true }));
+
+  const notebook = createNotebook(rootName.trim() || 'Imported notebook');
+  const pages: Page[] = [];
+  const blocks: Block[] = [];
+  const warnings: MarkdownImportWarning[] = [];
+  const expandedPageIds: string[] = [];
+  const folderPageIds = new Map<string, string>();
+
+  const ensureFolderPage = (folderPath: string): string | null => {
+    const normalized = normalizeRelativePath(folderPath);
+    if (!normalized) return null;
+    const existingId = folderPageIds.get(normalized);
+    if (existingId) return existingId;
+
+    const parts = normalized.split('/');
+    const parentPath = parts.slice(0, -1).join('/');
+    const parentId = ensureFolderPage(parentPath);
+    const page = createPage(notebook.id, titleFromFolderSegment(parts[parts.length - 1]), parentId);
+    pages.push(page);
+    folderPageIds.set(normalized, page.id);
+    expandedPageIds.push(page.id);
+    return page.id;
+  };
+
+  for (const document of normalizedDocuments) {
+    const parentId = ensureFolderPage(dirnameFromPath(document.relativePath));
+    const imported = await createPageFromMarkdown(notebook.id, basenameFromPath(document.relativePath), document.markdown);
+    const page = {
+      ...imported.page,
+      parentId,
+      metadata: {
+        ...imported.page.metadata,
+        sourceFilename: document.relativePath
+      }
+    };
+    pages.push(page);
+    blocks.push(...imported.blocks);
+    warnings.push(...imported.warnings);
+  }
+
+  return {
+    notebook: {
+      ...notebook,
+      pageIds: pages.map((page) => page.id)
+    },
+    pages,
+    blocks,
+    warnings,
+    expandedPageIds
   };
 };
 

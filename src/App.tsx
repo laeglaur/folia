@@ -55,6 +55,7 @@ import type { AppState, Block, ContentThemeId, Page, ShellId } from './types';
 import {
   appendOperation,
   createBlock,
+  createNotebookFromMarkdownDocuments,
   createNotebook,
   createPageFromMarkdown,
   createPage,
@@ -309,6 +310,121 @@ const plainTextToHtml = (value: string) => {
     .split(/\n{2,}/)
     .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
     .join('');
+};
+
+const markdownImportFileRegex = /\.(md|markdown|txt)$/i;
+const mediaImportFileRegex = /\.(png|jpe?g|gif|webp|avif|svg|mp4|mov|webm|m4v|mp3|wav|m4a|aac|ogg|flac)$/i;
+const videoImportFileRegex = /\.(mp4|mov|webm|m4v)$/i;
+const audioImportFileRegex = /\.(mp3|wav|m4a|aac|ogg|flac)$/i;
+
+const normalizeImportPath = (path: string) =>
+  path
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .split('/')
+    .filter((part) => part && part !== '.')
+    .reduce<string[]>((parts, part) => {
+      if (part === '..') parts.pop();
+      else parts.push(part);
+      return parts;
+    }, [])
+    .join('/');
+
+const dirnameFromImportPath = (path: string) => {
+  const parts = normalizeImportPath(path).split('/');
+  parts.pop();
+  return parts.join('/');
+};
+
+const fileRelativePath = (file: File) => normalizeImportPath((file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name);
+
+const splitImportRoot = (paths: string[]) => {
+  const normalizedPaths = paths.map(normalizeImportPath).filter(Boolean);
+  const firstSegments = normalizedPaths.map((path) => path.split('/')[0]).filter(Boolean);
+  const commonRoot = firstSegments[0] && firstSegments.every((segment) => segment === firstSegments[0])
+    ? firstSegments[0]
+    : '';
+  const hasNestedRoot = commonRoot && normalizedPaths.some((path) => path.includes('/'));
+  return {
+    rootName: hasNestedRoot ? commonRoot : 'Imported notebook',
+    stripRoot: (path: string) => {
+      const normalized = normalizeImportPath(path);
+      return hasNestedRoot && normalized.startsWith(`${commonRoot}/`)
+        ? normalized.slice(commonRoot.length + 1)
+        : normalized;
+    }
+  };
+};
+
+const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+  reader.onerror = () => reject(reader.error ?? new Error(`Could not read ${file.name}`));
+  reader.readAsDataURL(file);
+});
+
+const resolveImportedAssetPath = (rawPath: string, markdownPath: string, assetPaths: Set<string>) => {
+  const trimmed = rawPath.trim().replace(/^<|>$/g, '');
+  if (!trimmed || /^(?:[a-z]+:|#|data:)/i.test(trimmed)) return null;
+  const cleanPath = trimmed.split(/[?#]/)[0] ?? trimmed;
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(cleanPath);
+    } catch {
+      return cleanPath;
+    }
+  })();
+  const fromMarkdownDir = normalizeImportPath(`${dirnameFromImportPath(markdownPath)}/${decoded}`);
+  if (assetPaths.has(fromMarkdownDir)) return fromMarkdownDir;
+  const normalized = normalizeImportPath(decoded);
+  return assetPaths.has(normalized) ? normalized : null;
+};
+
+const embedImportedAssetMarkdown = async (markdown: string, markdownPath: string, assets: Map<string, File>) => {
+  const assetPaths = new Set(assets.keys());
+  const dataUrlCache = new Map<string, string>();
+  const dataUrlForPath = async (path: string) => {
+    const cached = dataUrlCache.get(path);
+    if (cached) return cached;
+    const file = assets.get(path);
+    if (!file) return '';
+    const dataUrl = await fileToDataUrl(file);
+    dataUrlCache.set(path, dataUrl);
+    return dataUrl;
+  };
+
+  const imageMatches = Array.from(markdown.matchAll(/!\[([^\]]*)\]\(([^)\n]+)\)/g));
+  let rewritten = markdown;
+  for (const match of imageMatches) {
+    const assetPath = resolveImportedAssetPath(match[2], markdownPath, assetPaths);
+    if (!assetPath) continue;
+    const dataUrl = await dataUrlForPath(assetPath);
+    if (!dataUrl) continue;
+    rewritten = rewritten.replace(match[0], `![${match[1]}](${dataUrl})`);
+  }
+
+  const linkMatches = Array.from(rewritten.matchAll(/(?<!!)\[([^\]]+)\]\(([^)\n]+)\)/g));
+  for (const match of linkMatches) {
+    const assetPath = resolveImportedAssetPath(match[2], markdownPath, assetPaths);
+    if (!assetPath || (!videoImportFileRegex.test(assetPath) && !audioImportFileRegex.test(assetPath))) continue;
+    const dataUrl = await dataUrlForPath(assetPath);
+    if (!dataUrl) continue;
+    const tagName = videoImportFileRegex.test(assetPath) ? 'video' : 'audio';
+    const label = escapeHtml(match[1]);
+    rewritten = rewritten.replace(match[0], `<${tagName} controls src="${escapeHtml(dataUrl)}" title="${label}"></${tagName}>`);
+  }
+
+  const bareMediaMatches = Array.from(rewritten.matchAll(/^[^\S\r\n]*([^\s<>()]+?\.(?:mp4|mov|webm|m4v|mp3|wav|m4a|aac|ogg|flac))[^\S\r\n]*$/gim));
+  for (const match of bareMediaMatches) {
+    const assetPath = resolveImportedAssetPath(match[1], markdownPath, assetPaths);
+    if (!assetPath) continue;
+    const dataUrl = await dataUrlForPath(assetPath);
+    if (!dataUrl) continue;
+    const tagName = videoImportFileRegex.test(assetPath) ? 'video' : 'audio';
+    rewritten = rewritten.replace(match[0], `<${tagName} controls src="${escapeHtml(dataUrl)}"></${tagName}>`);
+  }
+
+  return rewritten;
 };
 
 const isGreenishColor = (value: string | null) => {
@@ -1050,6 +1166,7 @@ export function App() {
   const blockEditorRefs = useRef<Record<string, Editor | null>>({});
   const persistenceReadyRef = useRef(!isTauri());
   const markdownInputRef = useRef<HTMLInputElement | null>(null);
+  const markdownFolderInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1469,6 +1586,68 @@ export function App() {
     }
   };
 
+  const importMarkdownFolder = async (fileList: FileList | null) => {
+    const files = Array.from(fileList ?? []);
+    const markdownFiles = files.filter((file) => markdownImportFileRegex.test(file.name));
+    if (!markdownFiles.length) return;
+
+    const allRelativePaths = files.map(fileRelativePath);
+    const { rootName, stripRoot } = splitImportRoot(allRelativePaths);
+    const assetFiles = new Map(
+      files
+        .filter((file) => mediaImportFileRegex.test(file.name))
+        .map((file) => [stripRoot(fileRelativePath(file)), file] as const)
+    );
+
+    setImportNotice({ kind: 'loading', message: `Importing folder "${rootName}"...` });
+
+    try {
+      const documents = await Promise.all(markdownFiles.map(async (file) => {
+        const relativePath = stripRoot(fileRelativePath(file));
+        const markdown = await embedImportedAssetMarkdown(await file.text(), relativePath, assetFiles);
+        return { relativePath, markdown };
+      }));
+      const imported = await createNotebookFromMarkdownDocuments(rootName, documents);
+      const warningDetails = imported.warnings.slice(0, 4).map((warning) => `${warning.filename}: ${warning.sourcePath} (${warning.message})`);
+      const activePageId = imported.pages.find((page) => page.blockIds.length)?.id ?? imported.pages[0]?.id ?? state.activePageId;
+
+      setState((current) => ({
+        ...current,
+        notebooks: [...current.notebooks, imported.notebook],
+        pages: [...current.pages, ...imported.pages],
+        blocks: [...current.blocks, ...imported.blocks],
+        activeNotebookId: imported.notebook.id,
+        activePageId,
+        expandedPageIds: [...new Set([...current.expandedPageIds, ...imported.expandedPageIds])],
+        operations: appendOperation(current, {
+          entity: 'notebook',
+          entityId: imported.notebook.id,
+          kind: 'notebook.import_markdown_folder',
+          payload: {
+            notebook: imported.notebook,
+            pageCount: imported.pages.length,
+            blockCount: imported.blocks.length,
+            warningCount: imported.warnings.length
+          }
+        })
+      }));
+
+      setImportNotice({
+        kind: imported.warnings.length ? 'warning' : 'success',
+        message: imported.warnings.length
+          ? `Imported folder "${rootName}" with ${imported.pages.length} page${imported.pages.length > 1 ? 's' : ''}, but ${imported.warnings.length} local asset${imported.warnings.length > 1 ? 's' : ''} could not be copied.`
+          : `Imported folder "${rootName}" with ${imported.pages.length} page${imported.pages.length > 1 ? 's' : ''} and ${imported.blocks.length} block${imported.blocks.length > 1 ? 's' : ''}.`,
+        details: warningDetails
+      });
+    } catch (error) {
+      setImportNotice({
+        kind: 'error',
+        message: 'Markdown folder import failed.',
+        details: [error instanceof Error ? error.message : String(error)]
+      });
+    }
+  };
+
   const openPinnedWindow = async (blockId: string) => {
     setState((current) => ({ ...current, openCardWindowBlockId: blockId }));
     if (!isTauri()) return;
@@ -1786,7 +1965,20 @@ export function App() {
           event.currentTarget.value = '';
         }}
       />
+      <input
+        ref={markdownFolderInputRef}
+        hidden
+        multiple
+        // React does not type these Chromium directory-picker attributes yet.
+        {...{ webkitdirectory: '', directory: '' }}
+        type="file"
+        onChange={(event) => {
+          void importMarkdownFolder(event.target.files);
+          event.currentTarget.value = '';
+        }}
+      />
       <button className="secondary-button" type="button" onClick={() => markdownInputRef.current?.click()}><FileUp size={15} /> Import MD</button>
+      <button className="secondary-button" type="button" onClick={() => markdownFolderInputRef.current?.click()}><FileUp size={15} /> Import folder</button>
       <button className="secondary-button" type="button" onClick={exportMarkdown}><Download size={15} /> Markdown</button>
       <button className="secondary-button" type="button" onClick={exportJson}><Upload size={15} /> Backup</button>
     </div>

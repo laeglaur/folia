@@ -81,7 +81,7 @@ await page.goto(appUrl);
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 
-await page.locator('input[type="file"]').setInputFiles(markdownPath);
+await page.locator('input[type="file"]:not([webkitdirectory])').setInputFiles(markdownPath);
 await page.locator('.page-title').waitFor({ state: 'visible' });
 
 const pageTitle = await page.locator('.page-title').inputValue();
