@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bold,
   Braces,
@@ -69,6 +69,16 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { common, createLowlight } from 'lowlight';
 import 'katex/dist/katex.min.css';
 import { contentThemes } from './typora-theme-registry';
+
+const themesWithoutNativeDivider = new Set<ContentThemeId>([
+  'notebook',
+  'typora-base',
+  'typora-proof',
+  'typora-bonne-nouvelle',
+  'typora-eloquent',
+  'typora-everforest-light',
+  'typora-law'
+]);
 
 type EditorTarget = { kind: 'composer' } | { kind: 'block'; blockId: string };
 type ImportNotice = {
@@ -913,6 +923,7 @@ export function App() {
   const visibleBlocks = query.trim()
     ? pageBlocks.filter((block) => block.content.plainText.toLowerCase().includes(query.trim().toLowerCase()))
     : pageBlocks;
+  const showBlockDividers = state.shell === 'typora-base';
   const metadataChips = [
     activePage.metadata?.date,
     activePage.metadata?.status,
@@ -1390,57 +1401,64 @@ export function App() {
       ) : null}
 
       <div className="block-list">
-        {visibleBlocks.map((block) => (
-          <article
-            className={`block ${block.collapsed ? 'is-collapsed' : ''} ${draggingBlockId === block.id ? 'is-dragging' : ''}`}
-            key={block.id}
-            id={block.id}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              reorderBlock(event.dataTransfer.getData('text/plain'), block.id);
-              setDraggingBlockId(null);
-            }}
-          >
-            <div
-              className="block-rail"
-              draggable
-              onDragStart={(event) => {
-                setDraggingBlockId(block.id);
-                event.dataTransfer.setData('text/plain', block.id);
+        {visibleBlocks.map((block, index) => (
+          <Fragment key={block.id}>
+            <article
+              className={`block ${block.collapsed ? 'is-collapsed' : ''} ${draggingBlockId === block.id ? 'is-dragging' : ''}`}
+              id={block.id}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                reorderBlock(event.dataTransfer.getData('text/plain'), block.id);
+                setDraggingBlockId(null);
               }}
-              onDragEnd={() => setDraggingBlockId(null)}
             >
-              <button className="fold-button" onClick={() => toggleBlock(block.id, 'collapsed')} aria-label="Collapse block" type="button">
-                <ChevronRight size={15} />
-              </button>
-            </div>
-            <div className="block-body">
-              {showToolbar && activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
-                <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
-              )}
-              {!block.collapsed ? (
-                <RichEditor
-                  editorRef={(editor) => { blockEditorRefs.current[block.id] = editor; }}
-                  className="block-content editable"
-                  html={htmlWithOutlineAnchors(block.content.html, block.id)}
-                  onFocus={() => activateEditor({ kind: 'block', blockId: block.id })}
-                  onMoveBlock={(direction) => {
-                    moveBlockByKeyboard(block.id, direction);
-                    return true;
-                  }}
-                  onBlur={(html, plainText) => updateBlock(block.id, html, plainText)}
-                />
-              ) : (
-                <div className="block-content preview">{firstLines(block.content.plainText)}</div>
-              )}
-            </div>
-            <div className="block-actions">
-              <button className={`icon-button ghost ${block.pinned ? 'active' : ''}`} onClick={() => toggleBlock(block.id, 'pinned')} aria-label="Pin block" type="button">
-                <MapPin size={15} />
-              </button>
-            </div>
-          </article>
+              <div
+                className="block-rail"
+                draggable
+                onDragStart={(event) => {
+                  setDraggingBlockId(block.id);
+                  event.dataTransfer.setData('text/plain', block.id);
+                }}
+                onDragEnd={() => setDraggingBlockId(null)}
+              >
+                <button className="fold-button" onClick={() => toggleBlock(block.id, 'collapsed')} aria-label="Collapse block" type="button">
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+              <div className="block-body">
+                {showToolbar && activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
+                  <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
+                )}
+                {!block.collapsed ? (
+                  <RichEditor
+                    editorRef={(editor) => { blockEditorRefs.current[block.id] = editor; }}
+                    className="block-content editable"
+                    html={htmlWithOutlineAnchors(block.content.html, block.id)}
+                    onFocus={() => activateEditor({ kind: 'block', blockId: block.id })}
+                    onMoveBlock={(direction) => {
+                      moveBlockByKeyboard(block.id, direction);
+                      return true;
+                    }}
+                    onBlur={(html, plainText) => updateBlock(block.id, html, plainText)}
+                  />
+                ) : (
+                  <div className="block-content preview">{firstLines(block.content.plainText)}</div>
+                )}
+              </div>
+              <div className="block-actions">
+                <button className={`icon-button ghost ${block.pinned ? 'active' : ''}`} onClick={() => toggleBlock(block.id, 'pinned')} aria-label="Pin block" type="button">
+                  <MapPin size={15} />
+                </button>
+              </div>
+            </article>
+            {showBlockDividers && index < visibleBlocks.length - 1 && (
+              <hr
+                className={`block-divider md-hr md-end-block ${themesWithoutNativeDivider.has(state.contentTheme) ? 'uses-default-divider' : 'uses-theme-divider'}`}
+                aria-hidden="true"
+              />
+            )}
+          </Fragment>
         ))}
       </div>
 

@@ -315,6 +315,27 @@ for (const theme of ['typora-ravel-light', 'typora-gruvbox-dark', 'typora-zeus',
   });
 }
 
+await chooseContentTheme('typora-chocolate-box');
+checks.typoraBlockDividerUsesThemeHrUi = await page.evaluate(() => {
+  const divider = document.querySelector('.typora-write hr.block-divider');
+  if (!(divider instanceof HTMLHRElement)) return false;
+  const styles = getComputedStyle(divider);
+  return divider.classList.contains('uses-theme-divider') &&
+    styles.backgroundImage.includes('/typora-assets/typora-chocolate-box/ChocolateBox/hr.svg') &&
+    Number.parseFloat(styles.height) >= 80 &&
+    styles.boxShadow === 'none';
+});
+
+await chooseContentTheme('typora-proof');
+checks.typoraBlockDividerFallbackIsExplicit = await page.evaluate(() => {
+  const divider = document.querySelector('.typora-write hr.block-divider');
+  if (!(divider instanceof HTMLHRElement)) return false;
+  const styles = getComputedStyle(divider);
+  return divider.classList.contains('uses-default-divider') &&
+    Number.parseFloat(styles.height) >= 12 &&
+    styles.boxShadow !== 'none';
+});
+
 await chooseContentTheme('typora-bonne-nouvelle');
 checks.typoraFallbackDoesNotUseNativeGardenChrome = await page.locator('.typora-write').evaluate((surface) => {
   const h1 = surface.querySelector('h1');
@@ -393,13 +414,13 @@ checks.typoraEditorChromeBaseOwnsBlockUi = await page.evaluate(() => {
   const write = document.querySelector('.page-surface.typora-write');
   const title = document.querySelector('.page-title');
   const block = document.querySelector('.typora-write .block');
+  const blockDivider = document.querySelector('.typora-write hr.block-divider');
   const composerCard = document.querySelector('.composer-card');
-  if (!(write instanceof HTMLElement) || !(title instanceof HTMLElement) || !(block instanceof HTMLElement) || !(composerCard instanceof HTMLElement)) return false;
+  if (!(write instanceof HTMLElement) || !(title instanceof HTMLElement) || !(block instanceof HTMLElement) || !(blockDivider instanceof HTMLHRElement) || !(composerCard instanceof HTMLElement)) return false;
 
   const writeStyles = getComputedStyle(write);
   const titleStyles = getComputedStyle(title);
   const blockStyles = getComputedStyle(block);
-  const blockDividerStyles = getComputedStyle(block, '::after');
   const composerStyles = getComputedStyle(composerCard);
   const writeRect = write.getBoundingClientRect();
   const titleRect = title.getBoundingClientRect();
@@ -411,9 +432,7 @@ checks.typoraEditorChromeBaseOwnsBlockUi = await page.evaluate(() => {
     blockStyles.backgroundColor === 'rgba(0, 0, 0, 0)' &&
     blockStyles.borderTopStyle === 'none' &&
     blockStyles.borderRadius === '0px' &&
-    blockDividerStyles.content !== 'none' &&
-    Number.parseFloat(blockDividerStyles.height) <= 1 &&
-    Number.parseFloat(blockDividerStyles.opacity) < 0.8 &&
+    blockDivider.classList.contains('block-divider') &&
     composerStyles.backgroundColor === 'rgba(0, 0, 0, 0)' &&
     composerStyles.borderRadius === '0px' &&
     Number.parseFloat(composerStyles.marginTop) < 48;
