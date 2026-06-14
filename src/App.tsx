@@ -2,7 +2,6 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bold,
   Braces,
-  CalendarDays,
   CheckSquare,
   ChevronDown,
   ChevronRight,
@@ -15,7 +14,6 @@ import {
   Keyboard,
   List,
   ListOrdered,
-  MapPin,
   NotebookTabs,
   Outdent,
   Paperclip,
@@ -220,7 +218,6 @@ const shellThemes: Array<{ id: ShellId; label: string }> = [
 
 const starIconUrl = '/app-assets/star.png';
 const fishIconUrl = '/app-assets/blue_red_fish.png';
-const foxIconUrl = '/app-assets/fox_head.png';
 
 const lowlight = createLowlight(common);
 
@@ -371,6 +368,41 @@ const dispatchAttachmentShortcut = () => {
   window.dispatchEvent(new CustomEvent('notebook:attachment-shortcut'));
 };
 
+const urlWithoutQuery = (url: string) => url.split(/[?#]/)[0] ?? url;
+const isVideoUrl = (url: string) => /\.(mp4|mov|webm|m4v|ogv)(?:$|\?)/i.test(urlWithoutQuery(url));
+const isAudioUrl = (url: string) => /\.(mp3|wav|m4a|aac|ogg|flac|aiff?)(?:$|\?)/i.test(urlWithoutQuery(url));
+
+const embedUrlFor = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, '');
+    if (host === 'youtu.be') return `https://www.youtube.com/embed/${escapeHtml(parsed.pathname.slice(1))}`;
+    if (host === 'youtube.com' || host === 'm.youtube.com') {
+      const videoId = parsed.searchParams.get('v');
+      if (videoId) return `https://www.youtube.com/embed/${escapeHtml(videoId)}`;
+      if (parsed.pathname.startsWith('/embed/')) return escapeHtml(parsed.href);
+    }
+    if (host === 'vimeo.com') {
+      const videoId = parsed.pathname.split('/').filter(Boolean)[0];
+      if (videoId) return `https://player.vimeo.com/video/${escapeHtml(videoId)}`;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+const mediaHtmlForUrl = (url: string, label = '') => {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  const src = escapeHtml(trimmed);
+  const title = escapeHtml(label.trim() || 'Embedded media');
+  const embedUrl = embedUrlFor(trimmed);
+  if (isVideoUrl(trimmed)) return `<video controls src="${src}"></video>`;
+  if (isAudioUrl(trimmed)) return `<audio controls src="${src}"></audio>`;
+  return `<iframe class="media-embed md-media" src="${embedUrl ?? src}" title="${title}" loading="lazy" allowfullscreen="true"></iframe>`;
+};
+
 const dispatchMathEditRequest = (editor: Editor, pos: number) => {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent('notebook:edit-block-math', { detail: { editor, pos } }));
@@ -473,11 +505,12 @@ const formatDateTime = (value: Date) =>
 const blockTimestampLabel = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
   const day = `${date.getDate()}`.padStart(2, '0');
   const hours = `${date.getHours()}`.padStart(2, '0');
   const minutes = `${date.getMinutes()}`.padStart(2, '0');
-  return `${month}.${day} ${hours}:${minutes}`;
+  return `${year}/${month}/${day} ${hours}:${minutes}`;
 };
 
 const findBlockMathPositionNear = (editor: Editor, around: number) => {
@@ -1363,9 +1396,10 @@ const BracketTodoInput = Extension.create({
         find: embeddedLinkInputRegex,
         handler: ({ range, commands }) => {
           commands.deleteRange(range);
-          const src = window.prompt('Embedded URL', 'https://');
-          if (!src?.trim()) return;
-          commands.insertContent(`<iframe class="media-embed md-media" src="${escapeHtml(src.trim())}" title="Embedded media" loading="lazy" allowfullscreen="true"></iframe>`);
+          const src = window.prompt('Link or media URL', 'https://');
+          const html = src ? mediaHtmlForUrl(src) : null;
+          if (!html) return;
+          commands.insertContent(html);
         }
       }),
       new InputRule({
@@ -1641,6 +1675,8 @@ export function App() {
   const [tableControls, setTableControls] = useState<TableControlsState>({ visible: false, top: 0, left: 0 });
   const [mathEditor, setMathEditor] = useState<MathEditorState | null>(null);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [copiedPageId, setCopiedPageId] = useState<string | null>(null);
   const [outlineDrawerOpen, setOutlineDrawerOpen] = useState(false);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('write');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
@@ -1736,7 +1772,7 @@ export function App() {
       cardWindow.setVisibleOnAllWorkspaces(true),
       cardWindow.setSkipTaskbar(true),
       cardWindow.setDecorations(false),
-      cardWindow.setShadow(true),
+      cardWindow.setShadow(false),
       cardWindow.setFocus()
     ]);
   }, [cardModeBlockId]);
@@ -1747,7 +1783,7 @@ export function App() {
       cardWindow.setVisibleOnAllWorkspaces(true),
       cardWindow.setSkipTaskbar(true),
       cardWindow.setDecorations(false),
-      cardWindow.setShadow(true),
+      cardWindow.setShadow(false),
       cardWindow.setFocus()
     ]);
   };
@@ -2390,6 +2426,27 @@ export function App() {
     });
   };
 
+  const handlePageKeyboard = (event: React.KeyboardEvent<HTMLButtonElement>, page: Page) => {
+    const key = event.key.toLowerCase();
+    const commandKey = event.metaKey || event.ctrlKey;
+    if (commandKey && key === 'c') {
+      event.preventDefault();
+      setCopiedPageId(page.id);
+      return true;
+    }
+    if (commandKey && key === 'v') {
+      event.preventDefault();
+      duplicatePageTree(copiedPageId ?? page.id);
+      return true;
+    }
+    if (!commandKey && (event.key === 'Delete' || event.key === 'Backspace')) {
+      event.preventDefault();
+      deletePageTree(page.id);
+      return true;
+    }
+    return false;
+  };
+
   const renamePage = (title: string) => {
     setState((current) => ({
       ...current,
@@ -2547,8 +2604,8 @@ export function App() {
       minWidth: 240,
       minHeight: 140,
       decorations: false,
-      transparent: false,
-      shadow: true,
+      transparent: true,
+      shadow: false,
       alwaysOnTop: true,
       visibleOnAllWorkspaces: true,
       skipTaskbar: true,
@@ -2586,6 +2643,7 @@ export function App() {
                 if (draggedId) movePageUnder(draggedId, page.id);
               }}
               onKeyDown={(event) => {
+                if (handlePageKeyboard(event, page)) return;
                 if (event.key !== 'Tab') return;
                 event.preventDefault();
                 setWorkspaceView('write');
@@ -2617,10 +2675,6 @@ export function App() {
               </span>
               <span>{page.title}</span>
             </button>
-            <div className="row-actions page-row-actions">
-              <button className="mini-button row-action duplicate-page-button" type="button" onClick={() => duplicatePageTree(page.id)} aria-label={`Duplicate page ${page.title}`}><FilePlus size={13} /></button>
-              <button className="mini-button row-action delete-page-button" type="button" onClick={() => deletePageTree(page.id)} aria-label={`Delete page ${page.title}`}><Trash2 size={13} /></button>
-            </div>
           </div>
           {hasChildren && expanded && <div className="page-tree-children">{renderPageTree(page.id, depth + 1)}</div>}
         </div>
@@ -2651,6 +2705,7 @@ export function App() {
                 if (draggedId) movePageUnder(draggedId, page.id);
               }}
               onKeyDown={(event) => {
+                if (handlePageKeyboard(event, page)) return;
                 if (event.key !== 'Tab') return;
                 event.preventDefault();
                 setWorkspaceView('write');
@@ -2682,10 +2737,6 @@ export function App() {
               </span>
               <span className="file-node-title file-name">{page.title}</span>
             </button>
-            <div className="row-actions file-node-actions">
-              <button className="mini-button row-action duplicate-page-button" type="button" onClick={() => duplicatePageTree(page.id)} aria-label={`Duplicate page ${page.title}`}><FilePlus size={13} /></button>
-              <button className="mini-button row-action delete-page-button" type="button" onClick={() => deletePageTree(page.id)} aria-label={`Delete page ${page.title}`}><Trash2 size={13} /></button>
-            </div>
           </div>
           {hasChildren && expanded && <div className="file-node-children">{renderTyporaFileTree(page.id, depth + 1)}</div>}
         </div>
@@ -2888,26 +2939,6 @@ export function App() {
     </aside>
   );
 
-  const renderOutlineToggle = (className = 'secondary-button') => {
-    const edgeButton = className.includes('outline-edge-button');
-    return (
-      <button
-        className={`${className} ${outlineDrawerOpen ? 'active' : ''}`}
-        type="button"
-        onClick={() => setOutlineDrawerOpen((open) => !open)}
-        aria-pressed={outlineDrawerOpen}
-        aria-label={outlineDrawerOpen ? 'Hide outline' : 'Show outline'}
-        title={outlineDrawerOpen ? 'Hide outline' : 'Show outline'}
-      >
-        {edgeButton ? (
-          <img className="outline-toggle-image" src={foxIconUrl} alt="" aria-hidden="true" />
-        ) : (
-          <><span>Outline</span><img className="outline-toggle-image" src={foxIconUrl} alt="" aria-hidden="true" /></>
-        )}
-      </button>
-    );
-  };
-
   const renderCalendarView = () => {
     const currentMonthKey = monthKey(calendarMonth);
     const todayKey = localDateKey(new Date());
@@ -2991,6 +3022,15 @@ export function App() {
     </div>
   );
 
+  const renderSidebarPins = () => (
+    <section className="sidebar-section pinned-sidebar-section">
+      <div className="section-row">
+        <div className="section-label">Pinned</div>
+      </div>
+      {renderPinnedCards('sidebar-pin-list', 'sidebar-pin-card')}
+    </section>
+  );
+
   const renderToolControls = (compact = false) => (
     <div className={compact ? 'typora-tool-controls' : 'topbar-actions'}>
       <label className="view-toggle"><input type="checkbox" checked={showToolbar} onChange={(event) => setShowToolbar(event.target.checked)} /> Toolbar</label>
@@ -3042,7 +3082,22 @@ export function App() {
           event.currentTarget.value = '';
         }}
       />
-      <button className={`secondary-button ${workspaceView === 'calendar' ? 'active' : ''}`} type="button" onClick={() => setWorkspaceView(workspaceView === 'calendar' ? 'write' : 'calendar')}><CalendarDays size={15} /> Calendar</button>
+      <button
+        className={`secondary-button ${outlineDrawerOpen ? 'active' : ''}`}
+        type="button"
+        onClick={() => setOutlineDrawerOpen((open) => !open)}
+        aria-pressed={outlineDrawerOpen}
+      >
+        <PanelRight size={15} /> Outline
+      </button>
+      <button
+        className={`secondary-button ${sidebarCollapsed ? 'active' : ''}`}
+        type="button"
+        onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+        aria-pressed={sidebarCollapsed}
+      >
+        <NotebookTabs size={15} /> Sidebar
+      </button>
       <button className="secondary-button" type="button" onClick={() => markdownInputRef.current?.click()}><FileUp size={15} /> Import MD</button>
       <button className="secondary-button" type="button" onClick={() => markdownFolderInputRef.current?.click()}><FileUp size={15} /> Import folder</button>
       <button className="secondary-button" type="button" onClick={exportMarkdown}><Download size={15} /> Markdown</button>
@@ -3063,7 +3118,7 @@ export function App() {
   );
 
   const renderNativeShell = () => (
-    <div className="app-shell typora-theme" data-content-theme={state.contentTheme} data-shell={state.shell}>
+    <div className={`app-shell typora-theme ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={state.contentTheme} data-shell={state.shell}>
       <aside className="sidebar">
         <div className="brand-block">
           <p className="eyebrow">{state.shell === 'native-ledger' ? 'ledger notes' : 'garden notes'}</p>
@@ -3123,6 +3178,8 @@ export function App() {
           </div>
         </section>
 
+        {renderSidebarPins()}
+
         <section className="sidebar-note">
           <strong>今天也要</strong>
           <span>记录美好的一天哦~</span>
@@ -3145,10 +3202,6 @@ export function App() {
           <div className="panel-title"><PanelRight size={16} /> Outline</div>
           {renderNativeOutline()}
         </section>
-        <section className="panel-card desktop-preview">
-          <div className="panel-title"><MapPin size={16} /> Pinned</div>
-          {renderPinnedCards()}
-        </section>
       </aside>
 
       {renderFishDesk()}
@@ -3156,7 +3209,7 @@ export function App() {
       {openCardBlock && (
         <div className="floating-card-window">
           <div className="floating-card-head">
-            <span />
+            <span>{blockTimestampLabel(openCardBlock.createdAt)}</span>
             <button type="button" onClick={() => setState((current) => ({ ...current, openCardWindowBlockId: null }))}>×</button>
           </div>
           <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: openCardBlock.content.html }} />
@@ -3166,7 +3219,7 @@ export function App() {
   );
 
   const renderTyporaShell = () => (
-    <div className={`typora-app-shell typora-theme ${outlineDrawerOpen ? 'outline-open' : ''}`} data-content-theme={state.contentTheme} data-shell={state.shell}>
+    <div className={`typora-app-shell typora-theme ${outlineDrawerOpen ? 'outline-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={state.contentTheme} data-shell={state.shell}>
       <aside id="typora-sidebar" className="typora-sidebar active-tab-files">
         <div id="sidebar-content" className="sidebar-content">
           <section className="typora-sidebar-pane is-active">
@@ -3225,12 +3278,13 @@ export function App() {
             >
               {renderTyporaFileTree(null)}
             </div>
+
+            {renderSidebarPins()}
           </section>
         </div>
       </aside>
 
       <main className="typora-workspace">
-        {renderOutlineToggle('outline-edge-button')}
         {renderWorkspaceContent()}
       </main>
 
@@ -3241,7 +3295,7 @@ export function App() {
       {openCardBlock && (
         <div className="floating-card-window">
           <div className="floating-card-head">
-            <span />
+            <span>{blockTimestampLabel(openCardBlock.createdAt)}</span>
             <button type="button" onClick={() => setState((current) => ({ ...current, openCardWindowBlockId: null }))}>×</button>
           </div>
           <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: openCardBlock.content.html }} />
@@ -3269,7 +3323,7 @@ export function App() {
           event.stopPropagation();
           dragCardWindow(event);
         }}>
-          <span aria-hidden="true" />
+          <span>{blockTimestampLabel(cardModeBlock.createdAt)}</span>
           <button type="button" onClick={closeCardWindow} aria-label="Close pinned card">×</button>
         </header>
         <div className="floating-card-body card-mode">

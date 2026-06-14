@@ -100,22 +100,36 @@ const normalizeContentTheme = (contentTheme?: string): ContentThemeId => {
   return 'notebook';
 };
 
-const convertLegacyAssetSrc = (src: string) => {
-  if (!isTauri() || !src.startsWith('asset://localhost/')) return src;
+const shouldConvertStoredMediaSrc = (src: string) => {
+  if (!src) return false;
+  if (src.startsWith('/app-assets/') || src.startsWith('data:') || /^https?:\/\//i.test(src)) return false;
+  return src.startsWith('asset://localhost/')
+    || src.startsWith('file://')
+    || src.startsWith('/Users/')
+    || src.startsWith('/private/')
+    || src.startsWith('/Volumes/')
+    || src.startsWith('/var/');
+};
+
+const convertStoredMediaSrc = (src: string) => {
+  if (!isTauri() || !shouldConvertStoredMediaSrc(src)) return src;
   try {
-    return convertFileSrc(new URL(src).pathname);
+    if (src.startsWith('asset://localhost/') || src.startsWith('file://')) {
+      return convertFileSrc(new URL(src).pathname);
+    }
+    return convertFileSrc(src);
   } catch {
     return src;
   }
 };
 
 const normalizeStoredMediaUrls = (html: string) => {
-  if (!isTauri() || !html.includes('asset://localhost/')) return html;
+  if (!isTauri()) return html;
   const container = document.createElement('div');
   container.innerHTML = html;
   container.querySelectorAll<HTMLImageElement | HTMLVideoElement | HTMLAudioElement>('img[src], video[src], audio[src]').forEach((element) => {
     const src = element.getAttribute('src');
-    if (src) element.setAttribute('src', convertLegacyAssetSrc(src));
+    if (src) element.setAttribute('src', convertStoredMediaSrc(src));
   });
   return container.innerHTML;
 };

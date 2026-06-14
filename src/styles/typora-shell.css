@@ -1,6 +1,6 @@
 .typora-app-shell {
   --typora-shell-sidebar-width: 260px;
-  --typora-shell-outline-width: 292px;
+  --typora-shell-outline-width: 240px;
   --typora-shell-workspace-padding: 34px 34px 80px;
   --typora-shell-page-top: 34px;
   --typora-shell-divider: var(--panel-border-color, color-mix(in srgb, var(--theme-line, #d8d8d8) 72%, transparent));
@@ -20,6 +20,14 @@
   grid-template-columns: var(--typora-shell-sidebar-width) minmax(0, 1fr) var(--typora-shell-outline-width);
 }
 
+.typora-app-shell.sidebar-collapsed {
+  grid-template-columns: 0 minmax(0, 1fr) 0;
+}
+
+.typora-app-shell.sidebar-collapsed.outline-open {
+  grid-template-columns: 0 minmax(0, 1fr) var(--typora-shell-outline-width);
+}
+
 .typora-app-shell #typora-sidebar {
   position: sticky;
   top: 0;
@@ -32,6 +40,11 @@
   background: var(--side-bar-bg-color, color-mix(in srgb, var(--typora-shell-panel) 86%, var(--typora-shell-bg)));
   color: var(--typora-shell-muted);
   box-shadow: none;
+}
+
+.typora-app-shell.sidebar-collapsed #typora-sidebar {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .typora-app-shell .typora-workspace {
@@ -388,53 +401,6 @@
   box-shadow: none;
 }
 
-.typora-app-shell .outline-edge-button {
-  position: fixed;
-  top: 50%;
-  right: 14px;
-  z-index: 8;
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  min-height: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--typora-shell-muted);
-  font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
-  line-height: 1;
-  padding: 0;
-  transform: translateY(-50%);
-  box-shadow: none;
-}
-
-.typora-app-shell.outline-open .outline-edge-button {
-  right: calc(var(--typora-shell-outline-width) + 12px);
-}
-
-.typora-app-shell .outline-edge-button:hover,
-.typora-app-shell .outline-edge-button.active {
-  background: transparent;
-  color: var(--typora-shell-active-text);
-}
-
-.typora-app-shell .outline-edge-button .outline-toggle-image {
-  display: block;
-  width: 34px;
-  height: 34px;
-  object-fit: contain;
-  filter: drop-shadow(0 7px 13px color-mix(in srgb, #000 18%, transparent));
-  opacity: 0.9;
-  transition: opacity 120ms ease, transform 120ms ease;
-}
-
-.typora-app-shell .outline-edge-button:hover .outline-toggle-image,
-.typora-app-shell .outline-edge-button.active .outline-toggle-image {
-  opacity: 1;
-  transform: translateY(-1px);
-}
-
 @media (max-width: 900px) {
   .typora-app-shell {
     grid-template-columns: 1fr;
@@ -450,10 +416,6 @@
 
   .typora-app-shell .outline-drawer {
     display: none;
-  }
-
-  .typora-app-shell .outline-edge-button {
-    right: 12px;
   }
 
   .typora-app-shell .typora-workspace {

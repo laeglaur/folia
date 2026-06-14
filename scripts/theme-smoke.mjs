@@ -38,6 +38,24 @@ checks.nativeGardenShell = await page.evaluate(() => Boolean(
   !document.querySelector('#typora-sidebar')
 ));
 
+checks.nativeSidebarKeepsPinsAndPageDrag = await page.evaluate(() => {
+  const pinList = document.querySelector('.sidebar .sidebar-pin-list');
+  const pageButton = document.querySelector('.sidebar .page-button');
+  const rightPanelPinned = document.querySelector('.right-panel .desktop-preview');
+  return pinList instanceof HTMLElement &&
+    pageButton instanceof HTMLButtonElement &&
+    pageButton.draggable &&
+    !rightPanelPinned;
+});
+
+await page.locator('.fish-desk-trigger').hover();
+await page.locator('.fish-desk .secondary-button').filter({ hasText: 'Sidebar' }).click();
+checks.nativeSidebarCanCollapseFromFishDesk = await page.evaluate(() => Boolean(
+  document.querySelector('.app-shell.sidebar-collapsed')
+) && getComputedStyle(document.querySelector('.app-shell.sidebar-collapsed .sidebar')).display === 'none');
+await page.locator('.fish-desk-trigger').hover();
+await page.locator('.fish-desk .secondary-button').filter({ hasText: 'Sidebar' }).click();
+
 await chooseShell('native-ledger');
 checks.nativeLedgerDiffers = await page.evaluate(() => {
   const sidebar = document.querySelector('.sidebar');
@@ -58,6 +76,18 @@ checks.typoraShellSwitches = await page.evaluate(() => Boolean(
   !document.querySelector('.sidebar-note') &&
   !document.querySelector('.topbar')
 ));
+await page.waitForTimeout(220);
+checks.typoraOutlineClosedByDefault = await page.evaluate(() => {
+  const shell = document.querySelector('.typora-app-shell');
+  const drawer = document.querySelector('.outline-drawer');
+  if (!(shell instanceof HTMLElement) || !(drawer instanceof HTMLElement)) return false;
+  const shellStyles = getComputedStyle(shell);
+  const drawerStyles = getComputedStyle(drawer);
+  return !shell.classList.contains('outline-open') &&
+    drawerStyles.opacity === '0' &&
+    drawerStyles.pointerEvents === 'none' &&
+    shellStyles.gridTemplateColumns.endsWith('0px');
+});
 
 const composer = page.locator('.typora-write .composer');
 await composer.click();
@@ -490,7 +520,8 @@ checks.ravelEditorChromeKeepsPillIconsCentered = await page.evaluate(() => {
   });
 });
 
-await page.getByRole('button', { name: 'Outline' }).click();
+await page.locator('.fish-desk-trigger').hover();
+await page.locator('.fish-desk .secondary-button').filter({ hasText: 'Outline' }).click();
 checks.typoraOutlineDoesNotUseContentTocCard = await page.evaluate(() => {
   const drawer = document.querySelector('.outline-drawer.is-open');
   const outline = drawer?.querySelector('.outline-content.md-toc-content');
@@ -513,6 +544,14 @@ checks.typoraOutlineKeepsTypeLabels = await page.evaluate(() => {
     firstItem.textContent?.trim().startsWith(expander.textContent?.trim() ?? '');
 });
 
+checks.typoraOutlineOpensFromFishDesk = await page.evaluate(() => {
+  const drawer = document.querySelector('.outline-drawer.is-open');
+  const shell = document.querySelector('.typora-app-shell.outline-open');
+  if (!(drawer instanceof HTMLElement) || !(shell instanceof HTMLElement)) return false;
+  const rect = drawer.getBoundingClientRect();
+  return rect.width <= 250 && rect.width >= 220;
+});
+
 await chooseContentTheme('typora-zeus');
 checks.zeusShellUsesThemeSidebarBackground = await page.evaluate(() => {
   const sidebar = document.querySelector('#typora-sidebar');
@@ -530,6 +569,8 @@ checks.typoraSidebarContract = await page.evaluate(() => {
   const outline = document.querySelector('.outline-drawer .outline-item');
   const desk = document.querySelector('.fish-desk');
   const deskTools = document.querySelector('.fish-desk .typora-tool-controls');
+  const pinList = document.querySelector('#typora-sidebar .sidebar-pin-list');
+  const fileButton = document.querySelector('.file-node-content:not(.notebook-node)');
   if (!(sidebar instanceof HTMLElement) || !(files instanceof HTMLElement) || !(outline instanceof HTMLElement) || !(desk instanceof HTMLElement) || !(deskTools instanceof HTMLElement)) return false;
   const fileNodeContent = files.querySelector('.file-node-content');
   if (!(fileNodeContent instanceof HTMLElement)) return false;
@@ -539,8 +580,25 @@ checks.typoraSidebarContract = await page.evaluate(() => {
     fileStyles.borderRadius !== '999px' &&
     outlineStyles.borderRadius !== '999px' &&
     desk.querySelector('.fish-desk-trigger img') !== null &&
-    deskTools.querySelector('.shell-theme-select') !== null;
+    deskTools.querySelector('.shell-theme-select') !== null &&
+    [...deskTools.querySelectorAll('button')].some((button) => button.textContent?.includes('Outline')) &&
+    [...deskTools.querySelectorAll('button')].some((button) => button.textContent?.includes('Sidebar')) &&
+    pinList instanceof HTMLElement &&
+    fileButton instanceof HTMLButtonElement &&
+    fileButton.draggable;
 });
+
+await page.locator('.fish-desk-trigger').hover();
+await page.locator('.fish-desk .secondary-button').filter({ hasText: 'Sidebar' }).click();
+checks.typoraSidebarCanCollapseFromFishDesk = await page.evaluate(() => {
+  const shell = document.querySelector('.typora-app-shell.sidebar-collapsed');
+  const sidebar = document.querySelector('#typora-sidebar');
+  if (!(shell instanceof HTMLElement) || !(sidebar instanceof HTMLElement)) return false;
+  const styles = getComputedStyle(sidebar);
+  return styles.visibility === 'hidden' && styles.pointerEvents === 'none';
+});
+await page.locator('.fish-desk-trigger').hover();
+await page.locator('.fish-desk .secondary-button').filter({ hasText: 'Sidebar' }).click();
 
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'domcontentloaded' });
@@ -567,24 +625,15 @@ await page.evaluate(() => {
   localStorage.setItem('block-first-notebook.state.v1', JSON.stringify(state));
 });
 await page.reload({ waitUntil: 'domcontentloaded' });
-await page.locator('.fish-desk-trigger').hover();
-await page.locator('.fish-desk .secondary-button').filter({ hasText: 'Calendar' }).click();
-await page.locator('.workspace .calendar-workspace .calendar-view').waitFor({ state: 'visible' });
-checks.nativeCalendarShowsBlockEntries = await page.evaluate(() => {
+checks.nativeCalendarDataRemainsAvailable = await page.evaluate(() => {
   const localDateKey = (date) => `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}-${`${date.getDate()}`.padStart(2, '0')}`;
   const expectedDate = new Date();
   expectedDate.setDate(expectedDate.getDate() + 1);
-  const calendar = document.querySelector('.workspace .calendar-workspace .calendar-view');
-  const entries = [...(calendar?.querySelectorAll('.calendar-entry') ?? [])];
-  const smokeEntry = entries.find((candidate) => candidate.textContent?.includes('calendar smoke block'));
-  if (!(calendar instanceof HTMLElement) || !(smokeEntry instanceof HTMLElement)) return false;
-  const workspace = calendar.closest('.calendar-workspace');
-  const day = smokeEntry.closest('.calendar-day');
-  return workspace instanceof HTMLElement &&
-    !document.querySelector('.right-panel .calendar-view') &&
-    calendar.textContent?.includes('calendar smoke block') &&
-    day instanceof HTMLElement &&
-    day.dataset.date === localDateKey(expectedDate);
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  const block = state.blocks?.find((candidate) => candidate.id === 'block_calendar_smoke');
+  return Boolean(block?.content?.plainText?.includes('calendar smoke block')) &&
+    localDateKey(new Date(block.createdAt)) === localDateKey(expectedDate) &&
+    !document.querySelector('.right-panel .calendar-view');
 });
 
 await chooseShell('typora-base');

@@ -29,6 +29,14 @@ input, select { color: var(--ink); }
   padding: var(--layout-shell-padding);
 }
 
+.app-shell.sidebar-collapsed {
+  grid-template-columns: minmax(0, 1fr) var(--layout-right-panel-width);
+}
+
+.app-shell.sidebar-collapsed .sidebar {
+  display: none;
+}
+
 .app-shell::before {
   position: fixed;
   left: 0;
@@ -1557,6 +1565,47 @@ input, select { color: var(--ink); }
   object-fit: contain;
 }
 
+.sidebar-pin-list {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--nav-list-margin-top);
+}
+
+.sidebar-pin-card {
+  width: 100%;
+  max-height: 118px;
+  overflow: hidden;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: var(--desktop-card-radius);
+  background: color-mix(in srgb, var(--theme-surface-solid, #fffdf7) 92%, transparent);
+  color: var(--muted);
+  box-shadow: none;
+  text-align: left;
+  font-size: 11.5px;
+  line-height: 1.32;
+}
+
+.sidebar-pin-card img,
+.sidebar-pin-card video,
+.sidebar-pin-card iframe.media-embed {
+  display: block;
+  max-width: 100%;
+  max-height: 72px;
+  object-fit: contain;
+}
+
+.sidebar-pin-card audio {
+  width: 100%;
+}
+
+.sidebar-pin-card p,
+.sidebar-pin-card ul,
+.sidebar-pin-card ol,
+.sidebar-pin-card blockquote {
+  margin-block: 0 4px;
+}
+
 .fish-desk {
   position: fixed;
   right: 22px;
@@ -1660,7 +1709,7 @@ input, select { color: var(--ink); }
 .card-window-page {
   min-height: 100vh;
   padding: var(--floating-card-page-padding);
-  background: var(--floating-card-page-background);
+  background: transparent;
   display: grid;
   grid-template-rows: var(--floating-card-grip-height) minmax(0, 1fr);
   gap: 4px;
@@ -1673,7 +1722,7 @@ input, select { color: var(--ink); }
   height: var(--floating-card-grip-height);
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 8px;
   padding: var(--floating-card-grip-padding);
   border: var(--floating-card-grip-border);
@@ -1688,7 +1737,13 @@ input, select { color: var(--ink); }
 }
 
 .card-window-grip > span {
-  display: none;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--muted) 82%, transparent);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card-window-grip button {
@@ -1711,7 +1766,8 @@ input, select { color: var(--ink); }
   height: 100%;
   border: var(--floating-card-mode-border);
   border-radius: var(--floating-card-mode-radius);
-  background: var(--floating-card-mode-background);
+  background: color-mix(in srgb, var(--floating-card-mode-background) 86%, transparent);
+  backdrop-filter: blur(10px);
   overflow: auto;
   cursor: text;
 }
@@ -1764,6 +1820,12 @@ input, select { color: var(--ink); }
   border-bottom: 1px solid var(--line-soft);
   color: var(--muted);
   font-size: var(--floating-card-head-font-size);
+}
+.floating-card-head > span {
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .floating-card-head button { background: transparent; color: var(--muted); font-size: 20px; line-height: 1; }
 .floating-card-body { padding: var(--floating-card-body-padding); color: var(--floating-card-body-ink); font-size: var(--floating-card-body-font-size); line-height: var(--floating-card-body-line-height); max-height: var(--floating-card-body-max-height); overflow: auto; }

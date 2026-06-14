@@ -217,6 +217,36 @@ inputRulesHtml = await embeddedLinkComposer.evaluate((node) => node.innerHTML);
 checks.embeddedLinkInputRule = inputRulesHtml.includes('iframe') && inputRulesHtml.includes('https://example.com/embed');
 
 await resetApp();
+await page.evaluate(() => {
+  window.prompt = () => 'https://example.com/audio.mp3';
+});
+const audioLinkComposer = page.locator('.composer').last();
+await audioLinkComposer.click();
+await page.keyboard.type('/link ');
+inputRulesHtml = await audioLinkComposer.evaluate((node) => node.innerHTML);
+checks.linkInputRuleEmbedsAudio = inputRulesHtml.includes('<audio') && inputRulesHtml.includes('https://example.com/audio.mp3');
+
+await resetApp();
+await page.evaluate(() => {
+  window.prompt = () => 'https://example.com/video.mp4';
+});
+const videoLinkComposer = page.locator('.composer').last();
+await videoLinkComposer.click();
+await page.keyboard.type('/link ');
+inputRulesHtml = await videoLinkComposer.evaluate((node) => node.innerHTML);
+checks.linkInputRuleEmbedsVideo = inputRulesHtml.includes('<video') && inputRulesHtml.includes('https://example.com/video.mp4');
+
+await resetApp();
+await page.evaluate(() => {
+  window.prompt = () => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+});
+const youtubeLinkComposer = page.locator('.composer').last();
+await youtubeLinkComposer.click();
+await page.keyboard.type('/link ');
+inputRulesHtml = await youtubeLinkComposer.evaluate((node) => node.innerHTML);
+checks.linkInputRuleEmbedsYoutube = inputRulesHtml.includes('<iframe') && inputRulesHtml.includes('youtube.com/embed/dQw4w9WgXcQ');
+
+await resetApp();
 const mathBlockComposer = page.locator('.composer').last();
 await mathBlockComposer.click();
 await page.keyboard.type('/math');
@@ -343,7 +373,9 @@ await childButton.focus();
 await page.keyboard.press('Shift+Tab');
 await childButton.focus();
 await page.keyboard.press('Tab');
-await page.getByLabel('Duplicate page Parent ops').click();
+await page.getByRole('button', { name: /^Parent ops$/ }).first().focus();
+await page.keyboard.press(`${modKey}+C`);
+await page.keyboard.press(`${modKey}+V`);
 await page.waitForFunction(() => {
   const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
   return state.pages?.some((storedPage) => storedPage.title === 'Parent ops copy');
@@ -355,7 +387,8 @@ checks.pageTreeDuplicate = Boolean(parentCopy && childCopy);
 await page.evaluate(() => {
   window.confirm = () => true;
 });
-await page.getByLabel('Delete page Parent ops copy').click();
+await page.getByRole('button', { name: /^Parent ops copy$/ }).first().focus();
+await page.keyboard.press('Delete');
 await page.waitForFunction(() => {
   const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
   return !state.pages?.some((storedPage) => storedPage.title === 'Parent ops copy');
@@ -379,7 +412,9 @@ await page.getByRole('button', { name: /^Child ops$/ }).first().click();
 await page.locator('.composer').last().click();
 await page.keyboard.type('copy delete body');
 await page.keyboard.press('Shift+Enter');
-await page.getByLabel('Duplicate page Child ops').click();
+await page.getByRole('button', { name: /^Child ops$/ }).first().focus();
+await page.keyboard.press(`${modKey}+C`);
+await page.keyboard.press(`${modKey}+V`);
 await page.waitForFunction(() => {
   const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
   return state.pages?.filter((storedPage) => storedPage.title === 'Child ops copy').length === 1;
@@ -391,7 +426,8 @@ checks.pageDuplicateCopiesBlocks = Boolean(copiedBlock?.content?.plainText?.incl
 await page.evaluate(() => {
   window.confirm = () => true;
 });
-await page.getByLabel('Delete page Child ops copy').click();
+await page.getByRole('button', { name: /^Child ops copy$/ }).first().focus();
+await page.keyboard.press('Delete');
 await page.waitForFunction(() => {
   const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
   return !state.pages?.some((storedPage) => storedPage.title === 'Child ops copy');
