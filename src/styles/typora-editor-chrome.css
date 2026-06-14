@@ -8,6 +8,9 @@
   --typora-editor-control-hover-bg: color-mix(in srgb, var(--typora-shell-ink) 9%, transparent);
   --typora-editor-toolbar-bg: color-mix(in srgb, var(--typora-shell-panel) 86%, transparent);
   --typora-editor-toolbar-border: color-mix(in srgb, var(--typora-shell-divider) 82%, transparent);
+  --typora-editor-block-divider-color: var(--hr-border-color, var(--ravel-hr-color, var(--border-color, var(--table-border-color, var(--typora-shell-divider)))));
+  --typora-editor-block-divider: color-mix(in srgb, var(--typora-editor-block-divider-color) 46%, transparent);
+  --typora-editor-block-divider-hover: color-mix(in srgb, var(--typora-editor-block-divider-color) 70%, transparent);
 }
 
 .typora-app-shell .page-surface.typora-write {
@@ -60,14 +63,31 @@
 }
 
 .typora-app-shell .block {
+  position: relative;
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr) 24px;
   gap: 7px;
-  padding: 1px 0;
+  padding: 1px 0 9px;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+}
+
+.typora-app-shell .block::after {
+  position: absolute;
+  right: 31px;
+  bottom: 2px;
+  left: 29px;
+  height: 1px;
+  background: var(--typora-editor-block-divider);
+  opacity: 0.42;
+  pointer-events: none;
+  content: "";
+}
+
+.typora-app-shell .block:last-child::after {
+  display: none;
 }
 
 .typora-app-shell .block:hover,
@@ -75,6 +95,12 @@
   border-color: transparent;
   background: transparent;
   box-shadow: none;
+}
+
+.typora-app-shell .block:hover::after,
+.typora-app-shell .block:focus-within::after {
+  background: var(--typora-editor-block-divider-hover);
+  opacity: 0.74;
 }
 
 .typora-app-shell .block-body {

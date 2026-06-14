@@ -61,7 +61,7 @@ await composer.evaluate((element) => {
     '<blockquote class="md-end-block"><p class="md-end-block">Quote alias</p></blockquote>',
     '<ul class="md-list"><li class="md-list-item md-end-block" data-list-collapsed="false"><p class="md-end-block">Parent</p><ul class="md-list"><li class="md-list-item md-end-block" data-list-collapsed="false"><p class="md-end-block">Child</p></li></ul></li></ul>',
     '<ul class="contains-task-list task-list md-list" data-type="taskList"><li data-checked="false" data-type="taskItem" class="task-list-item md-task-list-item md-end-block" data-list-collapsed="false" data-todo-style="plain"><label contenteditable="false"><input type="checkbox"><span></span></label><div><p class="md-end-block">task alias</p></div></li></ul>',
-    '<pre class="md-fences md-end-block"><code>const ok = true;</code></pre>',
+    '<pre class="md-fences md-end-block"><code>function ok(value) {\n  const doubled = value * 2;\n  return doubled;\n}</code></pre>',
     '<table class="md-table"><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>',
     '<div class="md-math-block mathjax-block" data-type="block-math">x^2</div>'
   ].join('');
@@ -275,6 +275,46 @@ for (const theme of ['typora-zeus', 'typora-folio', 'typora-flexoki-light']) {
   });
 }
 
+await chooseContentTheme('typora-paperglow');
+checks.paperglowFencedCodeKeepsBlockRhythm = await page.locator('.typora-write').evaluate((surface) => {
+  const pre = surface.querySelector('pre.md-fences');
+  const code = surface.querySelector('pre.md-fences > code');
+  if (!(pre instanceof HTMLElement) || !(code instanceof HTMLElement)) return false;
+  const preStyles = getComputedStyle(pre);
+  const codeStyles = getComputedStyle(code);
+  const preRect = pre.getBoundingClientRect();
+  const codeRect = code.getBoundingClientRect();
+  return preStyles.backgroundColor === 'rgb(252, 251, 248)' &&
+    preStyles.borderRadius === '16px' &&
+    preStyles.whiteSpace === 'pre' &&
+    codeStyles.display === 'block' &&
+    codeStyles.backgroundColor === 'rgba(0, 0, 0, 0)' &&
+    codeStyles.whiteSpace === 'pre' &&
+    codeStyles.fontSize === '14px' &&
+    codeRect.left > preRect.left &&
+    codeRect.right < preRect.right &&
+    codeRect.height > 60;
+});
+
+checks.typoraTaskItemsAlignCheckboxWithText = true;
+for (const theme of ['typora-ravel-light', 'typora-gruvbox-dark', 'typora-zeus', 'typora-minimalism']) {
+  await chooseContentTheme(theme);
+  checks.typoraTaskItemsAlignCheckboxWithText = checks.typoraTaskItemsAlignCheckboxWithText && await page.locator('.typora-write').evaluate((surface) => {
+    const item = surface.querySelector('li.task-list-item');
+    const input = item?.querySelector('input[type="checkbox"]');
+    const text = item?.querySelector('div > p:first-child');
+    if (!(item instanceof HTMLElement) || !(input instanceof HTMLElement) || !(text instanceof HTMLElement)) return false;
+    const itemStyles = getComputedStyle(item);
+    const inputRect = input.getBoundingClientRect();
+    const textRect = text.getBoundingClientRect();
+    const delta = Math.abs((inputRect.top + inputRect.height / 2) - (textRect.top + textRect.height / 2));
+    return itemStyles.display === 'grid' &&
+      inputRect.width > 8 &&
+      inputRect.height > 8 &&
+      delta <= 4;
+  });
+}
+
 await chooseContentTheme('typora-bonne-nouvelle');
 checks.typoraFallbackDoesNotUseNativeGardenChrome = await page.locator('.typora-write').evaluate((surface) => {
   const h1 = surface.querySelector('h1');
@@ -359,6 +399,7 @@ checks.typoraEditorChromeBaseOwnsBlockUi = await page.evaluate(() => {
   const writeStyles = getComputedStyle(write);
   const titleStyles = getComputedStyle(title);
   const blockStyles = getComputedStyle(block);
+  const blockDividerStyles = getComputedStyle(block, '::after');
   const composerStyles = getComputedStyle(composerCard);
   const writeRect = write.getBoundingClientRect();
   const titleRect = title.getBoundingClientRect();
@@ -370,6 +411,9 @@ checks.typoraEditorChromeBaseOwnsBlockUi = await page.evaluate(() => {
     blockStyles.backgroundColor === 'rgba(0, 0, 0, 0)' &&
     blockStyles.borderTopStyle === 'none' &&
     blockStyles.borderRadius === '0px' &&
+    blockDividerStyles.content !== 'none' &&
+    Number.parseFloat(blockDividerStyles.height) <= 1 &&
+    Number.parseFloat(blockDividerStyles.opacity) < 0.8 &&
     composerStyles.backgroundColor === 'rgba(0, 0, 0, 0)' &&
     composerStyles.borderRadius === '0px' &&
     Number.parseFloat(composerStyles.marginTop) < 48;

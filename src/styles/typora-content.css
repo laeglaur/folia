@@ -183,6 +183,17 @@
   white-space: pre;
 }
 
+.typora-theme[data-content-theme="typora-paperglow"] .typora-block-doc pre.md-fences {
+  white-space: pre;
+}
+
+.typora-theme[data-content-theme="typora-paperglow"] .typora-block-doc pre.md-fences > code,
+.typora-theme[data-content-theme="typora-paperglow"] .typora-block-doc pre.md-fences > code.hljs {
+  font-family: var(--monospace);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
 .typora-theme[data-content-theme^="typora-"] .typora-block-doc [data-type="block-math"] .block-math-inner {
   text-align: center;
 }
@@ -215,19 +226,52 @@
   border-radius: 0;
 }
 
-.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.task-list-item,
-.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.md-task-list-item {
-  align-items: flex-start;
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(li.task-list-item, li.md-task-list-item, li[data-type="taskItem"]),
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.task-list-item.md-task-list-item[data-type="taskItem"] {
+  display: grid;
+  grid-template-columns: 1.25em minmax(0, 1fr);
+  column-gap: 0.5em;
+  align-items: start;
+  list-style: none;
+  padding-left: 0;
+  margin-left: 0;
 }
 
-.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.task-list-item > label,
-.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.md-task-list-item > label {
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(li.task-list-item, li.md-task-list-item, li[data-type="taskItem"]) > label,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.task-list-item.md-task-list-item[data-type="taskItem"] > label {
+  display: grid;
+  place-items: center;
+  align-self: start;
+  min-width: 1.25em;
+  min-height: max(1lh, 1.5em);
+  margin: 0;
+  padding: 0;
   line-height: inherit;
+  position: relative;
+  inset: auto;
 }
 
-.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.task-list-item > label input[type="checkbox"],
-.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.md-task-list-item > label input[type="checkbox"] {
-  vertical-align: text-top;
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(li.task-list-item, li.md-task-list-item, li[data-type="taskItem"]) > label input[type="checkbox"],
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.task-list-item.md-task-list-item[data-type="taskItem"] > label input[type="checkbox"] {
+  display: block;
+  width: 0.95em;
+  height: 0.95em;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  vertical-align: baseline;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(li.task-list-item, li.md-task-list-item, li[data-type="taskItem"]) > div,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.task-list-item.md-task-list-item[data-type="taskItem"] > div {
+  min-width: 0;
+}
+
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc :where(li.task-list-item, li.md-task-list-item, li[data-type="taskItem"]) > div > p:first-child,
+.typora-theme[data-content-theme^="typora-"] .typora-block-doc li.task-list-item.md-task-list-item[data-type="taskItem"] > div > p:first-child {
+  margin-top: 0;
 }
 
 :where(.typora-theme[data-content-theme^="typora-"] .typora-block-doc kbd,
@@ -294,31 +338,6 @@
   flex: none;
 }
 
-.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.task-list-item,
-.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.md-task-list-item {
-  display: block;
-  min-height: 1.8em;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.task-list-item > label,
-.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.md-task-list-item > label {
-  position: static;
-  display: block;
-  min-height: 0;
-  padding: 0;
-  line-height: inherit;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.task-list-item > div,
-.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.md-task-list-item > div {
-  min-width: 0;
-}
-
-.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.task-list-item > div > p:first-child,
-.typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc li.md-task-list-item > div > p:first-child {
-  margin-top: 0;
-}
-
 .typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc [data-type="block-math"] {
   background-color: var(--code-bg-color);
   border: 1px solid var(--border-color);
@@ -382,37 +401,6 @@
 .typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc .hljs-variable,
 .typora-theme[data-content-theme="typora-konayuki"] .typora-block-doc .hljs-template-variable {
   color: var(--syntax-variable-2);
-}
-
-.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.task-list-item,
-.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.md-task-list-item {
-  display: grid;
-  grid-template-columns: 1.15em minmax(0, 1fr);
-  column-gap: 0.5em;
-  padding-left: 0.15em;
-  align-items: start;
-}
-
-.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.task-list-item > label,
-.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.md-task-list-item > label {
-  display: grid;
-  place-items: center;
-  min-height: 1.5em;
-  padding: 0;
-  line-height: 1.5;
-}
-
-.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.task-list-item > label input[type="checkbox"],
-.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.md-task-list-item > label input[type="checkbox"] {
-  width: 0.95em;
-  height: 0.95em;
-  margin: 0;
-  accent-color: var(--accent, #80372b);
-}
-
-.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.task-list-item > div > p:first-child,
-.typora-theme[data-content-theme="typora-swiss"] .typora-block-doc li.md-task-list-item > div > p:first-child {
-  margin-top: 0;
 }
 
 .typora-theme[data-content-theme="typora-swiss"] .typora-block-doc [data-type="block-math"] {
