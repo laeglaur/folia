@@ -1418,31 +1418,6 @@ export function App() {
     onExportJson: exportJson
   };
 
-  const sharedShellProps = {
-    shell: state.shell,
-    contentTheme: state.contentTheme,
-    sidebarCollapsed,
-    outlineOpen: outlineDrawerOpen,
-    activeNotebook,
-    notebooks: state.notebooks,
-    notebookActions,
-    query,
-    onQueryChange: setQuery,
-    pageTree: renderPageTree(null),
-    typoraFileTree: renderTyporaFileTree(null),
-    workspaceContent: renderWorkspaceContent(),
-    pinnedBlocks,
-    openCardBlock,
-    onOpenPinnedWindow: (blockId: string) => void openPinnedWindow(blockId),
-    onCloseFloatingCard: () => setState((current) => ({ ...current, openCardWindowBlockId: null })),
-    onRootPageDrop: (pageId: string) => movePageUnder(pageId, null),
-    onAddPage: () => addPage(null),
-    controls: shellControls,
-    outlineEntries,
-    onJumpToOutlineEntry: jumpToOutlineEntry,
-    fishIconUrl
-  };
-
   if (cardModeBlock) {
     const closeCardWindow = () => {
       if (isTauri()) {
@@ -1475,6 +1450,31 @@ export function App() {
       />
     );
   }
+
+  const sharedShellProps = {
+    shell: state.shell,
+    contentTheme: state.contentTheme,
+    sidebarCollapsed,
+    outlineOpen: outlineDrawerOpen,
+    activeNotebook,
+    notebooks: state.notebooks,
+    notebookActions,
+    query,
+    onQueryChange: setQuery,
+    pageTree: renderPageTree(null),
+    typoraFileTree: renderTyporaFileTree(null),
+    workspaceContent: renderWorkspaceContent(),
+    pinnedBlocks,
+    openCardBlock,
+    onOpenPinnedWindow: (blockId: string) => void openPinnedWindow(blockId),
+    onCloseFloatingCard: () => setState((current) => ({ ...current, openCardWindowBlockId: null })),
+    onRootPageDrop: (pageId: string) => movePageUnder(pageId, null),
+    onAddPage: () => addPage(null),
+    controls: shellControls,
+    outlineEntries,
+    onJumpToOutlineEntry: jumpToOutlineEntry,
+    fishIconUrl
+  };
 
   return state.shell === 'typora-base' ? <TyporaShell {...sharedShellProps} /> : <NativeShell {...sharedShellProps} />;
 }
