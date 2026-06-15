@@ -163,13 +163,14 @@
   --toolbar-divider-height: 18px;
 
   --block-list-gap: 9px;
-  --block-grid-columns: 32px minmax(0, 1fr) 32px;
+  --block-grid-columns: 32px minmax(0, 1fr);
   --block-gap: 8px;
   --block-padding: 10px 8px;
   --block-radius: 13px;
   --block-hover-background: rgba(255, 255, 255, 0.48);
   --block-hover-shadow: 0 8px 18px rgba(83, 112, 89, 0.08);
   --block-border: 1px solid transparent;
+  --block-border-enabled: 1px dashed color-mix(in srgb, var(--line) 78%, transparent);
   --block-transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
   --block-drag-opacity: 0.48;
   --block-drag-transform: scale(0.995);

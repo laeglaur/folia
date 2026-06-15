@@ -150,12 +150,13 @@
   --toolbar-divider-height: 16px;
 
   --block-list-gap: 4px;
-  --block-grid-columns: 24px minmax(0, 1fr) 28px;
+  --block-grid-columns: 24px minmax(0, 1fr);
   --block-gap: 6px;
   --block-padding: 6px 5px;
   --block-radius: 4px;
   --block-hover-background: rgba(255, 255, 255, 0.66);
   --block-hover-shadow: inset 0 0 0 1px rgba(36, 45, 39, 0.08);
+  --block-border-enabled: 1px solid rgba(36, 45, 39, 0.14);
   --block-rail-gap: 3px;
   --block-focus-min-height: 104px;
   --block-focus-padding-bottom: 30px;

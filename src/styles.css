@@ -556,6 +556,10 @@ input, select { color: var(--ink); }
   transition: var(--block-transition);
 }
 
+.typora-write.show-block-borders .block {
+  border: var(--block-border-enabled, var(--block-border));
+}
+
 .block:hover,
 .block:focus-within {
   border-color: var(--line);
@@ -565,8 +569,7 @@ input, select { color: var(--ink); }
 
 .block.is-dragging { opacity: var(--block-drag-opacity); transform: var(--block-drag-transform); }
 
-.block-rail,
-.block-actions { display: flex; flex-direction: column; align-items: center; gap: var(--block-rail-gap); }
+.block-rail { display: flex; flex-direction: column; align-items: center; gap: var(--block-rail-gap); }
 .block-rail { cursor: grab; }
 .block-rail:active { cursor: grabbing; }
 .block-rail .fold-button {
@@ -578,58 +581,34 @@ input, select { color: var(--ink); }
   transform: rotate(90deg);
 }
 .block-created-at {
-  display: inline-block;
+  display: inline-flex;
   width: fit-content;
   margin: 0 0 4px;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
   color: color-mix(in srgb, var(--muted) 76%, transparent);
   font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
   font-size: 10.5px;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  box-shadow: none;
 }
 
-.star-pin-button {
-  width: 26px !important;
-  min-width: 26px !important;
-  max-width: 26px !important;
-  height: 26px !important;
-  min-height: 26px !important;
-  max-height: 26px !important;
-  padding: 0 !important;
-  transform: translateX(-16px);
-  background: transparent !important;
-  box-shadow: none !important;
+.block-created-at:hover,
+.block-created-at:focus-visible {
+  color: var(--ink);
+  outline: 0;
 }
 
-.star-pin-button:hover,
-.star-pin-button.active {
-  background: transparent !important;
-  box-shadow: none !important;
+.block-created-at.is-pinned {
+  padding: 2px 7px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
 }
 
-.star-pin-button img {
-  display: block;
-  width: 20px !important;
-  min-width: 20px !important;
-  max-width: 20px !important;
-  height: 20px !important;
-  min-height: 20px !important;
-  max-height: 20px !important;
-  object-fit: contain;
-  opacity: 0.34;
-  filter: grayscale(1) saturate(0.7);
-  transition: opacity 120ms ease, filter 120ms ease, transform 120ms ease;
-}
-
-.star-pin-button:hover img,
-.star-pin-button.active img {
-  opacity: 1;
-  filter: none;
-}
-
-.star-pin-button.active img {
-  transform: none;
-}
 .block-content,
 .composer,
 .floating-card-body,
@@ -1845,5 +1824,5 @@ input, select { color: var(--ink); }
   .topbar-actions { flex-wrap: wrap; }
   .page-surface { width: 100%; padding: var(--mobile-page-padding); }
   .block { grid-template-columns: minmax(0, 1fr); }
-  .block-rail, .block-actions { flex-direction: row; justify-content: flex-start; }
+  .block-rail { flex-direction: row; justify-content: flex-start; }
 }

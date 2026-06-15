@@ -61,7 +61,6 @@ const shellThemes: Array<{ id: ShellId; label: string }> = [
   { id: 'typora-base', label: 'Typora Base' }
 ];
 
-const starIconUrl = '/app-assets/star.png';
 const fishIconUrl = '/app-assets/blue_red_fish.png';
 
 export function App() {
@@ -74,6 +73,7 @@ export function App() {
   const [tableControls, setTableControls] = useState<TableControlsState>({ visible: false, top: 0, left: 0 });
   const [mathEditor, setMathEditor] = useState<MathEditorState | null>(null);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
+  const [showBlockBorders, setShowBlockBorders] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [copiedPageId, setCopiedPageId] = useState<string | null>(null);
   const [outlineDrawerOpen, setOutlineDrawerOpen] = useState(false);
@@ -1154,7 +1154,7 @@ export function App() {
         draggingBlockId,
         contentTheme: state.contentTheme,
         showBlockDividers,
-        starIconUrl,
+        showBlockBorders,
         composer: {
           activeEditor,
           draft,
@@ -1241,6 +1241,7 @@ export function App() {
   const shellControls = {
     showToolbar,
     showComposerFooter,
+    showBlockBorders,
     newestFirst: pageBlockOrder === 'desc',
     shell: state.shell,
     contentTheme: state.contentTheme,
@@ -1251,6 +1252,7 @@ export function App() {
     sidebarCollapsed,
     onShowToolbarChange: setShowToolbar,
     onShowComposerFooterChange: setShowComposerFooter,
+    onShowBlockBordersChange: setShowBlockBorders,
     onNewestFirstChange: (newestFirst: boolean) => setPageBlockOrder(newestFirst ? 'desc' : 'asc'),
     onShellChange: setShell,
     onContentThemeChange: setContentTheme,

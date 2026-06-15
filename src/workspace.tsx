@@ -136,7 +136,6 @@ type BlockItemProps = {
   showToolbar: boolean;
   tableControls: TableControlsState;
   mathEditor: MathEditorState | null;
-  starIconUrl: string;
   toolbarActions: ToolbarActions;
   onDraggingBlockIdChange: (blockId: string | null) => void;
   onReorderBlock: (sourceId: string, targetId: string) => void;
@@ -159,7 +158,6 @@ function BlockItem({
   showToolbar,
   tableControls,
   mathEditor,
-  starIconUrl,
   toolbarActions,
   onDraggingBlockIdChange,
   onReorderBlock,
@@ -199,7 +197,15 @@ function BlockItem({
         </button>
       </div>
       <div className="block-body">
-        <time className="block-created-at" dateTime={block.createdAt}>{blockTimestampLabel(block.createdAt)}</time>
+        <button
+          className={`block-created-at ${block.pinned ? 'is-pinned' : ''}`}
+          type="button"
+          onClick={() => onToggleBlock(block.id, 'pinned')}
+          aria-pressed={block.pinned}
+          aria-label={block.pinned ? 'Unpin block' : 'Pin block'}
+        >
+          <time dateTime={block.createdAt}>{blockTimestampLabel(block.createdAt)}</time>
+        </button>
         {showToolbar && activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
           <Toolbar
             runCommand={toolbarActions.runCommand}
@@ -228,11 +234,6 @@ function BlockItem({
           <div className="block-content preview">{firstLines(block.content.plainText)}</div>
         )}
       </div>
-      <div className="block-actions">
-        <button className={`icon-button ghost star-pin-button ${block.pinned ? 'active' : ''}`} onClick={() => onToggleBlock(block.id, 'pinned')} aria-label="Pin block" type="button">
-          <img src={starIconUrl} alt="" aria-hidden="true" />
-        </button>
-      </div>
     </article>
   );
 }
@@ -245,7 +246,7 @@ type WriteSurfaceProps = {
   draggingBlockId: string | null;
   contentTheme: ContentThemeId;
   showBlockDividers: boolean;
-  starIconUrl: string;
+  showBlockBorders: boolean;
   composer: ComposerCardProps;
   activeEditor: EditorTarget;
   showToolbar: boolean;
@@ -275,7 +276,7 @@ function WriteSurface({
   draggingBlockId,
   contentTheme,
   showBlockDividers,
-  starIconUrl,
+  showBlockBorders,
   composer,
   activeEditor,
   showToolbar,
@@ -300,7 +301,7 @@ function WriteSurface({
   const composerCard = <ComposerCard {...composer} />;
 
   return (
-    <section className="page-surface typora-content-surface typora-write" id="write">
+    <section className={`page-surface typora-content-surface typora-write ${showBlockBorders ? 'show-block-borders' : ''}`} id="write">
       <input className="page-title" value={activePage.title} onChange={(event) => onRenamePage(event.target.value)} aria-label="Page title" />
       {metadataChips.length ? (
         <div className="page-metadata" aria-label="Page metadata">
@@ -325,7 +326,6 @@ function WriteSurface({
               showToolbar={showToolbar}
               tableControls={tableControls}
               mathEditor={mathEditor}
-              starIconUrl={starIconUrl}
               toolbarActions={toolbarActions}
               onDraggingBlockIdChange={onDraggingBlockIdChange}
               onReorderBlock={onReorderBlock}

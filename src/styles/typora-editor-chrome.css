@@ -8,6 +8,7 @@
   --typora-editor-control-hover-bg: color-mix(in srgb, var(--typora-shell-ink) 9%, transparent);
   --typora-editor-toolbar-bg: color-mix(in srgb, var(--typora-shell-panel) 86%, transparent);
   --typora-editor-toolbar-border: color-mix(in srgb, var(--typora-shell-divider) 82%, transparent);
+  --typora-editor-block-border: 1px solid var(--typora-editor-toolbar-border);
   --typora-editor-block-divider-color: var(--hr-color, var(--hr-border-color, var(--ravel-hr-color, var(--border-color, var(--table-border-color, var(--typora-shell-divider))))));
   --typora-editor-block-divider-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--typora-editor-block-divider-color) 58%, transparent),
@@ -66,7 +67,7 @@
 
 .typora-app-shell .block {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 34px;
+  grid-template-columns: 22px minmax(0, 1fr);
   gap: 7px;
   padding: 1px 0;
   border: 0;
@@ -75,11 +76,22 @@
   box-shadow: none;
 }
 
+.typora-app-shell .typora-write.show-block-borders .block {
+  padding: 8px 10px 8px 6px;
+  border: var(--typora-editor-block-border);
+  border-radius: 4px;
+}
+
 .typora-app-shell .block:hover,
 .typora-app-shell .block:focus-within {
   border-color: transparent;
   background: transparent;
   box-shadow: none;
+}
+
+.typora-app-shell .typora-write.show-block-borders .block:hover,
+.typora-app-shell .typora-write.show-block-borders .block:focus-within {
+  border-color: var(--typora-editor-toolbar-border);
 }
 
 .typora-app-shell .block-divider {
@@ -101,20 +113,35 @@
 }
 
 .typora-app-shell .block-created-at {
+  display: inline-flex;
+  width: fit-content;
   margin: 0 0 7px;
-  padding: 2px 7px;
-  border: 1px solid var(--typora-editor-toolbar-border);
-  border-radius: 4px;
-  background: var(--typora-editor-toolbar-bg);
+  padding: 2px 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
   color: color-mix(in srgb, var(--typora-shell-muted) 86%, transparent);
   font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
   font-size: 11px;
   line-height: 1.25;
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  box-shadow: none;
 }
 
-.typora-app-shell .block-rail,
-.typora-app-shell .block-actions {
+.typora-app-shell .block-created-at:hover,
+.typora-app-shell .block-created-at:focus-visible {
+  color: var(--typora-shell-ink);
+  outline: 0;
+}
+
+.typora-app-shell .block-created-at.is-pinned {
+  padding: 2px 7px;
+  background: color-mix(in srgb, var(--accent, var(--typora-shell-ink)) 18%, transparent);
+  color: var(--accent, var(--typora-shell-ink));
+}
+
+.typora-app-shell .block-rail {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -132,8 +159,7 @@
   cursor: grabbing;
 }
 
-.typora-app-shell .block-rail .fold-button,
-.typora-app-shell .block-actions .icon-button {
+.typora-app-shell .block-rail .fold-button {
   display: grid;
   place-items: center;
   width: 22px;
@@ -153,37 +179,10 @@
   opacity: 0.72;
 }
 
-.typora-app-shell .block-rail .fold-button:hover,
-.typora-app-shell .block-actions .icon-button:hover,
-.typora-app-shell .block-actions .icon-button.active {
+.typora-app-shell .block-rail .fold-button:hover {
   border-color: color-mix(in srgb, var(--typora-shell-divider) 76%, transparent);
   background: var(--typora-editor-control-hover-bg);
   color: var(--typora-shell-ink);
-}
-
-.typora-app-shell .block-actions .star-pin-button,
-.typora-app-shell .block-actions .star-pin-button:hover,
-.typora-app-shell .block-actions .star-pin-button.active,
-.typora-app-shell .block-actions .icon-button.star-pin-button.active {
-  width: 24px !important;
-  min-width: 24px !important;
-  max-width: 24px !important;
-  height: 24px !important;
-  min-height: 24px !important;
-  max-height: 24px !important;
-  transform: translateX(-22px);
-  border-color: transparent;
-  background: transparent !important;
-  box-shadow: none;
-}
-
-.typora-app-shell .block-actions .star-pin-button img {
-  width: 19px !important;
-  min-width: 19px !important;
-  max-width: 19px !important;
-  height: 19px !important;
-  min-height: 19px !important;
-  max-height: 19px !important;
 }
 
 .typora-app-shell .block-rail .fold-button:hover {
@@ -381,7 +380,6 @@
 }
 
 .typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-rail .fold-button,
-.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-actions .icon-button,
 .typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .tool-button {
   display: inline-grid;
   place-items: center;
@@ -390,8 +388,7 @@
   line-height: 1;
 }
 
-.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-rail .fold-button,
-.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-actions .icon-button {
+.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-rail .fold-button {
   width: 32px;
   height: 22px;
 }
@@ -406,7 +403,6 @@
 }
 
 .typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-rail .fold-button svg,
-.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-actions .icon-button svg,
 .typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .tool-button svg {
   display: block;
   margin: 0;

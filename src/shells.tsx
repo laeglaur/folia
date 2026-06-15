@@ -23,6 +23,7 @@ type ToolControlsProps = {
   compact?: boolean;
   showToolbar: boolean;
   showComposerFooter: boolean;
+  showBlockBorders: boolean;
   newestFirst: boolean;
   shell: ShellId;
   contentTheme: ContentThemeId;
@@ -33,6 +34,7 @@ type ToolControlsProps = {
   sidebarCollapsed: boolean;
   onShowToolbarChange: (show: boolean) => void;
   onShowComposerFooterChange: (show: boolean) => void;
+  onShowBlockBordersChange: (show: boolean) => void;
   onNewestFirstChange: (newestFirst: boolean) => void;
   onShellChange: (shell: ShellId) => void;
   onContentThemeChange: (contentTheme: ContentThemeId) => void;
@@ -48,6 +50,7 @@ function ToolControls({
   compact = false,
   showToolbar,
   showComposerFooter,
+  showBlockBorders,
   newestFirst,
   shell,
   contentTheme,
@@ -58,6 +61,7 @@ function ToolControls({
   sidebarCollapsed,
   onShowToolbarChange,
   onShowComposerFooterChange,
+  onShowBlockBordersChange,
   onNewestFirstChange,
   onShellChange,
   onContentThemeChange,
@@ -72,6 +76,7 @@ function ToolControls({
     <div className={compact ? 'typora-tool-controls' : 'topbar-actions'}>
       <label className="view-toggle"><input type="checkbox" checked={showToolbar} onChange={(event) => onShowToolbarChange(event.target.checked)} /> Toolbar</label>
       <label className="view-toggle"><input type="checkbox" checked={showComposerFooter} onChange={(event) => onShowComposerFooterChange(event.target.checked)} /> Add</label>
+      <label className="view-toggle"><input type="checkbox" checked={showBlockBorders} onChange={(event) => onShowBlockBordersChange(event.target.checked)} /> Block borders</label>
       <label className="view-toggle">
         <span>Newest first</span>
         <input
