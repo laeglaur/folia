@@ -1,8 +1,7 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
-  ChevronRight,
-  Plus
+  ChevronRight
 } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { AppState, Block, ContentThemeId, Notebook, Page, ShellId } from './types';
@@ -24,9 +23,7 @@ import {
   escapeHtml,
   importAttachmentFile,
   inferAttachmentKind,
-  RichEditor,
   runListIndentCommand,
-  Toolbar,
   type MathEditorState,
   type MediaNodeType,
   type MediaResizeRequest,
@@ -34,21 +31,16 @@ import {
   type ToolbarCommand
 } from './editor';
 import {
-  blockTimestampLabel,
   calendarDaysForMonth,
   displayMathLatex,
   embedImportedAssetMarkdown,
   extractOutlineEntries,
   fileRelativePath,
-  firstLines,
   findBlockMathPositionNear,
-  htmlWithOutlineAnchors,
   isResizableMediaNode,
   localDateKey,
   markdownImportFileRegex,
   mediaImportFileRegex,
-  monthKey,
-  monthLabel,
   splitImportRoot,
   stripOutlineAnchors,
   type CalendarEntry,
@@ -61,18 +53,7 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import 'katex/dist/katex.min.css';
 import { CardWindowPage, NativeShell, TyporaShell } from './shells';
-
-const themesWithoutNativeDivider = new Set<ContentThemeId>([
-  'notebook',
-  'typora-base',
-  'typora-proof',
-  'typora-bonne-nouvelle',
-  'typora-eloquent',
-  'typora-everforest-light',
-  'typora-law'
-]);
-
-type EditorTarget = { kind: 'composer' } | { kind: 'block'; blockId: string };
+import { WorkspaceContent, type EditorTarget } from './workspace';
 
 const shellThemes: Array<{ id: ShellId; label: string }> = [
   { id: 'native-garden', label: 'Native Garden' },
@@ -1161,221 +1142,84 @@ export function App() {
       );
     });
 
-  const renderComposerCard = () => (
-    <div className="composer-card">
-      {showToolbar && activeEditor.kind === 'composer' && (
-        <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
-      )}
-      <RichEditor
-        editorRef={(editor) => { composerEditorRef.current = editor; }}
-        className="composer"
-        placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
-        onFocus={(editor) => {
-          activateEditor({ kind: 'composer' });
-          syncFloatingControls(editor);
-        }}
-        onSelectionUpdate={syncFloatingControls}
-        tableControls={activeEditor.kind === 'composer' ? tableControls : undefined}
-        runTableCommand={runEditorCommand}
-        onMediaResizeStart={startMediaResize}
-        mathEditor={activeEditor.kind === 'composer' ? mathEditor : null}
-        onMathChange={updateMathEditorLatex}
-        onMathClose={() => setMathEditor(null)}
-        onUpdate={(html) => {
-          setDraft(html);
-        }}
-        onShiftEnter={() => {
-          commitDraft();
-          return true;
-        }}
-      />
-      {showComposerFooter && (
-        <div className="composer-footer">
-          <span>{draft ? 'Ready to become a block' : 'Waiting for a thought'}</span>
-          <button className="primary-button" type="button" onClick={commitDraft}><Plus size={16} /> Add block</button>
-        </div>
-      )}
-    </div>
-  );
-
-  const renderBlockDivider = (key?: string) => showBlockDividers ? (
-    <hr
-      key={key}
-      className={`block-divider md-hr md-end-block ${themesWithoutNativeDivider.has(state.contentTheme) ? 'uses-default-divider' : 'uses-theme-divider'}`}
-      aria-hidden="true"
-    />
-  ) : null;
-
-  const renderWriteSurface = () => (
-    <section className="page-surface typora-content-surface typora-write" id="write">
-      <input className="page-title" value={activePage.title} onChange={(event) => renamePage(event.target.value)} aria-label="Page title" />
-      {metadataChips.length ? (
-        <div className="page-metadata" aria-label="Page metadata">
-          {metadataChips.map((chip, index) => <span key={`${chip}-${index}`}>{chip}</span>)}
-        </div>
-      ) : null}
-
-      {pageBlockOrder === 'desc' ? (
-        <>
-          {renderComposerCard()}
-          {visibleBlocks.length ? renderBlockDivider('composer-to-first-block') : null}
-        </>
-      ) : null}
-
-      <div className="block-list">
-        {visibleBlocks.map((block, index) => (
-          <Fragment key={block.id}>
-            <article
-              className={`block ${block.collapsed ? 'is-collapsed' : ''} ${draggingBlockId === block.id ? 'is-dragging' : ''}`}
-              id={block.id}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                reorderBlock(event.dataTransfer.getData('text/plain'), block.id);
-                setDraggingBlockId(null);
-              }}
-            >
-              <div
-                className="block-rail"
-                draggable
-                onDragStart={(event) => {
-                  setDraggingBlockId(block.id);
-                  event.dataTransfer.setData('text/plain', block.id);
-                }}
-                onDragEnd={() => setDraggingBlockId(null)}
-              >
-                <button className="fold-button" onClick={() => toggleBlock(block.id, 'collapsed')} aria-label="Collapse block" type="button">
-                  <ChevronRight size={15} />
-                </button>
-              </div>
-              <div className="block-body">
-                <time className="block-created-at" dateTime={block.createdAt}>{blockTimestampLabel(block.createdAt)}</time>
-                {showToolbar && activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
-                  <Toolbar runCommand={runEditorCommand} insertTodo={insertTodo} applyHighlight={applyHighlight} applyInlineCode={applyInlineCode} />
-                )}
-                {!block.collapsed ? (
-                  <RichEditor
-                    editorRef={(editor) => { blockEditorRefs.current[block.id] = editor; }}
-                    className="block-content editable"
-                    html={htmlWithOutlineAnchors(block.content.html, block.id)}
-                    onFocus={(editor) => {
-                      activateEditor({ kind: 'block', blockId: block.id });
-                      syncFloatingControls(editor);
-                    }}
-                    onSelectionUpdate={syncFloatingControls}
-                    tableControls={activeEditor.kind === 'block' && activeEditor.blockId === block.id ? tableControls : undefined}
-                    runTableCommand={runEditorCommand}
-                    onMediaResizeStart={startMediaResize}
-                    mathEditor={activeEditor.kind === 'block' && activeEditor.blockId === block.id ? mathEditor : null}
-                    onMathChange={updateMathEditorLatex}
-                    onMathClose={() => setMathEditor(null)}
-                    onMoveBlock={(direction) => {
-                      moveBlockByKeyboard(block.id, direction);
-                      return true;
-                    }}
-                    onBlur={(html, plainText) => updateBlock(block.id, html, plainText)}
-                  />
-                ) : (
-                  <div className="block-content preview">{firstLines(block.content.plainText)}</div>
-                )}
-              </div>
-              <div className="block-actions">
-                <button className={`icon-button ghost star-pin-button ${block.pinned ? 'active' : ''}`} onClick={() => toggleBlock(block.id, 'pinned')} aria-label="Pin block" type="button">
-                  <img src={starIconUrl} alt="" aria-hidden="true" />
-                </button>
-              </div>
-            </article>
-            {index < visibleBlocks.length - 1 ? renderBlockDivider(`${block.id}:divider`) : null}
-          </Fragment>
-        ))}
-      </div>
-
-      {pageBlockOrder === 'asc' ? (
-        <>
-          {visibleBlocks.length ? renderBlockDivider('last-block-to-composer') : null}
-          {renderComposerCard()}
-        </>
-      ) : null}
-    </section>
-  );
-
-  const renderImportNotice = () => importNotice.kind !== 'idle' ? (
-    <div className={`import-notice ${importNotice.kind}`} role="status" aria-live="polite">
-      <span>{importNotice.message}</span>
-      {importNotice.details?.length ? (
-        <ul>
-          {importNotice.details.map((detail) => <li key={detail}>{detail}</li>)}
-        </ul>
-      ) : null}
-    </div>
-  ) : null;
-
-  const renderCalendarView = () => {
-    const currentMonthKey = monthKey(calendarMonth);
-    const todayKey = localDateKey(new Date());
-    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    return (
-      <div className="calendar-view" aria-label="Block calendar">
-        <div className="calendar-header">
-          <button className="mini-button" type="button" onClick={() => moveCalendarMonth(-1)} aria-label="Previous month"><ChevronRight className="flip-x" size={14} /></button>
-          <div className="calendar-title">{monthLabel(calendarMonth)}</div>
-          <button className="mini-button" type="button" onClick={() => moveCalendarMonth(1)} aria-label="Next month"><ChevronRight size={14} /></button>
-        </div>
-        <div className="calendar-weekdays" aria-hidden="true">
-          {weekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}
-        </div>
-        <div className="calendar-grid">
-          {calendarDays.map((day) => {
-            const key = localDateKey(day);
-            const entries = calendarEntriesByDate.get(key) ?? [];
-            return (
-              <div
-                className={`calendar-day ${monthKey(day) !== currentMonthKey ? 'is-muted' : ''} ${key === todayKey ? 'is-today' : ''}`}
-                key={key}
-                data-date={key}
-              >
-                <div className="calendar-day-number">{day.getDate()}</div>
-                <div className="calendar-day-entries">
-                  {entries.slice(0, 2).map(({ block, page }) => (
-                    <button
-                      className="calendar-entry"
-                      key={block.id}
-                      type="button"
-                      onClick={() => jumpToBlock(page.id, block.id)}
-                      title={`${page.title}: ${block.content.plainText}`}
-                    >
-                      <span>{page.title}</span>
-                      <span>{firstLines(block.content.plainText, 44)}</span>
-                    </button>
-                  ))}
-                  {entries.length > 2 ? <div className="calendar-more">+{entries.length - 2}</div> : null}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const renderCalendarWorkspace = () => (
-    <section className="calendar-workspace typora-content-surface typora-write" aria-label="Calendar workspace">
-      <div className="calendar-workspace-header">
-        <div>
-          <p className="section-label">Calendar</p>
-          <h2>Blocks by day</h2>
-        </div>
-        <button className="secondary-button" type="button" onClick={() => setWorkspaceView('write')}>Write</button>
-      </div>
-      {renderCalendarView()}
-    </section>
-  );
-
   const renderWorkspaceContent = () => (
-    <>
-      {renderImportNotice()}
-      {workspaceView === 'calendar' ? renderCalendarWorkspace() : renderWriteSurface()}
-    </>
+    <WorkspaceContent
+      importNotice={importNotice}
+      workspaceView={workspaceView}
+      writeSurface={{
+        activePage,
+        metadataChips,
+        blockOrder: pageBlockOrder,
+        blocks: visibleBlocks,
+        draggingBlockId,
+        contentTheme: state.contentTheme,
+        showBlockDividers,
+        starIconUrl,
+        composer: {
+          activeEditor,
+          draft,
+          showToolbar,
+          showFooter: showComposerFooter,
+          tableControls,
+          mathEditor,
+          toolbarActions: {
+            runCommand: runEditorCommand,
+            insertTodo,
+            applyHighlight,
+            applyInlineCode
+          },
+          onEditorRef: (editor) => { composerEditorRef.current = editor; },
+          onFocus: (editor) => {
+            activateEditor({ kind: 'composer' });
+            syncFloatingControls(editor);
+          },
+          onSelectionUpdate: syncFloatingControls,
+          onRunTableCommand: runEditorCommand,
+          onMediaResizeStart: startMediaResize,
+          onMathChange: updateMathEditorLatex,
+          onMathClose: () => setMathEditor(null),
+          onDraftChange: setDraft,
+          onCommitDraft: commitDraft
+        },
+        activeEditor,
+        showToolbar,
+        tableControls,
+        mathEditor,
+        toolbarActions: {
+          runCommand: runEditorCommand,
+          insertTodo,
+          applyHighlight,
+          applyInlineCode
+        },
+        onRenamePage: renamePage,
+        onDraggingBlockIdChange: setDraggingBlockId,
+        onReorderBlock: reorderBlock,
+        onToggleBlock: toggleBlock,
+        onBlockEditorRef: (blockId, editor) => { blockEditorRefs.current[blockId] = editor; },
+        onBlockFocus: (blockId, editor) => {
+          activateEditor({ kind: 'block', blockId });
+          syncFloatingControls(editor);
+        },
+        onSelectionUpdate: syncFloatingControls,
+        onRunTableCommand: runEditorCommand,
+        onMediaResizeStart: startMediaResize,
+        onMathChange: updateMathEditorLatex,
+        onMathClose: () => setMathEditor(null),
+        onMoveBlock: (blockId, direction) => {
+          moveBlockByKeyboard(blockId, direction);
+          return true;
+        },
+        onUpdateBlock: updateBlock
+      }}
+      calendar={{
+        calendarMonth,
+        calendarDays,
+        entriesByDate: calendarEntriesByDate,
+        onMoveMonth: moveCalendarMonth,
+        onJumpToBlock: jumpToBlock,
+        onShowWrite: () => setWorkspaceView('write')
+      }}
+    />
   );
 
   const selectNotebook = (notebook: Notebook) => {
