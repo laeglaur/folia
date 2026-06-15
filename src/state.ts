@@ -354,6 +354,80 @@ const cleanupOrphanAttachments = async (state: AppState) => {
   }
 };
 
+type PersistenceBackend = {
+  persistNativeSnapshot: (stateJson: string) => Promise<void>;
+  cleanupNativeAttachments: (state: AppState) => Promise<void>;
+  persistBrowserSnapshot: (stateJson: string) => void;
+};
+
+type PendingPersistenceRequest = {
+  state: AppState;
+  resolve: () => void;
+};
+
+export const createQueuedPersistenceSaver = (backend: PersistenceBackend) => {
+  let draining = false;
+  let pendingRequests: PendingPersistenceRequest[] = [];
+
+  const drain = async () => {
+    if (draining) return;
+    draining = true;
+
+    try {
+      while (pendingRequests.length) {
+        const batch = pendingRequests;
+        pendingRequests = [];
+        const latestRequest = batch[batch.length - 1];
+        if (!latestRequest) {
+          batch.forEach(({ resolve }) => resolve());
+          continue;
+        }
+
+        const persistableState = await prepareStateForPersistence(latestRequest.state);
+        const stateJson = JSON.stringify(persistableState);
+
+        if (isTauri()) {
+          try {
+            await backend.persistNativeSnapshot(stateJson);
+            if (!pendingRequests.length) {
+              await backend.cleanupNativeAttachments(persistableState);
+            }
+          } catch (error) {
+            console.warn('Could not persist notebook state to SQLite.', error);
+          }
+        } else {
+          try {
+            backend.persistBrowserSnapshot(stateJson);
+          } catch (error) {
+            console.warn('Could not persist notebook state to browser localStorage.', error);
+          }
+        }
+
+        batch.forEach(({ resolve }) => resolve());
+      }
+    } finally {
+      draining = false;
+    }
+  };
+
+  return {
+    saveState: (state: AppState) => new Promise<void>((resolve) => {
+      pendingRequests.push({ state, resolve });
+      void drain();
+    })
+  };
+};
+
+const persistenceSaver = createQueuedPersistenceSaver({
+  persistNativeSnapshot: async (stateJson: string) => {
+    await invoke('save_state_snapshot', { stateJson });
+  },
+  cleanupNativeAttachments: cleanupOrphanAttachments,
+  persistBrowserSnapshot: (stateJson: string) => {
+    window.localStorage.setItem(STORAGE_KEY, stateJson);
+  }
+});
+
 export const loadState = (): AppState => {
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) {
@@ -382,26 +456,7 @@ export const loadPersistentState = async (): Promise<AppState> => {
   }
 };
 
-export const saveState = async (state: AppState) => {
-  const persistableState = await prepareStateForPersistence(state);
-  const stateJson = JSON.stringify(persistableState);
-
-  if (isTauri()) {
-    try {
-      await invoke('save_state_snapshot', { stateJson });
-      await cleanupOrphanAttachments(persistableState);
-    } catch (error) {
-      console.warn('Could not persist notebook state to SQLite.', error);
-    }
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(STORAGE_KEY, stateJson);
-  } catch (error) {
-    console.warn('Could not persist notebook state to browser localStorage.', error);
-  }
-};
+export const saveState = async (state: AppState) => persistenceSaver.saveState(state);
 
 export const appendOperation = (
   state: AppState,
