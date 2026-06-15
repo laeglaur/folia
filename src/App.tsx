@@ -2,19 +2,10 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
   ChevronRight,
-  Download,
-  FilePlus,
-  FileUp,
-  NotebookTabs,
-  PanelRight,
-  Plus,
-  Trash2,
-  Search,
-  Sparkles,
-  Upload
+  Plus
 } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
-import type { AppState, Block, ContentThemeId, Page, ShellId } from './types';
+import type { AppState, Block, ContentThemeId, Notebook, Page, ShellId } from './types';
 import {
   appendOperation,
   createBlock,
@@ -69,7 +60,7 @@ import { isTauri } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import 'katex/dist/katex.min.css';
-import { contentThemes } from './typora-theme-registry';
+import { CardWindowPage, NativeShell, TyporaShell } from './shells';
 
 const themesWithoutNativeDivider = new Set<ContentThemeId>([
   'notebook',
@@ -1319,53 +1310,6 @@ export function App() {
     </div>
   ) : null;
 
-  const renderNativeOutline = () => (
-    <div className="outline-list typora-toc md-toc md-toc-content">
-      {outlineEntries.map((entry) => (
-        <button
-          className={`outline-entry md-toc-item outline-kind-${entry.kind}`}
-          key={entry.id}
-          onClick={() => jumpToOutlineEntry(entry)}
-          style={{ '--level': entry.level } as React.CSSProperties}
-          type="button"
-        >
-          <span>{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
-          <span>{entry.text}</span>
-        </button>
-      ))}
-    </div>
-  );
-
-  const renderTyporaOutline = () => (
-    <div id="outline-content" className="outline-content typora-toc md-toc md-toc-content">
-      {outlineEntries.map((entry) => (
-        <button
-          className={`outline-item md-toc-item outline-kind-${entry.kind} ${entry.blockId === null ? 'outline-item-active active' : ''}`}
-          key={entry.id}
-          onClick={() => jumpToOutlineEntry(entry)}
-          style={{ '--level': entry.level } as React.CSSProperties}
-          type="button"
-        >
-          <span className="outline-expander" aria-hidden="true">{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
-          <span className="outline-label">{entry.text}</span>
-        </button>
-      ))}
-    </div>
-  );
-
-  const renderOutlineDrawer = (content: React.ReactNode, extraContent?: React.ReactNode) => (
-    <aside className={`outline-drawer ${outlineDrawerOpen ? 'is-open' : ''}`} aria-hidden={!outlineDrawerOpen}>
-      <header className="outline-drawer-head">
-        <div className="panel-title"><PanelRight size={16} /> Outline</div>
-        <button className="mini-button" type="button" onClick={() => setOutlineDrawerOpen(false)} aria-label="Close outline">×</button>
-      </header>
-      <div className="outline-drawer-body">
-        {content}
-        {extraContent}
-      </div>
-    </aside>
-  );
-
   const renderCalendarView = () => {
     const currentMonthKey = monthKey(calendarMonth);
     const todayKey = localDateKey(new Date());
@@ -1434,302 +1378,70 @@ export function App() {
     </>
   );
 
-  const renderPinnedCards = (className = 'desktop-preview', cardClassName = 'desktop-card') => (
-    <div className={className}>
-      {pinnedBlocks.length ? pinnedBlocks.map((block) => (
-        <button
-          className={cardClassName}
-          key={block.id}
-          type="button"
-          onClick={() => openPinnedWindow(block.id)}
-        >
-          <div dangerouslySetInnerHTML={{ __html: block.content.html }} />
-        </button>
-      )) : <p className="muted">Pin blocks to keep them close.</p>}
-    </div>
-  );
+  const selectNotebook = (notebook: Notebook) => {
+    setWorkspaceView('write');
+    setState((current) => ({
+      ...current,
+      activeNotebookId: notebook.id,
+      activePageId: notebook.pageIds[0] ?? current.activePageId
+    }));
+  };
 
-  const renderSidebarPins = () => (
-    <section className="sidebar-section pinned-sidebar-section">
-      <div className="section-row">
-        <div className="section-label">Pinned</div>
-      </div>
-      {renderPinnedCards('sidebar-pin-list', 'sidebar-pin-card')}
-    </section>
-  );
+  const notebookActions = {
+    addNotebook,
+    selectNotebook,
+    duplicateNotebook,
+    deleteNotebook
+  };
 
-  const renderToolControls = (compact = false) => (
-    <div className={compact ? 'typora-tool-controls' : 'topbar-actions'}>
-      <label className="view-toggle"><input type="checkbox" checked={showToolbar} onChange={(event) => setShowToolbar(event.target.checked)} /> Toolbar</label>
-      <label className="view-toggle"><input type="checkbox" checked={showComposerFooter} onChange={(event) => setShowComposerFooter(event.target.checked)} /> Add</label>
-      <label className="view-toggle">
-        <span>Newest first</span>
-        <input
-          type="checkbox"
-          checked={pageBlockOrder === 'desc'}
-          onChange={(event) => setPageBlockOrder(event.target.checked ? 'desc' : 'asc')}
-        />
-      </label>
-      <select
-        className="theme-select shell-theme-select"
-        value={state.shell}
-        onChange={(event) => setShell(event.target.value as ShellId)}
-        aria-label="Shell theme"
-      >
-        {shellThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
-      </select>
-      <select
-        className="theme-select content-theme-select"
-        value={state.contentTheme}
-        onChange={(event) => setContentTheme(event.target.value as ContentThemeId)}
-        aria-label="Content theme"
-      >
-        {contentThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
-      </select>
-      <input
-        ref={markdownInputRef}
-        hidden
-        multiple
-        accept=".md,.markdown,.txt,text/markdown,text/plain"
-        type="file"
-        onChange={(event) => {
-          void importMarkdownFiles(event.target.files);
-          event.currentTarget.value = '';
-        }}
-      />
-      <input
-        ref={markdownFolderInputRef}
-        hidden
-        multiple
-        // React does not type these Chromium directory-picker attributes yet.
-        {...{ webkitdirectory: '', directory: '' }}
-        type="file"
-        onChange={(event) => {
-          void importMarkdownFolder(event.target.files);
-          event.currentTarget.value = '';
-        }}
-      />
-      <button
-        className={`secondary-button ${outlineDrawerOpen ? 'active' : ''}`}
-        type="button"
-        onClick={() => setOutlineDrawerOpen((open) => !open)}
-        aria-pressed={outlineDrawerOpen}
-      >
-        <PanelRight size={15} /> Outline
-      </button>
-      <button
-        className={`secondary-button ${sidebarCollapsed ? 'active' : ''}`}
-        type="button"
-        onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-        aria-pressed={sidebarCollapsed}
-      >
-        <NotebookTabs size={15} /> Sidebar
-      </button>
-      <button className="secondary-button" type="button" onClick={() => markdownInputRef.current?.click()}><FileUp size={15} /> Import MD</button>
-      <button className="secondary-button" type="button" onClick={() => markdownFolderInputRef.current?.click()}><FileUp size={15} /> Import folder</button>
-      <button className="secondary-button" type="button" onClick={exportMarkdown}><Download size={15} /> Markdown</button>
-      <button className="secondary-button" type="button" onClick={exportJson}><Upload size={15} /> Backup</button>
-    </div>
-  );
+  const shellControls = {
+    showToolbar,
+    showComposerFooter,
+    newestFirst: pageBlockOrder === 'desc',
+    shell: state.shell,
+    contentTheme: state.contentTheme,
+    shellThemes,
+    markdownInputRef,
+    markdownFolderInputRef,
+    outlineOpen: outlineDrawerOpen,
+    sidebarCollapsed,
+    onShowToolbarChange: setShowToolbar,
+    onShowComposerFooterChange: setShowComposerFooter,
+    onNewestFirstChange: (newestFirst: boolean) => setPageBlockOrder(newestFirst ? 'desc' : 'asc'),
+    onShellChange: setShell,
+    onContentThemeChange: setContentTheme,
+    onOutlineToggle: () => setOutlineDrawerOpen((open) => !open),
+    onSidebarToggle: () => setSidebarCollapsed((collapsed) => !collapsed),
+    onMarkdownFilesChange: (files: FileList | null) => void importMarkdownFiles(files),
+    onMarkdownFolderChange: (files: FileList | null) => void importMarkdownFolder(files),
+    onExportMarkdown: exportMarkdown,
+    onExportJson: exportJson
+  };
 
-  const renderFishDesk = () => (
-    <aside className="fish-desk" aria-label="Desk controls">
-      <button className="fish-desk-trigger" type="button" aria-label="Open Desk controls">
-        <img src={fishIconUrl} alt="" aria-hidden="true" />
-      </button>
-      <div className="fish-desk-panel">
-        <div className="fish-desk-title">Desk</div>
-        {renderToolControls(true)}
-      </div>
-    </aside>
-  );
-
-  const renderNativeShell = () => (
-    <div className={`app-shell typora-theme ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={state.contentTheme} data-shell={state.shell}>
-      <aside className="sidebar">
-        <div className="brand-block">
-          <p className="eyebrow">{state.shell === 'native-ledger' ? 'ledger notes' : 'garden notes'}</p>
-          <div className="brand-mark"><Sparkles size={20} /></div>
-          <h1>Notebook</h1>
-          <p className="profile-id">block-first</p>
-        </div>
-
-        <section className="sidebar-section">
-          <div className="section-row">
-            <div className="section-label">Notebooks</div>
-            <button className="mini-button" type="button" onClick={addNotebook} aria-label="New notebook"><Plus size={14} /></button>
-          </div>
-          <div className="notebook-list">
-            {state.notebooks.map((notebook) => (
-              <div className={`notebook-row-shell ${notebook.id === activeNotebook.id ? 'active' : ''}`} key={notebook.id}>
-                <button
-                  className={`notebook-button ${notebook.id === activeNotebook.id ? 'active' : ''}`}
-                  type="button"
-                  onClick={() => {
-                    setWorkspaceView('write');
-                    setState((current) => ({
-                      ...current,
-                      activeNotebookId: notebook.id,
-                      activePageId: notebook.pageIds[0] ?? current.activePageId
-                    }));
-                  }}
-                >
-                  <NotebookTabs size={15} />
-                  {notebook.name}
-                </button>
-                <div className="row-actions notebook-row-actions">
-                  <button className="mini-button row-action duplicate-notebook-button" type="button" onClick={() => duplicateNotebook(notebook.id)} aria-label={`Duplicate notebook ${notebook.name}`}><FilePlus size={13} /></button>
-                  {state.notebooks.length > 1 ? (
-                    <button className="mini-button row-action delete-notebook-button" type="button" onClick={() => deleteNotebook(notebook.id)} aria-label={`Delete notebook ${notebook.name}`}><Trash2 size={13} /></button>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="sidebar-section pages-section">
-          <div className="section-row">
-            <div className="section-label">Pages</div>
-            <button className="mini-button" type="button" onClick={() => addPage(null)} aria-label="New page"><FilePlus size={14} /></button>
-          </div>
-          <div
-            className="page-tree"
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              const draggedId = event.dataTransfer.getData('application/page-id');
-              if (draggedId && event.currentTarget === event.target) movePageUnder(draggedId, null);
-            }}
-          >
-            {renderPageTree(null)}
-          </div>
-        </section>
-
-        {renderSidebarPins()}
-
-        <section className="sidebar-note">
-          <strong>今天也要</strong>
-          <span>记录美好的一天哦~</span>
-        </section>
-      </aside>
-
-      <main className="workspace">
-        <header className="topbar">
-          <div className="search-box">
-            <Search size={16} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="正文、block、todo" />
-          </div>
-        </header>
-
-        {renderWorkspaceContent()}
-      </main>
-
-      <aside className="right-panel">
-        <section className="panel-card">
-          <div className="panel-title"><PanelRight size={16} /> Outline</div>
-          {renderNativeOutline()}
-        </section>
-      </aside>
-
-      {renderFishDesk()}
-
-      {openCardBlock && (
-        <div className="floating-card-window">
-          <div className="floating-card-head">
-            <span>{blockTimestampLabel(openCardBlock.createdAt)}</span>
-            <button type="button" onClick={() => setState((current) => ({ ...current, openCardWindowBlockId: null }))}>×</button>
-          </div>
-          <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: openCardBlock.content.html }} />
-        </div>
-      )}
-    </div>
-  );
-
-  const renderTyporaShell = () => (
-    <div className={`typora-app-shell typora-theme ${outlineDrawerOpen ? 'outline-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={state.contentTheme} data-shell={state.shell}>
-      <aside id="typora-sidebar" className="typora-sidebar active-tab-files">
-        <div id="sidebar-content" className="sidebar-content">
-          <section className="typora-sidebar-pane is-active">
-            <section className="typora-desk-search">
-              <div className="search-box typora-search-box">
-                <Search size={16} />
-                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" />
-              </div>
-            </section>
-            <div className="typora-sidebar-section-header">
-              <span>Notebooks</span>
-              <button className="mini-button" type="button" onClick={addNotebook} aria-label="New notebook"><Plus size={14} /></button>
-            </div>
-            <div className="file-library">
-              {state.notebooks.map((notebook) => (
-                <div className="file-library-node" data-is-directory="true" key={notebook.id}>
-                  <span className="file-node-background" aria-hidden="true" />
-                  <div className={`file-node-row-shell ${notebook.id === activeNotebook.id ? 'active' : ''}`}>
-                    <button
-                      className="file-node-content notebook-node"
-                      type="button"
-                      onClick={() => {
-                        setWorkspaceView('write');
-                        setState((current) => ({
-                          ...current,
-                          activeNotebookId: notebook.id,
-                          activePageId: notebook.pageIds[0] ?? current.activePageId
-                        }));
-                      }}
-                    >
-                      <span className="file-node-open-state"><NotebookTabs size={13} /></span>
-                      <span className="file-node-title file-name">{notebook.name}</span>
-                    </button>
-                    <div className="row-actions file-node-actions">
-                      <button className="mini-button row-action duplicate-notebook-button" type="button" onClick={() => duplicateNotebook(notebook.id)} aria-label={`Duplicate notebook ${notebook.name}`}><FilePlus size={13} /></button>
-                      {state.notebooks.length > 1 ? (
-                        <button className="mini-button row-action delete-notebook-button" type="button" onClick={() => deleteNotebook(notebook.id)} aria-label={`Delete notebook ${notebook.name}`}><Trash2 size={13} /></button>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="typora-sidebar-section-header">
-              <span>Pages</span>
-              <button className="mini-button" type="button" onClick={() => addPage(null)} aria-label="New page"><FilePlus size={14} /></button>
-            </div>
-            <div
-              className="file-library"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                const draggedId = event.dataTransfer.getData('application/page-id');
-                if (draggedId && event.currentTarget === event.target) movePageUnder(draggedId, null);
-              }}
-            >
-              {renderTyporaFileTree(null)}
-            </div>
-
-            {renderSidebarPins()}
-          </section>
-        </div>
-      </aside>
-
-      <main className="typora-workspace">
-        {renderWorkspaceContent()}
-      </main>
-
-      {renderOutlineDrawer(renderTyporaOutline())}
-
-      {renderFishDesk()}
-
-      {openCardBlock && (
-        <div className="floating-card-window">
-          <div className="floating-card-head">
-            <span>{blockTimestampLabel(openCardBlock.createdAt)}</span>
-            <button type="button" onClick={() => setState((current) => ({ ...current, openCardWindowBlockId: null }))}>×</button>
-          </div>
-          <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: openCardBlock.content.html }} />
-        </div>
-      )}
-    </div>
-  );
+  const sharedShellProps = {
+    shell: state.shell,
+    contentTheme: state.contentTheme,
+    sidebarCollapsed,
+    outlineOpen: outlineDrawerOpen,
+    activeNotebook,
+    notebooks: state.notebooks,
+    notebookActions,
+    query,
+    onQueryChange: setQuery,
+    pageTree: renderPageTree(null),
+    typoraFileTree: renderTyporaFileTree(null),
+    workspaceContent: renderWorkspaceContent(),
+    pinnedBlocks,
+    openCardBlock,
+    onOpenPinnedWindow: (blockId: string) => void openPinnedWindow(blockId),
+    onCloseFloatingCard: () => setState((current) => ({ ...current, openCardWindowBlockId: null })),
+    onRootPageDrop: (pageId: string) => movePageUnder(pageId, null),
+    onAddPage: () => addPage(null),
+    controls: shellControls,
+    outlineEntries,
+    onJumpToOutlineEntry: jumpToOutlineEntry,
+    fishIconUrl
+  };
 
   if (cardModeBlock) {
     const closeCardWindow = () => {
@@ -1745,33 +1457,24 @@ export function App() {
       if (isTauri()) void getCurrentWindow().startDragging();
     };
     return (
-      <main className="card-window-page typora-theme" data-content-theme={state.contentTheme} data-shell={state.shell} onMouseDown={dragCardWindow}>
-        <header className="card-window-grip" aria-label="Pinned card controls" onMouseDown={(event) => {
-          event.stopPropagation();
-          dragCardWindow(event);
-        }}>
-          <span>{blockTimestampLabel(cardModeBlock.createdAt)}</span>
-          <button type="button" onClick={closeCardWindow} aria-label="Close pinned card">×</button>
-        </header>
-        <div className="floating-card-body card-mode">
-          <RichEditor
-            editorRef={(editor) => { blockEditorRefs.current[cardModeBlock.id] = editor; }}
-            className="card-mode-editor"
-            html={cardModeBlock.content.html}
-            onFocus={(editor) => {
-              activateEditor({ kind: 'block', blockId: cardModeBlock.id });
-              syncFloatingControls(editor);
-            }}
-            onSelectionUpdate={syncFloatingControls}
-            onUpdate={(html, plainText) => updateBlock(cardModeBlock.id, html, plainText)}
-            onBlur={(html, plainText) => updateBlock(cardModeBlock.id, html, plainText)}
-            onMoveBlock={() => false}
-            onMediaResizeStart={startMediaResize}
-          />
-        </div>
-      </main>
+      <CardWindowPage
+        block={cardModeBlock}
+        shell={state.shell}
+        contentTheme={state.contentTheme}
+        editorRef={(editor) => { blockEditorRefs.current[cardModeBlock.id] = editor; }}
+        onFocus={(editor) => {
+          activateEditor({ kind: 'block', blockId: cardModeBlock.id });
+          syncFloatingControls(editor);
+        }}
+        onSelectionUpdate={syncFloatingControls}
+        onUpdate={(html, plainText) => updateBlock(cardModeBlock.id, html, plainText)}
+        onBlur={(html, plainText) => updateBlock(cardModeBlock.id, html, plainText)}
+        onMediaResizeStart={startMediaResize}
+        onClose={closeCardWindow}
+        onDrag={dragCardWindow}
+      />
     );
   }
 
-  return state.shell === 'typora-base' ? renderTyporaShell() : renderNativeShell();
+  return state.shell === 'typora-base' ? <TyporaShell {...sharedShellProps} /> : <NativeShell {...sharedShellProps} />;
 }
