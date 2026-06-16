@@ -91,6 +91,11 @@ const fishIconUrl = '/app-assets/blue_red_fish.png';
 const fullExpansionImportPageLimit = 80;
 const searchParams = new URLSearchParams(window.location.search);
 const cardModeBlockId = searchParams.get('card');
+if (cardModeBlockId) {
+  document.documentElement.dataset.cardWindow = 'true';
+} else {
+  delete document.documentElement.dataset.cardWindow;
+}
 const importStressMode = searchParams.has('importStress');
 const disableBrowserPersistence = searchParams.get('persistence') === 'off';
 
