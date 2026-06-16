@@ -1,7 +1,18 @@
-import type { CSSProperties, MouseEvent, ReactNode, RefObject } from 'react';
-import { Download, FilePlus, FileUp, NotebookTabs, PanelRight, Plus, Search, Sparkles, Trash2, Upload } from 'lucide-react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject
+} from 'react';
+import { Download, FilePlus, FileUp, NotebookTabs, PanelRight, Pin, Plus, Search, Sparkles, Trash2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { Block, ContentThemeId, Notebook, ShellId } from './types';
+import type { PageSearchResult } from './state';
 import type { OutlineEntry } from './app-utils';
 import { blockTimestampLabel } from './app-utils';
 import { RichEditor, type MediaResizeRequest } from './editor';
@@ -15,6 +26,7 @@ type ShellThemeOption = {
 type NotebookActions = {
   addNotebook: () => void;
   selectNotebook: (notebook: Notebook) => void;
+  renameNotebook: (notebookId: string, name: string) => void;
   duplicateNotebook: (notebookId: string) => void;
   deleteNotebook: (notebookId: string) => void;
 };
@@ -24,6 +36,7 @@ type ToolControlsProps = {
   showToolbar: boolean;
   showComposerFooter: boolean;
   showBlockBorders: boolean;
+  roundPinnedCards: boolean;
   newestFirst: boolean;
   shell: ShellId;
   contentTheme: ContentThemeId;
@@ -35,6 +48,7 @@ type ToolControlsProps = {
   onShowToolbarChange: (show: boolean) => void;
   onShowComposerFooterChange: (show: boolean) => void;
   onShowBlockBordersChange: (show: boolean) => void;
+  onRoundPinnedCardsChange: (round: boolean) => void;
   onNewestFirstChange: (newestFirst: boolean) => void;
   onShellChange: (shell: ShellId) => void;
   onContentThemeChange: (contentTheme: ContentThemeId) => void;
@@ -51,6 +65,7 @@ function ToolControls({
   showToolbar,
   showComposerFooter,
   showBlockBorders,
+  roundPinnedCards,
   newestFirst,
   shell,
   contentTheme,
@@ -62,6 +77,7 @@ function ToolControls({
   onShowToolbarChange,
   onShowComposerFooterChange,
   onShowBlockBordersChange,
+  onRoundPinnedCardsChange,
   onNewestFirstChange,
   onShellChange,
   onContentThemeChange,
@@ -77,14 +93,21 @@ function ToolControls({
       <label className="view-toggle"><input type="checkbox" checked={showToolbar} onChange={(event) => onShowToolbarChange(event.target.checked)} /> Toolbar</label>
       <label className="view-toggle"><input type="checkbox" checked={showComposerFooter} onChange={(event) => onShowComposerFooterChange(event.target.checked)} /> Add</label>
       <label className="view-toggle"><input type="checkbox" checked={showBlockBorders} onChange={(event) => onShowBlockBordersChange(event.target.checked)} /> Block borders</label>
+      <label className="view-toggle"><input type="checkbox" checked={roundPinnedCards} onChange={(event) => onRoundPinnedCardsChange(event.target.checked)} /> Round pinned cards</label>
       <label className="view-toggle">
-        <span>Newest first</span>
         <input
           type="checkbox"
           checked={newestFirst}
           onChange={(event) => onNewestFirstChange(event.target.checked)}
         />
+        <span>Newest first</span>
       </label>
+      {compact && (
+        <>
+          <label className="view-toggle"><input type="checkbox" checked={outlineOpen} onChange={onOutlineToggle} /> Outline</label>
+          <label className="view-toggle"><input type="checkbox" checked={!sidebarCollapsed} onChange={onSidebarToggle} /> Sidebar</label>
+        </>
+      )}
       <select
         className="theme-select shell-theme-select"
         value={shell}
@@ -124,22 +147,26 @@ function ToolControls({
           event.currentTarget.value = '';
         }}
       />
-      <button
-        className={`secondary-button ${outlineOpen ? 'active' : ''}`}
-        type="button"
-        onClick={onOutlineToggle}
-        aria-pressed={outlineOpen}
-      >
-        <PanelRight size={15} /> Outline
-      </button>
-      <button
-        className={`secondary-button ${sidebarCollapsed ? 'active' : ''}`}
-        type="button"
-        onClick={onSidebarToggle}
-        aria-pressed={sidebarCollapsed}
-      >
-        <NotebookTabs size={15} /> Sidebar
-      </button>
+      {!compact && (
+        <>
+          <button
+            className={`secondary-button ${outlineOpen ? 'active' : ''}`}
+            type="button"
+            onClick={onOutlineToggle}
+            aria-pressed={outlineOpen}
+          >
+            <PanelRight size={15} /> Outline
+          </button>
+          <button
+            className={`secondary-button ${sidebarCollapsed ? 'active' : ''}`}
+            type="button"
+            onClick={onSidebarToggle}
+            aria-pressed={sidebarCollapsed}
+          >
+            <NotebookTabs size={15} /> Sidebar
+          </button>
+        </>
+      )}
       <button className="secondary-button" type="button" onClick={() => markdownInputRef.current?.click()}><FileUp size={15} /> Import MD</button>
       <button className="secondary-button" type="button" onClick={() => markdownFolderInputRef.current?.click()}><FileUp size={15} /> Import folder</button>
       <button className="secondary-button" type="button" onClick={onExportMarkdown}><Download size={15} /> Markdown</button>
@@ -221,6 +248,111 @@ function NotebookList({
   variant: 'native' | 'typora';
   actions: NotebookActions;
 }) {
+  const [editingNotebookId, setEditingNotebookId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState('');
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const cancelBlurCommitRef = useRef(false);
+
+  useEffect(() => {
+    if (!editingNotebookId) return;
+    const input = nameInputRef.current;
+    if (!input) return;
+    input.focus();
+    input.select();
+  }, [editingNotebookId]);
+
+  const beginRename = (notebook: Notebook) => {
+    actions.selectNotebook(notebook);
+    setDraftName(notebook.name);
+    cancelBlurCommitRef.current = false;
+    setEditingNotebookId(notebook.id);
+  };
+
+  const commitRename = () => {
+    const notebook = notebooks.find((candidate) => candidate.id === editingNotebookId);
+    if (!notebook) {
+      setEditingNotebookId(null);
+      setDraftName('');
+      return;
+    }
+    const nextName = draftName.trim() || notebook.name;
+    if (nextName !== notebook.name) {
+      actions.renameNotebook(notebook.id, nextName);
+    }
+    setEditingNotebookId(null);
+    setDraftName('');
+  };
+
+  const cancelRename = () => {
+    cancelBlurCommitRef.current = true;
+    setEditingNotebookId(null);
+    setDraftName('');
+  };
+
+  const renderNotebookLabel = (notebook: Notebook) => {
+    const isEditing = editingNotebookId === notebook.id;
+    const isActive = notebook.id === activeNotebook.id;
+    const sharedInputProps = {
+      ref: nameInputRef,
+      className: 'notebook-name-input',
+      'aria-label': `Rename notebook ${notebook.name}`,
+      value: draftName,
+      onChange: (event: ChangeEvent<HTMLInputElement>) => setDraftName(event.target.value),
+      onBlur: () => {
+        if (cancelBlurCommitRef.current) {
+          cancelBlurCommitRef.current = false;
+          return;
+        }
+        commitRename();
+      },
+      onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          cancelRename();
+          return;
+        }
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commitRename();
+        }
+      }
+    } as const;
+
+    if (variant === 'typora') {
+      return isEditing ? (
+        <div className={`file-node-content notebook-node notebook-editing ${isActive ? 'is-active' : ''}`}>
+          <span className="file-node-open-state"><NotebookTabs size={13} /></span>
+          <input {...sharedInputProps} />
+        </div>
+      ) : (
+        <button
+          className={`file-node-content notebook-node ${isActive ? 'is-active' : ''}`}
+          type="button"
+          onClick={() => beginRename(notebook)}
+        >
+          <span className="file-node-open-state"><NotebookTabs size={13} /></span>
+          <span className="file-node-title file-name notebook-label">{notebook.name}</span>
+        </button>
+      );
+    }
+
+    return isEditing ? (
+      <div className={`notebook-button notebook-editing ${isActive ? 'active' : ''}`}>
+        <NotebookTabs size={15} />
+        <input {...sharedInputProps} />
+      </div>
+    ) : (
+      <button
+        className={`notebook-button ${isActive ? 'active' : ''}`}
+        type="button"
+        onClick={() => beginRename(notebook)}
+      >
+        <NotebookTabs size={15} />
+        <span className="notebook-label">{notebook.name}</span>
+      </button>
+    );
+  };
+
   if (variant === 'typora') {
     return (
       <div className="file-library">
@@ -228,18 +360,11 @@ function NotebookList({
           <div className="file-library-node" data-is-directory="true" key={notebook.id}>
             <span className="file-node-background" aria-hidden="true" />
             <div className={`file-node-row-shell ${notebook.id === activeNotebook.id ? 'active' : ''}`}>
-              <button
-                className="file-node-content notebook-node"
-                type="button"
-                onClick={() => actions.selectNotebook(notebook)}
-              >
-                <span className="file-node-open-state"><NotebookTabs size={13} /></span>
-                <span className="file-node-title file-name">{notebook.name}</span>
-              </button>
+              {renderNotebookLabel(notebook)}
               <div className="row-actions file-node-actions">
-                <button className="mini-button row-action duplicate-notebook-button" type="button" onClick={() => actions.duplicateNotebook(notebook.id)} aria-label={`Duplicate notebook ${notebook.name}`}><FilePlus size={13} /></button>
+                <button className="mini-button row-action duplicate-notebook-button" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); actions.duplicateNotebook(notebook.id); }} aria-label={`Duplicate notebook ${notebook.name}`}><FilePlus size={13} /></button>
                 {canDeleteNotebook ? (
-                  <button className="mini-button row-action delete-notebook-button" type="button" onClick={() => actions.deleteNotebook(notebook.id)} aria-label={`Delete notebook ${notebook.name}`}><Trash2 size={13} /></button>
+                  <button className="mini-button row-action delete-notebook-button" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); actions.deleteNotebook(notebook.id); }} aria-label={`Delete notebook ${notebook.name}`}><Trash2 size={13} /></button>
                 ) : null}
               </div>
             </div>
@@ -253,18 +378,11 @@ function NotebookList({
     <div className="notebook-list">
       {notebooks.map((notebook) => (
         <div className={`notebook-row-shell ${notebook.id === activeNotebook.id ? 'active' : ''}`} key={notebook.id}>
-          <button
-            className={`notebook-button ${notebook.id === activeNotebook.id ? 'active' : ''}`}
-            type="button"
-            onClick={() => actions.selectNotebook(notebook)}
-          >
-            <NotebookTabs size={15} />
-            {notebook.name}
-          </button>
+          {renderNotebookLabel(notebook)}
           <div className="row-actions notebook-row-actions">
-            <button className="mini-button row-action duplicate-notebook-button" type="button" onClick={() => actions.duplicateNotebook(notebook.id)} aria-label={`Duplicate notebook ${notebook.name}`}><FilePlus size={13} /></button>
+            <button className="mini-button row-action duplicate-notebook-button" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); actions.duplicateNotebook(notebook.id); }} aria-label={`Duplicate notebook ${notebook.name}`}><FilePlus size={13} /></button>
             {canDeleteNotebook ? (
-              <button className="mini-button row-action delete-notebook-button" type="button" onClick={() => actions.deleteNotebook(notebook.id)} aria-label={`Delete notebook ${notebook.name}`}><Trash2 size={13} /></button>
+              <button className="mini-button row-action delete-notebook-button" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); actions.deleteNotebook(notebook.id); }} aria-label={`Delete notebook ${notebook.name}`}><Trash2 size={13} /></button>
             ) : null}
           </div>
         </div>
@@ -350,19 +468,33 @@ export function OutlineDrawer({
 
 function FloatingCardWindow({
   block,
+  roundPinnedCards,
   onClose
 }: {
   block: Block | null;
+  roundPinnedCards: boolean;
   onClose: () => void;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    setCollapsed(false);
+  }, [block?.id]);
+
   if (!block) return null;
+  const preview = block.content.plainText.replace(/\s+/g, ' ').trim();
+  const dateLabel = blockTimestampLabel(block.createdAt);
+  const previewLabel = preview ? `${preview.slice(0, 72)}${preview.length > 72 ? '...' : ''}` : '';
   return (
-    <div className="floating-card-window">
+    <div className={`floating-card-window ${roundPinnedCards ? 'is-rounded' : 'is-square'} ${collapsed ? 'is-collapsed' : ''}`}>
       <div className="floating-card-head">
-        <span>{blockTimestampLabel(block.createdAt)}</span>
-        <button type="button" onClick={onClose}>×</button>
+        <button className="floating-card-title" type="button" onClick={() => setCollapsed((value) => !value)} aria-expanded={!collapsed}>
+          {dateLabel}
+        </button>
+        {collapsed && previewLabel ? <span className="floating-card-preview">{previewLabel}</span> : null}
+        <button type="button" onClick={onClose} aria-label="Close pinned card">×</button>
       </div>
-      <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: block.content.html }} />
+      {!collapsed ? <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: block.content.html }} /> : null}
     </div>
   );
 }
@@ -377,11 +509,15 @@ type BaseShellProps = {
   notebookActions: NotebookActions;
   query: string;
   onQueryChange: (query: string) => void;
+  searchResults: PageSearchResult[];
+  searchLoading: boolean;
+  onSearchResultSelect: (pageId: string) => void;
   pageTree: ReactNode;
   typoraFileTree: ReactNode;
   workspaceContent: ReactNode;
   pinnedBlocks: Block[];
   openCardBlock: Block | null;
+  roundPinnedCards: boolean;
   onOpenPinnedWindow: (blockId: string) => void;
   onCloseFloatingCard: () => void;
   onRootPageDrop: (pageId: string) => void;
@@ -392,6 +528,32 @@ type BaseShellProps = {
   fishIconUrl: string;
 };
 
+function SearchResults({
+  query,
+  results,
+  loading,
+  onSelect
+}: {
+  query: string;
+  results: PageSearchResult[];
+  loading: boolean;
+  onSelect: (pageId: string) => void;
+}) {
+  const trimmed = query.trim();
+  if (!trimmed || (!loading && !results.length)) return null;
+
+  return (
+    <div className="search-results" role="listbox" aria-label="Search results">
+      {loading ? <div className="search-result-empty">Searching...</div> : results.map((result) => (
+        <button className="search-result-item" key={result.pageId} type="button" onClick={() => onSelect(result.pageId)}>
+          <span className="search-result-title">{result.title}</span>
+          {result.snippet ? <span className="search-result-snippet" dangerouslySetInnerHTML={{ __html: result.snippet }} /> : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function NativeShell({
   shell,
   contentTheme,
@@ -401,10 +563,14 @@ export function NativeShell({
   notebookActions,
   query,
   onQueryChange,
+  searchResults,
+  searchLoading,
+  onSearchResultSelect,
   pageTree,
   workspaceContent,
   pinnedBlocks,
   openCardBlock,
+  roundPinnedCards,
   onOpenPinnedWindow,
   onCloseFloatingCard,
   onRootPageDrop,
@@ -441,15 +607,16 @@ export function NativeShell({
             className="page-tree"
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
+              event.preventDefault();
+              const target = event.target as HTMLElement | null;
+              if (target?.closest('.page-row-shell')) return;
               const draggedId = event.dataTransfer.getData('application/page-id');
-              if (draggedId && event.currentTarget === event.target) onRootPageDrop(draggedId);
+              if (draggedId) onRootPageDrop(draggedId);
             }}
           >
             {pageTree}
           </div>
         </section>
-
-        <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} />
 
         <section className="sidebar-note">
           <strong>今天也要</strong>
@@ -462,6 +629,7 @@ export function NativeShell({
           <div className="search-box">
             <Search size={16} />
             <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="正文、block、todo" />
+            <SearchResults query={query} results={searchResults} loading={searchLoading} onSelect={onSearchResultSelect} />
           </div>
         </header>
 
@@ -470,6 +638,10 @@ export function NativeShell({
 
       <aside className="right-panel">
         <section className="panel-card">
+          <div className="panel-title"><Pin size={16} /> Pinned</div>
+          <PinnedCards pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} className="desktop-preview right-panel-pin-list" cardClassName="desktop-card right-panel-pin-card" />
+        </section>
+        <section className="panel-card">
           <div className="panel-title"><PanelRight size={16} /> Outline</div>
           <NativeOutline entries={outlineEntries} onJump={onJumpToOutlineEntry} />
         </section>
@@ -477,7 +649,7 @@ export function NativeShell({
 
       <FishDesk fishIconUrl={fishIconUrl} controls={controls} />
 
-      <FloatingCardWindow block={openCardBlock} onClose={onCloseFloatingCard} />
+      <FloatingCardWindow block={openCardBlock} roundPinnedCards={roundPinnedCards} onClose={onCloseFloatingCard} />
     </div>
   );
 }
@@ -492,10 +664,14 @@ export function TyporaShell({
   notebookActions,
   query,
   onQueryChange,
+  searchResults,
+  searchLoading,
+  onSearchResultSelect,
   typoraFileTree,
   workspaceContent,
   pinnedBlocks,
   openCardBlock,
+  roundPinnedCards,
   onOpenPinnedWindow,
   onCloseFloatingCard,
   onRootPageDrop,
@@ -514,6 +690,7 @@ export function TyporaShell({
               <div className="search-box typora-search-box">
                 <Search size={16} />
                 <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Search" />
+                <SearchResults query={query} results={searchResults} loading={searchLoading} onSelect={onSearchResultSelect} />
               </div>
             </section>
             <div className="typora-sidebar-section-header">
@@ -530,8 +707,11 @@ export function TyporaShell({
               className="file-library"
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
+                event.preventDefault();
+                const target = event.target as HTMLElement | null;
+                if (target?.closest('.file-node-row-shell')) return;
                 const draggedId = event.dataTransfer.getData('application/page-id');
-                if (draggedId && event.currentTarget === event.target) onRootPageDrop(draggedId);
+                if (draggedId) onRootPageDrop(draggedId);
               }}
             >
               {typoraFileTree}
@@ -554,7 +734,7 @@ export function TyporaShell({
 
       <FishDesk fishIconUrl={fishIconUrl} controls={controls} />
 
-      <FloatingCardWindow block={openCardBlock} onClose={onCloseFloatingCard} />
+      <FloatingCardWindow block={openCardBlock} roundPinnedCards={roundPinnedCards} onClose={onCloseFloatingCard} />
     </div>
   );
 }
@@ -563,6 +743,7 @@ export function CardWindowPage({
   block,
   shell,
   contentTheme,
+  roundPinnedCards,
   editorRef,
   onFocus,
   onSelectionUpdate,
@@ -575,6 +756,7 @@ export function CardWindowPage({
   block: Block;
   shell: ShellId;
   contentTheme: ContentThemeId;
+  roundPinnedCards: boolean;
   editorRef: (editor: Editor | null) => void;
   onFocus: (editor: Editor) => void;
   onSelectionUpdate: (editor: Editor) => void;
@@ -584,16 +766,32 @@ export function CardWindowPage({
   onClose: () => void;
   onDrag: (event: MouseEvent<HTMLElement>) => void;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const preview = block.content.plainText.replace(/\s+/g, ' ').trim();
+  const dateLabel = blockTimestampLabel(block.createdAt);
+  const previewLabel = preview ? `${preview.slice(0, 96)}${preview.length > 96 ? '...' : ''}` : '';
+
   return (
-    <main className="card-window-page typora-theme" data-content-theme={contentTheme} data-shell={shell} onMouseDown={onDrag}>
+    <main className={`card-window-page typora-theme ${roundPinnedCards ? 'is-rounded' : 'is-square'} ${collapsed ? 'is-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
       <header className="card-window-grip" aria-label="Pinned card controls" onMouseDown={(event) => {
+        const target = event.target as HTMLElement | null;
+        if (target?.closest('button, a, input, textarea, select')) return;
         event.stopPropagation();
         onDrag(event);
       }}>
-        <span>{blockTimestampLabel(block.createdAt)}</span>
-        <button type="button" onClick={onClose} aria-label="Close pinned card">×</button>
+        <button
+          className="card-window-title"
+          type="button"
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => { event.stopPropagation(); setCollapsed((value) => !value); }}
+          aria-expanded={!collapsed}
+        >
+          {dateLabel}
+        </button>
+        {collapsed && previewLabel ? <span className="floating-card-preview">{previewLabel}</span> : null}
+        <button type="button" onMouseDown={(event) => event.stopPropagation()} onClick={onClose} aria-label="Close pinned card">×</button>
       </header>
-      <div className="floating-card-body card-mode">
+      {!collapsed ? <div className="floating-card-body card-mode">
         <RichEditor
           editorRef={editorRef}
           className="card-mode-editor"
@@ -605,7 +803,7 @@ export function CardWindowPage({
           onMoveBlock={() => false}
           onMediaResizeStart={onMediaResizeStart}
         />
-      </div>
+      </div> : null}
     </main>
   );
 }

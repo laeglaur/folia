@@ -10,6 +10,7 @@
     "test:editor": "node scripts/editor-smoke.mjs",
     "test:markdown": "node scripts/markdown-import-smoke.mjs",
     "test:markdown-folder": "node scripts/markdown-folder-import-smoke.mjs",
+    "test:markdown-folder:stress": "node scripts/markdown-folder-stress.mjs",
     "test:theme": "node scripts/theme-smoke.mjs",
     "test:persistence": "rm -rf dist-test && tsc -p tsconfig.persistence.json && printf '{\"type\":\"commonjs\"}' > dist-test/package.json && node scripts/persistence-queue-smoke.mjs && rm -rf dist-test",
     "build:typora-css": "node scripts/typora-css-prefixer.mjs && node scripts/generate-typora-mark-bridge.mjs",

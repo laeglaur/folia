@@ -15,7 +15,7 @@
         "title": "Notebook",
         "width": 1280,
         "height": 840,
-        "minWidth": 900,
+        "minWidth": 360,
         "minHeight": 640,
         "resizable": true
       }

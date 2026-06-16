@@ -38,23 +38,50 @@ checks.nativeGardenShell = await page.evaluate(() => Boolean(
   !document.querySelector('#typora-sidebar')
 ));
 
-checks.nativeSidebarKeepsPinsAndPageDrag = await page.evaluate(() => {
-  const pinList = document.querySelector('.sidebar .sidebar-pin-list');
+checks.nativeRightPanelKeepsPinsAndPageRowsDrag = await page.evaluate(() => {
+  const sidebarPinList = document.querySelector('.sidebar .sidebar-pin-list');
+  const rightPanelPinned = document.querySelector('.right-panel .right-panel-pin-list');
+  const pageRow = document.querySelector('.sidebar .page-row-shell');
   const pageButton = document.querySelector('.sidebar .page-button');
-  const rightPanelPinned = document.querySelector('.right-panel .desktop-preview');
-  return pinList instanceof HTMLElement &&
+  return !(sidebarPinList instanceof HTMLElement) &&
+    rightPanelPinned instanceof HTMLElement &&
+    pageRow instanceof HTMLElement &&
+    !pageRow.draggable &&
     pageButton instanceof HTMLButtonElement &&
-    pageButton.draggable &&
-    !rightPanelPinned;
+    pageButton.draggable;
 });
 
+await page.setViewportSize({ width: 1100, height: 720 });
+checks.nativeMediumViewportHidesLeftPanelFirst = await page.evaluate(() => {
+  const sidebar = document.querySelector('.app-shell .sidebar');
+  const rightPanel = document.querySelector('.app-shell .right-panel');
+  const pageSurface = document.querySelector('.app-shell .page-surface');
+  if (!(sidebar instanceof HTMLElement) || !(rightPanel instanceof HTMLElement) || !(pageSurface instanceof HTMLElement)) return false;
+  return getComputedStyle(sidebar).display === 'none' &&
+    getComputedStyle(rightPanel).display !== 'none' &&
+    pageSurface.getBoundingClientRect().width > 0;
+});
+await page.setViewportSize({ width: 900, height: 720 });
+checks.nativeNarrowViewportHidesRightPanelSecond = await page.evaluate(() => {
+  const sidebar = document.querySelector('.app-shell .sidebar');
+  const rightPanel = document.querySelector('.app-shell .right-panel');
+  const pageSurface = document.querySelector('.app-shell .page-surface');
+  if (!(sidebar instanceof HTMLElement) || !(rightPanel instanceof HTMLElement) || !(pageSurface instanceof HTMLElement)) return false;
+  const pageRect = pageSurface.getBoundingClientRect();
+  return getComputedStyle(sidebar).display === 'none' &&
+    getComputedStyle(rightPanel).display === 'none' &&
+    pageRect.width <= window.innerWidth &&
+    pageRect.width > 0;
+});
+await page.setViewportSize({ width: 1280, height: 720 });
+
 await page.locator('.fish-desk-trigger').hover();
-await page.locator('.fish-desk .secondary-button').filter({ hasText: 'Sidebar' }).click();
+await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Sidebar' }).click();
 checks.nativeSidebarCanCollapseFromFishDesk = await page.evaluate(() => Boolean(
   document.querySelector('.app-shell.sidebar-collapsed')
 ) && getComputedStyle(document.querySelector('.app-shell.sidebar-collapsed .sidebar')).display === 'none');
 await page.locator('.fish-desk-trigger').hover();
-await page.locator('.fish-desk .secondary-button').filter({ hasText: 'Sidebar' }).click();
+await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Sidebar' }).click();
 
 await chooseShell('native-ledger');
 checks.nativeLedgerDiffers = await page.evaluate(() => {
@@ -65,6 +92,27 @@ checks.nativeLedgerDiffers = await page.evaluate(() => {
   const noteStyles = getComputedStyle(note);
   return sidebarStyles.position === 'sticky' && noteStyles.display === 'none';
 });
+await page.setViewportSize({ width: 1100, height: 720 });
+checks.nativeLedgerMediumViewportHidesLeftPanelFirst = await page.evaluate(() => {
+  const sidebar = document.querySelector('.app-shell .sidebar');
+  const rightPanel = document.querySelector('.app-shell .right-panel');
+  const pageSurface = document.querySelector('.app-shell .page-surface');
+  if (!(sidebar instanceof HTMLElement) || !(rightPanel instanceof HTMLElement) || !(pageSurface instanceof HTMLElement)) return false;
+  return getComputedStyle(sidebar).display === 'none' &&
+    getComputedStyle(rightPanel).display !== 'none' &&
+    pageSurface.getBoundingClientRect().width > 0;
+});
+await page.setViewportSize({ width: 900, height: 720 });
+checks.nativeLedgerNarrowViewportHidesRightPanelSecond = await page.evaluate(() => {
+  const sidebar = document.querySelector('.app-shell .sidebar');
+  const rightPanel = document.querySelector('.app-shell .right-panel');
+  const pageSurface = document.querySelector('.app-shell .page-surface');
+  if (!(sidebar instanceof HTMLElement) || !(rightPanel instanceof HTMLElement) || !(pageSurface instanceof HTMLElement)) return false;
+  return getComputedStyle(sidebar).display === 'none' &&
+    getComputedStyle(rightPanel).display === 'none' &&
+    pageSurface.getBoundingClientRect().width > 0;
+});
+await page.setViewportSize({ width: 1280, height: 720 });
 
 await chooseShell('typora-base');
 await chooseContentTheme('notebook');
@@ -88,6 +136,38 @@ checks.typoraOutlineClosedByDefault = await page.evaluate(() => {
     drawerStyles.pointerEvents === 'none' &&
     shellStyles.gridTemplateColumns.endsWith('0px');
 });
+
+await page.locator('.fish-desk-trigger').hover();
+await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Outline' }).click();
+await page.setViewportSize({ width: 1240, height: 720 });
+checks.typoraMediumViewportHidesLeftPanelFirst = await page.evaluate(() => {
+  const sidebar = document.querySelector('#typora-sidebar');
+  const drawer = document.querySelector('.typora-app-shell .outline-drawer');
+  const workspace = document.querySelector('.typora-workspace');
+  if (!(sidebar instanceof HTMLElement) || !(drawer instanceof HTMLElement) || !(workspace instanceof HTMLElement)) return false;
+  const drawerStyles = getComputedStyle(drawer);
+  return getComputedStyle(sidebar).visibility === 'hidden' &&
+    getComputedStyle(drawer).display !== 'none' &&
+    drawerStyles.pointerEvents === 'auto' &&
+    drawer.getBoundingClientRect().width > 0 &&
+    workspace.getBoundingClientRect().width > 0;
+});
+await page.setViewportSize({ width: 980, height: 720 });
+await page.waitForTimeout(220);
+checks.typoraNarrowViewportHidesRightPanelSecond = await page.evaluate(() => {
+  const sidebar = document.querySelector('#typora-sidebar');
+  const drawer = document.querySelector('.typora-app-shell .outline-drawer');
+  const workspace = document.querySelector('.typora-workspace');
+  if (!(sidebar instanceof HTMLElement) || !(drawer instanceof HTMLElement) || !(workspace instanceof HTMLElement)) return false;
+  const drawerStyles = getComputedStyle(drawer);
+  return getComputedStyle(sidebar).visibility === 'hidden' &&
+    getComputedStyle(drawer).display === 'none' &&
+    workspace.getBoundingClientRect().width > 0;
+});
+await page.setViewportSize({ width: 1440, height: 720 });
+await page.locator('.fish-desk-trigger').hover();
+await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Outline' }).click();
+await page.waitForTimeout(220);
 
 const composer = page.locator('.typora-write .composer');
 await composer.click();
@@ -521,7 +601,7 @@ checks.ravelEditorChromeKeepsPillIconsCentered = await page.evaluate(() => {
 });
 
 await page.locator('.fish-desk-trigger').hover();
-await page.locator('.fish-desk .secondary-button').filter({ hasText: 'Outline' }).click();
+await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Outline' }).click();
 checks.typoraOutlineDoesNotUseContentTocCard = await page.evaluate(() => {
   const drawer = document.querySelector('.outline-drawer.is-open');
   const outline = drawer?.querySelector('.outline-content.md-toc-content');
@@ -581,15 +661,229 @@ checks.typoraSidebarContract = await page.evaluate(() => {
     outlineStyles.borderRadius !== '999px' &&
     desk.querySelector('.fish-desk-trigger img') !== null &&
     deskTools.querySelector('.shell-theme-select') !== null &&
-    [...deskTools.querySelectorAll('button')].some((button) => button.textContent?.includes('Outline')) &&
-    [...deskTools.querySelectorAll('button')].some((button) => button.textContent?.includes('Sidebar')) &&
+    [...deskTools.querySelectorAll('label')].some((label) => label.textContent?.includes('Outline') && label.querySelector('input[type="checkbox"]')) &&
+    [...deskTools.querySelectorAll('label')].some((label) => label.textContent?.includes('Sidebar') && label.querySelector('input[type="checkbox"]')) &&
     pinList instanceof HTMLElement &&
     fileButton instanceof HTMLButtonElement &&
-    fileButton.draggable;
+    fileButton.draggable &&
+    fileButton.closest('.file-node-row-shell')?.draggable === false;
 });
 
+await page.setViewportSize({ width: 1440, height: 720 });
+await page.waitForTimeout(120);
+await chooseContentTheme('typora-gruvbox-dark');
+await page.evaluate(() => {
+  const composer = document.querySelector('.typora-write .composer');
+  if (composer instanceof HTMLElement && !composer.querySelector('mark')) {
+    composer.insertAdjacentHTML('beforeend', '<p class="md-end-block"><mark>theme mark probe</mark></p>');
+  }
+});
+if (await page.locator('.block-created-at.is-pinned').count() > 0) {
+  await page.locator('.block-created-at.is-pinned').first().click();
+  await page.waitForFunction(() => !document.querySelector('.block-created-at')?.classList.contains('is-pinned'));
+}
+const typoraPinnedBlockDateBefore = await page.evaluate(() => {
+  const blockTime = document.querySelector('.block-created-at');
+  const mark = document.querySelector('.typora-write mark');
+  if (!(blockTime instanceof HTMLElement) || !(mark instanceof HTMLElement)) return false;
+  const beforeBackground = getComputedStyle(blockTime).backgroundColor;
+  const markStyles = getComputedStyle(mark);
+  return {
+    unpinnedIsBare: beforeBackground === 'rgba(0, 0, 0, 0)',
+    markBackground: markStyles.backgroundColor,
+    markColor: markStyles.color
+  };
+});
+await page.locator('.block-created-at').first().click();
+await page.waitForFunction(() => document.querySelector('.block-created-at')?.classList.contains('is-pinned'));
+const typoraPinnedBlockDateAfter = await page.evaluate(() => {
+  const blockTime = document.querySelector('.block-created-at');
+  if (!(blockTime instanceof HTMLElement)) return null;
+  const afterStyles = getComputedStyle(blockTime);
+  return {
+    background: afterStyles.backgroundColor,
+    color: afterStyles.color
+  };
+});
+checks.typoraPinnedBlockDateMatchesThemeMark = Boolean(typoraPinnedBlockDateBefore && typoraPinnedBlockDateAfter) &&
+  typoraPinnedBlockDateBefore.unpinnedIsBare &&
+  typoraPinnedBlockDateAfter.background === typoraPinnedBlockDateBefore.markBackground &&
+  typoraPinnedBlockDateAfter.color === typoraPinnedBlockDateBefore.markColor;
+
+checks.typoraPinnedBlockDateMatchesPrintAndZeusMarks = true;
+for (const theme of ['typora-print', 'typora-zeus']) {
+  await chooseContentTheme(theme);
+  await page.evaluate(() => {
+    const composer = document.querySelector('.typora-write .composer');
+    if (composer instanceof HTMLElement && !composer.querySelector('mark')) {
+      composer.insertAdjacentHTML('beforeend', '<p class="md-end-block"><mark>theme mark probe</mark></p>');
+    }
+  });
+  if (await page.locator('.block-created-at.is-pinned').count() > 0) {
+    await page.locator('.block-created-at.is-pinned').first().click();
+    await page.waitForFunction(() => !document.querySelector('.block-created-at')?.classList.contains('is-pinned'));
+  }
+  const beforeThemeDate = await page.evaluate(() => {
+    const blockTime = document.querySelector('.block-created-at');
+    const mark = document.querySelector('.typora-write mark');
+    if (!(blockTime instanceof HTMLElement) || !(mark instanceof HTMLElement)) return null;
+    const beforeBackground = getComputedStyle(blockTime).backgroundColor;
+    const markStyles = getComputedStyle(mark);
+    return {
+      unpinnedIsBare: beforeBackground === 'rgba(0, 0, 0, 0)',
+      backgroundColor: markStyles.backgroundColor,
+      color: markStyles.color,
+      fontWeight: markStyles.fontWeight,
+      borderTopStyle: markStyles.borderTopStyle
+    };
+  });
+  await page.locator('.block-created-at').first().click();
+  await page.waitForFunction(() => document.querySelector('.block-created-at')?.classList.contains('is-pinned'));
+  const afterThemeDate = await page.evaluate(() => {
+    const blockTime = document.querySelector('.block-created-at');
+    if (!(blockTime instanceof HTMLElement)) return null;
+    const dateStyles = getComputedStyle(blockTime);
+    return {
+      backgroundColor: dateStyles.backgroundColor,
+      color: dateStyles.color,
+      fontWeight: dateStyles.fontWeight,
+      borderTopStyle: dateStyles.borderTopStyle
+    };
+  });
+  const themeMatch = Boolean(beforeThemeDate && afterThemeDate) &&
+    beforeThemeDate.unpinnedIsBare &&
+    afterThemeDate.backgroundColor === beforeThemeDate.backgroundColor &&
+    afterThemeDate.color === beforeThemeDate.color &&
+    afterThemeDate.fontWeight === beforeThemeDate.fontWeight &&
+    afterThemeDate.borderTopStyle === beforeThemeDate.borderTopStyle;
+  checks.typoraPinnedBlockDateMatchesPrintAndZeusMarks = checks.typoraPinnedBlockDateMatchesPrintAndZeusMarks && themeMatch;
+}
+
+await chooseContentTheme('typora-zeus');
+checks.zeusBlockDividerHasOnlyThemeDashedLine = await page.evaluate(() => {
+  const divider = document.querySelector('.typora-write hr.block-divider.uses-theme-divider');
+  if (!(divider instanceof HTMLHRElement)) return false;
+  const styles = getComputedStyle(divider);
+  return styles.borderTopStyle === 'dashed' &&
+    styles.borderRightStyle === 'none' &&
+    styles.borderBottomStyle === 'none' &&
+    styles.borderLeftStyle === 'none' &&
+    styles.backgroundColor === 'rgba(0, 0, 0, 0)';
+});
+
+await chooseContentTheme('typora-gruvbox-dark');
+await page.locator('#typora-sidebar .file-node-content:not(.notebook-node)').first().click();
+checks.typoraDarkRenameAndChromeRemainReadable = await page.evaluate(() => {
+  const channels = (value) => {
+    const rgb = value.match(/rgba?\(([^)]+)\)/i);
+    if (rgb) return rgb[1].split(/[\s,\/]+/).slice(0, 3).map((part) => Number.parseFloat(part));
+    const srgb = value.match(/color\(srgb\s+([^)]+)\)/i);
+    if (srgb) return srgb[1].split(/\s+/).slice(0, 3).map((part) => Number.parseFloat(part) * 255);
+    return null;
+  };
+  const luminance = (value) => {
+    const parts = channels(value);
+    if (!parts) return null;
+    const [r, g, b] = parts.map((part) => {
+      const channel = part / 255;
+      return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (foreground, background) => {
+    const a = luminance(foreground);
+    const b = luminance(background);
+    if (a === null || b === null) return 0;
+    const lighter = Math.max(a, b);
+    const darker = Math.min(a, b);
+    return (lighter + 0.05) / (darker + 0.05);
+  };
+  const backgroundFor = (element) => {
+    let cursor = element;
+    while (cursor instanceof HTMLElement) {
+      const background = getComputedStyle(cursor).backgroundColor;
+      if (background && background !== 'rgba(0, 0, 0, 0)' && background !== 'transparent') return background;
+      cursor = cursor.parentElement;
+    }
+    return getComputedStyle(document.body).backgroundColor;
+  };
+  const renameInput = document.querySelector('.page-name-input, .notebook-name-input');
+  const outlineTitle = document.querySelector('.outline-drawer-head .panel-title');
+  const blockTime = document.querySelector('.block-created-at');
+  if (!(renameInput instanceof HTMLElement) || !(outlineTitle instanceof HTMLElement) || !(blockTime instanceof HTMLElement)) return false;
+  const inputStyles = getComputedStyle(renameInput);
+  const outlineStyles = getComputedStyle(outlineTitle);
+  const timeStyles = getComputedStyle(blockTime);
+  return contrast(inputStyles.color, inputStyles.backgroundColor) >= 4 &&
+    contrast(outlineStyles.color, backgroundFor(outlineTitle)) >= 3 &&
+    contrast(timeStyles.color, backgroundFor(blockTime)) >= 2.4;
+});
+await page.keyboard.press('Escape');
+await page.waitForTimeout(120);
+if (await page.locator('#typora-sidebar .sidebar-pin-card').count() === 0) {
+  const isPinned = await page.locator('.block-created-at').first().evaluate((element) => element.classList.contains('is-pinned'));
+  if (!isPinned) await page.locator('.block-created-at').first().click();
+}
+await page.locator('#typora-sidebar .sidebar-pin-card').first().click();
+checks.typoraPinnedPopupUsesContentThemeBackground = await page.evaluate(() => {
+  const channels = (value) => {
+    const rgb = value.match(/rgba?\(([^)]+)\)/i);
+    if (rgb) return rgb[1].split(/[\s,\/]+/).slice(0, 3).map((part) => Number.parseFloat(part));
+    const srgb = value.match(/color\(srgb\s+([^)]+)\)/i);
+    if (srgb) return srgb[1].split(/\s+/).slice(0, 3).map((part) => Number.parseFloat(part) * 255);
+    return null;
+  };
+  const luminance = (value) => {
+    const parts = channels(value);
+    if (!parts) return null;
+    const [r, g, b] = parts.map((part) => {
+      const channel = part / 255;
+      return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const popup = document.querySelector('.floating-card-window');
+  const body = document.querySelector('.floating-card-window .floating-card-body');
+  if (!(popup instanceof HTMLElement) || !(body instanceof HTMLElement)) return false;
+  const popupStyles = getComputedStyle(popup);
+  const bodyStyles = getComputedStyle(body);
+  const backgroundLuminance = luminance(popupStyles.backgroundColor);
+  const textLuminance = luminance(bodyStyles.color);
+  const popupBackground = channels(popupStyles.backgroundColor);
+  const bodyBackground = channels(bodyStyles.backgroundColor);
+  const backgroundsMatch = popupBackground && bodyBackground && popupBackground.every((channel, index) => Math.abs(channel - bodyBackground[index]) <= 3);
+  return backgroundLuminance !== null &&
+    textLuminance !== null &&
+    backgroundLuminance < 0.08 &&
+    textLuminance > 0.65 &&
+    backgroundsMatch &&
+    bodyStyles.color === 'rgb(235, 219, 178)' &&
+    popupStyles.color === bodyStyles.color;
+});
+const popupExpandedHeight = await page.locator('.floating-card-window').evaluate((element) => element.getBoundingClientRect().height);
+await page.locator('.floating-card-title').click();
+await page.waitForFunction(() => {
+  const popup = document.querySelector('.floating-card-window');
+  return popup?.classList.contains('is-collapsed') && !document.querySelector('.floating-card-window .floating-card-body');
+});
+checks.typoraPinnedPopupCollapseIsCompact = await page.evaluate((expandedHeight) => {
+  const popup = document.querySelector('.floating-card-window');
+  const title = document.querySelector('.floating-card-window .floating-card-title');
+  if (!(popup instanceof HTMLElement) || !(title instanceof HTMLButtonElement)) return false;
+  const collapsedHeight = popup.getBoundingClientRect().height;
+  const body = document.querySelector('.floating-card-window .floating-card-body');
+  return popup.classList.contains('is-collapsed') &&
+    !(body instanceof HTMLElement) &&
+    collapsedHeight < expandedHeight &&
+    collapsedHeight <= 44 &&
+    /\S+\s{2}\S+/.test(title.textContent ?? '');
+}, popupExpandedHeight);
+await page.locator('.floating-card-title').click();
+await page.waitForFunction(() => document.querySelector('.floating-card-window .floating-card-body'));
+await page.locator('.floating-card-head button[aria-label="Close pinned card"]').click();
+
 await page.locator('.fish-desk-trigger').hover();
-await page.locator('.fish-desk .secondary-button').filter({ hasText: 'Sidebar' }).click();
+await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Sidebar' }).click();
 checks.typoraSidebarCanCollapseFromFishDesk = await page.evaluate(() => {
   const shell = document.querySelector('.typora-app-shell.sidebar-collapsed');
   const sidebar = document.querySelector('#typora-sidebar');
@@ -598,7 +892,7 @@ checks.typoraSidebarCanCollapseFromFishDesk = await page.evaluate(() => {
   return styles.visibility === 'hidden' && styles.pointerEvents === 'none';
 });
 await page.locator('.fish-desk-trigger').hover();
-await page.locator('.fish-desk .secondary-button').filter({ hasText: 'Sidebar' }).click();
+await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Sidebar' }).click();
 
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'domcontentloaded' });
@@ -676,14 +970,15 @@ checks.codeBlockCanCollapseInline = codeFoldBefore && codeFoldAfter;
 const cardBlockId = 'block_card_smoke';
 await page.evaluate((blockId) => {
   const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  const longHtml = `<p>${Array.from({ length: 80 }, (_, index) => `Pinned long card line ${index + 1}`).join('</p><p>')}</p>`;
   state.blocks = [
     ...(state.blocks ?? []),
     {
       id: blockId,
       pageId: state.activePageId,
       content: {
-        html: '<p><strong>Pinned</strong> smoke card</p><ul><li>compact item</li></ul><ul data-type="taskList"><li data-checked="false" data-type="taskItem" data-todo-style="plain"><label><input type="checkbox"><span></span></label><div><p>task item</p></div></li></ul>',
-        plainText: 'Pinned smoke card compact item'
+        html: `<p><strong>Pinned</strong> smoke card</p><ul><li>compact item</li></ul><ul data-type="taskList"><li data-checked="false" data-type="taskItem" data-todo-style="plain"><label><input type="checkbox"><span></span></label><div><p>task item</p></div></li></ul>${longHtml}`,
+        plainText: 'Pinned smoke card compact item long scrolling content'
       },
       collapsed: false,
       pinned: true,
@@ -713,6 +1008,21 @@ checks.cardWindowModeIsCompactAndShellFree = await page.evaluate(() => {
     Number.parseFloat(listStyles.paddingLeft) <= 18 &&
     Number.parseFloat(taskStyles.columnGap) <= 5 &&
     body.textContent?.includes('Pinned smoke card');
+});
+
+checks.cardWindowHeaderStaysVisibleWhileEditingLongCard = await page.evaluate(() => {
+  const page = document.querySelector('.card-window-page');
+  const grip = document.querySelector('.card-window-grip');
+  const body = document.querySelector('.floating-card-body.card-mode');
+  if (!(page instanceof HTMLElement) || !(grip instanceof HTMLElement) || !(body instanceof HTMLElement)) return false;
+  body.scrollTop = body.scrollHeight;
+  const pageRect = page.getBoundingClientRect();
+  const gripRect = grip.getBoundingClientRect();
+  return body.scrollTop > 0 &&
+    gripRect.top >= pageRect.top &&
+    gripRect.top - pageRect.top <= 12 &&
+    gripRect.bottom <= pageRect.bottom &&
+    getComputedStyle(grip).position === 'sticky';
 });
 
 await page.goto(`${appUrl}?card=${cardBlockId}`);

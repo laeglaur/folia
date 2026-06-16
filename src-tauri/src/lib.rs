@@ -1,7 +1,7 @@
-use rusqlite::{params, Connection, OptionalExtension};
-use serde::Serialize;
-use std::collections::HashSet;
+use rusqlite::{params, params_from_iter, Connection, OptionalExtension};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
@@ -27,6 +27,246 @@ struct ImportedAsset {
 struct AttachmentCleanupResult {
     removed_count: usize,
     removed_bytes: u64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NormalizedNotebook {
+    id: String,
+    name: String,
+    #[serde(default)]
+    page_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NormalizedPageMetadata {
+    #[serde(default)]
+    source_filename: Option<String>,
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default)]
+    date: Option<String>,
+    #[serde(default)]
+    status: Option<String>,
+    #[serde(default)]
+    aliases: Vec<String>,
+    #[serde(default)]
+    frontmatter: serde_json::Map<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NormalizedPageContent {
+    #[serde(default = "default_normalized_page_content_type")]
+    content_type: String,
+    #[serde(default = "default_normalized_page_content_version")]
+    version: u32,
+    #[serde(default)]
+    blocks: Vec<NormalizedBlock>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NormalizedRichContent {
+    html: String,
+    plain_text: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NormalizedBlock {
+    id: String,
+    page_id: String,
+    content: NormalizedRichContent,
+    collapsed: bool,
+    pinned: bool,
+    created_at: String,
+    updated_at: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NormalizedPage {
+    id: String,
+    notebook_id: String,
+    #[serde(default)]
+    parent_id: Option<String>,
+    title: String,
+    block_ids: Vec<String>,
+    #[serde(default)]
+    block_order: Option<String>,
+    metadata: NormalizedPageMetadata,
+    created_at: String,
+    updated_at: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NormalizedOperationLogEntry {
+    id: String,
+    timestamp: String,
+    entity: String,
+    entity_id: String,
+    kind: String,
+    payload: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NormalizedAppState {
+    notebooks: Vec<NormalizedNotebook>,
+    pages: Vec<NormalizedPage>,
+    blocks: Vec<NormalizedBlock>,
+    #[serde(default)]
+    active_notebook_id: String,
+    #[serde(default)]
+    active_page_id: String,
+    #[serde(default)]
+    shell: String,
+    #[serde(default)]
+    theme: String,
+    #[serde(default)]
+    content_theme: String,
+    #[serde(default)]
+    open_card_window_block_id: Option<String>,
+    #[serde(default)]
+    expanded_page_ids: Vec<String>,
+    #[serde(default)]
+    operations: Vec<NormalizedOperationLogEntry>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NotebookTreePayload {
+    notebooks: Vec<NormalizedNotebook>,
+    pages: Vec<NormalizedPage>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PageDocumentPayload {
+    page: NormalizedPage,
+    content: NormalizedPageContent,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PinnedBlockPayload {
+    page: NormalizedPage,
+    block: NormalizedBlock,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CalendarBlockPayload {
+    page: NormalizedPage,
+    block: NormalizedBlock,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PageSearchResult {
+    page_id: String,
+    notebook_id: String,
+    title: String,
+    snippet: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspacePreferencesPayload {
+    active_notebook_id: String,
+    active_page_id: String,
+    shell: String,
+    theme: String,
+    content_theme: String,
+    open_card_window_block_id: Option<String>,
+    expanded_page_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspacePreferencesRequest {
+    active_notebook_id: String,
+    active_page_id: String,
+    shell: String,
+    theme: String,
+    content_theme: String,
+    open_card_window_block_id: Option<String>,
+    expanded_page_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NormalizedImportBatch {
+    notebook: NormalizedNotebook,
+    pages: Vec<NormalizedPage>,
+    blocks: Vec<NormalizedBlock>,
+    operation: Option<NormalizedOperationLogEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RenameEntityRequest {
+    entity: String,
+    entity_id: String,
+    name: String,
+    operation: Option<NormalizedOperationLogEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MovePageRequest {
+    page_id: String,
+    parent_id: Option<String>,
+    operation: Option<NormalizedOperationLogEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateNotebookRequest {
+    notebook: NormalizedNotebook,
+    initial_page: NormalizedPage,
+    operation: Option<NormalizedOperationLogEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreatePageRequest {
+    page: NormalizedPage,
+    operation: Option<NormalizedOperationLogEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SavePageDocumentRequest {
+    page: NormalizedPage,
+    blocks: Vec<NormalizedBlock>,
+    operation: Option<NormalizedOperationLogEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeletePageTreeRequest {
+    page_id: String,
+    fallback_page: Option<NormalizedPage>,
+    operation: Option<NormalizedOperationLogEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeleteNotebookRequest {
+    notebook_id: String,
+    operation: Option<NormalizedOperationLogEntry>,
+}
+
+fn default_normalized_page_content_type() -> String {
+    "page_document".to_string()
+}
+
+fn default_normalized_page_content_version() -> u32 {
+    1
 }
 
 fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -59,6 +299,67 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS workspace_preferences (
+              id INTEGER PRIMARY KEY CHECK (id = 1),
+              active_notebook_id TEXT NOT NULL DEFAULT '',
+              active_page_id TEXT NOT NULL DEFAULT '',
+              shell TEXT NOT NULL DEFAULT 'native-garden',
+              theme TEXT NOT NULL DEFAULT 'garden',
+              content_theme TEXT NOT NULL DEFAULT 'notebook',
+              open_card_window_block_id TEXT,
+              expanded_page_ids_json TEXT NOT NULL DEFAULT '[]',
+              updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS notebooks (
+              id TEXT PRIMARY KEY,
+              name TEXT NOT NULL,
+              page_ids_json TEXT NOT NULL DEFAULT '[]',
+              created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS pages (
+              id TEXT PRIMARY KEY,
+              notebook_id TEXT NOT NULL,
+              parent_id TEXT,
+              title TEXT NOT NULL,
+              block_ids_json TEXT NOT NULL DEFAULT '[]',
+              block_order TEXT NOT NULL DEFAULT 'asc',
+              metadata_json TEXT NOT NULL DEFAULT '{}',
+              content_json TEXT NOT NULL DEFAULT '{}',
+              search_text TEXT NOT NULL DEFAULT '',
+              created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_pages_notebook_id ON pages(notebook_id);
+            CREATE INDEX IF NOT EXISTS idx_pages_parent_id ON pages(parent_id);
+
+            CREATE TABLE IF NOT EXISTS page_block_index (
+              block_id TEXT PRIMARY KEY,
+              page_id TEXT NOT NULL,
+              notebook_id TEXT NOT NULL,
+              sort_index INTEGER NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL,
+              pinned INTEGER NOT NULL DEFAULT 0,
+              collapsed INTEGER NOT NULL DEFAULT 0,
+              plain_text TEXT NOT NULL DEFAULT '',
+              block_json TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_page_block_index_page_id ON page_block_index(page_id);
+            CREATE INDEX IF NOT EXISTS idx_page_block_index_pinned ON page_block_index(pinned, page_id);
+            CREATE INDEX IF NOT EXISTS idx_page_block_index_calendar ON page_block_index(notebook_id, created_at);
+
+            CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING fts5(
+              page_id UNINDEXED,
+              title,
+              search_text,
+              metadata_text
+            );
+
             CREATE TABLE IF NOT EXISTS operation_log (
               id TEXT PRIMARY KEY,
               timestamp TEXT NOT NULL,
@@ -80,6 +381,7 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
             ",
         )
         .map_err(|error| error.to_string())?;
+    ensure_page_block_index_backfilled(connection)?;
     Ok(())
 }
 
@@ -217,11 +519,12 @@ fn import_asset_bytes_into_store(
         .and_then(|extension| extension.to_str())
         .map(|extension| format!(".{}", extension.to_lowercase()))
         .unwrap_or_default();
-    let mime_type = if mime_type_hint.trim().is_empty() || mime_type_hint == "application/octet-stream" {
-        mime_from_path(&PathBuf::from(&filename))
-    } else {
-        mime_type_hint
-    };
+    let mime_type =
+        if mime_type_hint.trim().is_empty() || mime_type_hint == "application/octet-stream" {
+            mime_from_path(&PathBuf::from(&filename))
+        } else {
+            mime_type_hint
+        };
     let id = format!("asset_{sha256}");
     let attachments_dir = app_data_dir.join(ATTACHMENTS_DIR).join(&sha256[0..2]);
     fs::create_dir_all(&attachments_dir).map_err(|error| error.to_string())?;
@@ -311,6 +614,1158 @@ fn cleanup_orphan_attachments_in_store(
     })
 }
 
+fn is_asset_hash(value: &str) -> bool {
+    value.len() == 64 && value.chars().all(|character| character.is_ascii_hexdigit())
+}
+
+fn referenced_asset_ids_from_html(html: &str) -> Vec<String> {
+    let mut ids = HashSet::new();
+    let mut cursor = 0usize;
+    while let Some(offset) = html[cursor..].find("asset_") {
+        let start = cursor + offset + "asset_".len();
+        let end = start + 64;
+        if end <= html.len() {
+            let hash = &html[start..end];
+            if is_asset_hash(hash) {
+                ids.insert(format!("asset_{}", hash.to_ascii_lowercase()));
+            }
+        }
+        cursor = start;
+    }
+    ids.into_iter().collect()
+}
+
+fn referenced_asset_ids_from_database(connection: &Connection) -> Result<Vec<String>, String> {
+    let mut ids = HashSet::new();
+    let mut statement = connection
+        .prepare("SELECT content_json FROM pages")
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|error| error.to_string())?;
+
+    for row in rows {
+        let content_json = row.map_err(|error| error.to_string())?;
+        page_content_from_json(&content_json)
+            .blocks
+            .iter()
+            .flat_map(|block| referenced_asset_ids_from_html(&block.content.html))
+            .for_each(|id| {
+                ids.insert(id);
+            });
+    }
+
+    Ok(ids.into_iter().collect())
+}
+
+fn cleanup_orphan_attachments_from_database(
+    connection: &Connection,
+    app_data_dir: PathBuf,
+) -> Result<AttachmentCleanupResult, String> {
+    let referenced_asset_ids = referenced_asset_ids_from_database(connection)?;
+    cleanup_orphan_attachments_in_store(connection, app_data_dir, referenced_asset_ids)
+}
+
+fn cleanup_orphan_attachments_after_document_change(connection: &Connection, app: &AppHandle) {
+    match app_data_dir(app)
+        .and_then(|dir| cleanup_orphan_attachments_from_database(connection, dir))
+    {
+        Ok(_) => {}
+        Err(error) => {
+            eprintln!("Could not clean orphan attachments from SQLite documents: {error}")
+        }
+    }
+}
+
+fn normalize_json_value(value: serde_json::Value) -> String {
+    serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_string())
+}
+
+fn normalize_text_from_metadata(metadata: &NormalizedPageMetadata) -> String {
+    let mut pieces = Vec::new();
+    if let Some(source_filename) = &metadata.source_filename {
+        pieces.push(source_filename.clone());
+    }
+    if let Some(date) = &metadata.date {
+        pieces.push(date.clone());
+    }
+    if let Some(status) = &metadata.status {
+        pieces.push(status.clone());
+    }
+    pieces.extend(metadata.tags.iter().cloned());
+    pieces.extend(metadata.aliases.iter().cloned());
+    pieces.push(normalize_json_value(serde_json::Value::Object(
+        metadata.frontmatter.clone(),
+    )));
+    pieces.join(" ")
+}
+
+fn normalize_text_from_blocks(blocks: &[NormalizedBlock]) -> String {
+    blocks
+        .iter()
+        .map(|block| format!("{} {}", block.content.plain_text, block.content.html))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn page_content_json_from_blocks(blocks: &[NormalizedBlock]) -> Result<String, String> {
+    serde_json::to_string(&NormalizedPageContent {
+        content_type: default_normalized_page_content_type(),
+        version: default_normalized_page_content_version(),
+        blocks: blocks.to_vec(),
+    })
+    .map_err(|error| error.to_string())
+}
+
+fn blocks_from_page_content_json(content_json: &str) -> Vec<NormalizedBlock> {
+    if let Ok(document) = serde_json::from_str::<NormalizedPageContent>(content_json) {
+        return document.blocks;
+    }
+    serde_json::from_str::<Vec<NormalizedBlock>>(content_json).unwrap_or_default()
+}
+
+fn default_page_metadata() -> NormalizedPageMetadata {
+    NormalizedPageMetadata {
+        source_filename: None,
+        tags: vec![],
+        date: None,
+        status: None,
+        aliases: vec![],
+        frontmatter: serde_json::Map::new(),
+    }
+}
+
+fn page_content_from_json(content_json: &str) -> NormalizedPageContent {
+    if let Ok(document) = serde_json::from_str::<NormalizedPageContent>(content_json) {
+        return document;
+    }
+    NormalizedPageContent {
+        content_type: default_normalized_page_content_type(),
+        version: default_normalized_page_content_version(),
+        blocks: serde_json::from_str::<Vec<NormalizedBlock>>(content_json).unwrap_or_default(),
+    }
+}
+
+fn refresh_page_block_index(
+    connection: &Connection,
+    page: &NormalizedPage,
+    page_blocks: &[NormalizedBlock],
+) -> Result<(), String> {
+    connection
+        .execute(
+            "DELETE FROM page_block_index WHERE page_id = ?1",
+            params![page.id],
+        )
+        .map_err(|error| error.to_string())?;
+
+    for (index, block) in page_blocks.iter().enumerate() {
+        let block_json = serde_json::to_string(block).map_err(|error| error.to_string())?;
+        connection
+            .execute(
+                "
+                INSERT INTO page_block_index (
+                  block_id, page_id, notebook_id, sort_index, created_at, updated_at,
+                  pinned, collapsed, plain_text, block_json
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                ON CONFLICT(block_id) DO UPDATE SET
+                  page_id = excluded.page_id,
+                  notebook_id = excluded.notebook_id,
+                  sort_index = excluded.sort_index,
+                  created_at = excluded.created_at,
+                  updated_at = excluded.updated_at,
+                  pinned = excluded.pinned,
+                  collapsed = excluded.collapsed,
+                  plain_text = excluded.plain_text,
+                  block_json = excluded.block_json
+                ",
+                params![
+                    block.id,
+                    page.id,
+                    page.notebook_id,
+                    index as i64,
+                    block.created_at,
+                    block.updated_at,
+                    if block.pinned { 1 } else { 0 },
+                    if block.collapsed { 1 } else { 0 },
+                    block.content.plain_text,
+                    block_json,
+                ],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+
+    Ok(())
+}
+
+fn rebuild_page_block_index_from_database(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute("DELETE FROM page_block_index", [])
+        .map_err(|error| error.to_string())?;
+    for document in list_page_documents_from_database(connection, None)? {
+        refresh_page_block_index(connection, &document.page, &document.content.blocks)?;
+    }
+    Ok(())
+}
+
+fn ensure_page_block_index_backfilled(connection: &Connection) -> Result<(), String> {
+    let page_count = connection
+        .query_row("SELECT COUNT(*) FROM pages", [], |row| row.get::<_, i64>(0))
+        .map_err(|error| error.to_string())?;
+    if page_count == 0 {
+        return Ok(());
+    }
+    let indexed_count = connection
+        .query_row("SELECT COUNT(*) FROM page_block_index", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .map_err(|error| error.to_string())?;
+    let missing_indexed_pages = connection
+        .query_row(
+            "
+            SELECT COUNT(*)
+            FROM pages
+            WHERE block_ids_json != '[]'
+              AND id NOT IN (SELECT DISTINCT page_id FROM page_block_index)
+            ",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| error.to_string())?;
+    if indexed_count == 0 || missing_indexed_pages > 0 {
+        rebuild_page_block_index_from_database(connection)?;
+    }
+    Ok(())
+}
+
+fn list_notebooks_from_database(
+    connection: &Connection,
+) -> Result<Vec<NormalizedNotebook>, String> {
+    let mut statement = connection
+        .prepare("SELECT id, name, page_ids_json FROM notebooks ORDER BY rowid")
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            let page_ids_json: String = row.get(2)?;
+            let page_ids = serde_json::from_str::<Vec<String>>(&page_ids_json).unwrap_or_default();
+            Ok(NormalizedNotebook {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                page_ids,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
+fn normalized_page_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<NormalizedPage> {
+    let block_ids_json: String = row.get(4)?;
+    let metadata_json: String = row.get(6)?;
+    Ok(NormalizedPage {
+        id: row.get(0)?,
+        notebook_id: row.get(1)?,
+        parent_id: row.get(2)?,
+        title: row.get(3)?,
+        block_ids: serde_json::from_str::<Vec<String>>(&block_ids_json).unwrap_or_default(),
+        block_order: row.get(5)?,
+        metadata: serde_json::from_str::<NormalizedPageMetadata>(&metadata_json)
+            .unwrap_or_else(|_| default_page_metadata()),
+        created_at: row.get(7)?,
+        updated_at: row.get(8)?,
+    })
+}
+
+fn list_pages_from_database(connection: &Connection) -> Result<Vec<NormalizedPage>, String> {
+    let mut statement = connection
+        .prepare(
+            "
+            SELECT id, notebook_id, parent_id, title, block_ids_json, block_order,
+                   metadata_json, created_at, updated_at
+            FROM pages
+            ORDER BY rowid
+            ",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], normalized_page_from_row)
+        .map_err(|error| error.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
+fn load_page_metadata_from_database(
+    connection: &Connection,
+    page_id: &str,
+) -> Result<Option<NormalizedPage>, String> {
+    connection
+        .query_row(
+            "
+            SELECT id, notebook_id, parent_id, title, block_ids_json, block_order,
+                   metadata_json, created_at, updated_at
+            FROM pages
+            WHERE id = ?1
+            ",
+            params![page_id],
+            normalized_page_from_row,
+        )
+        .optional()
+        .map_err(|error| error.to_string())
+}
+
+fn fts_query_from_search_text(query: &str) -> Option<String> {
+    let tokens = query
+        .split_whitespace()
+        .map(|token| token.trim_matches(|character: char| character.is_ascii_punctuation()))
+        .filter(|token| !token.is_empty())
+        .map(|token| format!("\"{}\"", token.replace('"', "\"\"")))
+        .collect::<Vec<_>>();
+    if tokens.is_empty() {
+        let fallback = query.trim();
+        if fallback.is_empty() {
+            return None;
+        }
+        return Some(format!("\"{}\"", fallback.replace('"', "\"\"")));
+    }
+    Some(tokens.join(" "))
+}
+
+fn upsert_notebook(connection: &Connection, notebook: &NormalizedNotebook) -> Result<(), String> {
+    connection
+        .execute(
+            "
+        INSERT INTO notebooks (id, name, page_ids_json, created_at, updated_at)
+        VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET
+          name = excluded.name,
+          page_ids_json = excluded.page_ids_json,
+          updated_at = excluded.updated_at
+        ",
+            params![
+                notebook.id,
+                notebook.name,
+                serde_json::to_string(&notebook.page_ids).map_err(|error| error.to_string())?
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn upsert_page_document(
+    connection: &Connection,
+    page: &NormalizedPage,
+    page_blocks: &[NormalizedBlock],
+) -> Result<(), String> {
+    let normalized_page_blocks = page_blocks
+        .iter()
+        .map(|block| NormalizedBlock {
+            page_id: page.id.clone(),
+            ..block.clone()
+        })
+        .collect::<Vec<_>>();
+    let block_ids_json =
+        serde_json::to_string(&page.block_ids).map_err(|error| error.to_string())?;
+    let metadata_json = serde_json::to_string(&page.metadata).map_err(|error| error.to_string())?;
+    let content_json = page_content_json_from_blocks(&normalized_page_blocks)?;
+    let search_text = normalize_text_from_blocks(&normalized_page_blocks);
+    let metadata_text = normalize_text_from_metadata(&page.metadata);
+
+    connection
+        .execute(
+            "
+        INSERT INTO pages (
+          id, notebook_id, parent_id, title, block_ids_json, block_order,
+          metadata_json, content_json, search_text, created_at, updated_at
+        )
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+        ON CONFLICT(id) DO UPDATE SET
+          notebook_id = excluded.notebook_id,
+          parent_id = excluded.parent_id,
+          title = excluded.title,
+          block_ids_json = excluded.block_ids_json,
+          block_order = excluded.block_order,
+          metadata_json = excluded.metadata_json,
+          content_json = excluded.content_json,
+          search_text = excluded.search_text,
+          updated_at = excluded.updated_at
+        ",
+            params![
+                page.id,
+                page.notebook_id,
+                page.parent_id,
+                page.title,
+                block_ids_json,
+                page.block_order
+                    .clone()
+                    .unwrap_or_else(|| "asc".to_string()),
+                metadata_json,
+                content_json,
+                search_text,
+                page.created_at,
+                page.updated_at,
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+
+    connection
+        .execute("DELETE FROM fts_pages WHERE page_id = ?1", params![page.id])
+        .map_err(|error| error.to_string())?;
+    connection.execute(
+        "INSERT INTO fts_pages (page_id, title, search_text, metadata_text) VALUES (?1, ?2, ?3, ?4)",
+        params![page.id, page.title, search_text, metadata_text],
+    ).map_err(|error| error.to_string())?;
+    refresh_page_block_index(connection, page, &normalized_page_blocks)?;
+    Ok(())
+}
+
+fn insert_operation(
+    connection: &Connection,
+    operation: &NormalizedOperationLogEntry,
+) -> Result<(), String> {
+    connection
+        .execute(
+            "
+        INSERT INTO operation_log (id, timestamp, entity, entity_id, kind, payload_json)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        ON CONFLICT(id) DO UPDATE SET
+          timestamp = excluded.timestamp,
+          entity = excluded.entity,
+          entity_id = excluded.entity_id,
+          kind = excluded.kind,
+          payload_json = excluded.payload_json
+        ",
+            params![
+                operation.id,
+                operation.timestamp,
+                operation.entity,
+                operation.entity_id,
+                operation.kind,
+                normalize_json_value(operation.payload.clone())
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn rebuild_normalized_tables(
+    connection: &Connection,
+    state: &NormalizedAppState,
+) -> Result<(), String> {
+    connection
+        .execute("DELETE FROM fts_pages", [])
+        .map_err(|error| error.to_string())?;
+    connection
+        .execute("DELETE FROM page_block_index", [])
+        .map_err(|error| error.to_string())?;
+    connection
+        .execute("DELETE FROM pages", [])
+        .map_err(|error| error.to_string())?;
+    connection
+        .execute("DELETE FROM notebooks", [])
+        .map_err(|error| error.to_string())?;
+
+    for notebook in &state.notebooks {
+        upsert_notebook(connection, notebook)?;
+    }
+
+    let blocks_by_page = state.blocks.iter().fold(
+        std::collections::HashMap::<String, Vec<NormalizedBlock>>::new(),
+        |mut acc, block| {
+            acc.entry(block.page_id.clone())
+                .or_default()
+                .push(block.clone());
+            acc
+        },
+    );
+
+    for page in &state.pages {
+        let page_blocks = blocks_by_page.get(&page.id).cloned().unwrap_or_default();
+        upsert_page_document(connection, page, &page_blocks)?;
+    }
+
+    connection
+        .execute("DELETE FROM operation_log", [])
+        .map_err(|error| error.to_string())?;
+    for operation in &state.operations {
+        insert_operation(connection, operation)?;
+    }
+
+    Ok(())
+}
+
+fn persist_import_batch_in_transaction(
+    connection: &mut Connection,
+    batch: &NormalizedImportBatch,
+) -> Result<(), String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    upsert_notebook(&transaction, &batch.notebook)?;
+
+    let blocks_by_page = batch.blocks.iter().fold(
+        std::collections::HashMap::<String, Vec<NormalizedBlock>>::new(),
+        |mut acc, block| {
+            acc.entry(block.page_id.clone())
+                .or_default()
+                .push(block.clone());
+            acc
+        },
+    );
+    for page in &batch.pages {
+        let page_blocks = blocks_by_page.get(&page.id).cloned().unwrap_or_default();
+        upsert_page_document(&transaction, page, &page_blocks)?;
+    }
+    if let Some(operation) = &batch.operation {
+        insert_operation(&transaction, operation)?;
+    }
+
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn rename_entity_in_transaction(
+    connection: &mut Connection,
+    request: &RenameEntityRequest,
+) -> Result<(), String> {
+    let next_name = request.name.trim();
+    if next_name.is_empty() {
+        return Err("Name cannot be empty".to_string());
+    }
+
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    match request.entity.as_str() {
+        "notebook" => {
+            let affected = transaction
+                .execute(
+                    "UPDATE notebooks SET name = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+                    params![next_name, request.entity_id],
+                )
+                .map_err(|error| error.to_string())?;
+            if affected == 0 {
+                return Err(format!("Notebook not found: {}", request.entity_id));
+            }
+        }
+        "page" => {
+            let affected = transaction
+                .execute(
+                    "UPDATE pages SET title = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+                    params![next_name, request.entity_id],
+                )
+                .map_err(|error| error.to_string())?;
+            if affected == 0 {
+                return Err(format!("Page not found: {}", request.entity_id));
+            }
+            transaction
+                .execute(
+                    "UPDATE fts_pages SET title = ?1 WHERE page_id = ?2",
+                    params![next_name, request.entity_id],
+                )
+                .map_err(|error| error.to_string())?;
+        }
+        other => return Err(format!("Unsupported rename entity: {other}")),
+    }
+
+    if let Some(operation) = &request.operation {
+        insert_operation(&transaction, operation)?;
+    }
+
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn move_page_in_transaction(
+    connection: &mut Connection,
+    request: &MovePageRequest,
+) -> Result<(), String> {
+    if request.parent_id.as_deref() == Some(request.page_id.as_str()) {
+        return Err("Page cannot be moved under itself".to_string());
+    }
+
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    let page_exists = transaction
+        .query_row(
+            "SELECT COUNT(*) FROM pages WHERE id = ?1",
+            params![request.page_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| error.to_string())?
+        > 0;
+    if !page_exists {
+        return Err(format!("Page not found: {}", request.page_id));
+    }
+
+    if let Some(parent_id) = &request.parent_id {
+        let mut cursor = Some(parent_id.clone());
+        while let Some(current_id) = cursor {
+            if current_id == request.page_id {
+                return Err("Page cannot be moved under its descendant".to_string());
+            }
+            cursor = transaction
+                .query_row(
+                    "SELECT parent_id FROM pages WHERE id = ?1",
+                    params![current_id],
+                    |row| row.get::<_, Option<String>>(0),
+                )
+                .optional()
+                .map_err(|error| error.to_string())?
+                .flatten();
+            if cursor.is_none() {
+                let parent_exists = transaction
+                    .query_row(
+                        "SELECT COUNT(*) FROM pages WHERE id = ?1",
+                        params![parent_id],
+                        |row| row.get::<_, i64>(0),
+                    )
+                    .map_err(|error| error.to_string())?
+                    > 0;
+                if !parent_exists {
+                    return Err(format!("Parent page not found: {parent_id}"));
+                }
+            }
+        }
+    }
+
+    transaction
+        .execute(
+            "UPDATE pages SET parent_id = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+            params![request.parent_id, request.page_id],
+        )
+        .map_err(|error| error.to_string())?;
+
+    if let Some(operation) = &request.operation {
+        insert_operation(&transaction, operation)?;
+    }
+
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn create_notebook_in_transaction(
+    connection: &mut Connection,
+    request: &CreateNotebookRequest,
+) -> Result<(), String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    upsert_notebook(&transaction, &request.notebook)?;
+    upsert_page_document(&transaction, &request.initial_page, &[])?;
+    if let Some(operation) = &request.operation {
+        insert_operation(&transaction, operation)?;
+    }
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn create_page_in_transaction(
+    connection: &mut Connection,
+    request: &CreatePageRequest,
+) -> Result<(), String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    let existing_page_ids_json = transaction
+        .query_row(
+            "SELECT page_ids_json FROM notebooks WHERE id = ?1",
+            params![request.page.notebook_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+    let Some(existing_page_ids_json) = existing_page_ids_json else {
+        return Err(format!("Notebook not found: {}", request.page.notebook_id));
+    };
+
+    let mut page_ids =
+        serde_json::from_str::<Vec<String>>(&existing_page_ids_json).unwrap_or_default();
+    if !page_ids.iter().any(|id| id == &request.page.id) {
+        page_ids.push(request.page.id.clone());
+    }
+    transaction
+        .execute(
+            "UPDATE notebooks SET page_ids_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+            params![
+                serde_json::to_string(&page_ids).map_err(|error| error.to_string())?,
+                request.page.notebook_id
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+    upsert_page_document(&transaction, &request.page, &[])?;
+    if let Some(operation) = &request.operation {
+        insert_operation(&transaction, operation)?;
+    }
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn save_page_document_in_transaction(
+    connection: &mut Connection,
+    request: &SavePageDocumentRequest,
+) -> Result<(), String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    let Some(existing_page) = load_page_metadata_from_database(&transaction, &request.page.id)?
+    else {
+        return Err(format!("Page not found: {}", request.page.id));
+    };
+    if existing_page.notebook_id != request.page.notebook_id {
+        return Err(format!("Page notebook mismatch: {}", request.page.id));
+    }
+
+    let page_for_save = NormalizedPage {
+        block_ids: request.page.block_ids.clone(),
+        block_order: request.page.block_order.clone(),
+        updated_at: request.page.updated_at.clone(),
+        ..existing_page
+    };
+    upsert_page_document(&transaction, &page_for_save, &request.blocks)?;
+    if let Some(operation) = &request.operation {
+        insert_operation(&transaction, operation)?;
+    }
+
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn delete_page_tree_in_transaction(
+    connection: &mut Connection,
+    request: &DeletePageTreeRequest,
+) -> Result<(), String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    let root_page = transaction
+        .query_row(
+            "SELECT id, notebook_id FROM pages WHERE id = ?1",
+            params![request.page_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+    let Some((root_page_id, notebook_id)) = root_page else {
+        return Err(format!("Page not found: {}", request.page_id));
+    };
+
+    let deleted_page_ids = transaction
+        .prepare(
+            "WITH RECURSIVE descendants(id) AS (
+                SELECT ?1
+                UNION ALL
+                SELECT pages.id FROM pages JOIN descendants ON pages.parent_id = descendants.id
+              )
+              SELECT id FROM descendants",
+        )
+        .map_err(|error| error.to_string())?
+        .query_map(params![root_page_id], |row| row.get::<_, String>(0))
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+    let deleted_page_set = deleted_page_ids
+        .iter()
+        .cloned()
+        .collect::<std::collections::HashSet<_>>();
+
+    for deleted_page_id in &deleted_page_ids {
+        transaction
+            .execute(
+                "DELETE FROM fts_pages WHERE page_id = ?1",
+                params![deleted_page_id],
+            )
+            .map_err(|error| error.to_string())?;
+        transaction
+            .execute(
+                "DELETE FROM page_block_index WHERE page_id = ?1",
+                params![deleted_page_id],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    for deleted_page_id in &deleted_page_ids {
+        transaction
+            .execute(
+                "DELETE FROM pages WHERE notebook_id = ?1 AND id = ?2",
+                params![notebook_id, deleted_page_id],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+
+    let mut page_ids = transaction
+        .query_row(
+            "SELECT page_ids_json FROM notebooks WHERE id = ?1",
+            params![notebook_id],
+            |row| row.get::<_, String>(0),
+        )
+        .map_err(|error| error.to_string())
+        .and_then(|raw| {
+            serde_json::from_str::<Vec<String>>(&raw).map_err(|error| error.to_string())
+        })?;
+    page_ids.retain(|id| !deleted_page_set.contains(id));
+
+    if page_ids.is_empty() && request.fallback_page.is_none() {
+        return Err(format!(
+            "Deleting page tree would leave notebook without pages: {notebook_id}"
+        ));
+    }
+
+    if let Some(fallback_page) = request
+        .fallback_page
+        .as_ref()
+        .filter(|page| page.notebook_id == notebook_id && page_ids.is_empty())
+    {
+        page_ids.push(fallback_page.id.clone());
+        upsert_page_document(&transaction, fallback_page, &[])?;
+    }
+
+    transaction
+        .execute(
+            "UPDATE notebooks SET page_ids_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+            params![
+                serde_json::to_string(&page_ids).map_err(|error| error.to_string())?,
+                notebook_id
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+
+    if let Some(operation) = &request.operation {
+        insert_operation(&transaction, operation)?;
+    }
+
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn delete_notebook_in_transaction(
+    connection: &mut Connection,
+    request: &DeleteNotebookRequest,
+) -> Result<(), String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    let notebook_count = transaction
+        .query_row("SELECT COUNT(*) FROM notebooks", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .map_err(|error| error.to_string())?;
+    if notebook_count <= 1 {
+        return Err("Cannot delete the last notebook".to_string());
+    }
+
+    let notebook_exists = transaction
+        .query_row(
+            "SELECT COUNT(*) FROM notebooks WHERE id = ?1",
+            params![request.notebook_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| error.to_string())?
+        > 0;
+    if !notebook_exists {
+        return Err(format!("Notebook not found: {}", request.notebook_id));
+    }
+
+    let deleted_pages = transaction
+        .prepare("SELECT id FROM pages WHERE notebook_id = ?1")
+        .map_err(|error| error.to_string())?
+        .query_map(params![request.notebook_id], |row| row.get::<_, String>(0))
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+
+    for deleted_page_id in &deleted_pages {
+        transaction
+            .execute(
+                "DELETE FROM fts_pages WHERE page_id = ?1",
+                params![deleted_page_id],
+            )
+            .map_err(|error| error.to_string())?;
+        transaction
+            .execute(
+                "DELETE FROM page_block_index WHERE page_id = ?1",
+                params![deleted_page_id],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    transaction
+        .execute(
+            "DELETE FROM pages WHERE notebook_id = ?1",
+            params![request.notebook_id],
+        )
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute(
+            "DELETE FROM notebooks WHERE id = ?1",
+            params![request.notebook_id],
+        )
+        .map_err(|error| error.to_string())?;
+
+    if let Some(operation) = &request.operation {
+        insert_operation(&transaction, operation)?;
+    }
+
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn read_normalized_state_json(connection: &Connection) -> Result<Option<String>, String> {
+    let notebook_count = connection
+        .query_row("SELECT COUNT(*) FROM notebooks", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .map_err(|error| error.to_string())?;
+    if notebook_count == 0 {
+        return Ok(None);
+    }
+
+    let notebooks = list_notebooks_from_database(connection)?;
+    let pages = list_pages_from_database(connection)?;
+
+    let mut block_statement = connection
+        .prepare("SELECT content_json FROM pages ORDER BY rowid")
+        .map_err(|error| error.to_string())?;
+    let block_rows = block_statement
+        .query_map([], |row| {
+            let content_json: String = row.get(0)?;
+            let blocks = blocks_from_page_content_json(&content_json);
+            Ok(blocks)
+        })
+        .map_err(|error| error.to_string())?;
+    let blocks = block_rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+
+    let mut operation_statement = connection
+        .prepare("SELECT id, timestamp, entity, entity_id, kind, payload_json FROM operation_log ORDER BY rowid")
+        .map_err(|error| error.to_string())?;
+    let operation_rows = operation_statement
+        .query_map([], |row| {
+            let payload_json: String = row.get(5)?;
+            let payload = serde_json::from_str::<serde_json::Value>(&payload_json)
+                .unwrap_or(serde_json::Value::Null);
+            Ok(NormalizedOperationLogEntry {
+                id: row.get(0)?,
+                timestamp: row.get(1)?,
+                entity: row.get(2)?,
+                entity_id: row.get(3)?,
+                kind: row.get(4)?,
+                payload,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+    let operations = operation_rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+
+    let preferences = read_workspace_preferences(connection)?;
+
+    let state = NormalizedAppState {
+        notebooks,
+        pages,
+        blocks,
+        active_notebook_id: preferences.active_notebook_id,
+        active_page_id: preferences.active_page_id,
+        shell: preferences.shell,
+        theme: preferences.theme,
+        content_theme: preferences.content_theme,
+        open_card_window_block_id: preferences.open_card_window_block_id,
+        expanded_page_ids: preferences.expanded_page_ids,
+        operations,
+    };
+
+    serde_json::to_string(&state)
+        .map(Some)
+        .map_err(|error| error.to_string())
+}
+
+fn read_workspace_preferences(
+    connection: &Connection,
+) -> Result<WorkspacePreferencesPayload, String> {
+    let preferences_row = connection
+        .query_row(
+            "SELECT active_notebook_id, active_page_id, shell, theme, content_theme, open_card_window_block_id, expanded_page_ids_json FROM workspace_preferences WHERE id = 1",
+            [],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, String>(6)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+
+    let snapshot_json = if preferences_row.is_none() {
+        connection
+            .query_row("SELECT state_json FROM app_state WHERE id = 1", [], |row| {
+                row.get::<_, String>(0)
+            })
+            .optional()
+            .map_err(|error| error.to_string())?
+    } else {
+        None
+    };
+    let snapshot =
+        snapshot_json.and_then(|raw| serde_json::from_str::<NormalizedAppState>(&raw).ok());
+
+    let (
+        active_notebook_id,
+        active_page_id,
+        shell,
+        theme,
+        content_theme,
+        open_card_window_block_id,
+        expanded_page_ids,
+    ) = if let Some((
+        active_notebook_id,
+        active_page_id,
+        shell,
+        theme,
+        content_theme,
+        open_card_window_block_id,
+        expanded_page_ids_json,
+    )) = preferences_row
+    {
+        (
+            active_notebook_id,
+            active_page_id,
+            shell,
+            theme,
+            content_theme,
+            open_card_window_block_id,
+            serde_json::from_str::<Vec<String>>(&expanded_page_ids_json).unwrap_or_default(),
+        )
+    } else {
+        (
+            snapshot
+                .as_ref()
+                .map(|state| state.active_notebook_id.clone())
+                .unwrap_or_default(),
+            snapshot
+                .as_ref()
+                .map(|state| state.active_page_id.clone())
+                .unwrap_or_default(),
+            snapshot
+                .as_ref()
+                .map(|state| state.shell.clone())
+                .unwrap_or_else(|| "native-garden".to_string()),
+            snapshot
+                .as_ref()
+                .map(|state| state.theme.clone())
+                .unwrap_or_else(|| "garden".to_string()),
+            snapshot
+                .as_ref()
+                .map(|state| state.content_theme.clone())
+                .unwrap_or_else(|| "notebook".to_string()),
+            snapshot
+                .as_ref()
+                .and_then(|state| state.open_card_window_block_id.clone()),
+            snapshot
+                .as_ref()
+                .map(|state| state.expanded_page_ids.clone())
+                .unwrap_or_default(),
+        )
+    };
+    let notebook_exists = if active_notebook_id.is_empty() {
+        false
+    } else {
+        connection
+            .query_row(
+                "SELECT 1 FROM notebooks WHERE id = ?1 LIMIT 1",
+                params![&active_notebook_id],
+                |_| Ok(()),
+            )
+            .optional()
+            .map_err(|error| error.to_string())?
+            .is_some()
+    };
+    let active_notebook_id = if notebook_exists {
+        active_notebook_id
+    } else {
+        connection
+            .query_row(
+                "SELECT id FROM notebooks ORDER BY rowid LIMIT 1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|error| error.to_string())?
+            .unwrap_or_default()
+    };
+
+    let active_page_exists = if active_page_id.is_empty() {
+        false
+    } else {
+        connection
+            .query_row(
+                "SELECT 1 FROM pages WHERE id = ?1 LIMIT 1",
+                params![&active_page_id],
+                |_| Ok(()),
+            )
+            .optional()
+            .map_err(|error| error.to_string())?
+            .is_some()
+    };
+    let active_page_id = if active_page_exists {
+        active_page_id
+    } else {
+        let same_notebook_page_id = connection
+            .query_row(
+                "SELECT id FROM pages WHERE notebook_id = ?1 ORDER BY rowid LIMIT 1",
+                params![&active_notebook_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|error| error.to_string())?;
+        match same_notebook_page_id {
+            Some(page_id) => page_id,
+            None => connection
+                .query_row("SELECT id FROM pages ORDER BY rowid LIMIT 1", [], |row| {
+                    row.get::<_, String>(0)
+                })
+                .optional()
+                .map_err(|error| error.to_string())?
+                .unwrap_or_default(),
+        }
+    };
+
+    Ok(WorkspacePreferencesPayload {
+        active_notebook_id,
+        active_page_id,
+        shell,
+        theme,
+        content_theme,
+        open_card_window_block_id,
+        expanded_page_ids,
+    })
+}
+
+fn save_workspace_preferences_in_transaction(
+    connection: &mut Connection,
+    request: &WorkspacePreferencesRequest,
+) -> Result<(), String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute(
+            "INSERT INTO workspace_preferences (id, active_notebook_id, active_page_id, shell, theme, content_theme, open_card_window_block_id, expanded_page_ids_json, updated_at) VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET active_notebook_id = excluded.active_notebook_id, active_page_id = excluded.active_page_id, shell = excluded.shell, theme = excluded.theme, content_theme = excluded.content_theme, open_card_window_block_id = excluded.open_card_window_block_id, expanded_page_ids_json = excluded.expanded_page_ids_json, updated_at = excluded.updated_at",
+            params![
+                request.active_notebook_id,
+                request.active_page_id,
+                request.shell,
+                request.theme,
+                request.content_theme,
+                request.open_card_window_block_id,
+                serde_json::to_string(&request.expanded_page_ids).map_err(|error| error.to_string())?
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+    transaction.commit().map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 fn load_state_snapshot(app: AppHandle) -> Result<Option<String>, String> {
     let connection = open_database(&app)?;
@@ -323,9 +1778,434 @@ fn load_state_snapshot(app: AppHandle) -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
+fn load_normalized_state(app: AppHandle) -> Result<Option<String>, String> {
+    let connection = open_database(&app)?;
+    read_normalized_state_json(&connection)
+}
+
+#[tauri::command]
+fn load_workspace_preferences(app: AppHandle) -> Result<WorkspacePreferencesPayload, String> {
+    let connection = open_database(&app)?;
+    read_workspace_preferences(&connection)
+}
+
+#[tauri::command]
+fn save_workspace_preferences(
+    app: AppHandle,
+    request: WorkspacePreferencesRequest,
+) -> Result<(), String> {
+    let mut connection = open_database(&app)?;
+    save_workspace_preferences_in_transaction(&mut connection, &request)
+}
+
+#[tauri::command]
+fn list_notebook_tree(app: AppHandle) -> Result<NotebookTreePayload, String> {
+    let connection = open_database(&app)?;
+    Ok(NotebookTreePayload {
+        notebooks: list_notebooks_from_database(&connection)?,
+        pages: list_pages_from_database(&connection)?,
+    })
+}
+
+#[tauri::command]
+fn load_page_document(
+    app: AppHandle,
+    page_id: String,
+) -> Result<Option<PageDocumentPayload>, String> {
+    let connection = open_database(&app)?;
+    load_page_document_from_database(&connection, &page_id)
+}
+
+fn load_page_document_from_database(
+    connection: &Connection,
+    page_id: &str,
+) -> Result<Option<PageDocumentPayload>, String> {
+    load_page_documents_from_database(connection, &[page_id.to_string()])
+        .map(|documents| documents.into_iter().next())
+}
+
+#[tauri::command]
+fn load_page_documents(
+    app: AppHandle,
+    page_ids: Vec<String>,
+) -> Result<Vec<PageDocumentPayload>, String> {
+    let connection = open_database(&app)?;
+    load_page_documents_from_database(&connection, &page_ids)
+}
+
+fn load_page_documents_from_database(
+    connection: &Connection,
+    page_ids: &[String],
+) -> Result<Vec<PageDocumentPayload>, String> {
+    if page_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut documents_by_id = HashMap::new();
+    for chunk in page_ids.chunks(800) {
+        let placeholders = vec!["?"; chunk.len()].join(", ");
+        let sql = format!(
+            "SELECT id, notebook_id, parent_id, title, block_ids_json, block_order, metadata_json, created_at, updated_at, content_json FROM pages WHERE id IN ({placeholders})"
+        );
+        let mut statement = connection
+            .prepare(&sql)
+            .map_err(|error| error.to_string())?;
+        let rows = statement
+            .query_map(params_from_iter(chunk.iter()), page_document_from_row)
+            .map_err(|error| error.to_string())?;
+
+        for row in rows {
+            let document = row.map_err(|error| error.to_string())?;
+            documents_by_id.insert(document.page.id.clone(), document);
+        }
+    }
+
+    Ok(page_ids
+        .iter()
+        .filter_map(|page_id| documents_by_id.remove(page_id))
+        .collect())
+}
+
+fn page_document_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PageDocumentPayload> {
+    let content_json: String = row.get(9)?;
+    let page = normalized_page_from_row(row)?;
+
+    Ok(PageDocumentPayload {
+        page,
+        content: page_content_from_json(&content_json),
+    })
+}
+
+fn indexed_block_payload_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<(NormalizedPage, String)> {
+    let page = normalized_page_from_row(row)?;
+    let block_json: String = row.get(9)?;
+    Ok((page, block_json))
+}
+
+fn parse_indexed_block(block_json: &str) -> Result<NormalizedBlock, String> {
+    serde_json::from_str::<NormalizedBlock>(block_json).map_err(|error| error.to_string())
+}
+
+fn list_page_documents_from_database(
+    connection: &Connection,
+    notebook_id: Option<&str>,
+) -> Result<Vec<PageDocumentPayload>, String> {
+    let select_sql = "
+        SELECT id, notebook_id, parent_id, title, block_ids_json, block_order,
+               metadata_json, created_at, updated_at, content_json
+        FROM pages
+    ";
+
+    if let Some(notebook_id) = notebook_id {
+        let sql = format!("{select_sql} WHERE notebook_id = ?1 ORDER BY rowid");
+        let mut statement = connection
+            .prepare(&sql)
+            .map_err(|error| error.to_string())?;
+        let rows = statement
+            .query_map(params![notebook_id], page_document_from_row)
+            .map_err(|error| error.to_string())?;
+        return rows
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| error.to_string());
+    }
+
+    let sql = format!("{select_sql} ORDER BY rowid");
+    let mut statement = connection
+        .prepare(&sql)
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], page_document_from_row)
+        .map_err(|error| error.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
+fn load_block_document_from_database(
+    connection: &Connection,
+    block_id: &str,
+) -> Result<Option<PageDocumentPayload>, String> {
+    let indexed_page_id = connection
+        .query_row(
+            "SELECT page_id FROM page_block_index WHERE block_id = ?1 LIMIT 1",
+            params![block_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+    if let Some(page_id) = indexed_page_id {
+        if let Some(document) = load_page_document_from_database(connection, &page_id)? {
+            if document
+                .content
+                .blocks
+                .iter()
+                .any(|block| block.id == block_id)
+            {
+                return Ok(Some(document));
+            }
+        }
+    }
+
+    for document in list_page_documents_from_database(connection, None)? {
+        if document
+            .content
+            .blocks
+            .iter()
+            .any(|block| block.id == block_id)
+        {
+            refresh_page_block_index(connection, &document.page, &document.content.blocks)?;
+            return Ok(Some(document));
+        }
+    }
+
+    Ok(None)
+}
+
+fn list_pinned_blocks_from_database(
+    connection: &Connection,
+) -> Result<Vec<PinnedBlockPayload>, String> {
+    let mut pinned_blocks = Vec::new();
+    let mut statement = connection
+        .prepare(
+            "
+            SELECT pages.id, pages.notebook_id, pages.parent_id, pages.title,
+                   pages.block_ids_json, pages.block_order, pages.metadata_json,
+                   pages.created_at, pages.updated_at, page_block_index.block_json
+            FROM page_block_index
+            JOIN pages ON pages.id = page_block_index.page_id
+            WHERE page_block_index.pinned = 1
+            ORDER BY pages.rowid, page_block_index.sort_index
+            ",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], indexed_block_payload_from_row)
+        .map_err(|error| error.to_string())?;
+
+    for row in rows {
+        let (page, block_json) = row.map_err(|error| error.to_string())?;
+        pinned_blocks.push(PinnedBlockPayload {
+            page,
+            block: parse_indexed_block(&block_json)?,
+        });
+    }
+    Ok(pinned_blocks)
+}
+
+fn list_calendar_blocks_from_database(
+    connection: &Connection,
+    notebook_id: &str,
+    month: &str,
+) -> Result<Vec<CalendarBlockPayload>, String> {
+    let mut calendar_blocks = Vec::new();
+    let month_prefix = format!("{month}%");
+    let mut statement = connection
+        .prepare(
+            "
+            SELECT pages.id, pages.notebook_id, pages.parent_id, pages.title,
+                   pages.block_ids_json, pages.block_order, pages.metadata_json,
+                   pages.created_at, pages.updated_at, page_block_index.block_json
+            FROM page_block_index
+            JOIN pages ON pages.id = page_block_index.page_id
+            WHERE page_block_index.notebook_id = ?1
+              AND page_block_index.created_at LIKE ?2
+            ORDER BY page_block_index.created_at, pages.rowid, page_block_index.sort_index
+            ",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map(
+            params![notebook_id, month_prefix],
+            indexed_block_payload_from_row,
+        )
+        .map_err(|error| error.to_string())?;
+
+    for row in rows {
+        let (page, block_json) = row.map_err(|error| error.to_string())?;
+        calendar_blocks.push(CalendarBlockPayload {
+            page,
+            block: parse_indexed_block(&block_json)?,
+        });
+    }
+    Ok(calendar_blocks)
+}
+
+#[tauri::command]
+fn load_block_document(
+    app: AppHandle,
+    block_id: String,
+) -> Result<Option<PageDocumentPayload>, String> {
+    let connection = open_database(&app)?;
+    load_block_document_from_database(&connection, &block_id)
+}
+
+#[tauri::command]
+fn list_pinned_blocks(app: AppHandle) -> Result<Vec<PinnedBlockPayload>, String> {
+    let connection = open_database(&app)?;
+    list_pinned_blocks_from_database(&connection)
+}
+
+#[tauri::command]
+fn list_calendar_blocks(
+    app: AppHandle,
+    notebook_id: String,
+    month: String,
+) -> Result<Vec<CalendarBlockPayload>, String> {
+    let connection = open_database(&app)?;
+    list_calendar_blocks_from_database(&connection, &notebook_id, &month)
+}
+
+#[tauri::command]
+fn search_pages(
+    app: AppHandle,
+    query: String,
+    limit: Option<u32>,
+) -> Result<Vec<PageSearchResult>, String> {
+    let trimmed = query.trim();
+    if trimmed.is_empty() {
+        return Ok(vec![]);
+    }
+    let Some(fts_query) = fts_query_from_search_text(trimmed) else {
+        return Ok(vec![]);
+    };
+    let connection = open_database(&app)?;
+    let max_results = i64::from(limit.unwrap_or(30).clamp(1, 100));
+    let mut statement = connection
+        .prepare(
+            "
+            SELECT
+              fts_pages.page_id,
+              pages.notebook_id,
+              pages.title,
+              snippet(fts_pages, 2, '<mark>', '</mark>', '...', 12)
+            FROM fts_pages
+            JOIN pages ON pages.id = fts_pages.page_id
+            WHERE fts_pages MATCH ?1
+            ORDER BY rank
+            LIMIT ?2
+            ",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map(params![fts_query, max_results], |row| {
+            Ok(PageSearchResult {
+                page_id: row.get(0)?,
+                notebook_id: row.get(1)?,
+                title: row.get(2)?,
+                snippet: row.get(3)?,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn persist_import_batch(
+    app: AppHandle,
+    batch: NormalizedImportBatch,
+) -> Result<NotebookTreePayload, String> {
+    let mut connection = open_database(&app)?;
+    persist_import_batch_in_transaction(&mut connection, &batch)?;
+    Ok(NotebookTreePayload {
+        notebooks: list_notebooks_from_database(&connection)?,
+        pages: list_pages_from_database(&connection)?,
+    })
+}
+
+#[tauri::command]
+fn rename_entity(
+    app: AppHandle,
+    request: RenameEntityRequest,
+) -> Result<NotebookTreePayload, String> {
+    let mut connection = open_database(&app)?;
+    rename_entity_in_transaction(&mut connection, &request)?;
+    Ok(NotebookTreePayload {
+        notebooks: list_notebooks_from_database(&connection)?,
+        pages: list_pages_from_database(&connection)?,
+    })
+}
+
+#[tauri::command]
+fn move_page(app: AppHandle, request: MovePageRequest) -> Result<NotebookTreePayload, String> {
+    let mut connection = open_database(&app)?;
+    move_page_in_transaction(&mut connection, &request)?;
+    Ok(NotebookTreePayload {
+        notebooks: list_notebooks_from_database(&connection)?,
+        pages: list_pages_from_database(&connection)?,
+    })
+}
+
+#[tauri::command]
+fn create_notebook(
+    app: AppHandle,
+    request: CreateNotebookRequest,
+) -> Result<NotebookTreePayload, String> {
+    let mut connection = open_database(&app)?;
+    create_notebook_in_transaction(&mut connection, &request)?;
+    Ok(NotebookTreePayload {
+        notebooks: list_notebooks_from_database(&connection)?,
+        pages: list_pages_from_database(&connection)?,
+    })
+}
+
+#[tauri::command]
+fn create_page(app: AppHandle, request: CreatePageRequest) -> Result<NotebookTreePayload, String> {
+    let mut connection = open_database(&app)?;
+    create_page_in_transaction(&mut connection, &request)?;
+    Ok(NotebookTreePayload {
+        notebooks: list_notebooks_from_database(&connection)?,
+        pages: list_pages_from_database(&connection)?,
+    })
+}
+
+#[tauri::command]
+fn save_page_document(
+    app: AppHandle,
+    request: SavePageDocumentRequest,
+) -> Result<PageDocumentPayload, String> {
+    let mut connection = open_database(&app)?;
+    save_page_document_in_transaction(&mut connection, &request)?;
+    load_page_document(app, request.page.id)?
+        .ok_or_else(|| "Saved page document could not be loaded".to_string())
+}
+
+#[tauri::command]
+fn delete_page_tree(
+    app: AppHandle,
+    request: DeletePageTreeRequest,
+) -> Result<NotebookTreePayload, String> {
+    let mut connection = open_database(&app)?;
+    delete_page_tree_in_transaction(&mut connection, &request)?;
+    cleanup_orphan_attachments_after_document_change(&connection, &app);
+    Ok(NotebookTreePayload {
+        notebooks: list_notebooks_from_database(&connection)?,
+        pages: list_pages_from_database(&connection)?,
+    })
+}
+
+#[tauri::command]
+fn delete_notebook(
+    app: AppHandle,
+    request: DeleteNotebookRequest,
+) -> Result<NotebookTreePayload, String> {
+    let mut connection = open_database(&app)?;
+    delete_notebook_in_transaction(&mut connection, &request)?;
+    cleanup_orphan_attachments_after_document_change(&connection, &app);
+    Ok(NotebookTreePayload {
+        notebooks: list_notebooks_from_database(&connection)?,
+        pages: list_pages_from_database(&connection)?,
+    })
+}
+
+#[tauri::command]
 fn save_state_snapshot(app: AppHandle, state_json: String) -> Result<(), String> {
     let mut connection = open_database(&app)?;
-    let transaction = connection.transaction().map_err(|error| error.to_string())?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
     transaction
         .execute(
             "
@@ -339,6 +2219,9 @@ fn save_state_snapshot(app: AppHandle, state_json: String) -> Result<(), String>
         )
         .map_err(|error| error.to_string())?;
     transaction.commit().map_err(|error| error.to_string())?;
+    if let Ok(state) = serde_json::from_str::<NormalizedAppState>(&state_json) {
+        rebuild_normalized_tables(&connection, &state)?;
+    }
     Ok(())
 }
 
@@ -373,6 +2256,24 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            load_normalized_state,
+            load_workspace_preferences,
+            save_workspace_preferences,
+            list_notebook_tree,
+            load_page_document,
+            load_page_documents,
+            load_block_document,
+            list_pinned_blocks,
+            list_calendar_blocks,
+            search_pages,
+            persist_import_batch,
+            rename_entity,
+            move_page,
+            create_notebook,
+            create_page,
+            save_page_document,
+            delete_page_tree,
+            delete_notebook,
             load_state_snapshot,
             save_state_snapshot,
             import_local_asset,
@@ -392,6 +2293,1427 @@ mod tests {
         connection
             .query_row("SELECT COUNT(*) FROM attachments", [], |row| row.get(0))
             .expect("attachments row count")
+    }
+
+    fn demo_normalized_state() -> NormalizedAppState {
+        NormalizedAppState {
+            notebooks: vec![NormalizedNotebook {
+                id: "notebook_demo".to_string(),
+                name: "Demo".to_string(),
+                page_ids: vec!["page_demo".to_string()],
+            }],
+            pages: vec![NormalizedPage {
+                id: "page_demo".to_string(),
+                notebook_id: "notebook_demo".to_string(),
+                parent_id: None,
+                title: "Inbox".to_string(),
+                block_ids: vec!["block_a".to_string(), "block_b".to_string()],
+                block_order: Some("asc".to_string()),
+                metadata: NormalizedPageMetadata {
+                    source_filename: Some("demo.md".to_string()),
+                    tags: vec!["work".to_string()],
+                    date: Some("2026-06-15".to_string()),
+                    status: Some("draft".to_string()),
+                    aliases: vec!["Inbox alias".to_string()],
+                    frontmatter: serde_json::Map::new(),
+                },
+                created_at: "2026-06-15T00:00:00Z".to_string(),
+                updated_at: "2026-06-15T00:00:00Z".to_string(),
+            }],
+            blocks: vec![
+                NormalizedBlock {
+                    id: "block_a".to_string(),
+                    page_id: "page_demo".to_string(),
+                    content: NormalizedRichContent {
+                        html: "<p>Hello world</p>".to_string(),
+                        plain_text: "Hello world".to_string(),
+                    },
+                    collapsed: false,
+                    pinned: false,
+                    created_at: "2026-06-15T00:00:00Z".to_string(),
+                    updated_at: "2026-06-15T00:00:00Z".to_string(),
+                },
+                NormalizedBlock {
+                    id: "block_b".to_string(),
+                    page_id: "page_demo".to_string(),
+                    content: NormalizedRichContent {
+                        html: "<p>Second block</p>".to_string(),
+                        plain_text: "Second block".to_string(),
+                    },
+                    collapsed: true,
+                    pinned: true,
+                    created_at: "2026-06-15T00:00:00Z".to_string(),
+                    updated_at: "2026-06-15T00:00:00Z".to_string(),
+                },
+            ],
+            active_notebook_id: "notebook_demo".to_string(),
+            active_page_id: "page_demo".to_string(),
+            shell: "native-garden".to_string(),
+            theme: "garden".to_string(),
+            content_theme: "notebook".to_string(),
+            open_card_window_block_id: None,
+            expanded_page_ids: vec!["page_demo".to_string()],
+            operations: vec![NormalizedOperationLogEntry {
+                id: "op_demo".to_string(),
+                timestamp: "2026-06-15T00:00:00Z".to_string(),
+                entity: "page".to_string(),
+                entity_id: "page_demo".to_string(),
+                kind: "page.create".to_string(),
+                payload: serde_json::json!({"pageId": "page_demo"}),
+            }],
+        }
+    }
+
+    #[test]
+    fn normalized_tables_rebuild_from_snapshot_state() {
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        let notebook_name: String = connection
+            .query_row(
+                "SELECT name FROM notebooks WHERE id = 'notebook_demo'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("notebook row");
+        assert_eq!(notebook_name, "Demo");
+
+        let page: (String, String, String) = connection
+            .query_row(
+                "SELECT title, search_text, metadata_json FROM pages WHERE id = 'page_demo'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("page row");
+        assert_eq!(page.0, "Inbox");
+        assert!(page.1.contains("Hello world"));
+        assert!(page.2.contains("demo.md"));
+
+        let operation_kind: String = connection
+            .query_row(
+                "SELECT kind FROM operation_log WHERE id = 'op_demo'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("operation row");
+        assert_eq!(operation_kind, "page.create");
+    }
+
+    #[test]
+    fn normalized_page_content_is_stored_as_document_json() {
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        let content_json: String = connection
+            .query_row(
+                "SELECT content_json FROM pages WHERE id = 'page_demo'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("page content json");
+        let content =
+            serde_json::from_str::<serde_json::Value>(&content_json).expect("page content value");
+
+        assert_eq!(content["contentType"], "page_document");
+        assert_eq!(content["version"], 1);
+        assert_eq!(content["blocks"][0]["id"], "block_a");
+    }
+
+    #[test]
+    fn legacy_block_array_page_content_still_reads_back() {
+        let blocks = vec![NormalizedBlock {
+            id: "legacy_block".to_string(),
+            page_id: "legacy_page".to_string(),
+            content: NormalizedRichContent {
+                html: "<p>Legacy body</p>".to_string(),
+                plain_text: "Legacy body".to_string(),
+            },
+            collapsed: false,
+            pinned: false,
+            created_at: "2026-06-15T00:00:00Z".to_string(),
+            updated_at: "2026-06-15T00:00:00Z".to_string(),
+        }];
+
+        let parsed = blocks_from_page_content_json(
+            &serde_json::to_string(&blocks).expect("legacy blocks json"),
+        );
+
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].id, "legacy_block");
+        assert_eq!(parsed[0].content.plain_text, "Legacy body");
+    }
+
+    #[test]
+    fn notebook_tree_query_returns_lightweight_notebooks_and_pages() {
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        let tree = NotebookTreePayload {
+            notebooks: list_notebooks_from_database(&connection).expect("notebooks"),
+            pages: list_pages_from_database(&connection).expect("pages"),
+        };
+
+        assert_eq!(tree.notebooks.len(), 1);
+        assert_eq!(tree.notebooks[0].page_ids, vec!["page_demo"]);
+        assert_eq!(tree.pages.len(), 1);
+        assert_eq!(tree.pages[0].block_ids, vec!["block_a", "block_b"]);
+    }
+
+    #[test]
+    fn page_document_query_returns_content_wrapper() {
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        let page = list_pages_from_database(&connection)
+            .expect("pages")
+            .into_iter()
+            .find(|page| page.id == "page_demo")
+            .expect("demo page");
+        let content_json: String = connection
+            .query_row(
+                "SELECT content_json FROM pages WHERE id = 'page_demo'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("content json");
+        let document = PageDocumentPayload {
+            page,
+            content: page_content_from_json(&content_json),
+        };
+
+        assert_eq!(document.page.title, "Inbox");
+        assert_eq!(document.content.content_type, "page_document");
+        assert_eq!(document.content.blocks.len(), 2);
+    }
+
+    #[test]
+    fn page_documents_query_returns_requested_documents_and_skips_missing_pages() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        persist_import_batch_in_transaction(
+            &mut connection,
+            &NormalizedImportBatch {
+                notebook: NormalizedNotebook {
+                    id: "notebook_batch_docs".to_string(),
+                    name: "Batch Docs".to_string(),
+                    page_ids: vec!["page_one".to_string(), "page_two".to_string()],
+                },
+                pages: vec![
+                    NormalizedPage {
+                        id: "page_one".to_string(),
+                        notebook_id: "notebook_batch_docs".to_string(),
+                        parent_id: None,
+                        title: "One".to_string(),
+                        block_ids: vec!["block_one".to_string()],
+                        block_order: Some("asc".to_string()),
+                        metadata: default_page_metadata(),
+                        created_at: "2026-06-16T00:00:00Z".to_string(),
+                        updated_at: "2026-06-16T00:00:00Z".to_string(),
+                    },
+                    NormalizedPage {
+                        id: "page_two".to_string(),
+                        notebook_id: "notebook_batch_docs".to_string(),
+                        parent_id: None,
+                        title: "Two".to_string(),
+                        block_ids: vec!["block_two".to_string()],
+                        block_order: Some("asc".to_string()),
+                        metadata: default_page_metadata(),
+                        created_at: "2026-06-16T00:00:00Z".to_string(),
+                        updated_at: "2026-06-16T00:00:00Z".to_string(),
+                    },
+                ],
+                blocks: vec![
+                    NormalizedBlock {
+                        id: "block_one".to_string(),
+                        page_id: "page_one".to_string(),
+                        content: NormalizedRichContent {
+                            html: "<p>One</p>".to_string(),
+                            plain_text: "One".to_string(),
+                        },
+                        collapsed: false,
+                        pinned: false,
+                        created_at: "2026-06-16T00:00:00Z".to_string(),
+                        updated_at: "2026-06-16T00:00:00Z".to_string(),
+                    },
+                    NormalizedBlock {
+                        id: "block_two".to_string(),
+                        page_id: "page_two".to_string(),
+                        content: NormalizedRichContent {
+                            html: "<p>Two</p>".to_string(),
+                            plain_text: "Two".to_string(),
+                        },
+                        collapsed: false,
+                        pinned: false,
+                        created_at: "2026-06-16T00:00:00Z".to_string(),
+                        updated_at: "2026-06-16T00:00:00Z".to_string(),
+                    },
+                ],
+                operation: None,
+            },
+        )
+        .expect("seed batch docs");
+
+        let documents = ["page_one", "missing_page", "page_two"]
+            .iter()
+            .filter_map(|page_id| {
+                load_page_document_from_database(&connection, page_id).expect("load page document")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(documents.len(), 2);
+        assert_eq!(documents[0].page.id, "page_one");
+        assert_eq!(documents[1].page.id, "page_two");
+        assert_eq!(documents[1].content.blocks[0].content.plain_text, "Two");
+    }
+
+    #[test]
+    fn block_document_query_finds_owning_page_document() {
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        let document = load_block_document_from_database(&connection, "block_b")
+            .expect("block document query")
+            .expect("block document");
+
+        assert_eq!(document.page.id, "page_demo");
+        assert_eq!(document.content.blocks.len(), 2);
+        assert!(document
+            .content
+            .blocks
+            .iter()
+            .any(|block| block.id == "block_b"));
+    }
+
+    #[test]
+    fn pinned_block_query_returns_pinned_blocks_with_pages() {
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        let pinned = list_pinned_blocks_from_database(&connection).expect("pinned blocks");
+
+        assert_eq!(pinned.len(), 1);
+        assert_eq!(pinned[0].page.id, "page_demo");
+        assert_eq!(pinned[0].block.id, "block_b");
+    }
+
+    #[test]
+    fn page_block_index_backfills_existing_page_documents() {
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+        connection
+            .execute("DELETE FROM page_block_index", [])
+            .expect("clear block index");
+
+        ensure_page_block_index_backfilled(&connection).expect("backfill block index");
+
+        let indexed_blocks: i64 = connection
+            .query_row("SELECT COUNT(*) FROM page_block_index", [], |row| {
+                row.get(0)
+            })
+            .expect("indexed block count");
+        let indexed_pinned: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM page_block_index WHERE pinned = 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("indexed pinned count");
+        assert_eq!(indexed_blocks, 2);
+        assert_eq!(indexed_pinned, 1);
+    }
+
+    #[test]
+    fn page_document_save_refreshes_block_index_for_pinned_queries() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+        let page = load_page_metadata_from_database(&connection, "page_demo")
+            .expect("page metadata")
+            .expect("page");
+        let document = load_page_document_from_database(&connection, "page_demo")
+            .expect("page document")
+            .expect("page document");
+        let blocks = document
+            .content
+            .blocks
+            .into_iter()
+            .map(|block| NormalizedBlock {
+                pinned: block.id == "block_a",
+                ..block
+            })
+            .collect::<Vec<_>>();
+
+        save_page_document_in_transaction(
+            &mut connection,
+            &SavePageDocumentRequest {
+                page,
+                blocks,
+                operation: None,
+            },
+        )
+        .expect("save page document");
+
+        let pinned = list_pinned_blocks_from_database(&connection).expect("pinned blocks");
+
+        assert_eq!(pinned.len(), 1);
+        assert_eq!(pinned[0].block.id, "block_a");
+    }
+
+    #[test]
+    fn calendar_block_query_returns_month_entries_for_notebook() {
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        let entries = list_calendar_blocks_from_database(&connection, "notebook_demo", "2026-06")
+            .expect("calendar entries");
+        let empty = list_calendar_blocks_from_database(&connection, "notebook_demo", "2026-07")
+            .expect("empty calendar entries");
+
+        assert_eq!(entries.len(), 2);
+        assert!(entries.iter().all(|entry| entry.page.id == "page_demo"));
+        assert!(empty.is_empty());
+    }
+
+    #[test]
+    fn workspace_preferences_read_active_ids_and_theme_without_state_rebuild() {
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        let state = NormalizedAppState {
+            shell: "typora-base".to_string(),
+            theme: "ledger".to_string(),
+            content_theme: "typora-swiss".to_string(),
+            expanded_page_ids: vec!["page_demo".to_string()],
+            ..demo_normalized_state()
+        };
+        connection
+            .execute(
+                "INSERT INTO app_state (id, state_json) VALUES (1, ?1)",
+                params![serde_json::to_string(&state).expect("state json")],
+            )
+            .expect("snapshot insert");
+        rebuild_normalized_tables(&connection, &state).expect("normalized rebuild");
+
+        let preferences = read_workspace_preferences(&connection).expect("preferences");
+
+        assert_eq!(preferences.active_notebook_id, "notebook_demo");
+        assert_eq!(preferences.active_page_id, "page_demo");
+        assert_eq!(preferences.shell, "typora-base");
+        assert_eq!(preferences.content_theme, "typora-swiss");
+        assert_eq!(preferences.expanded_page_ids, vec!["page_demo"]);
+    }
+
+    #[test]
+    fn workspace_preferences_fall_back_without_loading_full_library() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        save_workspace_preferences_in_transaction(
+            &mut connection,
+            &WorkspacePreferencesRequest {
+                active_notebook_id: "missing_notebook".to_string(),
+                active_page_id: "missing_page".to_string(),
+                shell: "native-ledger".to_string(),
+                theme: "ledger".to_string(),
+                content_theme: "notebook".to_string(),
+                open_card_window_block_id: None,
+                expanded_page_ids: vec![],
+            },
+        )
+        .expect("workspace preferences save");
+
+        let preferences = read_workspace_preferences(&connection).expect("preferences");
+
+        assert_eq!(preferences.active_notebook_id, "notebook_demo");
+        assert_eq!(preferences.active_page_id, "page_demo");
+        assert_eq!(preferences.shell, "native-ledger");
+    }
+
+    #[test]
+    fn workspace_preferences_save_and_read_from_dedicated_table() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        save_workspace_preferences_in_transaction(
+            &mut connection,
+            &WorkspacePreferencesRequest {
+                active_notebook_id: "notebook_demo".to_string(),
+                active_page_id: "page_demo".to_string(),
+                shell: "typora-base".to_string(),
+                theme: "ledger".to_string(),
+                content_theme: "typora-swiss".to_string(),
+                open_card_window_block_id: Some("block_a".to_string()),
+                expanded_page_ids: vec!["page_demo".to_string()],
+            },
+        )
+        .expect("save workspace preferences");
+
+        let preferences = read_workspace_preferences(&connection).expect("preferences");
+
+        assert_eq!(preferences.active_notebook_id, "notebook_demo");
+        assert_eq!(preferences.active_page_id, "page_demo");
+        assert_eq!(preferences.shell, "typora-base");
+        assert_eq!(preferences.theme, "ledger");
+        assert_eq!(preferences.content_theme, "typora-swiss");
+        assert_eq!(
+            preferences.open_card_window_block_id,
+            Some("block_a".to_string())
+        );
+        assert_eq!(preferences.expanded_page_ids, vec!["page_demo"]);
+    }
+
+    #[test]
+    fn import_batch_persists_pages_documents_fts_and_operation() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        let mut state = demo_normalized_state();
+        state.notebooks[0].id = "notebook_import".to_string();
+        state.notebooks[0].name = "Imported".to_string();
+        state.notebooks[0].page_ids = vec!["page_import".to_string()];
+        state.pages[0].id = "page_import".to_string();
+        state.pages[0].notebook_id = "notebook_import".to_string();
+        state.pages[0].title = "Imported page".to_string();
+        state.blocks.iter_mut().for_each(|block| {
+            block.page_id = "page_import".to_string();
+        });
+
+        let batch = NormalizedImportBatch {
+            notebook: state.notebooks[0].clone(),
+            pages: state.pages.clone(),
+            blocks: state.blocks.clone(),
+            operation: Some(NormalizedOperationLogEntry {
+                id: "op_import".to_string(),
+                timestamp: "2026-06-15T00:00:00Z".to_string(),
+                entity: "notebook".to_string(),
+                entity_id: "notebook_import".to_string(),
+                kind: "notebook.import_markdown_folder".to_string(),
+                payload: serde_json::json!({"pageCount": 1}),
+            }),
+        };
+
+        persist_import_batch_in_transaction(&mut connection, &batch).expect("persist import batch");
+
+        let notebook_name: String = connection
+            .query_row(
+                "SELECT name FROM notebooks WHERE id = 'notebook_import'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("notebook row");
+        let content_json: String = connection
+            .query_row(
+                "SELECT content_json FROM pages WHERE id = 'page_import'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("page content row");
+        let fts_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM fts_pages WHERE fts_pages MATCH 'Imported OR Hello'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("fts count");
+        let operation_kind: String = connection
+            .query_row(
+                "SELECT kind FROM operation_log WHERE id = 'op_import'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("operation row");
+
+        assert_eq!(notebook_name, "Imported");
+        assert_eq!(page_content_from_json(&content_json).blocks.len(), 2);
+        assert_eq!(fts_count, 1);
+        assert_eq!(operation_kind, "notebook.import_markdown_folder");
+    }
+
+    #[test]
+    fn large_import_batch_persists_many_pages_and_blocks() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+
+        let page_count = 1005;
+        let block_count = 851;
+        let notebook = NormalizedNotebook {
+            id: "notebook_large_import".to_string(),
+            name: "Large import".to_string(),
+            page_ids: (0..page_count)
+                .map(|index| format!("page_{index:04}"))
+                .collect(),
+        };
+        let pages: Vec<NormalizedPage> = (0..page_count)
+            .map(|index| NormalizedPage {
+                id: format!("page_{index:04}"),
+                notebook_id: notebook.id.clone(),
+                parent_id: None,
+                title: format!("Page {index:04}"),
+                block_ids: if index < block_count {
+                    vec![format!("block_{index:04}")]
+                } else {
+                    vec![]
+                },
+                block_order: Some("asc".to_string()),
+                metadata: default_page_metadata(),
+                created_at: "2026-06-15T06:00:00Z".to_string(),
+                updated_at: "2026-06-15T06:00:00Z".to_string(),
+            })
+            .collect();
+        let blocks: Vec<NormalizedBlock> = (0..block_count)
+            .map(|index| NormalizedBlock {
+                id: format!("block_{index:04}"),
+                page_id: format!("page_{index:04}"),
+                content: NormalizedRichContent {
+                    html: format!("<p>Block {index:04}</p>"),
+                    plain_text: format!("Block {index:04}"),
+                },
+                collapsed: false,
+                pinned: false,
+                created_at: "2026-06-15T06:00:00Z".to_string(),
+                updated_at: "2026-06-15T06:00:00Z".to_string(),
+            })
+            .collect();
+
+        persist_import_batch_in_transaction(&mut connection, &NormalizedImportBatch {
+            notebook: notebook.clone(),
+            pages: pages.clone(),
+            blocks: blocks.clone(),
+            operation: Some(NormalizedOperationLogEntry {
+                id: "op_large_import".to_string(),
+                timestamp: "2026-06-15T06:01:00Z".to_string(),
+                entity: "notebook".to_string(),
+                entity_id: notebook.id.clone(),
+                kind: "notebook.import_markdown_folder".to_string(),
+                payload: serde_json::json!({"pageCount": page_count, "blockCount": block_count}),
+            }),
+        }).expect("persist large import batch");
+
+        let persisted_pages: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM pages WHERE notebook_id = 'notebook_large_import'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("persisted pages count");
+        let persisted_blocks: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM fts_pages WHERE fts_pages MATCH 'Block 0001 OR Block 0850'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("persisted fts count");
+        assert_eq!(persisted_pages, page_count as i64);
+        assert_eq!(persisted_blocks, 2);
+    }
+
+    #[test]
+    fn rename_entity_updates_tables_fts_and_operation_log() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        rename_entity_in_transaction(
+            &mut connection,
+            &RenameEntityRequest {
+                entity: "notebook".to_string(),
+                entity_id: "notebook_demo".to_string(),
+                name: "Renamed notebook".to_string(),
+                operation: Some(NormalizedOperationLogEntry {
+                    id: "op_rename_notebook".to_string(),
+                    timestamp: "2026-06-15T01:00:00Z".to_string(),
+                    entity: "notebook".to_string(),
+                    entity_id: "notebook_demo".to_string(),
+                    kind: "notebook.rename".to_string(),
+                    payload: serde_json::json!({"name": "Renamed notebook"}),
+                }),
+            },
+        )
+        .expect("rename notebook");
+
+        let notebook_name: String = connection
+            .query_row(
+                "SELECT name FROM notebooks WHERE id = 'notebook_demo'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("renamed notebook row");
+        assert_eq!(notebook_name, "Renamed notebook");
+
+        rename_entity_in_transaction(
+            &mut connection,
+            &RenameEntityRequest {
+                entity: "page".to_string(),
+                entity_id: "page_demo".to_string(),
+                name: "Renamed page".to_string(),
+                operation: Some(NormalizedOperationLogEntry {
+                    id: "op_rename_page".to_string(),
+                    timestamp: "2026-06-15T01:01:00Z".to_string(),
+                    entity: "page".to_string(),
+                    entity_id: "page_demo".to_string(),
+                    kind: "page.rename".to_string(),
+                    payload: serde_json::json!({"title": "Renamed page"}),
+                }),
+            },
+        )
+        .expect("rename page");
+
+        let page_title: String = connection
+            .query_row(
+                "SELECT title FROM pages WHERE id = 'page_demo'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("renamed page row");
+        assert_eq!(page_title, "Renamed page");
+
+        let fts_match_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM fts_pages WHERE fts_pages MATCH 'Renamed'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("renamed fts match count");
+        assert_eq!(fts_match_count, 1);
+
+        let operation_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM operation_log WHERE kind IN ('notebook.rename', 'page.rename')", [], |row| row.get(0))
+            .expect("rename operation count");
+        assert_eq!(operation_count, 2);
+    }
+
+    #[test]
+    fn move_page_updates_parent_and_logs_operation() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+
+        let batch = NormalizedImportBatch {
+            notebook: NormalizedNotebook {
+                id: "notebook_move".to_string(),
+                name: "Move Demo".to_string(),
+                page_ids: vec!["page_parent".to_string(), "page_child".to_string()],
+            },
+            pages: vec![
+                NormalizedPage {
+                    id: "page_parent".to_string(),
+                    notebook_id: "notebook_move".to_string(),
+                    parent_id: None,
+                    title: "Parent".to_string(),
+                    block_ids: vec![],
+                    block_order: Some("asc".to_string()),
+                    metadata: default_page_metadata(),
+                    created_at: "2026-06-15T00:00:00Z".to_string(),
+                    updated_at: "2026-06-15T00:00:00Z".to_string(),
+                },
+                NormalizedPage {
+                    id: "page_child".to_string(),
+                    notebook_id: "notebook_move".to_string(),
+                    parent_id: Some("page_parent".to_string()),
+                    title: "Child".to_string(),
+                    block_ids: vec![],
+                    block_order: Some("asc".to_string()),
+                    metadata: default_page_metadata(),
+                    created_at: "2026-06-15T00:00:00Z".to_string(),
+                    updated_at: "2026-06-15T00:00:00Z".to_string(),
+                },
+            ],
+            blocks: vec![],
+            operation: None,
+        };
+
+        persist_import_batch_in_transaction(&mut connection, &batch).expect("seed pages");
+
+        let cycle_result = move_page_in_transaction(
+            &mut connection,
+            &MovePageRequest {
+                page_id: "page_parent".to_string(),
+                parent_id: Some("page_child".to_string()),
+                operation: None,
+            },
+        );
+        assert!(cycle_result.is_err());
+
+        move_page_in_transaction(
+            &mut connection,
+            &MovePageRequest {
+                page_id: "page_child".to_string(),
+                parent_id: None,
+                operation: Some(NormalizedOperationLogEntry {
+                    id: "op_move_page".to_string(),
+                    timestamp: "2026-06-15T02:00:00Z".to_string(),
+                    entity: "page".to_string(),
+                    entity_id: "page_child".to_string(),
+                    kind: "page.move".to_string(),
+                    payload: serde_json::json!({"parentId": null}),
+                }),
+            },
+        )
+        .expect("move page to root");
+
+        let parent_id: Option<String> = connection
+            .query_row(
+                "SELECT parent_id FROM pages WHERE id = 'page_child'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("moved page row");
+        assert!(parent_id.is_none());
+
+        let operation_kind: String = connection
+            .query_row(
+                "SELECT kind FROM operation_log WHERE id = 'op_move_page'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("move operation row");
+        assert_eq!(operation_kind, "page.move");
+    }
+
+    #[test]
+    fn create_notebook_and_page_persist_rows_and_links() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+
+        create_notebook_in_transaction(
+            &mut connection,
+            &CreateNotebookRequest {
+                notebook: NormalizedNotebook {
+                    id: "notebook_new".to_string(),
+                    name: "New notebook".to_string(),
+                    page_ids: vec!["page_new".to_string()],
+                },
+                initial_page: NormalizedPage {
+                    id: "page_new".to_string(),
+                    notebook_id: "notebook_new".to_string(),
+                    parent_id: None,
+                    title: "Inbox".to_string(),
+                    block_ids: vec![],
+                    block_order: Some("asc".to_string()),
+                    metadata: default_page_metadata(),
+                    created_at: "2026-06-15T03:00:00Z".to_string(),
+                    updated_at: "2026-06-15T03:00:00Z".to_string(),
+                },
+                operation: Some(NormalizedOperationLogEntry {
+                    id: "op_create_notebook".to_string(),
+                    timestamp: "2026-06-15T03:00:00Z".to_string(),
+                    entity: "notebook".to_string(),
+                    entity_id: "notebook_new".to_string(),
+                    kind: "notebook.create".to_string(),
+                    payload: serde_json::json!({"name": "New notebook"}),
+                }),
+            },
+        )
+        .expect("create notebook");
+
+        let notebook_pages: String = connection
+            .query_row(
+                "SELECT page_ids_json FROM notebooks WHERE id = 'notebook_new'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("notebook page ids");
+        assert_eq!(notebook_pages, serde_json::json!(["page_new"]).to_string());
+
+        create_page_in_transaction(
+            &mut connection,
+            &CreatePageRequest {
+                page: NormalizedPage {
+                    id: "page_child_new".to_string(),
+                    notebook_id: "notebook_new".to_string(),
+                    parent_id: Some("page_new".to_string()),
+                    title: "Child".to_string(),
+                    block_ids: vec![],
+                    block_order: Some("asc".to_string()),
+                    metadata: default_page_metadata(),
+                    created_at: "2026-06-15T03:01:00Z".to_string(),
+                    updated_at: "2026-06-15T03:01:00Z".to_string(),
+                },
+                operation: Some(NormalizedOperationLogEntry {
+                    id: "op_create_page".to_string(),
+                    timestamp: "2026-06-15T03:01:00Z".to_string(),
+                    entity: "page".to_string(),
+                    entity_id: "page_child_new".to_string(),
+                    kind: "page.create".to_string(),
+                    payload: serde_json::json!({"title": "Child"}),
+                }),
+            },
+        )
+        .expect("create page");
+
+        let child_parent: Option<String> = connection
+            .query_row(
+                "SELECT parent_id FROM pages WHERE id = 'page_child_new'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("created child page");
+        assert_eq!(child_parent, Some("page_new".to_string()));
+
+        let notebook_kind: String = connection
+            .query_row(
+                "SELECT kind FROM operation_log WHERE id = 'op_create_notebook'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("create notebook op");
+        assert_eq!(notebook_kind, "notebook.create");
+
+        let page_kind: String = connection
+            .query_row(
+                "SELECT kind FROM operation_log WHERE id = 'op_create_page'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("create page op");
+        assert_eq!(page_kind, "page.create");
+    }
+
+    #[test]
+    fn save_page_document_updates_content_without_overwriting_structure() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        let mut metadata = default_page_metadata();
+        metadata.tags = vec!["sqlite".to_string(), "rich-text".to_string()];
+        metadata.source_filename = Some("saved.md".to_string());
+        let page = NormalizedPage {
+            id: "page_demo".to_string(),
+            notebook_id: "notebook_demo".to_string(),
+            parent_id: None,
+            title: "Saved document".to_string(),
+            block_ids: vec!["block_saved".to_string()],
+            block_order: Some("desc".to_string()),
+            metadata,
+            created_at: "2026-06-15T00:00:00Z".to_string(),
+            updated_at: "2026-06-15T05:00:00Z".to_string(),
+        };
+        let blocks = vec![NormalizedBlock {
+            id: "block_saved".to_string(),
+            page_id: "page_demo".to_string(),
+            content: NormalizedRichContent {
+                html: "<p>Fresh SQLite body</p>".to_string(),
+                plain_text: "Fresh SQLite body".to_string(),
+            },
+            collapsed: true,
+            pinned: true,
+            created_at: "2026-06-15T05:00:00Z".to_string(),
+            updated_at: "2026-06-15T05:00:00Z".to_string(),
+        }];
+
+        save_page_document_in_transaction(
+            &mut connection,
+            &SavePageDocumentRequest {
+                page,
+                blocks,
+                operation: Some(NormalizedOperationLogEntry {
+                    id: "op_save_document".to_string(),
+                    timestamp: "2026-06-15T05:00:00Z".to_string(),
+                    entity: "page".to_string(),
+                    entity_id: "page_demo".to_string(),
+                    kind: "page.save_document".to_string(),
+                    payload: serde_json::json!({"blockCount": 1}),
+                }),
+            },
+        )
+        .expect("save page document");
+
+        let saved: (String, String, String, String, String) = connection
+            .query_row(
+                "SELECT title, block_ids_json, block_order, metadata_json, content_json FROM pages WHERE id = 'page_demo'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .expect("saved page row");
+        assert_eq!(saved.0, "Inbox");
+        assert_eq!(saved.1, serde_json::json!(["block_saved"]).to_string());
+        assert_eq!(saved.2, "desc");
+        assert!(saved.3.contains("Inbox alias"));
+        assert!(!saved.3.contains("saved.md"));
+        assert_eq!(
+            page_content_from_json(&saved.4).blocks[0]
+                .content
+                .plain_text,
+            "Fresh SQLite body"
+        );
+
+        let fts_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM fts_pages WHERE fts_pages MATCH 'Fresh OR sqlite'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("saved document fts match count");
+        assert_eq!(fts_count, 1);
+
+        let operation_kind: String = connection
+            .query_row(
+                "SELECT kind FROM operation_log WHERE id = 'op_save_document'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("save document operation");
+        assert_eq!(operation_kind, "page.save_document");
+    }
+
+    #[test]
+    fn delete_page_tree_removes_descendants_updates_notebook_and_keeps_fallback_page() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+
+        let batch = NormalizedImportBatch {
+            notebook: NormalizedNotebook {
+                id: "notebook_delete_page".to_string(),
+                name: "Delete Page Demo".to_string(),
+                page_ids: vec![
+                    "page_root".to_string(),
+                    "page_child".to_string(),
+                    "page_sibling".to_string(),
+                ],
+            },
+            pages: vec![
+                NormalizedPage {
+                    id: "page_root".to_string(),
+                    notebook_id: "notebook_delete_page".to_string(),
+                    parent_id: None,
+                    title: "Root".to_string(),
+                    block_ids: vec!["block_root".to_string()],
+                    block_order: Some("asc".to_string()),
+                    metadata: default_page_metadata(),
+                    created_at: "2026-06-15T04:00:00Z".to_string(),
+                    updated_at: "2026-06-15T04:00:00Z".to_string(),
+                },
+                NormalizedPage {
+                    id: "page_child".to_string(),
+                    notebook_id: "notebook_delete_page".to_string(),
+                    parent_id: Some("page_root".to_string()),
+                    title: "Child".to_string(),
+                    block_ids: vec!["block_child".to_string()],
+                    block_order: Some("asc".to_string()),
+                    metadata: default_page_metadata(),
+                    created_at: "2026-06-15T04:00:00Z".to_string(),
+                    updated_at: "2026-06-15T04:00:00Z".to_string(),
+                },
+                NormalizedPage {
+                    id: "page_sibling".to_string(),
+                    notebook_id: "notebook_delete_page".to_string(),
+                    parent_id: None,
+                    title: "Sibling".to_string(),
+                    block_ids: vec!["block_sibling".to_string()],
+                    block_order: Some("asc".to_string()),
+                    metadata: default_page_metadata(),
+                    created_at: "2026-06-15T04:00:00Z".to_string(),
+                    updated_at: "2026-06-15T04:00:00Z".to_string(),
+                },
+            ],
+            blocks: vec![
+                NormalizedBlock {
+                    id: "block_root".to_string(),
+                    page_id: "page_root".to_string(),
+                    content: NormalizedRichContent {
+                        html: "<p>Root text</p>".to_string(),
+                        plain_text: "Root text".to_string(),
+                    },
+                    collapsed: false,
+                    pinned: false,
+                    created_at: "2026-06-15T04:00:00Z".to_string(),
+                    updated_at: "2026-06-15T04:00:00Z".to_string(),
+                },
+                NormalizedBlock {
+                    id: "block_child".to_string(),
+                    page_id: "page_child".to_string(),
+                    content: NormalizedRichContent {
+                        html: "<p>Child text</p>".to_string(),
+                        plain_text: "Child text".to_string(),
+                    },
+                    collapsed: false,
+                    pinned: false,
+                    created_at: "2026-06-15T04:00:00Z".to_string(),
+                    updated_at: "2026-06-15T04:00:00Z".to_string(),
+                },
+                NormalizedBlock {
+                    id: "block_sibling".to_string(),
+                    page_id: "page_sibling".to_string(),
+                    content: NormalizedRichContent {
+                        html: "<p>Sibling text</p>".to_string(),
+                        plain_text: "Sibling text".to_string(),
+                    },
+                    collapsed: false,
+                    pinned: false,
+                    created_at: "2026-06-15T04:00:00Z".to_string(),
+                    updated_at: "2026-06-15T04:00:00Z".to_string(),
+                },
+            ],
+            operation: None,
+        };
+
+        persist_import_batch_in_transaction(&mut connection, &batch)
+            .expect("seed delete tree notebook");
+
+        delete_page_tree_in_transaction(
+            &mut connection,
+            &DeletePageTreeRequest {
+                page_id: "page_root".to_string(),
+                fallback_page: None,
+                operation: Some(NormalizedOperationLogEntry {
+                    id: "op_delete_tree".to_string(),
+                    timestamp: "2026-06-15T04:01:00Z".to_string(),
+                    entity: "page".to_string(),
+                    entity_id: "page_root".to_string(),
+                    kind: "page.delete_tree".to_string(),
+                    payload: serde_json::json!({"pageCount": 2, "blockCount": 2}),
+                }),
+            },
+        )
+        .expect("delete page tree");
+
+        let remaining_pages: Vec<String> = connection
+            .prepare("SELECT id FROM pages WHERE notebook_id = 'notebook_delete_page' ORDER BY id")
+            .expect("remaining pages stmt")
+            .query_map([], |row| row.get(0))
+            .expect("remaining pages query")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("remaining pages collect");
+        assert_eq!(remaining_pages, vec!["page_sibling".to_string()]);
+
+        let notebook_pages: String = connection
+            .query_row(
+                "SELECT page_ids_json FROM notebooks WHERE id = 'notebook_delete_page'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("notebook page ids after delete");
+        assert_eq!(
+            notebook_pages,
+            serde_json::json!(["page_sibling"]).to_string()
+        );
+
+        let fts_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM fts_pages WHERE page_id IN ('page_root', 'page_child')",
+                [],
+                |row| row.get(0),
+            )
+            .expect("deleted fts count");
+        assert_eq!(fts_count, 0);
+
+        let operation_kind: String = connection
+            .query_row(
+                "SELECT kind FROM operation_log WHERE id = 'op_delete_tree'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("delete tree operation");
+        assert_eq!(operation_kind, "page.delete_tree");
+    }
+
+    #[test]
+    fn delete_page_tree_inserts_fallback_page_for_empty_notebook() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+
+        let batch = NormalizedImportBatch {
+            notebook: NormalizedNotebook {
+                id: "notebook_fallback".to_string(),
+                name: "Fallback Demo".to_string(),
+                page_ids: vec!["page_only".to_string()],
+            },
+            pages: vec![NormalizedPage {
+                id: "page_only".to_string(),
+                notebook_id: "notebook_fallback".to_string(),
+                parent_id: None,
+                title: "Only".to_string(),
+                block_ids: vec![],
+                block_order: Some("asc".to_string()),
+                metadata: default_page_metadata(),
+                created_at: "2026-06-15T04:10:00Z".to_string(),
+                updated_at: "2026-06-15T04:10:00Z".to_string(),
+            }],
+            blocks: vec![],
+            operation: None,
+        };
+
+        persist_import_batch_in_transaction(&mut connection, &batch)
+            .expect("seed fallback notebook");
+
+        let fallback_page = NormalizedPage {
+            id: "page_fallback".to_string(),
+            notebook_id: "notebook_fallback".to_string(),
+            parent_id: None,
+            title: "Inbox".to_string(),
+            block_ids: vec![],
+            block_order: Some("asc".to_string()),
+            metadata: default_page_metadata(),
+            created_at: "2026-06-15T04:11:00Z".to_string(),
+            updated_at: "2026-06-15T04:11:00Z".to_string(),
+        };
+
+        delete_page_tree_in_transaction(
+            &mut connection,
+            &DeletePageTreeRequest {
+                page_id: "page_only".to_string(),
+                fallback_page: Some(fallback_page.clone()),
+                operation: None,
+            },
+        )
+        .expect("delete page tree with fallback");
+
+        let notebook_pages: String = connection
+            .query_row(
+                "SELECT page_ids_json FROM notebooks WHERE id = 'notebook_fallback'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("fallback notebook page ids");
+        assert_eq!(
+            notebook_pages,
+            serde_json::json!(["page_fallback"]).to_string()
+        );
+
+        let page_title: String = connection
+            .query_row(
+                "SELECT title FROM pages WHERE id = 'page_fallback'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("fallback page row");
+        assert_eq!(page_title, "Inbox");
+    }
+
+    #[test]
+    fn delete_notebook_removes_notebook_pages_fts_and_logs_operation() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+
+        let batch = NormalizedImportBatch {
+            notebook: NormalizedNotebook {
+                id: "notebook_delete".to_string(),
+                name: "Delete Demo".to_string(),
+                page_ids: vec!["page_delete_a".to_string(), "page_delete_b".to_string()],
+            },
+            pages: vec![
+                NormalizedPage {
+                    id: "page_delete_a".to_string(),
+                    notebook_id: "notebook_delete".to_string(),
+                    parent_id: None,
+                    title: "Delete A".to_string(),
+                    block_ids: vec![],
+                    block_order: Some("asc".to_string()),
+                    metadata: default_page_metadata(),
+                    created_at: "2026-06-15T04:20:00Z".to_string(),
+                    updated_at: "2026-06-15T04:20:00Z".to_string(),
+                },
+                NormalizedPage {
+                    id: "page_delete_b".to_string(),
+                    notebook_id: "notebook_delete".to_string(),
+                    parent_id: None,
+                    title: "Delete B".to_string(),
+                    block_ids: vec![],
+                    block_order: Some("asc".to_string()),
+                    metadata: default_page_metadata(),
+                    created_at: "2026-06-15T04:20:00Z".to_string(),
+                    updated_at: "2026-06-15T04:20:00Z".to_string(),
+                },
+            ],
+            blocks: vec![],
+            operation: None,
+        };
+
+        persist_import_batch_in_transaction(&mut connection, &batch).expect("seed delete notebook");
+        upsert_notebook(
+            &connection,
+            &NormalizedNotebook {
+                id: "notebook_spare".to_string(),
+                name: "Spare Notebook".to_string(),
+                page_ids: vec![],
+            },
+        )
+        .expect("seed spare notebook");
+
+        delete_notebook_in_transaction(
+            &mut connection,
+            &DeleteNotebookRequest {
+                notebook_id: "notebook_delete".to_string(),
+                operation: Some(NormalizedOperationLogEntry {
+                    id: "op_delete_notebook".to_string(),
+                    timestamp: "2026-06-15T04:21:00Z".to_string(),
+                    entity: "notebook".to_string(),
+                    entity_id: "notebook_delete".to_string(),
+                    kind: "notebook.delete".to_string(),
+                    payload: serde_json::json!({"pageCount": 2}),
+                }),
+            },
+        )
+        .expect("delete notebook");
+
+        let notebook_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM notebooks WHERE id = 'notebook_delete'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("deleted notebook count");
+        assert_eq!(notebook_count, 0);
+
+        let page_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM pages WHERE notebook_id = 'notebook_delete'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("deleted page count");
+        assert_eq!(page_count, 0);
+
+        let fts_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM fts_pages WHERE page_id IN ('page_delete_a', 'page_delete_b')", [], |row| row.get(0))
+            .expect("deleted notebook fts count");
+        assert_eq!(fts_count, 0);
+
+        let operation_kind: String = connection
+            .query_row(
+                "SELECT kind FROM operation_log WHERE id = 'op_delete_notebook'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("delete notebook operation");
+        assert_eq!(operation_kind, "notebook.delete");
+    }
+
+    #[test]
+    fn delete_notebook_refuses_to_remove_the_last_notebook() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+
+        let batch = NormalizedImportBatch {
+            notebook: NormalizedNotebook {
+                id: "notebook_single".to_string(),
+                name: "Single Notebook".to_string(),
+                page_ids: vec!["page_single".to_string()],
+            },
+            pages: vec![NormalizedPage {
+                id: "page_single".to_string(),
+                notebook_id: "notebook_single".to_string(),
+                parent_id: None,
+                title: "Only page".to_string(),
+                block_ids: vec![],
+                block_order: Some("asc".to_string()),
+                metadata: default_page_metadata(),
+                created_at: "2026-06-15T04:30:00Z".to_string(),
+                updated_at: "2026-06-15T04:30:00Z".to_string(),
+            }],
+            blocks: vec![],
+            operation: None,
+        };
+
+        persist_import_batch_in_transaction(&mut connection, &batch).expect("seed single notebook");
+
+        let result = delete_notebook_in_transaction(
+            &mut connection,
+            &DeleteNotebookRequest {
+                notebook_id: "notebook_single".to_string(),
+                operation: None,
+            },
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn fts_pages_indexes_title_body_and_metadata() {
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        let match_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM fts_pages WHERE fts_pages MATCH 'hello OR demo'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("fts match count");
+        assert_eq!(match_count, 1);
+    }
+
+    #[test]
+    fn search_text_is_converted_to_safe_fts_query() {
+        assert_eq!(
+            fts_query_from_search_text("hello world"),
+            Some("\"hello\" \"world\"".to_string())
+        );
+        assert_eq!(
+            fts_query_from_search_text("  #demo!  "),
+            Some("\"demo\"".to_string())
+        );
+        assert_eq!(
+            fts_query_from_search_text("中文"),
+            Some("\"中文\"".to_string())
+        );
+    }
+
+    #[test]
+    fn normalized_state_reads_back_as_app_state_json() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+        save_workspace_preferences_in_transaction(
+            &mut connection,
+            &WorkspacePreferencesRequest {
+                active_notebook_id: "notebook_demo".to_string(),
+                active_page_id: "page_demo".to_string(),
+                shell: "typora-base".to_string(),
+                theme: "ledger".to_string(),
+                content_theme: "typora-swiss".to_string(),
+                open_card_window_block_id: Some("block_b".to_string()),
+                expanded_page_ids: vec!["page_demo".to_string(), "missing_page".to_string()],
+            },
+        )
+        .expect("save workspace preferences");
+
+        let raw = read_normalized_state_json(&connection)
+            .expect("read normalized state")
+            .expect("state json");
+        let state =
+            serde_json::from_str::<NormalizedAppState>(&raw).expect("normalized state json");
+
+        assert_eq!(state.notebooks.len(), 1);
+        assert_eq!(state.notebooks[0].name, "Demo");
+        assert_eq!(state.pages.len(), 1);
+        assert_eq!(state.pages[0].title, "Inbox");
+        assert_eq!(state.blocks.len(), 2);
+        assert_eq!(state.blocks[0].content.plain_text, "Hello world");
+        assert_eq!(state.active_page_id, "page_demo");
+        assert_eq!(state.shell, "typora-base");
+        assert_eq!(state.theme, "ledger");
+        assert_eq!(state.content_theme, "typora-swiss");
+        assert_eq!(state.open_card_window_block_id.as_deref(), Some("block_b"));
+        assert_eq!(
+            state.expanded_page_ids,
+            vec!["page_demo".to_string(), "missing_page".to_string()]
+        );
+        assert_eq!(state.operations.len(), 1);
+        assert_eq!(state.operations[0].kind, "page.create");
     }
 
     #[test]
@@ -543,6 +3865,76 @@ mod tests {
             vec![kept.id.clone()],
         )
         .expect("cleanup orphan attachments");
+
+        assert_eq!(result.removed_count, 1);
+        assert_eq!(row_count(&connection), 1);
+        assert!(Path::new(&kept.stored_path).is_file());
+        assert!(!Path::new(&removed.stored_path).exists());
+    }
+
+    #[test]
+    fn database_attachment_cleanup_scans_page_documents() {
+        let app_data = tempfile::tempdir().expect("app data temp dir");
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+
+        let kept = import_asset_bytes_into_store(
+            &connection,
+            app_data.path().to_path_buf(),
+            "keep-from-doc.png".to_string(),
+            "image/png".to_string(),
+            b"keep from document".to_vec(),
+        )
+        .expect("kept asset import");
+        let removed = import_asset_bytes_into_store(
+            &connection,
+            app_data.path().to_path_buf(),
+            "remove-from-doc.png".to_string(),
+            "image/png".to_string(),
+            b"remove from document".to_vec(),
+        )
+        .expect("removed asset import");
+
+        let batch = NormalizedImportBatch {
+            notebook: NormalizedNotebook {
+                id: "notebook_assets".to_string(),
+                name: "Assets".to_string(),
+                page_ids: vec!["page_assets".to_string()],
+            },
+            pages: vec![NormalizedPage {
+                id: "page_assets".to_string(),
+                notebook_id: "notebook_assets".to_string(),
+                parent_id: None,
+                title: "Assets".to_string(),
+                block_ids: vec!["block_assets".to_string()],
+                block_order: Some("asc".to_string()),
+                metadata: default_page_metadata(),
+                created_at: "2026-06-16T00:00:00Z".to_string(),
+                updated_at: "2026-06-16T00:00:00Z".to_string(),
+            }],
+            blocks: vec![NormalizedBlock {
+                id: "block_assets".to_string(),
+                page_id: "page_assets".to_string(),
+                content: NormalizedRichContent {
+                    html: format!(
+                        "<p><img src=\"{}\" data-asset-id=\"{}\"></p>",
+                        kept.asset_url, kept.id
+                    ),
+                    plain_text: "asset reference".to_string(),
+                },
+                collapsed: false,
+                pinned: false,
+                created_at: "2026-06-16T00:00:00Z".to_string(),
+                updated_at: "2026-06-16T00:00:00Z".to_string(),
+            }],
+            operation: None,
+        };
+        persist_import_batch_in_transaction(&mut connection, &batch)
+            .expect("persist asset reference page");
+
+        let result =
+            cleanup_orphan_attachments_from_database(&connection, app_data.path().to_path_buf())
+                .expect("database attachment cleanup");
 
         assert_eq!(result.removed_count, 1);
         assert_eq!(row_count(&connection), 1);

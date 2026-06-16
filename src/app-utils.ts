@@ -226,20 +226,6 @@ export const splitImportRoot = (paths: string[]) => {
 const videoImportFileRegex = /\.(mp4|mov|webm|m4v)$/i;
 const audioImportFileRegex = /\.(mp3|wav|m4a|aac|ogg|flac)$/i;
 
-const readFileAsDataUrl = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error ?? new Error(`Could not read ${file.name}`));
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result);
-        return;
-      }
-      reject(new Error(`Could not read ${file.name}`));
-    };
-    reader.readAsDataURL(file);
-  });
-
 const resolveImportedAssetPath = (rawPath: string, markdownPath: string, assetPaths: Set<string>) => {
   const trimmed = rawPath.trim().replace(/^<|>$/g, '');
   if (!trimmed || /^(?:[a-z]+:|#|data:)/i.test(trimmed)) return null;
@@ -257,17 +243,41 @@ const resolveImportedAssetPath = (rawPath: string, markdownPath: string, assetPa
   return assetPaths.has(normalized) ? normalized : null;
 };
 
-export const embedImportedAssetMarkdown = async (markdown: string, markdownPath: string, assets: Map<string, File>) => {
+export type ImportedAssetRewrite = {
+  src: string;
+  assetId?: string;
+};
+
+export type ImportedAssetResolver = (assetPath: string, file: File) => Promise<ImportedAssetRewrite | null>;
+
+const assetAttributes = (asset: ImportedAssetRewrite, originalPath: string) =>
+  `src="${escapeHtml(asset.src)}"${asset.assetId ? ` data-asset-id="${escapeHtml(asset.assetId)}"` : ''} data-original-src="${escapeHtml(originalPath)}"`;
+
+export const embedImportedAssetMarkdown = async (
+  markdown: string,
+  markdownPath: string,
+  assets: Map<string, File>,
+  resolveAsset?: ImportedAssetResolver
+) => {
+  if (!resolveAsset) return markdown;
+
   const assetPaths = new Set(assets.keys());
-  const dataUrlCache = new Map<string, string>();
-  const dataUrlForPath = async (path: string) => {
-    const cached = dataUrlCache.get(path);
-    if (cached) return cached;
+  const assetCache = new Map<string, ImportedAssetRewrite | null>();
+  const assetForPath = async (path: string) => {
+    if (assetCache.has(path)) return assetCache.get(path) ?? null;
     const file = assets.get(path);
-    if (!file) return '';
-    const dataUrl = await readFileAsDataUrl(file);
-    dataUrlCache.set(path, dataUrl);
-    return dataUrl;
+    if (!file) return null;
+    const resolved = await resolveAsset(path, file);
+    assetCache.set(path, resolved);
+    return resolved;
+  };
+
+  const htmlForImage = (alt: string, assetPath: string, asset: ImportedAssetRewrite) =>
+    `<img ${assetAttributes(asset, assetPath)} alt="${escapeHtml(alt)}">`;
+
+  const htmlForMedia = (tagName: 'video' | 'audio', assetPath: string, asset: ImportedAssetRewrite, label = '') => {
+    const title = label.trim() ? ` title="${escapeHtml(label)}"` : '';
+    return `<${tagName} controls ${assetAttributes(asset, assetPath)}${title}></${tagName}>`;
   };
 
   const imageMatches = Array.from(markdown.matchAll(/!\[([^\]]*)\]\(([^)\n]+)\)/g));
@@ -275,30 +285,29 @@ export const embedImportedAssetMarkdown = async (markdown: string, markdownPath:
   for (const match of imageMatches) {
     const assetPath = resolveImportedAssetPath(match[2], markdownPath, assetPaths);
     if (!assetPath) continue;
-    const dataUrl = await dataUrlForPath(assetPath);
-    if (!dataUrl) continue;
-    rewritten = rewritten.replace(match[0], `![${match[1]}](${dataUrl})`);
+    const asset = await assetForPath(assetPath);
+    if (!asset) continue;
+    rewritten = rewritten.replace(match[0], htmlForImage(match[1], assetPath, asset));
   }
 
   const linkMatches = Array.from(rewritten.matchAll(/(?<!!)\[([^\]]+)\]\(([^)\n]+)\)/g));
   for (const match of linkMatches) {
     const assetPath = resolveImportedAssetPath(match[2], markdownPath, assetPaths);
     if (!assetPath || (!videoImportFileRegex.test(assetPath) && !audioImportFileRegex.test(assetPath))) continue;
-    const dataUrl = await dataUrlForPath(assetPath);
-    if (!dataUrl) continue;
+    const asset = await assetForPath(assetPath);
+    if (!asset) continue;
     const tagName = videoImportFileRegex.test(assetPath) ? 'video' : 'audio';
-    const label = escapeHtml(match[1]);
-    rewritten = rewritten.replace(match[0], `<${tagName} controls src="${escapeHtml(dataUrl)}" title="${label}"></${tagName}>`);
+    rewritten = rewritten.replace(match[0], htmlForMedia(tagName, assetPath, asset, match[1]));
   }
 
   const bareMediaMatches = Array.from(rewritten.matchAll(/^[^\S\r\n]*([^\s<>()]+?\.(?:mp4|mov|webm|m4v|mp3|wav|m4a|aac|ogg|flac))[^\S\r\n]*$/gim));
   for (const match of bareMediaMatches) {
     const assetPath = resolveImportedAssetPath(match[1], markdownPath, assetPaths);
     if (!assetPath) continue;
-    const dataUrl = await dataUrlForPath(assetPath);
-    if (!dataUrl) continue;
+    const asset = await assetForPath(assetPath);
+    if (!asset) continue;
     const tagName = videoImportFileRegex.test(assetPath) ? 'video' : 'audio';
-    rewritten = rewritten.replace(match[0], `<${tagName} controls src="${escapeHtml(dataUrl)}"></${tagName}>`);
+    rewritten = rewritten.replace(match[0], htmlForMedia(tagName, assetPath, asset));
   }
 
   return rewritten;

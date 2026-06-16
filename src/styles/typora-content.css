@@ -31,10 +31,16 @@
   --theme-panel-background: color-mix(in srgb, var(--theme-surface-solid) 84%, white);
   --page-background: color-mix(in srgb, var(--theme-surface-solid) 88%, white);
   --panel-card-background: color-mix(in srgb, var(--theme-surface-solid) 86%, transparent);
-  --desktop-card-background: color-mix(in srgb, var(--theme-surface-solid) 88%, var(--theme-chip));
-  --desktop-card-ink: var(--theme-ink);
-  --floating-card-background: color-mix(in srgb, var(--theme-surface-solid) 92%, var(--theme-chip));
-  --floating-card-body-ink: var(--theme-ink);
+  --desktop-card-background: color-mix(in srgb, var(--bg-color, var(--theme-surface-solid)) 92%, var(--side-bar-bg-color, var(--theme-chip)));
+  --desktop-card-ink: var(--text-color, var(--theme-ink));
+  --floating-card-background: var(--desktop-card-background);
+  --floating-card-body-background: var(--desktop-card-background);
+  --floating-card-mode-background: var(--bg-color, var(--theme-surface-solid));
+  --floating-card-grip-background: color-mix(in srgb, var(--side-bar-bg-color, var(--bg-color, var(--theme-surface-solid))) 92%, transparent);
+  --floating-card-grip-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 18%, transparent);
+  --floating-card-body-ink: var(--desktop-card-ink);
+  --block-date-pin-background: var(--mark-bg-color, var(--mark-bg, var(--ravel-mark-color, var(--yellow, var(--sal-accent, var(--typora-fallback-mark-bg))))));
+  --block-date-pin-ink: var(--mark-text-color, var(--highlight-text-color, var(--bg, var(--typora-fallback-mark-text))));
   --bracket-todo: color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface-solid));
   --bracket-todo-ink: var(--theme-nav-active-ink);
   --bracket-todo-edge: color-mix(in srgb, var(--theme-accent) 26%, transparent);
@@ -527,4 +533,55 @@
   color: var(--floating-card-body-ink);
   font-size: var(--floating-card-body-font-size);
   line-height: var(--floating-card-body-line-height);
+}
+
+.typora-theme[data-content-theme^="typora-"] .notebook-name-input {
+  background: var(--input-background, var(--bg-color, var(--theme-surface-solid)));
+  color: var(--text-color, var(--theme-ink));
+  caret-color: var(--text-color, var(--theme-ink));
+}
+
+.typora-theme[data-content-theme^="typora-"] .panel-title,
+.typora-theme[data-content-theme^="typora-"] .outline-drawer-head .panel-title {
+  color: var(--text-color, var(--theme-ink));
+}
+
+.typora-theme[data-content-theme^="typora-"] .block-created-at {
+  color: var(--text-color, var(--typora-fallback-text, var(--theme-ink)));
+}
+
+.typora-theme[data-content-theme^="typora-"] .floating-card-head,
+.typora-theme[data-content-theme^="typora-"] .card-window-grip,
+.typora-theme[data-content-theme^="typora-"] .card-window-grip > span {
+  color: color-mix(in srgb, var(--text-color, var(--theme-ink)) 82%, var(--bg-color, transparent));
+}
+
+.typora-theme[data-content-theme^="typora-"] .block-created-at:not(.is-pinned) {
+  padding: 2px 0;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--text-color, var(--typora-fallback-text, var(--theme-ink))) !important;
+  box-shadow: none !important;
+}
+
+.typora-theme[data-content-theme="typora-zeus"] .typora-write hr.block-divider.uses-theme-divider {
+  border: 0;
+  border-top: 5px dashed #e8944c57;
+  background: transparent;
+  box-shadow: none;
+}
+
+.typora-theme[data-content-theme^="typora-"].card-window-page {
+  background: var(--floating-card-background);
+  color: var(--floating-card-body-ink);
+}
+
+.typora-theme[data-content-theme^="typora-"] .floating-card-window {
+  background: var(--floating-card-body-background, var(--floating-card-background));
+}
+
+.typora-theme[data-content-theme^="typora-"] .floating-card-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }

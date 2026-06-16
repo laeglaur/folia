@@ -43,6 +43,7 @@ type ToolbarActions = {
 
 type ComposerCardProps = {
   activeEditor: EditorTarget;
+  draftKey: string;
   draft: string;
   showToolbar: boolean;
   showFooter: boolean;
@@ -62,6 +63,7 @@ type ComposerCardProps = {
 
 function ComposerCard({
   activeEditor,
+  draftKey,
   draft,
   showToolbar,
   showFooter,
@@ -89,7 +91,9 @@ function ComposerCard({
         />
       )}
       <RichEditor
+        key={draftKey}
         editorRef={onEditorRef}
+        html={draft}
         className="composer"
         placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
         onFocus={onFocus}
@@ -172,10 +176,18 @@ function BlockItem({
   onMoveBlock,
   onUpdateBlock
 }: BlockItemProps) {
+  const expandCollapsedBlock = (event: React.MouseEvent<HTMLElement>) => {
+    if (!block.collapsed) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button, a, input, textarea, select, [contenteditable="true"]')) return;
+    onToggleBlock(block.id, 'collapsed');
+  };
+
   return (
     <article
       className={`block ${block.collapsed ? 'is-collapsed' : ''} ${draggingBlockId === block.id ? 'is-dragging' : ''}`}
       id={block.id}
+      onClick={expandCollapsedBlock}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();

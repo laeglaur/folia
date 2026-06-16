@@ -120,7 +120,7 @@
   border: 0;
   border-radius: 3px;
   background: transparent;
-  color: color-mix(in srgb, var(--typora-shell-muted) 86%, transparent);
+  color: var(--text-color, var(--typora-shell-ink));
   font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
   font-size: 11px;
   line-height: 1.25;
@@ -131,14 +131,12 @@
 
 .typora-app-shell .block-created-at:hover,
 .typora-app-shell .block-created-at:focus-visible {
-  color: var(--typora-shell-ink);
+  color: var(--text-color, var(--typora-shell-ink));
   outline: 0;
 }
 
 .typora-app-shell .block-created-at.is-pinned {
   padding: 2px 7px;
-  background: color-mix(in srgb, var(--accent, var(--typora-shell-ink)) 18%, transparent);
-  color: var(--accent, var(--typora-shell-ink));
 }
 
 .typora-app-shell .block-rail {

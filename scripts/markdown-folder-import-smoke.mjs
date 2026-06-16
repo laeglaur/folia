@@ -5,8 +5,10 @@ import { tmpdir } from 'node:os';
 
 const root = join(tmpdir(), `folder-import-smoke-${Date.now()}`);
 const folder = join(root, 'work-notes');
+const largeFolder = join(root, 'large-work-notes');
 await mkdir(join(folder, 'project-a', 'assets'), { recursive: true });
 await mkdir(join(folder, 'project-b'), { recursive: true });
+await mkdir(join(largeFolder, 'group'), { recursive: true });
 
 await writeFile(join(folder, 'project-a', 'day.md'), [
   '# First line belongs to the body',
@@ -29,6 +31,10 @@ await writeFile(
   join(folder, 'project-a', 'assets', 'tiny.png'),
   Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lY+0NwAAAABJRU5ErkJggg==', 'base64')
 );
+
+for (let index = 0; index < 85; index += 1) {
+  await writeFile(join(largeFolder, 'group', `note-${String(index).padStart(2, '0')}.md`), `# Note ${index}\n\nLarge import body ${index}.`);
+}
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
@@ -61,9 +67,20 @@ const checks = {
   folderParents: dayPage?.parentId === projectAPage?.id && reviewPage?.parentId === projectBPage?.id,
   filenameTitle: dayPage?.title === 'day' && !storedState.pages?.some((storedPage) => storedPage.title === 'First line belongs to the body'),
   sourceFilename: dayPage?.metadata?.sourceFilename === 'project-a/day.md' && reviewPage?.metadata?.sourceFilename === 'project-b/review.md',
-  dataUrlImage: dayBlock?.content?.html?.includes('src="data:image/png;base64,') || pageHtml.includes('src="data:image/png;base64,'),
+  relativeImageReference: dayBlock?.content?.html?.includes('src="./assets/tiny.png"') || pageHtml.includes('src="./assets/tiny.png"'),
+  noDataUrlImage: !dayBlock?.content?.html?.includes('src="data:image/png;base64,') && !pageHtml.includes('src="data:image/png;base64,'),
   notice: importNoticeText.includes('Imported folder "work-notes" with 4 pages and 2 blocks')
 };
+
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+await page.locator('input[webkitdirectory]').first().setInputFiles(largeFolder);
+await page.locator('.import-notice.success').waitFor({ state: 'visible' });
+const largeImportState = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+const largeNotebook = largeImportState.notebooks?.find((notebook) => notebook.id === largeImportState.activeNotebookId);
+const largePages = largeImportState.pages?.filter((storedPage) => storedPage.notebookId === largeNotebook?.id) ?? [];
+checks.largeImportImportedAllPages = largePages.length === 86;
+checks.largeImportDoesNotExpandEverything = largePages.filter((storedPage) => largeImportState.expandedPageIds?.includes(storedPage.id)).length < largePages.length;
 
 console.log(JSON.stringify({ checks }, null, 2));
 await browser.close();

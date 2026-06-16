@@ -92,6 +92,26 @@ const copiedText = await commandComposer.innerText();
 checks.copyPaste = clipboardText === 'toggle copy paste' && copiedText.includes('toggle copy paste');
 
 await resetApp();
+const orderedCopyComposer = page.locator('.composer').last();
+await orderedCopyComposer.click();
+await orderedCopyComposer.evaluate((element) => {
+  element.innerHTML = '<ol><li><p>first numbered</p></li><li><p>second numbered</p></li></ol>';
+});
+await orderedCopyComposer.click();
+await page.keyboard.press(`${modKey}+A`);
+await page.keyboard.press(`${modKey}+C`);
+const copiedOrdered = await page.evaluate(async () => {
+  const text = await navigator.clipboard.readText().catch(() => '');
+  const items = await navigator.clipboard.read().catch(() => []);
+  const htmlItem = items.find((item) => item.types.includes('text/html'));
+  const html = htmlItem ? await (await htmlItem.getType('text/html')).text() : '';
+  return { text, html };
+});
+checks.externalCopyKeepsOrderedList = copiedOrdered.html.includes('<ol') &&
+  copiedOrdered.html.includes('<li') &&
+  /1\.?\s+first numbered/.test(copiedOrdered.text);
+
+await resetApp();
 const markdownPasteComposer = page.locator('.composer').last();
 await markdownPasteComposer.click();
 await page.evaluate(() => navigator.clipboard.writeText('**bold paste**\n\n- first\n- second'));
@@ -285,6 +305,7 @@ await page.locator('.math-block-editor input').waitFor({ state: 'visible' });
 checks.mathBlockDollarEditorFocused = await page.locator('.math-block-editor input').evaluate((input) => document.activeElement === input);
 await page.keyboard.type('E=mc^2');
 await page.keyboard.press('Enter');
+await page.waitForFunction(() => document.querySelector('.composer')?.innerHTML.includes('data-latex="E=mc^2"'));
 aliasHtml = await mathDollarComposer.evaluate((node) => node.innerHTML);
 checks.mathBlockDollarInputRule = (aliasHtml.includes('data-type="block-math"') || aliasHtml.includes('md-math-block')) &&
   aliasHtml.includes('data-latex="E=mc^2"');
@@ -311,6 +332,14 @@ if (imageBox) {
 checks.attachmentResizePersistsWidth = await attachmentComposer.locator('img').evaluate((image) =>
   Number.parseFloat(image.getAttribute('data-width') ?? '100') < 100
 );
+await attachmentComposer.locator('img').click();
+await page.keyboard.press('Tab');
+await page.waitForFunction(() => document.querySelector('.composer img')?.getAttribute('data-indent') === '1');
+checks.attachmentTabIndentsImage = await attachmentComposer.evaluate((node) => node.querySelector('img')?.getAttribute('data-indent') === '1');
+await attachmentComposer.locator('img').click();
+await page.keyboard.press('Shift+Tab');
+await page.waitForFunction(() => !document.querySelector('.composer img')?.hasAttribute('data-indent'));
+checks.attachmentShiftTabOutdentsImage = await attachmentComposer.evaluate((node) => !node.querySelector('img')?.hasAttribute('data-indent') && Boolean(node.querySelector('img')));
 
 await resetApp();
 const listComposer = page.locator('.composer').last();
@@ -378,9 +407,6 @@ const collapsedHtml = await collapseComposer.evaluate((node) => node.innerHTML);
 checks.persistedListCollapse = collapsedHtml.includes('data-list-collapsed="true"');
 
 await resetApp();
-await page.evaluate(() => {
-  window.confirm = () => true;
-});
 await page.getByLabel('New page').click();
 await page.locator('.page-title').fill('Parent ops');
 await page.getByLabel('New page').click();
@@ -401,9 +427,6 @@ const stateAfterPageCopy = await page.evaluate(() => JSON.parse(localStorage.get
 const parentCopy = stateAfterPageCopy.pages.find((storedPage) => storedPage.title === 'Parent ops copy');
 const childCopy = stateAfterPageCopy.pages.find((storedPage) => storedPage.title === 'Child ops' && storedPage.parentId === parentCopy?.id);
 checks.pageTreeDuplicate = Boolean(parentCopy && childCopy);
-await page.evaluate(() => {
-  window.confirm = () => true;
-});
 await page.getByRole('button', { name: /^Parent ops copy$/ }).first().focus();
 await page.keyboard.press('Delete');
 await page.waitForFunction(() => {
@@ -413,6 +436,51 @@ await page.waitForFunction(() => {
 const stateAfterPageDelete = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
 checks.pageTreeDelete = !stateAfterPageDelete.pages.some((storedPage) => storedPage.title === 'Parent ops copy') &&
   stateAfterPageDelete.pages.some((storedPage) => storedPage.title === 'Parent ops');
+await page.getByLabel('New page').click();
+await page.locator('.page-title').fill('Delete from selected row');
+await page.getByRole('button', { name: /^Delete from selected row$/ }).first().click();
+await page.locator('.workspace').click({ position: { x: 8, y: 8 } });
+await page.keyboard.press('Backspace');
+await page.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  return !state.pages?.some((storedPage) => storedPage.title === 'Delete from selected row');
+});
+const stateAfterSelectedPageBackspace = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+checks.pageBackspaceDeletesSelectedPage = !stateAfterSelectedPageBackspace.pages.some((storedPage) => storedPage.title === 'Delete from selected row');
+await page.getByLabel('New page').click();
+await page.locator('.page-title').fill('Delete from icon');
+await page.getByLabel('Delete page Delete from icon').click();
+await page.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  return !state.pages?.some((storedPage) => storedPage.title === 'Delete from icon');
+});
+const stateAfterPageIconDelete = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+checks.pageIconDelete = !stateAfterPageIconDelete.pages.some((storedPage) => storedPage.title === 'Delete from icon');
+
+await page.getByLabel('New page').click();
+await page.locator('.page-title').fill('Page click rename source');
+await page.getByRole('button', { name: /^Page click rename source$/ }).first().click();
+const pageRenameInput = page.getByLabel('Rename page Page click rename source').first();
+await pageRenameInput.fill('Page click renamed');
+await pageRenameInput.press('Enter');
+await page.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  return state.pages?.some((storedPage) => storedPage.title === 'Page click renamed');
+});
+const stateAfterPageRename = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+checks.pageClickRename = stateAfterPageRename.pages.some((storedPage) => storedPage.title === 'Page click renamed') &&
+  stateAfterPageRename.operations.some((operation) => operation.kind === 'page.rename' && operation.payload?.title === 'Page click renamed');
+
+await page.getByLabel('New page').click();
+await page.locator('.page-title').fill('Draft cache first');
+const draftCacheComposer = page.locator('.composer').last();
+await draftCacheComposer.click();
+await page.keyboard.type('unsaved composer draft');
+await page.getByLabel('New page').click();
+await page.locator('.page-title').fill('Draft cache second');
+await page.getByRole('button', { name: /^Draft cache first$/ }).first().click();
+await page.waitForFunction(() => document.querySelector('.composer')?.textContent?.includes('unsaved composer draft'));
+checks.composerDraftSurvivesPageSwitch = (await page.locator('.composer').last().innerText()).includes('unsaved composer draft');
 
 await page.evaluate(() => {
   const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
@@ -440,9 +508,6 @@ const stateAfterBlockPageCopy = await page.evaluate(() => JSON.parse(localStorag
 const childPageCopy = stateAfterBlockPageCopy.pages.find((storedPage) => storedPage.title === 'Child ops copy');
 const copiedBlock = stateAfterBlockPageCopy.blocks.find((block) => childPageCopy?.blockIds?.includes(block.id));
 checks.pageDuplicateCopiesBlocks = Boolean(copiedBlock?.content?.plainText?.includes('copy delete body'));
-await page.evaluate(() => {
-  window.confirm = () => true;
-});
 await page.getByRole('button', { name: /^Child ops copy$/ }).first().focus();
 await page.keyboard.press('Delete');
 await page.waitForFunction(() => {
@@ -452,24 +517,33 @@ await page.waitForFunction(() => {
 const stateAfterBlockPageDelete = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
 checks.pageDeleteRemovesBlocks = !stateAfterBlockPageDelete.blocks.some((block) => block.id === copiedBlock?.id);
 
-await page.getByLabel('Duplicate notebook Notebook').click();
+await page.getByRole('button', { name: /^Notebook$/ }).first().click();
+const renameInput = page.getByLabel('Rename notebook Notebook').first();
+await renameInput.fill('Renamed notebook');
+await renameInput.press('Enter');
 await page.waitForFunction(() => {
   const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
-  return state.notebooks?.some((notebook) => notebook.name === 'Notebook copy');
+  return state.notebooks?.some((notebook) => notebook.name === 'Renamed notebook');
+});
+const stateAfterNotebookRename = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+checks.notebookRename = stateAfterNotebookRename.notebooks.some((notebook) => notebook.name === 'Renamed notebook') &&
+  stateAfterNotebookRename.operations.some((operation) => operation.kind === 'notebook.rename' && operation.payload?.name === 'Renamed notebook');
+
+await page.getByLabel('Duplicate notebook Renamed notebook').click();
+await page.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  return state.notebooks?.some((notebook) => notebook.name === 'Renamed notebook copy');
 });
 const stateAfterNotebookCopy = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
-const notebookCopy = stateAfterNotebookCopy.notebooks.find((notebook) => notebook.name === 'Notebook copy');
+const notebookCopy = stateAfterNotebookCopy.notebooks.find((notebook) => notebook.name === 'Renamed notebook copy');
 checks.notebookDuplicate = Boolean(notebookCopy && notebookCopy.pageIds.length >= 2 && stateAfterNotebookCopy.pages.some((storedPage) => storedPage.notebookId === notebookCopy.id && storedPage.title === 'Parent ops'));
-await page.evaluate(() => {
-  window.confirm = () => true;
-});
-await page.getByLabel('Delete notebook Notebook copy').click();
+await page.getByLabel('Delete notebook Renamed notebook copy').click();
 await page.waitForFunction(() => {
   const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
-  return !state.notebooks?.some((notebook) => notebook.name === 'Notebook copy');
+  return !state.notebooks?.some((notebook) => notebook.name === 'Renamed notebook copy');
 });
 const stateAfterNotebookDelete = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
-checks.notebookDelete = !stateAfterNotebookDelete.notebooks.some((notebook) => notebook.name === 'Notebook copy') &&
+checks.notebookDelete = !stateAfterNotebookDelete.notebooks.some((notebook) => notebook.name === 'Renamed notebook copy') &&
   stateAfterNotebookDelete.pages.every((storedPage) => storedPage.notebookId !== notebookCopy?.id) &&
   stateAfterNotebookDelete.notebooks.some((notebook) => notebook.id === stateAfterNotebookDelete.activeNotebookId) &&
   stateAfterNotebookDelete.pages.some((storedPage) => storedPage.id === stateAfterNotebookDelete.activePageId);

@@ -147,7 +147,46 @@ const syncDomSelectionToEditor = (editor: Editor) => {
 export const runListIndentCommand = (editor: Editor, direction: 'in' | 'out') => {
   syncDomSelectionToEditor(editor);
   const command = direction === 'in' ? 'sinkListItem' : 'liftListItem';
-  return editor.commands[command]('taskItem') || editor.commands[command]('listItem');
+  if (editor.commands[command]('taskItem') || editor.commands[command]('listItem')) return true;
+
+  return runMediaIndentCommand(editor, direction);
+};
+
+const mediaNodeNames = ['image', 'video', 'audio', 'mediaEmbed'];
+const maxMediaIndent = 8;
+
+const updateMediaIndentAt = (
+  editor: Editor,
+  pos: number,
+  node: NonNullable<ReturnType<Editor['state']['doc']['nodeAt']>>,
+  direction: 'in' | 'out'
+) => {
+  const currentIndent = Number(node.attrs.mediaIndent ?? 0);
+  const nextIndent = Math.max(0, Math.min(maxMediaIndent, currentIndent + (direction === 'in' ? 1 : -1)));
+  if (nextIndent === currentIndent) return false;
+  const transaction = editor.state.tr.setNodeMarkup(pos, undefined, {
+    ...node.attrs,
+    mediaIndent: nextIndent
+  });
+  editor.view.dispatch(transaction.scrollIntoView());
+  return true;
+};
+
+const runMediaIndentCommand = (editor: Editor, direction: 'in' | 'out') => {
+  const { state } = editor;
+  const selectedNode = (state.selection as { node?: typeof state.doc }).node;
+  if (selectedNode && mediaNodeNames.includes(selectedNode.type.name)) {
+    return updateMediaIndentAt(editor, state.selection.from, selectedNode, direction);
+  }
+
+  const { from, to } = state.selection;
+  if (from !== to) return false;
+  for (const pos of [from, from - 1]) {
+    if (pos < 0 || pos > state.doc.content.size) continue;
+    const node = state.doc.nodeAt(pos);
+    if (node && mediaNodeNames.includes(node.type.name)) return updateMediaIndentAt(editor, pos, node, direction);
+  }
+  return false;
 };
 
 const typoraClass = (existing: unknown, ...aliases: string[]) => {
@@ -455,14 +494,37 @@ const parseMediaWidth = (element: HTMLElement) => {
   return width.includes('%') ? `${Math.max(20, Math.min(100, numeric))}%` : `${Math.max(80, Math.min(1600, numeric))}px`;
 };
 
+const parseMediaIndent = (element: HTMLElement) => {
+  const raw = element.getAttribute('data-indent') ?? '';
+  const numeric = Number.parseInt(raw, 10);
+  return Number.isFinite(numeric) ? Math.max(0, Math.min(maxMediaIndent, numeric)) : 0;
+};
+
+const mediaIndentAttributes = () => ({
+  mediaIndent: {
+    default: 0,
+    parseHTML: (element: HTMLElement) => parseMediaIndent(element),
+    renderHTML: (attributes: Record<string, unknown>) => {
+      const indent = typeof attributes.mediaIndent === 'number' ? attributes.mediaIndent : 0;
+      return indent > 0 ? { 'data-indent': String(indent) } : {};
+    }
+  }
+});
+
 const mediaRenderAttributes = (HTMLAttributes: Record<string, unknown>) => {
-  const { width, style, ...attributes } = HTMLAttributes;
-  if (typeof width !== 'string' || !width) return HTMLAttributes;
+  const { width, style, mediaIndent, 'data-indent': dataIndent, ...attributes } = HTMLAttributes;
+  const indent = typeof mediaIndent === 'number'
+    ? mediaIndent
+    : Number.parseInt(String(dataIndent ?? '0'), 10) || 0;
   const existingStyle = typeof style === 'string' && style.trim() ? `${style.trim().replace(/;?$/, ';')} ` : '';
+  const widthStyle = typeof width === 'string' && width ? `width: ${width};` : '';
+  const indentStyle = indent > 0 ? `margin-left: ${indent * 2}em;` : '';
   return {
     ...attributes,
-    'data-width': width,
-    style: `${existingStyle}width: ${width};`
+    ...(typeof width === 'string' && width ? { 'data-width': width } : {}),
+    ...(indent > 0 ? { 'data-indent': String(indent) } : {}),
+    tabindex: '0',
+    ...(existingStyle || widthStyle || indentStyle ? { style: `${existingStyle}${widthStyle}${indentStyle}` } : {})
   };
 };
 
@@ -471,6 +533,7 @@ const NotebookImage = Image.extend({
     return {
       ...this.parent?.(),
       ...mediaAssetAttributes(),
+      ...mediaIndentAttributes(),
       width: {
         default: null,
         parseHTML: (element) => parseMediaWidth(element as HTMLElement),
@@ -500,6 +563,7 @@ const NotebookVideo = Node.create({
       src: { default: null },
       controls: { default: true },
       ...mediaAssetAttributes(),
+      ...mediaIndentAttributes(),
       width: {
         default: null,
         parseHTML: (element) => parseMediaWidth(element as HTMLElement),
@@ -533,6 +597,7 @@ const NotebookAudio = Node.create({
       src: { default: null },
       controls: { default: true },
       ...mediaAssetAttributes(),
+      ...mediaIndentAttributes(),
       width: {
         default: null,
         parseHTML: (element) => parseMediaWidth(element as HTMLElement),
@@ -564,7 +629,8 @@ const NotebookEmbed = Node.create({
   addAttributes() {
     return {
       src: { default: null },
-      title: { default: 'Embedded media' }
+      title: { default: 'Embedded media' },
+      ...mediaIndentAttributes()
     };
   },
 
@@ -573,7 +639,7 @@ const NotebookEmbed = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['iframe', mergeAttributes(HTMLAttributes, {
+    return ['iframe', mergeAttributes(mediaRenderAttributes(HTMLAttributes), {
       class: 'media-embed',
       loading: 'lazy',
       allowfullscreen: 'true'
@@ -1039,7 +1105,12 @@ const handleRichCopy = (editor: Editor | null, event: ClipboardEvent) => {
   if (!editor.view.dom.contains(selection.anchorNode) || !editor.view.dom.contains(selection.focusNode)) return false;
 
   const container = document.createElement('div');
-  container.appendChild(selection.getRangeAt(0).cloneContents());
+  const serializer = (editor.view as unknown as {
+    clipboardSerializer?: { serializeFragment: (fragment: unknown) => globalThis.Node };
+  }).clipboardSerializer;
+  const slice = editor.state.selection.content();
+  const serialized = serializer?.serializeFragment(slice.content);
+  container.appendChild(serialized ?? selection.getRangeAt(0).cloneContents());
   const html = container.innerHTML;
   if (!html.trim()) return false;
   const markdown = htmlToMarkdown(html);
@@ -1057,6 +1128,7 @@ const mediaAssetFromStoredMediaSrc = (src: string) => {
 };
 
 const findMediaNodePosition = (editor: Editor, element: HTMLElement) => {
+  const mediaNodeNames = ['image', 'video', 'audio', 'mediaEmbed'];
   const candidates: number[] = [];
   try {
     const pos = editor.view.posAtDOM(element, 0);
@@ -1067,13 +1139,13 @@ const findMediaNodePosition = (editor: Editor, element: HTMLElement) => {
   for (const pos of candidates) {
     if (pos < 0 || pos > editor.state.doc.content.size) continue;
     const node = editor.state.doc.nodeAt(pos);
-    if (node && (node.type.name === 'image' || node.type.name === 'video' || node.type.name === 'audio')) return { pos, node };
+    if (node && mediaNodeNames.includes(node.type.name)) return { pos, node };
   }
   const src = element.getAttribute('src');
   if (!src) return null;
   let found: { pos: number; node: ReturnType<Editor['state']['doc']['nodeAt']> } | null = null;
   editor.state.doc.descendants((node, pos) => {
-    if (found || !['image', 'video', 'audio'].includes(node.type.name)) return true;
+    if (found || !mediaNodeNames.includes(node.type.name)) return true;
     if (node.attrs.src === src) {
       found = { pos, node };
       return false;
@@ -1405,9 +1477,11 @@ function RichEditor({
     hoverMediaRef.current = null;
   };
 
+  const mediaSelector = 'img, video, audio, iframe.media-embed';
+
   const mediaAtPointer = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
-    const element = target?.closest('img, video, audio');
+    const element = target?.closest(mediaSelector);
     if (!element || !(element instanceof HTMLElement)) return null;
     const rect = element.getBoundingClientRect();
     const cornerSize = 24;
@@ -1446,13 +1520,45 @@ function RichEditor({
     return true;
   };
 
+  const selectMediaFromPointer = (event: React.MouseEvent<HTMLDivElement>) => {
+    const media = mediaAtPointer(event);
+    const activeEditor = editorHolderRef.current;
+    if (!media || !activeEditor) return false;
+    const found = findMediaNodePosition(activeEditor, media.element);
+    if (!found?.node || !['image', 'video', 'audio', 'mediaEmbed'].includes(found.node.type.name)) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    activeEditor.view.focus();
+    activeEditor.commands.setNodeSelection(found.pos);
+    return true;
+  };
+
+  const handleMediaKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const target = event.target as HTMLElement | null;
+    const media = target?.closest(mediaSelector);
+    const activeEditor = editorHolderRef.current;
+    if (media instanceof HTMLElement && activeEditor) {
+      const found = findMediaNodePosition(activeEditor, media);
+      if (found?.node && ['image', 'video', 'audio', 'mediaEmbed'].includes(found.node.type.name)) {
+        event.preventDefault();
+        event.stopPropagation();
+        activeEditor.commands.setNodeSelection(found.pos);
+        updateMediaIndentAt(activeEditor, found.pos, found.node, event.shiftKey ? 'out' : 'in');
+        return;
+      }
+    }
+  };
+
   return (
     <div
       className="rich-editor-wrap"
       onMouseMove={updateMediaCursor}
       onMouseLeave={clearMediaCursor}
+      onKeyDown={handleMediaKeyDown}
       onMouseDown={(event) => {
         if (startResizeFromPointer(event)) return;
+        if (selectMediaFromPointer(event)) return;
         toggleCollapsibleListItem(event, editor);
       }}
     >

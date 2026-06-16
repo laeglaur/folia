@@ -446,8 +446,10 @@ export const loadPersistentState = async (): Promise<AppState> => {
   if (!isTauri()) return browserState;
 
   try {
-    const raw = await invoke<string | null>('load_state_snapshot');
+    const raw = await invoke<string | null>('load_normalized_state');
     if (raw) return normalizeState(JSON.parse(raw) as AppState);
+    const snapshotRaw = await invoke<string | null>('load_state_snapshot');
+    if (snapshotRaw) return normalizeState(JSON.parse(snapshotRaw) as AppState);
     await saveState(browserState);
     return browserState;
   } catch (error) {
@@ -456,7 +458,122 @@ export const loadPersistentState = async (): Promise<AppState> => {
   }
 };
 
+export const loadFullBackupState = async (): Promise<AppState> => {
+  if (!isTauri()) return loadState();
+  const raw = await invoke<string | null>('load_normalized_state');
+  if (!raw) return loadState();
+  return normalizeState(JSON.parse(raw) as AppState);
+};
+
 export const saveState = async (state: AppState) => persistenceSaver.saveState(state);
+
+export const listNotebookTree = async (): Promise<NotebookTreePayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<NotebookTreePayload>('list_notebook_tree');
+};
+
+export const loadPageDocument = async (pageId: string): Promise<PageDocumentPayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<PageDocumentPayload | null>('load_page_document', { pageId });
+};
+
+export const loadPageDocuments = async (pageIds: string[]): Promise<PageDocumentPayload[]> => {
+  if (!isTauri() || !pageIds.length) return [];
+  return invoke<PageDocumentPayload[]>('load_page_documents', { pageIds });
+};
+
+export const loadBlockDocument = async (blockId: string): Promise<PageDocumentPayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<PageDocumentPayload | null>('load_block_document', { blockId });
+};
+
+export const listPinnedBlocks = async (): Promise<PinnedBlockPayload[]> => {
+  if (!isTauri()) return [];
+  return invoke<PinnedBlockPayload[]>('list_pinned_blocks');
+};
+
+export const listCalendarBlocks = async (notebookId: string, month: string): Promise<CalendarBlockPayload[]> => {
+  if (!isTauri()) return [];
+  return invoke<CalendarBlockPayload[]>('list_calendar_blocks', { notebookId, month });
+};
+
+export const searchPages = async (query: string, limit = 30): Promise<PageSearchResult[]> => {
+  if (!isTauri()) return [];
+  return invoke<PageSearchResult[]>('search_pages', { query, limit });
+};
+
+export const persistImportBatch = async (batch: ImportBatchPayload): Promise<NotebookTreePayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<NotebookTreePayload>('persist_import_batch', { batch });
+};
+
+export const persistEntityRename = async (request: RenameEntityRequest): Promise<NotebookTreePayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<NotebookTreePayload>('rename_entity', { request });
+};
+
+export const persistPageMove = async (request: MovePageRequest): Promise<NotebookTreePayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<NotebookTreePayload>('move_page', { request });
+};
+
+export const persistNotebookCreate = async (request: CreateNotebookRequest): Promise<NotebookTreePayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<NotebookTreePayload>('create_notebook', { request });
+};
+
+export const persistPageCreate = async (request: CreatePageRequest): Promise<NotebookTreePayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<NotebookTreePayload>('create_page', { request });
+};
+
+export const persistPageDocument = async (request: SavePageDocumentRequest): Promise<PageDocumentPayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<PageDocumentPayload>('save_page_document', { request });
+};
+
+export const persistPageTreeDelete = async (request: DeletePageTreeRequest): Promise<NotebookTreePayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<NotebookTreePayload>('delete_page_tree', { request });
+};
+
+export const persistNotebookDelete = async (request: DeleteNotebookRequest): Promise<NotebookTreePayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<NotebookTreePayload>('delete_notebook', { request });
+};
+
+export const loadDatabaseBootstrap = async (): Promise<DatabaseBootstrapPayload | null> => {
+  if (!isTauri()) return null;
+  const tree = await invoke<NotebookTreePayload | null>('list_notebook_tree');
+  if (!tree) return null;
+  const notebook = tree.notebooks[0];
+  const activeNotebookId = notebook?.id ?? '';
+  const activePageId = notebook?.pageIds[0] ?? tree.pages[0]?.id ?? '';
+  return {
+    notebooks: tree.notebooks,
+    pages: tree.pages,
+    activeNotebookId,
+    activePageId
+  };
+};
+
+export const loadWorkspacePreferences = async (): Promise<WorkspacePreferencesPayload | null> => {
+  if (!isTauri()) return null;
+  const preferences = await invoke<WorkspacePreferencesPayload>('load_workspace_preferences');
+  return {
+    ...preferences,
+    shell: preferences.shell === 'native-ledger' || preferences.shell === 'typora-base' ? preferences.shell : 'native-garden',
+    theme: preferences.theme === 'ledger' ? 'ledger' : 'garden',
+    contentTheme: contentThemeIds.has(preferences.contentTheme) ? preferences.contentTheme : 'notebook',
+    openCardWindowBlockId: preferences.openCardWindowBlockId ?? null,
+    expandedPageIds: preferences.expandedPageIds ?? []
+  };
+};
+
+export const saveWorkspacePreferences = async (request: WorkspacePreferencesRequest): Promise<void> => {
+  if (!isTauri()) return;
+  await invoke('save_workspace_preferences', { request });
+};
 
 export const appendOperation = (
   state: AppState,
@@ -527,6 +644,106 @@ type AttachmentCleanupResult = {
   removedCount: number;
   removedBytes: number;
 };
+
+export type PageDocumentContent = {
+  contentType: 'page_document';
+  version: number;
+  blocks: Block[];
+};
+
+export type NotebookTreePayload = {
+  notebooks: Notebook[];
+  pages: Page[];
+};
+
+export type PageDocumentPayload = {
+  page: Page;
+  content: PageDocumentContent;
+};
+
+export type PinnedBlockPayload = {
+  page: Page;
+  block: Block;
+};
+
+export type CalendarBlockPayload = {
+  page: Page;
+  block: Block;
+};
+
+export type PageSearchResult = {
+  pageId: string;
+  notebookId: string;
+  title: string;
+  snippet: string;
+};
+
+export type ImportBatchPayload = {
+  notebook: Notebook;
+  pages: Page[];
+  blocks: Block[];
+  operation: OperationLogEntry | null;
+};
+
+export type RenameEntityRequest = {
+  entity: 'notebook' | 'page';
+  entityId: string;
+  name: string;
+  operation: OperationLogEntry | null;
+};
+
+export type MovePageRequest = {
+  pageId: string;
+  parentId: string | null;
+  operation: OperationLogEntry | null;
+};
+
+export type CreateNotebookRequest = {
+  notebook: Notebook;
+  initialPage: Page;
+  operation: OperationLogEntry | null;
+};
+
+export type CreatePageRequest = {
+  page: Page;
+  operation: OperationLogEntry | null;
+};
+
+export type SavePageDocumentRequest = {
+  page: Page;
+  blocks: Block[];
+  operation: OperationLogEntry | null;
+};
+
+export type DeletePageTreeRequest = {
+  pageId: string;
+  fallbackPage: Page | null;
+  operation: OperationLogEntry | null;
+};
+
+export type DeleteNotebookRequest = {
+  notebookId: string;
+  operation: OperationLogEntry | null;
+};
+
+export type DatabaseBootstrapPayload = {
+  notebooks: Notebook[];
+  pages: Page[];
+  activeNotebookId: string;
+  activePageId: string;
+};
+
+export type WorkspacePreferencesPayload = {
+  activeNotebookId: string;
+  activePageId: string;
+  shell: ShellId;
+  theme: ThemeId;
+  contentTheme: ContentThemeId;
+  openCardWindowBlockId: string | null;
+  expandedPageIds: string[];
+};
+
+export type WorkspacePreferencesRequest = WorkspacePreferencesPayload;
 
 export type MarkdownImportWarning = {
   filename: string;
