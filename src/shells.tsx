@@ -37,6 +37,7 @@ type ToolControlsProps = {
   showComposerFooter: boolean;
   showBlockBorders: boolean;
   roundPinnedCards: boolean;
+  glowPinnedCards: boolean;
   newestFirst: boolean;
   shell: ShellId;
   contentTheme: ContentThemeId;
@@ -49,6 +50,7 @@ type ToolControlsProps = {
   onShowComposerFooterChange: (show: boolean) => void;
   onShowBlockBordersChange: (show: boolean) => void;
   onRoundPinnedCardsChange: (round: boolean) => void;
+  onGlowPinnedCardsChange: (glow: boolean) => void;
   onNewestFirstChange: (newestFirst: boolean) => void;
   onShellChange: (shell: ShellId) => void;
   onContentThemeChange: (contentTheme: ContentThemeId) => void;
@@ -66,6 +68,7 @@ function ToolControls({
   showComposerFooter,
   showBlockBorders,
   roundPinnedCards,
+  glowPinnedCards,
   newestFirst,
   shell,
   contentTheme,
@@ -78,6 +81,7 @@ function ToolControls({
   onShowComposerFooterChange,
   onShowBlockBordersChange,
   onRoundPinnedCardsChange,
+  onGlowPinnedCardsChange,
   onNewestFirstChange,
   onShellChange,
   onContentThemeChange,
@@ -94,6 +98,7 @@ function ToolControls({
       <label className="view-toggle"><input type="checkbox" checked={showComposerFooter} onChange={(event) => onShowComposerFooterChange(event.target.checked)} /> Add</label>
       <label className="view-toggle"><input type="checkbox" checked={showBlockBorders} onChange={(event) => onShowBlockBordersChange(event.target.checked)} /> Block borders</label>
       <label className="view-toggle"><input type="checkbox" checked={roundPinnedCards} onChange={(event) => onRoundPinnedCardsChange(event.target.checked)} /> Round pinned cards</label>
+      <label className="view-toggle"><input type="checkbox" checked={glowPinnedCards} onChange={(event) => onGlowPinnedCardsChange(event.target.checked)} /> Glow pinned cards</label>
       <label className="view-toggle">
         <input
           type="checkbox"
@@ -328,7 +333,8 @@ function NotebookList({
         <button
           className={`file-node-content notebook-node ${isActive ? 'is-active' : ''}`}
           type="button"
-          onClick={() => beginRename(notebook)}
+          onClick={() => actions.selectNotebook(notebook)}
+          onDoubleClick={() => beginRename(notebook)}
         >
           <span className="file-node-open-state"><NotebookTabs size={13} /></span>
           <span className="file-node-title file-name notebook-label">{notebook.name}</span>
@@ -345,7 +351,8 @@ function NotebookList({
       <button
         className={`notebook-button ${isActive ? 'active' : ''}`}
         type="button"
-        onClick={() => beginRename(notebook)}
+        onClick={() => actions.selectNotebook(notebook)}
+        onDoubleClick={() => beginRename(notebook)}
       >
         <NotebookTabs size={15} />
         <span className="notebook-label">{notebook.name}</span>
@@ -469,10 +476,12 @@ export function OutlineDrawer({
 function FloatingCardWindow({
   block,
   roundPinnedCards,
+  glowPinnedCards,
   onClose
 }: {
   block: Block | null;
   roundPinnedCards: boolean;
+  glowPinnedCards: boolean;
   onClose: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -486,7 +495,7 @@ function FloatingCardWindow({
   const dateLabel = blockTimestampLabel(block.createdAt);
   const previewLabel = preview ? `${preview.slice(0, 72)}${preview.length > 72 ? '...' : ''}` : '';
   return (
-    <div className={`floating-card-window ${roundPinnedCards ? 'is-rounded' : 'is-square'} ${collapsed ? 'is-collapsed' : ''}`}>
+    <div className={`floating-card-window ${roundPinnedCards ? 'is-rounded' : 'is-square'} ${glowPinnedCards ? 'has-glow' : ''} ${collapsed ? 'is-collapsed' : ''}`}>
       <div className="floating-card-head">
         <button className="floating-card-title" type="button" onClick={() => setCollapsed((value) => !value)} aria-expanded={!collapsed}>
           {dateLabel}
@@ -518,6 +527,7 @@ type BaseShellProps = {
   pinnedBlocks: Block[];
   openCardBlock: Block | null;
   roundPinnedCards: boolean;
+  glowPinnedCards: boolean;
   onOpenPinnedWindow: (blockId: string) => void;
   onCloseFloatingCard: () => void;
   onRootPageDrop: (pageId: string) => void;
@@ -571,6 +581,7 @@ export function NativeShell({
   pinnedBlocks,
   openCardBlock,
   roundPinnedCards,
+  glowPinnedCards,
   onOpenPinnedWindow,
   onCloseFloatingCard,
   onRootPageDrop,
@@ -649,7 +660,7 @@ export function NativeShell({
 
       <FishDesk fishIconUrl={fishIconUrl} controls={controls} />
 
-      <FloatingCardWindow block={openCardBlock} roundPinnedCards={roundPinnedCards} onClose={onCloseFloatingCard} />
+      <FloatingCardWindow block={openCardBlock} roundPinnedCards={roundPinnedCards} glowPinnedCards={glowPinnedCards} onClose={onCloseFloatingCard} />
     </div>
   );
 }
@@ -672,6 +683,7 @@ export function TyporaShell({
   pinnedBlocks,
   openCardBlock,
   roundPinnedCards,
+  glowPinnedCards,
   onOpenPinnedWindow,
   onCloseFloatingCard,
   onRootPageDrop,
@@ -734,7 +746,7 @@ export function TyporaShell({
 
       <FishDesk fishIconUrl={fishIconUrl} controls={controls} />
 
-      <FloatingCardWindow block={openCardBlock} roundPinnedCards={roundPinnedCards} onClose={onCloseFloatingCard} />
+      <FloatingCardWindow block={openCardBlock} roundPinnedCards={roundPinnedCards} glowPinnedCards={glowPinnedCards} onClose={onCloseFloatingCard} />
     </div>
   );
 }
@@ -744,6 +756,7 @@ export function CardWindowPage({
   shell,
   contentTheme,
   roundPinnedCards,
+  glowPinnedCards,
   editorRef,
   onFocus,
   onSelectionUpdate,
@@ -757,6 +770,7 @@ export function CardWindowPage({
   shell: ShellId;
   contentTheme: ContentThemeId;
   roundPinnedCards: boolean;
+  glowPinnedCards: boolean;
   editorRef: (editor: Editor | null) => void;
   onFocus: (editor: Editor) => void;
   onSelectionUpdate: (editor: Editor) => void;
@@ -772,7 +786,7 @@ export function CardWindowPage({
   const previewLabel = preview ? `${preview.slice(0, 96)}${preview.length > 96 ? '...' : ''}` : '';
 
   return (
-    <main className={`card-window-page typora-theme ${roundPinnedCards ? 'is-rounded' : 'is-square'} ${collapsed ? 'is-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
+    <main className={`card-window-page typora-theme ${roundPinnedCards ? 'is-rounded' : 'is-square'} ${glowPinnedCards ? 'has-glow' : ''} ${collapsed ? 'is-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
       <header className="card-window-grip" aria-label="Pinned card controls" onMouseDown={(event) => {
         const target = event.target as HTMLElement | null;
         if (target?.closest('button, a, input, textarea, select')) return;

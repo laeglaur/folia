@@ -96,6 +96,8 @@ if (cardModeBlockId) {
 } else {
   delete document.documentElement.dataset.cardWindow;
 }
+const cardModeRoundPinnedCards = searchParams.get('roundPinnedCards') !== '0';
+const cardModeGlowPinnedCards = searchParams.get('glowPinnedCards') === '1';
 const importStressMode = searchParams.has('importStress');
 const disableBrowserPersistence = searchParams.get('persistence') === 'off';
 
@@ -200,7 +202,8 @@ export function App() {
   const [mathEditor, setMathEditor] = useState<MathEditorState | null>(null);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
   const [showBlockBorders, setShowBlockBorders] = useState(false);
-  const [roundPinnedCards, setRoundPinnedCards] = useState(true);
+  const [roundPinnedCards, setRoundPinnedCards] = useState(cardModeBlockId ? cardModeRoundPinnedCards : true);
+  const [glowPinnedCards, setGlowPinnedCards] = useState(cardModeBlockId ? cardModeGlowPinnedCards : false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [copiedPageId, setCopiedPageId] = useState<string | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
@@ -1924,8 +1927,11 @@ export function App() {
       await configurePinnedCardWindow(existing);
       return;
     }
+    const cardParams = new URLSearchParams({ card: blockId });
+    if (!roundPinnedCards) cardParams.set('roundPinnedCards', '0');
+    if (glowPinnedCards) cardParams.set('glowPinnedCards', '1');
     const cardWindow = new WebviewWindow(label, {
-      url: `${window.location.pathname}?card=${encodeURIComponent(blockId)}`,
+      url: `${window.location.pathname}?${cardParams.toString()}`,
       title: 'Notebook card',
       width: 340,
       height: 220,
@@ -2002,7 +2008,8 @@ export function App() {
                   if (handlePageKeyboard(event, page)) return;
                 }}
                 onFocus={() => setSelectedPageId(page.id)}
-                onClick={() => beginPageRename(page)}
+                onClick={() => selectPage(page.id)}
+                onDoubleClick={() => beginPageRename(page)}
                 type="button"
               >
                 <span
@@ -2082,7 +2089,8 @@ export function App() {
                   if (handlePageKeyboard(event, page)) return;
                 }}
                 onFocus={() => setSelectedPageId(page.id)}
-                onClick={() => beginPageRename(page)}
+                onClick={() => selectPage(page.id)}
+                onDoubleClick={() => beginPageRename(page)}
                 type="button"
               >
                 <span
@@ -2231,6 +2239,7 @@ export function App() {
     showComposerFooter,
     showBlockBorders,
     roundPinnedCards,
+    glowPinnedCards,
     newestFirst: pageBlockOrder === 'desc',
     shell: state.shell,
     contentTheme: state.contentTheme,
@@ -2243,6 +2252,7 @@ export function App() {
     onShowComposerFooterChange: setShowComposerFooter,
     onShowBlockBordersChange: setShowBlockBorders,
     onRoundPinnedCardsChange: setRoundPinnedCards,
+    onGlowPinnedCardsChange: setGlowPinnedCards,
     onNewestFirstChange: (newestFirst: boolean) => setPageBlockOrder(newestFirst ? 'desc' : 'asc'),
     onShellChange: setShell,
     onContentThemeChange: setContentTheme,
@@ -2273,6 +2283,7 @@ export function App() {
         shell={state.shell}
         contentTheme={state.contentTheme}
         roundPinnedCards={roundPinnedCards}
+        glowPinnedCards={glowPinnedCards}
         editorRef={(editor) => { blockEditorRefs.current[cardModeBlock.id] = editor; }}
         onFocus={(editor) => {
           activateEditor({ kind: 'block', blockId: cardModeBlock.id });
@@ -2320,6 +2331,7 @@ export function App() {
     pinnedBlocks,
     openCardBlock,
     roundPinnedCards,
+    glowPinnedCards,
     onOpenPinnedWindow: (blockId: string) => void openPinnedWindow(blockId),
     onCloseFloatingCard: () => setState((current) => ({ ...current, openCardWindowBlockId: null })),
     onRootPageDrop: (pageId: string) => {

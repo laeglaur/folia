@@ -703,7 +703,8 @@ input, select { color: var(--ink); }
 .block-content,
 .composer,
 .floating-card-body,
-.desktop-card {
+.desktop-card,
+.sidebar-pin-card {
   font-family: var(--editor-font);
 }
 
@@ -756,25 +757,29 @@ input, select { color: var(--ink); }
 }
 
 .floating-card-body :where(ul, ol),
-.desktop-card :where(ul, ol) {
+.desktop-card :where(ul, ol),
+.sidebar-pin-card :where(ul, ol) {
   margin: 0 0 6px;
   padding-left: 1.15em;
 }
 
 .floating-card-body li,
-.desktop-card li {
+.desktop-card li,
+.sidebar-pin-card li {
   margin: 1px 0;
   padding-left: 0;
 }
 
 .floating-card-body ul[data-type="taskList"],
-.desktop-card ul[data-type="taskList"] {
+.desktop-card ul[data-type="taskList"],
+.sidebar-pin-card ul[data-type="taskList"] {
   padding-left: 0;
   list-style: none;
 }
 
 .floating-card-body li[data-checked],
-.desktop-card li[data-checked] {
+.desktop-card li[data-checked],
+.sidebar-pin-card li[data-checked] {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
@@ -782,14 +787,16 @@ input, select { color: var(--ink); }
 }
 
 .floating-card-body li[data-checked] > label,
-.desktop-card li[data-checked] > label {
+.desktop-card li[data-checked] > label,
+.sidebar-pin-card li[data-checked] > label {
   display: inline-flex;
   align-items: center;
   min-height: 22px;
 }
 
 .floating-card-body li[data-checked] p,
-.desktop-card li[data-checked] p {
+.desktop-card li[data-checked] p,
+.sidebar-pin-card li[data-checked] p {
   margin: 0 0 4px;
 }
 
@@ -1780,6 +1787,35 @@ input, select { color: var(--ink); }
   overflow: hidden;
 }
 
+.floating-card-window.has-glow,
+.card-window-page.has-glow {
+  position: relative;
+  border-color: color-mix(in srgb, var(--accent, var(--theme-accent)) 42%, white);
+}
+
+.floating-card-window.has-glow::before,
+.card-window-page.has-glow::before {
+  position: absolute;
+  inset: 2px;
+  z-index: 4;
+  border: 1px solid color-mix(in srgb, var(--accent, var(--theme-accent)) 55%, transparent);
+  border-radius: inherit;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent, var(--theme-accent)) 18%, transparent),
+    0 0 5px 1px color-mix(in srgb, var(--accent, var(--theme-accent)) 30%, transparent),
+    inset 0 0 4px color-mix(in srgb, var(--accent, var(--theme-accent)) 16%, transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.card-window-page.has-glow::before {
+  inset: var(--floating-card-page-padding);
+}
+
+.card-window-page.has-glow .floating-card-body.card-mode {
+  border-color: color-mix(in srgb, var(--accent, var(--theme-accent)) 30%, var(--line, transparent));
+}
+
 .floating-card-window.is-rounded,
 .card-window-page.is-rounded,
 .card-window-page.is-rounded .floating-card-body.card-mode {
@@ -1798,8 +1834,12 @@ input, select { color: var(--ink); }
   height: fit-content;
   min-height: 0;
   max-height: none;
-  box-shadow: none;
   overflow: hidden;
+}
+
+.floating-card-window.is-collapsed:not(.has-glow),
+.card-window-page.is-collapsed:not(.has-glow) {
+  box-shadow: none;
 }
 
 .card-window-page {
@@ -1820,7 +1860,6 @@ input, select { color: var(--ink); }
   min-height: 0;
   display: flex;
   flex-direction: column;
-  box-shadow: none;
   overflow: hidden;
 }
 
