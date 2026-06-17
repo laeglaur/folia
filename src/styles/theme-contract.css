@@ -97,6 +97,7 @@
   --nav-item-radius: 999px;
   --nav-item-padding: 6px 10px;
   --nav-item-grid: 20px minmax(0, 1fr);
+  --nav-icon-column: 20px;
   --nav-item-gap: 7px;
   --nav-item-font-size: 13px;
   --nav-tree-row-gap: 3px;

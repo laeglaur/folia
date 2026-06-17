@@ -9,13 +9,14 @@ import {
   type ReactNode,
   type RefObject
 } from 'react';
-import { Download, FilePlus, FileUp, NotebookTabs, PanelRight, Pin, Plus, Search, Sparkles, Trash2, Upload } from 'lucide-react';
+import { Download, FilePlus, FileUp, ImagePlus, NotebookTabs, PanelRight, Pin, Plus, Search, Sparkles, Trash2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { Block, ContentThemeId, Notebook, ShellId } from './types';
 import type { PageSearchResult } from './state';
 import type { OutlineEntry } from './app-utils';
 import { blockTimestampLabel } from './app-utils';
-import { RichEditor, type MediaResizeRequest } from './editor';
+import { RichEditor, type ImageAnnotationRequest, type MediaResizeRequest } from './editor';
+import { renderAnnotatedImagesInHtml } from './image-annotations';
 import { contentThemes } from './typora-theme-registry';
 
 type ShellThemeOption = {
@@ -29,6 +30,8 @@ type NotebookActions = {
   renameNotebook: (notebookId: string, name: string) => void;
   duplicateNotebook: (notebookId: string) => void;
   deleteNotebook: (notebookId: string) => void;
+  openNotebookIcons: (notebookId: string) => void;
+  openNotebookIconMenu: (notebookId: string, x: number, y: number) => void;
 };
 
 type ToolControlsProps = {
@@ -60,6 +63,7 @@ type ToolControlsProps = {
   onMarkdownFolderChange: (files: FileList | null) => void;
   onExportMarkdown: () => void;
   onExportJson: () => void;
+  onOpenNotebookIcons: () => void;
 };
 
 function ToolControls({
@@ -90,7 +94,8 @@ function ToolControls({
   onMarkdownFilesChange,
   onMarkdownFolderChange,
   onExportMarkdown,
-  onExportJson
+  onExportJson,
+  onOpenNotebookIcons
 }: ToolControlsProps) {
   return (
     <div className={compact ? 'typora-tool-controls' : 'topbar-actions'}>
@@ -176,6 +181,7 @@ function ToolControls({
       <button className="secondary-button" type="button" onClick={() => markdownFolderInputRef.current?.click()}><FileUp size={15} /> Import folder</button>
       <button className="secondary-button" type="button" onClick={onExportMarkdown}><Download size={15} /> Markdown</button>
       <button className="secondary-button" type="button" onClick={onExportJson}><Upload size={15} /> Backup</button>
+      <button className="secondary-button" type="button" onClick={onOpenNotebookIcons}><ImagePlus size={15} /> Icons</button>
     </div>
   );
 }
@@ -216,7 +222,7 @@ function PinnedCards({
           type="button"
           onClick={() => onOpenPinnedWindow(block.id)}
         >
-          <div dangerouslySetInnerHTML={{ __html: block.content.html }} />
+          <div dangerouslySetInnerHTML={{ __html: renderAnnotatedImagesInHtml(block.content.html) }} />
         </button>
       )) : <p className="muted">Pin blocks to keep them close.</p>}
     </div>
@@ -297,6 +303,7 @@ function NotebookList({
   const renderNotebookLabel = (notebook: Notebook) => {
     const isEditing = editingNotebookId === notebook.id;
     const isActive = notebook.id === activeNotebook.id;
+    const icon = notebook.metadata.iconPack?.icons.find((item) => item.id === notebook.metadata.iconId) ?? null;
     const sharedInputProps = {
       ref: nameInputRef,
       className: 'notebook-name-input',
@@ -331,12 +338,18 @@ function NotebookList({
         </div>
       ) : (
         <button
-          className={`file-node-content notebook-node ${isActive ? 'is-active' : ''}`}
+          className={`file-node-content notebook-node ${icon ? 'has-node-icon' : ''} ${isActive ? 'is-active' : ''}`}
           type="button"
           onClick={() => actions.selectNotebook(notebook)}
           onDoubleClick={() => beginRename(notebook)}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            actions.selectNotebook(notebook);
+            actions.openNotebookIconMenu(notebook.id, event.clientX, event.clientY);
+          }}
         >
           <span className="file-node-open-state"><NotebookTabs size={13} /></span>
+          {icon ? <img className="node-icon-image" src={icon.src} alt="" aria-hidden="true" /> : null}
           <span className="file-node-title file-name notebook-label">{notebook.name}</span>
         </button>
       );
@@ -349,12 +362,18 @@ function NotebookList({
       </div>
     ) : (
       <button
-        className={`notebook-button ${isActive ? 'active' : ''}`}
+        className={`notebook-button ${icon ? 'has-node-icon' : ''} ${isActive ? 'active' : ''}`}
         type="button"
         onClick={() => actions.selectNotebook(notebook)}
         onDoubleClick={() => beginRename(notebook)}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          actions.selectNotebook(notebook);
+          actions.openNotebookIconMenu(notebook.id, event.clientX, event.clientY);
+        }}
       >
         <NotebookTabs size={15} />
+        {icon ? <img className="node-icon-image" src={icon.src} alt="" aria-hidden="true" /> : null}
         <span className="notebook-label">{notebook.name}</span>
       </button>
     );
@@ -503,7 +522,7 @@ function FloatingCardWindow({
         {collapsed && previewLabel ? <span className="floating-card-preview">{previewLabel}</span> : null}
         <button type="button" onClick={onClose} aria-label="Close pinned card">×</button>
       </div>
-      {!collapsed ? <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: block.content.html }} /> : null}
+      {!collapsed ? <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: renderAnnotatedImagesInHtml(block.content.html) }} /> : null}
     </div>
   );
 }
@@ -763,6 +782,7 @@ export function CardWindowPage({
   onUpdate,
   onBlur,
   onMediaResizeStart,
+  onImageAnnotate,
   onClose,
   onDrag
 }: {
@@ -777,6 +797,7 @@ export function CardWindowPage({
   onUpdate: (html: string, plainText: string) => void;
   onBlur: (html: string, plainText: string) => void;
   onMediaResizeStart: (request: MediaResizeRequest) => void;
+  onImageAnnotate: (request: ImageAnnotationRequest) => void;
   onClose: () => void;
   onDrag: (event: MouseEvent<HTMLElement>) => void;
 }) {
@@ -816,6 +837,7 @@ export function CardWindowPage({
           onBlur={onBlur}
           onMoveBlock={() => false}
           onMediaResizeStart={onMediaResizeStart}
+          onImageAnnotate={(request) => onImageAnnotate({ ...request, target: { kind: 'card', blockId: block.id } })}
         />
       </div> : null}
     </main>

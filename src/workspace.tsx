@@ -6,6 +6,7 @@ import {
   RichEditor,
   Toolbar,
   type MathEditorState,
+  type ImageAnnotationRequest,
   type MediaResizeRequest,
   type TableControlsState,
   type ToolbarCommand
@@ -21,6 +22,8 @@ import {
   type ImportNotice,
   type WorkspaceView
 } from './app-utils';
+
+type ImageAnnotationTarget = NonNullable<ImageAnnotationRequest['target']>;
 
 const themesWithoutNativeDivider = new Set<ContentThemeId>([
   'notebook',
@@ -55,6 +58,7 @@ type ComposerCardProps = {
   onSelectionUpdate: (editor: Editor) => void;
   onRunTableCommand: (command: ToolbarCommand) => void;
   onMediaResizeStart: (request: MediaResizeRequest) => void;
+  onImageAnnotate: (request: ImageAnnotationRequest) => void;
   onMathChange: (latex: string) => void;
   onMathClose: () => void;
   onDraftChange: (html: string) => void;
@@ -75,11 +79,13 @@ function ComposerCard({
   onSelectionUpdate,
   onRunTableCommand,
   onMediaResizeStart,
+  onImageAnnotate,
   onMathChange,
   onMathClose,
   onDraftChange,
   onCommitDraft
 }: ComposerCardProps) {
+  const annotateTarget: ImageAnnotationTarget = { kind: 'composer', pageId: draftKey };
   return (
     <div className="composer-card">
       {showToolbar && activeEditor.kind === 'composer' && (
@@ -101,6 +107,7 @@ function ComposerCard({
         tableControls={activeEditor.kind === 'composer' ? tableControls : undefined}
         runTableCommand={onRunTableCommand}
         onMediaResizeStart={onMediaResizeStart}
+        onImageAnnotate={(request) => onImageAnnotate({ ...request, target: annotateTarget })}
         mathEditor={activeEditor.kind === 'composer' ? mathEditor : null}
         onMathChange={onMathChange}
         onMathClose={onMathClose}
@@ -149,9 +156,11 @@ type BlockItemProps = {
   onSelectionUpdate: (editor: Editor) => void;
   onRunTableCommand: (command: ToolbarCommand) => void;
   onMediaResizeStart: (request: MediaResizeRequest) => void;
+  onImageAnnotate: (request: ImageAnnotationRequest) => void;
   onMathChange: (latex: string) => void;
   onMathClose: () => void;
   onMoveBlock: (blockId: string, direction: -1 | 1) => boolean;
+  onDeleteBlock: (blockId: string) => boolean;
   onUpdateBlock: (blockId: string, html: string, plainText: string) => void;
 };
 
@@ -171,11 +180,14 @@ function BlockItem({
   onSelectionUpdate,
   onRunTableCommand,
   onMediaResizeStart,
+  onImageAnnotate,
   onMathChange,
   onMathClose,
   onMoveBlock,
+  onDeleteBlock,
   onUpdateBlock
 }: BlockItemProps) {
+  const annotateTarget: ImageAnnotationTarget = { kind: 'block', blockId: block.id };
   const expandCollapsedBlock = (event: React.MouseEvent<HTMLElement>) => {
     if (!block.collapsed) return;
     const target = event.target as HTMLElement | null;
@@ -236,10 +248,12 @@ function BlockItem({
             tableControls={activeEditor.kind === 'block' && activeEditor.blockId === block.id ? tableControls : undefined}
             runTableCommand={onRunTableCommand}
             onMediaResizeStart={onMediaResizeStart}
+            onImageAnnotate={(request) => onImageAnnotate({ ...request, target: annotateTarget })}
             mathEditor={activeEditor.kind === 'block' && activeEditor.blockId === block.id ? mathEditor : null}
             onMathChange={onMathChange}
             onMathClose={onMathClose}
             onMoveBlock={(direction) => onMoveBlock(block.id, direction)}
+            onDeleteBlock={() => onDeleteBlock(block.id)}
             onBlur={(html, plainText) => onUpdateBlock(block.id, html, plainText)}
           />
         ) : (
@@ -274,9 +288,11 @@ type WriteSurfaceProps = {
   onSelectionUpdate: (editor: Editor) => void;
   onRunTableCommand: (command: ToolbarCommand) => void;
   onMediaResizeStart: (request: MediaResizeRequest) => void;
+  onImageAnnotate: (request: ImageAnnotationRequest) => void;
   onMathChange: (latex: string) => void;
   onMathClose: () => void;
   onMoveBlock: (blockId: string, direction: -1 | 1) => boolean;
+  onDeleteBlock: (blockId: string) => boolean;
   onUpdateBlock: (blockId: string, html: string, plainText: string) => void;
 };
 
@@ -304,9 +320,11 @@ function WriteSurface({
   onSelectionUpdate,
   onRunTableCommand,
   onMediaResizeStart,
+  onImageAnnotate,
   onMathChange,
   onMathClose,
   onMoveBlock,
+  onDeleteBlock,
   onUpdateBlock
 }: WriteSurfaceProps) {
   const divider = () => showBlockDividers ? <BlockDivider contentTheme={contentTheme} /> : null;
@@ -347,9 +365,11 @@ function WriteSurface({
               onSelectionUpdate={onSelectionUpdate}
               onRunTableCommand={onRunTableCommand}
               onMediaResizeStart={onMediaResizeStart}
+              onImageAnnotate={onImageAnnotate}
               onMathChange={onMathChange}
               onMathClose={onMathClose}
               onMoveBlock={onMoveBlock}
+              onDeleteBlock={onDeleteBlock}
               onUpdateBlock={onUpdateBlock}
             />
             {index < blocks.length - 1 ? divider() : null}

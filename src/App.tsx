@@ -50,6 +50,7 @@ import {
   inferAttachmentKind,
   runListIndentCommand,
   type MathEditorState,
+  type ImageAnnotationRequest,
   type MediaNodeType,
   type MediaResizeRequest,
   type TableControlsState,
@@ -80,6 +81,10 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import 'katex/dist/katex.min.css';
 import { CardWindowPage, NativeShell, TyporaShell } from './shells';
 import { WorkspaceContent, type EditorTarget } from './workspace';
+import { ImageAnnotationEditor, serializeImageAnnotations, type ImageAnnotationDocument } from './image-annotations';
+import { IconPackDialog, type IconPackDialogRequest } from './icon-pack-dialog';
+import { iconFromPack } from './icon-packs';
+import type { NotebookIconAsset, NotebookIconPack } from './types';
 
 const shellThemes: Array<{ id: ShellId; label: string }> = [
   { id: 'native-garden', label: 'Native Garden' },
@@ -104,6 +109,19 @@ const disableBrowserPersistence = searchParams.get('persistence') === 'off';
 type ImportedAsset = {
   id: string;
   storedPath: string;
+};
+
+type DeletedBlockSnapshot = {
+  block: Block;
+  pageId: string;
+  index: number;
+  nextSelectedBlockId: string | null;
+};
+
+type IconContextMenuState = {
+  x: number;
+  y: number;
+  target: IconPackDialogRequest['target'];
 };
 
 const mergePageDocument = (state: AppState, document: PageDocumentPayload): AppState => {
@@ -200,6 +218,9 @@ export function App() {
   const [showToolbar, setShowToolbar] = useState(true);
   const [tableControls, setTableControls] = useState<TableControlsState>({ visible: false, top: 0, left: 0 });
   const [mathEditor, setMathEditor] = useState<MathEditorState | null>(null);
+  const [imageAnnotationRequest, setImageAnnotationRequest] = useState<ImageAnnotationRequest | null>(null);
+  const [iconPackRequest, setIconPackRequest] = useState<IconPackDialogRequest | null>(null);
+  const [iconContextMenu, setIconContextMenu] = useState<IconContextMenuState | null>(null);
   const [showComposerFooter, setShowComposerFooter] = useState(true);
   const [showBlockBorders, setShowBlockBorders] = useState(false);
   const [roundPinnedCards, setRoundPinnedCards] = useState(cardModeBlockId ? cardModeRoundPinnedCards : true);
@@ -208,6 +229,7 @@ export function App() {
   const [copiedPageId, setCopiedPageId] = useState<string | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [deletedBlockSnapshot, setDeletedBlockSnapshot] = useState<DeletedBlockSnapshot | null>(null);
   const [pageDraftName, setPageDraftName] = useState('');
   const [outlineDrawerOpen, setOutlineDrawerOpen] = useState(false);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('write');
@@ -227,6 +249,23 @@ export function App() {
   const pageDocumentSaveTimersRef = useRef<Record<string, number>>({});
   const workspacePreferencesSaveTimerRef = useRef<number | null>(null);
   const lastSavedWorkspacePreferencesRef = useRef('');
+  const deletedBlockSnapshotRef = useRef<DeletedBlockSnapshot | null>(null);
+
+  const closeIconContextMenu = () => setIconContextMenu(null);
+
+  useEffect(() => {
+    if (!iconContextMenu) return;
+    const close = () => closeIconContextMenu();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', close);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [iconContextMenu]);
 
   const workspacePreferences = useMemo(() => ({
     activeNotebookId: state.activeNotebookId,
@@ -253,6 +292,10 @@ export function App() {
   useEffect(() => {
     draftsByPageIdRef.current = draftsByPageId;
   }, [draftsByPageId]);
+
+  useEffect(() => {
+    deletedBlockSnapshotRef.current = deletedBlockSnapshot;
+  }, [deletedBlockSnapshot]);
 
   useEffect(() => {
     if (!editingPageId) return;
@@ -304,6 +347,28 @@ export function App() {
       delete pageDocumentSaveTimersRef.current[page.id];
     }
     await persistPageDocument({ page, blocks: blocksForPage(page, blocks), operation: null });
+  };
+
+  const persistPageMetadataUpdate = (page: Page, blocks: Block[]) => {
+    if (!isTauri() || !persistenceReadyRef.current) return;
+    const pageBlocks = blocksForPage(page, blocks);
+    const hasLoadedDocument = page.blockIds.every((blockId) => pageBlocks.some((block) => block.id === blockId));
+    if (hasLoadedDocument) {
+      void persistPageDocument({ page, blocks: pageBlocks, operation: null }).catch((error) => {
+        console.warn('Could not persist page metadata.', error);
+      });
+      return;
+    }
+    void loadPageDocument(page.id).then((document) => {
+      if (!document) return null;
+      return persistPageDocument({
+        page: { ...document.page, ...page, metadata: page.metadata },
+        blocks: document.content.blocks,
+        operation: null
+      });
+    }).catch((error) => {
+      console.warn('Could not persist page metadata.', error);
+    });
   };
 
   const cancelPageDocumentSaves = (pageIds: Iterable<string>) => {
@@ -460,6 +525,11 @@ export function App() {
     activePageDocumentRequestRef.current = requestId;
     loadPageDocument(activePage.id).then((document) => {
       if (cancelled || activePageDocumentRequestRef.current !== requestId || !document) return;
+      if (document.content.blocks.some((block) => /\bsrc=["'](?:blob:|data:)/i.test(block.content.html))) {
+        void persistPageDocument({ page: document.page, blocks: document.content.blocks, operation: null }).catch((error) => {
+          console.warn('Could not localize loaded page media.', error);
+        });
+      }
       setState((current) => current.activePageId === document.page.id ? mergePageDocument(current, document) : current);
     }).catch((error) => {
       console.warn('Could not load active page document.', error);
@@ -738,6 +808,113 @@ export function App() {
     window.addEventListener('pointercancel', stopDragging, { once: true });
   };
 
+  const syncAnnotatedEditorContent = (editor: Editor) => {
+    const html = editor.getHTML();
+    const plainText = editor.getText();
+    if (cardModeBlockId && cardModeBlock && editor === blockEditorRefs.current[cardModeBlock.id]) {
+      updateCardBlock(cardModeBlock.id, html, plainText);
+      return;
+    }
+    if (editor === composerEditorRef.current) {
+      setComposerDraftForPage(stateRef.current.activePageId, html, plainText);
+      return;
+    }
+    const blockEntry = Object.entries(blockEditorRefs.current).find(([, candidate]) => candidate === editor);
+    if (blockEntry) {
+      updateBlock(blockEntry[0], html, plainText);
+      return;
+    }
+    if (activeEditor.kind === 'block') updateBlock(activeEditor.blockId, html, plainText);
+  };
+
+  const setNotebookIconPack = (notebookId: string, pack: NotebookIconPack) => {
+    setState((current) => {
+      const nextNotebook = current.notebooks.find((notebook) => notebook.id === notebookId);
+      if (!nextNotebook) return current;
+      const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, iconPack: pack } };
+      const nextState = {
+        ...current,
+        notebooks: current.notebooks.map((notebook) => notebook.id === notebookId ? updatedNotebook : notebook)
+      };
+      return nextState;
+    });
+  };
+
+  const addNotebookIcon = (notebookId: string, icon: NotebookIconAsset) => {
+    setState((current) => {
+      const nextNotebook = current.notebooks.find((notebook) => notebook.id === notebookId);
+      if (!nextNotebook) return current;
+      const pack = nextNotebook.metadata.iconPack ?? { id: createId('icon_pack'), name: nextNotebook.name, icons: [] };
+      const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, iconPack: { ...pack, icons: [...pack.icons, icon] } } };
+      const nextState = {
+        ...current,
+        notebooks: current.notebooks.map((notebook) => notebook.id === notebookId ? updatedNotebook : notebook)
+      };
+      return nextState;
+    });
+  };
+
+  const setPageIcon = (pageId: string, iconId: string | null) => {
+    setState((current) => {
+      const nextPage = current.pages.find((page) => page.id === pageId);
+      if (!nextPage) return current;
+      const updatedPage = { ...nextPage, metadata: { ...nextPage.metadata, iconId: iconId ?? undefined } };
+      const nextState = {
+        ...current,
+        pages: current.pages.map((page) => page.id === pageId ? updatedPage : page)
+      };
+      if (isTauri()) persistPageMetadataUpdate(updatedPage, current.blocks);
+      return nextState;
+    });
+  };
+
+  const setNotebookIcon = (notebookId: string, iconId: string | null) => {
+    setState((current) => {
+      const nextNotebook = current.notebooks.find((notebook) => notebook.id === notebookId);
+      if (!nextNotebook) return current;
+      const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, iconId: iconId ?? undefined } };
+      const nextState = {
+        ...current,
+        notebooks: current.notebooks.map((notebook) => notebook.id === notebookId ? updatedNotebook : notebook)
+      };
+      return nextState;
+    });
+  };
+
+  const openIconContextMenu = (target: IconPackDialogRequest['target'], x: number, y: number) => {
+    const width = 188;
+    const height = 100;
+    const left = Math.max(12, Math.min(x, window.innerWidth - width - 12));
+    const top = Math.max(12, Math.min(y, window.innerHeight - height - 12));
+    setIconContextMenu({ target, x: left, y: top });
+  };
+
+  const saveImageAnnotations = (request: ImageAnnotationRequest, annotations: ImageAnnotationDocument) => {
+    const node = request.editor.state.doc.nodeAt(request.pos);
+    if (!node || node.type.name !== 'image') {
+      setImageAnnotationRequest(null);
+      return;
+    }
+    const serialized = serializeImageAnnotations(annotations);
+    request.editor.view.dispatch(request.editor.state.tr.setNodeMarkup(request.pos, undefined, {
+      ...node.attrs,
+      annotations: serialized || null
+    }));
+    request.editor.view.focus();
+    const html = request.editor.getHTML();
+    const plainText = request.editor.getText();
+    if (request.target?.kind === 'composer') {
+      setComposerDraftForPage(request.target.pageId, html, plainText);
+    } else if (request.target?.kind === 'card') {
+      updateCardBlock(request.target.blockId, html, plainText);
+    } else if (request.target?.kind === 'block') {
+      updateBlock(request.target.blockId, html, plainText);
+    } else {
+      syncAnnotatedEditorContent(request.editor);
+    }
+    setImageAnnotationRequest(null);
+  };
+
   const activateEditor = (target: EditorTarget) => {
     setActiveEditor((current) => {
       if (current.kind !== target.kind) return target;
@@ -925,6 +1102,86 @@ export function App() {
       operations: [...current.operations, operation]
     }));
     persistPageDocumentSnapshot(nextPage, state.blocks, operation);
+  };
+
+  const deleteBlock = (blockId: string) => {
+    const targetBlock = state.blocks.find((block) => block.id === blockId);
+    const targetPage = state.pages.find((page) => page.id === targetBlock?.pageId);
+    if (!targetBlock || !targetPage) return false;
+    const index = targetPage.blockIds.indexOf(blockId);
+    if (index < 0) return false;
+
+    const nextIds = targetPage.blockIds.filter((id) => id !== blockId);
+    const updatedAt = new Date().toISOString();
+    const nextPage = { ...targetPage, blockIds: nextIds, updatedAt };
+    const nextBlocks = state.blocks.filter((block) => block.id !== blockId);
+    const nextSelectedBlockId = nextIds[Math.min(index, nextIds.length - 1)] ?? null;
+    const snapshot = { block: targetBlock, pageId: targetPage.id, index, nextSelectedBlockId };
+    const operation = createOperation({
+      entity: 'block',
+      entityId: blockId,
+      kind: 'block.delete',
+      payload: { pageId: targetPage.id, index, block: targetBlock }
+    });
+
+    cancelPageDocumentSaves([targetPage.id]);
+    setDeletedBlockSnapshot(snapshot);
+    setActiveEditor(nextSelectedBlockId ? { kind: 'block', blockId: nextSelectedBlockId } : { kind: 'composer' });
+    if (nextSelectedBlockId) {
+      window.setTimeout(() => blockEditorRefs.current[nextSelectedBlockId]?.commands.focus('start'), 0);
+    }
+    delete blockEditorRefs.current[blockId];
+    setPinnedBlockPayloads((current) => current.filter((payload) => payload.block.id !== blockId));
+    setState((current) => ({
+      ...current,
+      pages: current.pages.map((page) => (page.id === targetPage.id ? nextPage : page)),
+      blocks: current.blocks.filter((block) => block.id !== blockId),
+      openCardWindowBlockId: current.openCardWindowBlockId === blockId ? null : current.openCardWindowBlockId,
+      operations: [...current.operations, operation]
+    }));
+    persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
+    return true;
+  };
+
+  const undoDeletedBlock = () => {
+    const snapshot = deletedBlockSnapshotRef.current;
+    if (!snapshot) return false;
+    const targetPage = stateRef.current.pages.find((page) => page.id === snapshot.pageId);
+    if (!targetPage || stateRef.current.blocks.some((block) => block.id === snapshot.block.id)) {
+      setDeletedBlockSnapshot(null);
+      return false;
+    }
+
+    const restoredIds = [...targetPage.blockIds];
+    restoredIds.splice(Math.min(snapshot.index, restoredIds.length), 0, snapshot.block.id);
+    const updatedAt = new Date().toISOString();
+    const restoredBlock = { ...snapshot.block, updatedAt };
+    const nextPage = { ...targetPage, blockIds: restoredIds, updatedAt };
+    const nextBlocks = [...stateRef.current.blocks, restoredBlock];
+    const operation = createOperation({
+      entity: 'block',
+      entityId: restoredBlock.id,
+      kind: 'block.restore_delete',
+      payload: { pageId: snapshot.pageId, index: snapshot.index }
+    });
+
+    cancelPageDocumentSaves([targetPage.id]);
+    setDeletedBlockSnapshot(null);
+    setActiveEditor({ kind: 'block', blockId: restoredBlock.id });
+    if (restoredBlock.pinned) {
+      setPinnedBlockPayloads((current) => [...current.filter((payload) => payload.block.id !== restoredBlock.id), { page: nextPage, block: restoredBlock }]);
+    }
+    setState((current) => ({
+      ...current,
+      pages: current.pages.map((page) => (page.id === targetPage.id ? nextPage : page)),
+      blocks: [...current.blocks, restoredBlock],
+      operations: [...current.operations, operation]
+    }));
+    persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
+    window.setTimeout(() => {
+      blockEditorRefs.current[restoredBlock.id]?.commands.focus('start');
+    }, 0);
+    return true;
   };
 
   const commitDraft = () => {
@@ -1578,15 +1835,21 @@ export function App() {
 
   useEffect(() => {
     const handleWindowKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const commandKey = event.metaKey || event.ctrlKey;
+      if (!event.defaultPrevented && commandKey && !event.shiftKey && key === 'z' && deletedBlockSnapshotRef.current) {
+        event.preventDefault();
+        event.stopPropagation();
+        undoDeletedBlock();
+        return;
+      }
+
       if (event.defaultPrevented || !selectedPageId) return;
       const target = event.target as HTMLElement | null;
       if (target?.closest('input, textarea, select, [contenteditable="true"], .ProseMirror')) return;
       const targetPageRow = target?.closest<HTMLElement>('.page-row-shell[data-page-id], .file-node-row-shell[data-page-id]');
       if (target?.closest('button, a') && !targetPageRow) return;
       const pageId = targetPageRow?.dataset.pageId ?? selectedPageId;
-
-      const key = event.key.toLowerCase();
-      const commandKey = event.metaKey || event.ctrlKey;
       if (commandKey && key === 'c') {
         event.preventDefault();
         event.stopPropagation();
@@ -1966,6 +2229,7 @@ export function App() {
       const selected = selectedPageId === page.id;
       const active = page.id === activePage.id;
       const editing = editingPageId === page.id;
+      const pageIcon = iconFromPack(activeNotebook.metadata.iconPack, page.metadata.iconId);
       return (
         <div className="page-tree-row" key={page.id} style={{ '--depth': depth } as React.CSSProperties}>
           <div
@@ -1997,7 +2261,7 @@ export function App() {
               </div>
             ) : (
               <button
-                className={`page-button ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
+                className={`page-button ${pageIcon ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
                 draggable
                 onDragStart={(event) => {
                   setSelectedPageId(page.id);
@@ -2010,6 +2274,11 @@ export function App() {
                 onFocus={() => setSelectedPageId(page.id)}
                 onClick={() => selectPage(page.id)}
                 onDoubleClick={() => beginPageRename(page)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  selectPage(page.id);
+                  openIconContextMenu({ kind: 'page', pageId: page.id }, event.clientX, event.clientY);
+                }}
                 type="button"
               >
                 <span
@@ -2021,6 +2290,7 @@ export function App() {
                 >
                   {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
                 </span>
+                {pageIcon ? <img className="node-icon-image" src={pageIcon.src} alt="" aria-hidden="true" /> : null}
                 <span>{page.title}</span>
               </button>
             )}
@@ -2041,6 +2311,7 @@ export function App() {
       const selected = selectedPageId === page.id;
       const active = page.id === activePage.id;
       const editing = editingPageId === page.id;
+      const pageIcon = iconFromPack(activeNotebook.metadata.iconPack, page.metadata.iconId);
       return (
         <div
           className="file-library-node"
@@ -2078,7 +2349,7 @@ export function App() {
               </div>
             ) : (
               <button
-                className={`file-node-content ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
+                className={`file-node-content ${pageIcon ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
                 draggable
                 onDragStart={(event) => {
                   setSelectedPageId(page.id);
@@ -2091,6 +2362,11 @@ export function App() {
                 onFocus={() => setSelectedPageId(page.id)}
                 onClick={() => selectPage(page.id)}
                 onDoubleClick={() => beginPageRename(page)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  selectPage(page.id);
+                  openIconContextMenu({ kind: 'page', pageId: page.id }, event.clientX, event.clientY);
+                }}
                 type="button"
               >
                 <span
@@ -2102,6 +2378,7 @@ export function App() {
                 >
                   {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
                 </span>
+                {pageIcon ? <img className="node-icon-image" src={pageIcon.src} alt="" aria-hidden="true" /> : null}
                 <span className="file-node-title file-name">{page.title}</span>
               </button>
             )}
@@ -2150,6 +2427,7 @@ export function App() {
           onSelectionUpdate: syncFloatingControls,
           onRunTableCommand: runEditorCommand,
           onMediaResizeStart: startMediaResize,
+          onImageAnnotate: setImageAnnotationRequest,
           onMathChange: updateMathEditorLatex,
           onMathClose: () => setMathEditor(null),
           onDraftChange: (html) => setComposerDraftForPage(activePage.id, html),
@@ -2177,12 +2455,14 @@ export function App() {
         onSelectionUpdate: syncFloatingControls,
         onRunTableCommand: runEditorCommand,
         onMediaResizeStart: startMediaResize,
+        onImageAnnotate: setImageAnnotationRequest,
         onMathChange: updateMathEditorLatex,
         onMathClose: () => setMathEditor(null),
         onMoveBlock: (blockId, direction) => {
           moveBlockByKeyboard(blockId, direction);
           return true;
         },
+        onDeleteBlock: deleteBlock,
         onUpdateBlock: updateBlock
       }}
       calendar={{
@@ -2231,7 +2511,9 @@ export function App() {
     selectNotebook,
     renameNotebook,
     duplicateNotebook,
-    deleteNotebook
+    deleteNotebook,
+    openNotebookIcons: (notebookId: string) => setIconPackRequest({ target: { kind: 'notebook', notebookId } }),
+    openNotebookIconMenu: (notebookId: string, x: number, y: number) => openIconContextMenu({ kind: 'notebook', notebookId }, x, y)
   };
 
   const shellControls = {
@@ -2261,7 +2543,8 @@ export function App() {
     onMarkdownFilesChange: (files: FileList | null) => void importMarkdownFiles(files),
     onMarkdownFolderChange: (files: FileList | null) => void importMarkdownFolder(files),
     onExportMarkdown: exportMarkdown,
-    onExportJson: exportJson
+    onExportJson: exportJson,
+    onOpenNotebookIcons: () => setIconPackRequest({ target: { kind: 'notebook', notebookId: activeNotebook.id } })
   };
 
   if (cardModeBlock) {
@@ -2278,6 +2561,7 @@ export function App() {
       if (isTauri()) void getCurrentWindow().startDragging();
     };
     return (
+      <>
       <CardWindowPage
         block={cardModeBlock}
         shell={state.shell}
@@ -2293,9 +2577,12 @@ export function App() {
         onUpdate={(html, plainText) => updateCardBlock(cardModeBlock.id, html, plainText)}
         onBlur={(html, plainText) => updateCardBlock(cardModeBlock.id, html, plainText)}
         onMediaResizeStart={startMediaResize}
+        onImageAnnotate={setImageAnnotationRequest}
         onClose={closeCardWindow}
         onDrag={dragCardWindow}
       />
+      <ImageAnnotationEditor request={imageAnnotationRequest} onSave={saveImageAnnotations} onClose={() => setImageAnnotationRequest(null)} />
+      </>
     );
   }
 
@@ -2345,5 +2632,82 @@ export function App() {
     fishIconUrl
   };
 
-  return isTyporaShell ? <TyporaShell {...sharedShellProps} /> : <NativeShell {...sharedShellProps} />;
+  let iconContextMenuHasIcon = false;
+  if (iconContextMenu) {
+    const target = iconContextMenu.target;
+    iconContextMenuHasIcon = Boolean(target.kind === 'notebook'
+      ? state.notebooks.find((notebook) => notebook.id === target.notebookId)?.metadata.iconId
+      : state.pages.find((page) => page.id === target.pageId)?.metadata.iconId);
+  }
+
+  return (
+    <>
+      {isTyporaShell ? <TyporaShell {...sharedShellProps} /> : <NativeShell {...sharedShellProps} />}
+      {iconContextMenu ? (
+        <div
+          className="icon-context-menu"
+          style={{ left: iconContextMenu.x, top: iconContextMenu.y }}
+          onPointerDown={(event) => event.stopPropagation()}
+          role="menu"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setIconPackRequest({ target: iconContextMenu.target });
+              closeIconContextMenu();
+            }}
+          >
+            Choose icon
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!iconContextMenuHasIcon}
+            onClick={() => {
+              const target = iconContextMenu.target;
+              if (target.kind === 'notebook') setNotebookIcon(target.notebookId, null);
+              else setPageIcon(target.pageId, null);
+              closeIconContextMenu();
+            }}
+          >
+            Clear icon
+          </button>
+        </div>
+      ) : null}
+      <ImageAnnotationEditor request={imageAnnotationRequest} onSave={saveImageAnnotations} onClose={() => setImageAnnotationRequest(null)} />
+      <IconPackDialog
+        request={iconPackRequest}
+        notebooks={state.notebooks}
+        pages={state.pages}
+        onClose={() => setIconPackRequest(null)}
+        onImportPack={(pack) => {
+          if (!iconPackRequest) return;
+          const target = iconPackRequest.target;
+          if (target.kind === 'notebook') {
+            setNotebookIconPack(target.notebookId, pack);
+            return;
+          }
+          const page = state.pages.find((candidate) => candidate.id === target.pageId);
+          if (page) setNotebookIconPack(page.notebookId, pack);
+        }}
+        onAddIcon={(icon) => {
+          if (!iconPackRequest) return;
+          const target = iconPackRequest.target;
+          let notebookId: string | undefined;
+          if (target.kind === 'notebook') notebookId = target.notebookId;
+          else notebookId = state.pages.find((candidate) => candidate.id === target.pageId)?.notebookId;
+          if (notebookId) addNotebookIcon(notebookId, icon);
+        }}
+        onChooseIcon={(target, iconId) => {
+          if (target.kind === 'notebook') setNotebookIcon(target.notebookId, iconId);
+          else setPageIcon(target.pageId, iconId);
+        }}
+        onClearIcon={(target) => {
+          if (target.kind === 'notebook') setNotebookIcon(target.notebookId, null);
+          else setPageIcon(target.pageId, null);
+        }}
+      />
+    </>
+  );
 }

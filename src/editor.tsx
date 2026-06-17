@@ -23,6 +23,7 @@ import { marked } from 'marked';
 import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import { htmlToMarkdown } from './state';
 import { escapeHtml } from './html-utils';
+import { ImageAnnotationSvg, parseImageAnnotations, type ImageAnnotationDocument } from './image-annotations';
 
 declare global {
   interface Window {
@@ -75,6 +76,15 @@ export type MediaResizeRequest = {
   element: HTMLElement;
 };
 
+export type ImageAnnotationRequest = {
+  editor: Editor;
+  pos: number;
+  src: string;
+  alt?: string;
+  annotations: ImageAnnotationDocument;
+  target?: { kind: 'composer'; pageId: string } | { kind: 'block' | 'card'; blockId: string };
+};
+
 export type MathEditorState = {
   editor: Editor;
   pos: number;
@@ -94,9 +104,11 @@ export type RichEditorProps = {
   onSelectionUpdate?: (editor: Editor) => void;
   onShiftEnter?: (editor: Editor) => boolean;
   onMoveBlock?: (direction: -1 | 1) => boolean;
+  onDeleteBlock?: () => boolean;
   tableControls?: TableControlsState;
   runTableCommand?: (command: ToolbarCommand) => void;
   onMediaResizeStart?: (request: MediaResizeRequest) => void;
+  onImageAnnotate?: (request: ImageAnnotationRequest) => void;
   mathEditor?: MathEditorState | null;
   onMathChange?: (latex: string) => void;
   onMathClose?: () => void;
@@ -512,7 +524,7 @@ const mediaIndentAttributes = () => ({
 });
 
 const mediaRenderAttributes = (HTMLAttributes: Record<string, unknown>) => {
-  const { width, style, mediaIndent, 'data-indent': dataIndent, ...attributes } = HTMLAttributes;
+  const { width, style, mediaIndent, annotations, 'data-indent': dataIndent, ...attributes } = HTMLAttributes;
   const indent = typeof mediaIndent === 'number'
     ? mediaIndent
     : Number.parseInt(String(dataIndent ?? '0'), 10) || 0;
@@ -528,12 +540,52 @@ const mediaRenderAttributes = (HTMLAttributes: Record<string, unknown>) => {
   };
 };
 
+function ImageNodeView({ node, selected }: NodeViewProps) {
+  const annotations = parseImageAnnotations(node.attrs.annotations);
+  const hasAnnotations = annotations.items.length > 0;
+  const attrs = mediaRenderAttributes(node.attrs);
+  const imageStyle = typeof attrs.style === 'string' ? Object.fromEntries(attrs.style.split(';').map((rule) => rule.trim()).filter(Boolean).map((rule) => {
+    const [key, ...valueParts] = rule.split(':');
+    return [key.trim().replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase()), valueParts.join(':').trim()];
+  })) : undefined;
+  const img = (
+    <img
+      src={node.attrs.src}
+      alt={node.attrs.alt ?? ''}
+      title={node.attrs.title ?? undefined}
+      data-asset-id={node.attrs.assetId ?? undefined}
+      data-original-src={node.attrs.originalSrc ?? undefined}
+      data-image-annotations={node.attrs.annotations ?? undefined}
+      tabIndex={0}
+    />
+  );
+  return (
+    <NodeViewWrapper
+      as="span"
+      className={`annotated-image ${selected ? 'ProseMirror-selectednode' : ''}`}
+      data-width={node.attrs.width ?? undefined}
+      data-indent={node.attrs.mediaIndent ? String(node.attrs.mediaIndent) : undefined}
+      data-image-annotations={node.attrs.annotations ?? undefined}
+      style={imageStyle}
+    >
+      {img}
+      {hasAnnotations ? <ImageAnnotationSvg annotations={annotations} /> : null}
+    </NodeViewWrapper>
+  );
+}
+
 const NotebookImage = Image.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
       ...mediaAssetAttributes(),
       ...mediaIndentAttributes(),
+      annotations: {
+        default: null,
+        parseHTML: (element) => (element as HTMLElement).getAttribute('data-image-annotations') ?? (element as HTMLElement).closest<HTMLElement>('.annotated-image')?.getAttribute('data-image-annotations'),
+        renderHTML: (attributes) =>
+          typeof attributes.annotations === 'string' && attributes.annotations ? { 'data-image-annotations': attributes.annotations } : {}
+      },
       width: {
         default: null,
         parseHTML: (element) => parseMediaWidth(element as HTMLElement),
@@ -549,7 +601,12 @@ const NotebookImage = Image.extend({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['img', mergeAttributes(mediaRenderAttributes(HTMLAttributes))];
+    const attrs = mediaRenderAttributes(HTMLAttributes);
+    return ['img', mergeAttributes(attrs)];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(ImageNodeView);
   }
 });
 
@@ -1031,12 +1088,50 @@ type ImportedAsset = {
   sha256: string;
 };
 
+const extensionForMime = (mimeType: string) => {
+  switch (mimeType.toLowerCase()) {
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/png':
+      return 'png';
+    case 'image/gif':
+      return 'gif';
+    case 'image/webp':
+      return 'webp';
+    case 'image/svg+xml':
+      return 'svg';
+    case 'video/mp4':
+      return 'mp4';
+    case 'video/quicktime':
+      return 'mov';
+    case 'video/webm':
+      return 'webm';
+    case 'audio/mpeg':
+      return 'mp3';
+    case 'audio/wav':
+      return 'wav';
+    case 'audio/mp4':
+      return 'm4a';
+    case 'audio/ogg':
+      return 'ogg';
+    case 'audio/flac':
+      return 'flac';
+    default:
+      return 'bin';
+  }
+};
+
+const importedAssetToEditorSrc = (imported: ImportedAsset) => ({
+  src: convertFileSrc(imported.storedPath),
+  assetId: imported.id
+});
+
 export const importAttachmentFile = async (file: File): Promise<{ src: string; assetId?: string }> => {
   if (!isTauri()) return { src: await readFileAsDataUrl(file) };
   const localPath = (file as File & { path?: string }).path;
   if (localPath) {
     const imported = await invoke<ImportedAsset>('import_local_asset', { sourcePath: localPath });
-    return { src: convertFileSrc(imported.storedPath), assetId: imported.id };
+    return importedAssetToEditorSrc(imported);
   }
   const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
   const imported = await invoke<ImportedAsset>('import_asset_bytes', {
@@ -1044,7 +1139,77 @@ export const importAttachmentFile = async (file: File): Promise<{ src: string; a
     mimeType: file.type || 'application/octet-stream',
     bytes
   });
-  return { src: convertFileSrc(imported.storedPath), assetId: imported.id };
+  return importedAssetToEditorSrc(imported);
+};
+
+const filenameFromMediaSrc = (src: string, fallback: string) => {
+  try {
+    const url = new URL(src);
+    const filename = decodeURIComponent(url.pathname.split('/').pop() || '');
+    return filename || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const fileFromDataUrl = async (src: string, fallbackName: string) => {
+  const response = await fetch(src);
+  const blob = await response.blob();
+  const mimeType = blob.type || 'application/octet-stream';
+  const fallback = fallbackName.includes('.') ? fallbackName : `${fallbackName}.${extensionForMime(mimeType)}`;
+  return new File([blob], fallback, { type: mimeType });
+};
+
+const localPathFromMediaSrc = (src: string) => {
+  if (src.startsWith('file://')) {
+    try {
+      return decodeURIComponent(new URL(src).pathname);
+    } catch {
+      return null;
+    }
+  }
+  if (src.startsWith('/Users/') || src.startsWith('/private/') || src.startsWith('/Volumes/') || src.startsWith('/var/')) return src;
+  return null;
+};
+
+const localizePastedMediaAssets = async (html: string) => {
+  if (!isTauri()) return html;
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  const media = Array.from(container.querySelectorAll<HTMLImageElement | HTMLVideoElement | HTMLAudioElement>('img[src], video[src], audio[src]'));
+  if (!media.length) return html;
+
+  await Promise.all(media.map(async (element, index) => {
+    const src = element.getAttribute('src')?.trim() ?? '';
+    if (!src || element.getAttribute('data-asset-id') || src.startsWith('/app-assets/')) return;
+    if (/^https?:\/\/asset\.localhost\//i.test(src) || src.startsWith('asset://localhost/')) return;
+
+    try {
+      let imported: { src: string; assetId?: string } | null = null;
+      if (src.startsWith('data:')) {
+        const file = await fileFromDataUrl(src, `pasted-media-${index + 1}`);
+        imported = await importAttachmentFile(file);
+      } else if (/^https?:\/\//i.test(src)) {
+        const remote = await invoke<ImportedAsset>('import_remote_asset', { url: src });
+        imported = importedAssetToEditorSrc(remote);
+        element.setAttribute('data-original-src', src);
+      } else {
+        const localPath = localPathFromMediaSrc(src);
+        if (localPath) {
+          const local = await invoke<ImportedAsset>('import_local_asset', { sourcePath: localPath });
+          imported = importedAssetToEditorSrc(local);
+          element.setAttribute('data-original-src', src);
+        }
+      }
+      if (!imported) return;
+      element.setAttribute('src', imported.src);
+      if (imported.assetId) element.setAttribute('data-asset-id', imported.assetId);
+    } catch (error) {
+      console.warn('Could not localize pasted media.', src, error);
+    }
+  }));
+
+  return container.innerHTML;
 };
 
 const clipboardFilesToHtml = async (files: FileList) => {
@@ -1081,15 +1246,22 @@ const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
   const html = clipboard.getData('text/html');
   const markdown = clipboard.getData('text/markdown') || clipboard.getData('text/x-markdown');
   const text = clipboard.getData('text/plain');
-  const nextHtml = html
-    ? normalizePastedHtml(html)
-    : markdown
-      ? markdownToRichHtml(markdown)
-      : hasAnsi(text)
-        ? ansiToRichHtml(text)
-        : markdownishText(text)
-          ? markdownToRichHtml(text)
-          : '';
+  if (html) {
+    event.preventDefault();
+    const normalizedHtml = normalizePastedHtml(html);
+    void localizePastedMediaAssets(normalizedHtml).then((nextHtml) => {
+      if (nextHtml) editor.chain().focus().insertContent(nextHtml).run();
+    });
+    return true;
+  }
+
+  const nextHtml = markdown
+    ? markdownToRichHtml(markdown)
+    : hasAnsi(text)
+      ? ansiToRichHtml(text)
+      : markdownishText(text)
+        ? markdownToRichHtml(text)
+        : '';
 
   if (!nextHtml) return false;
   event.preventDefault();
@@ -1281,6 +1453,7 @@ const BracketTodoInput = Extension.create({
 const NotebookShortcuts = Extension.create<{
   onShiftEnter?: (editor: Editor) => boolean;
   onMoveBlock?: (direction: -1 | 1) => boolean;
+  onDeleteBlock?: () => boolean;
 }>({
   name: 'notebookShortcuts',
   priority: 1000,
@@ -1325,6 +1498,7 @@ const NotebookShortcuts = Extension.create<{
       'Shift-Enter': () => this.options.onShiftEnter?.(this.editor) ?? false,
       'Mod-ArrowUp': () => this.options.onMoveBlock?.(-1) ?? false,
       'Mod-ArrowDown': () => this.options.onMoveBlock?.(1) ?? false,
+      'Mod-Backspace': () => this.options.onDeleteBlock?.() ?? false,
       Tab: () => runListIndentCommand(this.editor, 'in'),
       'Shift-Tab': () => runListIndentCommand(this.editor, 'out')
     };
@@ -1334,7 +1508,8 @@ const NotebookShortcuts = Extension.create<{
 const createEditorExtensions = (
   placeholder?: string,
   onShiftEnter?: (editor: Editor) => boolean,
-  onMoveBlock?: (direction: -1 | 1) => boolean
+  onMoveBlock?: (direction: -1 | 1) => boolean,
+  onDeleteBlock?: () => boolean
 ) => [
   StarterKit.configure({
     heading: { levels: [1, 2, 3, 4, 5, 6] },
@@ -1391,7 +1566,7 @@ const createEditorExtensions = (
     }
   }),
   BracketTodoInput,
-  NotebookShortcuts.configure({ onShiftEnter, onMoveBlock }),
+  NotebookShortcuts.configure({ onShiftEnter, onMoveBlock, onDeleteBlock }),
   Placeholder.configure({ placeholder: placeholder ?? '' })
 ];
 
@@ -1413,9 +1588,11 @@ function RichEditor({
   onSelectionUpdate,
   onShiftEnter,
   onMoveBlock,
+  onDeleteBlock,
   tableControls,
   runTableCommand,
   onMediaResizeStart,
+  onImageAnnotate,
   mathEditor,
   onMathChange,
   onMathClose,
@@ -1425,7 +1602,7 @@ function RichEditor({
   const editorHolderRef = useRef<Editor | null>(null);
   const hoverMediaRef = useRef<HTMLElement | null>(null);
   const editor = useEditor({
-    extensions: createEditorExtensions(placeholder, onShiftEnter, onMoveBlock),
+    extensions: createEditorExtensions(placeholder, onShiftEnter, onMoveBlock, onDeleteBlock),
     content: html || '',
     editorProps: {
       attributes: {
@@ -1477,16 +1654,17 @@ function RichEditor({
     hoverMediaRef.current = null;
   };
 
-  const mediaSelector = 'img, video, audio, iframe.media-embed';
+  const mediaSelector = '.annotated-image, img, video, audio, iframe.media-embed';
 
   const mediaAtPointer = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
     const element = target?.closest(mediaSelector);
     if (!element || !(element instanceof HTMLElement)) return null;
-    const rect = element.getBoundingClientRect();
+    const mediaElement = element.matches('.annotated-image') ? element.querySelector<HTMLElement>('img') ?? element : element;
+    const rect = mediaElement.getBoundingClientRect();
     const cornerSize = 24;
     const inResizeCorner = event.clientX >= rect.right - cornerSize && event.clientY >= rect.bottom - cornerSize;
-    return { element, rect, inResizeCorner };
+    return { element: mediaElement, rect, inResizeCorner };
   };
 
   const updateMediaCursor = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -1533,6 +1711,27 @@ function RichEditor({
     return true;
   };
 
+  const editImageFromPointer = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.detail < 2) return false;
+    const media = mediaAtPointer(event);
+    const activeEditor = editorHolderRef.current;
+    if (!media || !activeEditor || media.element.tagName.toLowerCase() !== 'img') return false;
+    const found = findMediaNodePosition(activeEditor, media.element);
+    if (!found?.node || found.node.type.name !== 'image') return false;
+    event.preventDefault();
+    event.stopPropagation();
+    activeEditor.view.focus();
+    activeEditor.commands.setNodeSelection(found.pos);
+    onImageAnnotate?.({
+      editor: activeEditor,
+      pos: found.pos,
+      src: media.element.getAttribute('src') ?? found.node.attrs.src ?? '',
+      alt: media.element.getAttribute('alt') ?? found.node.attrs.alt ?? '',
+      annotations: parseImageAnnotations(found.node.attrs.annotations)
+    });
+    return true;
+  };
+
   const handleMediaKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab') return;
     const target = event.target as HTMLElement | null;
@@ -1557,6 +1756,7 @@ function RichEditor({
       onMouseLeave={clearMediaCursor}
       onKeyDown={handleMediaKeyDown}
       onMouseDown={(event) => {
+        if (editImageFromPointer(event)) return;
         if (startResizeFromPointer(event)) return;
         if (selectMediaFromPointer(event)) return;
         toggleCollapsibleListItem(event, editor);

@@ -175,6 +175,140 @@ input, select { color: var(--ink); }
   font-size: var(--nav-item-font-size);
 }
 
+.node-icon-image {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.notebook-button.has-node-icon,
+.page-button.has-node-icon {
+  grid-template-columns: var(--nav-icon-column, 20px) 18px minmax(0, 1fr);
+}
+
+.icon-context-menu {
+  position: fixed;
+  z-index: 95;
+  display: grid;
+  min-width: 168px;
+  padding: 6px;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 8px;
+  background: var(--theme-surface-solid, #fffdf7);
+  color: var(--ink);
+  box-shadow: 0 18px 42px color-mix(in srgb, #000 18%, transparent);
+}
+
+.icon-context-menu button {
+  width: 100%;
+  min-height: 30px;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  padding: 0 10px;
+}
+
+.icon-context-menu button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.icon-context-menu button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.icon-pack-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, #000 28%, transparent);
+}
+
+.icon-pack-dialog {
+  width: min(760px, calc(100vw - 44px));
+  max-height: min(680px, calc(100vh - 44px));
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 10px;
+  background: var(--theme-surface-solid, #fffdf7);
+  color: var(--ink);
+  box-shadow: 0 24px 70px color-mix(in srgb, #000 24%, transparent);
+  overflow: hidden;
+}
+
+.icon-pack-head,
+.icon-pack-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.icon-pack-foot { border-top: 1px solid color-mix(in srgb, var(--line) 72%, transparent); border-bottom: 0; }
+.icon-pack-head > div { display: grid; gap: 2px; }
+.icon-pack-head span,
+.icon-pack-status,
+.icon-pack-empty { color: var(--muted); font-size: 12px; }
+
+.icon-pack-imports {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+}
+
+.icon-url-import {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-url-import input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid var(--input-border, var(--line));
+  border-radius: 6px;
+  background: var(--input-background, transparent);
+  color: var(--ink);
+  padding: 0 8px;
+}
+
+.icon-pack-status { margin: 0; padding: 0 12px 8px; }
+
+.icon-pack-grid {
+  min-height: 160px;
+  overflow: auto;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  gap: 10px;
+}
+
+.icon-choice {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--theme-panel-background, transparent) 72%, transparent);
+  color: var(--ink);
+}
+
+.icon-choice:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.icon-choice img { width: 38px; height: 38px; object-fit: contain; }
+.icon-choice span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--muted); }
+
 .notebook-row-shell .notebook-button,
 .page-row-shell .page-button {
   min-width: 0;
@@ -1282,6 +1416,136 @@ input, select { color: var(--ink); }
   border: var(--media-border);
   border-radius: var(--media-radius);
   box-shadow: var(--media-shadow);
+}
+
+.annotated-image {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--media-margin);
+}
+
+.annotated-image > img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 0 !important;
+}
+
+.annotated-image > .image-annotation-svg,
+.image-annotation-canvas > .image-annotation-svg,
+.image-annotation-hit-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.image-annotation-svg .is-selected {
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--accent) 62%, transparent));
+}
+
+.image-annotation-selection {
+  color: var(--accent);
+}
+
+.image-annotation-hit-layer {
+  pointer-events: auto;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.image-annotation-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, #000 34%, transparent);
+}
+
+.image-annotation-dialog {
+  width: min(1100px, calc(100vw - 48px));
+  height: min(760px, calc(100vh - 48px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-radius: 10px;
+  background: var(--theme-surface-solid, #fffdf7);
+  box-shadow: 0 24px 60px color-mix(in srgb, #000 28%, transparent);
+  overflow: hidden;
+}
+
+.image-annotation-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  background: color-mix(in srgb, var(--theme-panel-background) 92%, white);
+}
+
+.image-annotation-toolbar button,
+.image-annotation-toolbar input[type="color"] {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+}
+
+.image-annotation-toolbar input[type="range"] {
+  width: 96px;
+}
+
+.image-annotation-toolbar button.is-active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.image-annotation-stage {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 14px;
+}
+
+.image-annotation-canvas {
+  position: relative;
+  display: inline-block;
+  max-width: min(100%, calc(100vw - 92px));
+  max-height: calc(100vh - 148px);
+  line-height: 0;
+}
+
+.image-annotation-canvas,
+.image-annotation-canvas > img {
+  object-fit: contain;
+  width: auto;
+  height: auto;
+}
+
+.image-annotation-canvas > img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 148px);
+}
+
+.image-annotation-text-input {
+  position: absolute;
+  z-index: 2;
+  min-width: 96px;
+  max-width: min(360px, 42vw);
+  transform: translateY(-50%);
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--theme-surface-solid, #fff) 92%, transparent);
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 14%, transparent);
+  font: 15px/1.3 system-ui, sans-serif;
+  padding: 4px 6px;
 }
 
 .block-content img,

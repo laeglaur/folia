@@ -1,4 +1,4 @@
-import type { AppState, Block, ContentThemeId, Notebook, OperationLogEntry, Page, PageMetadata, ShellId, ThemeId } from './types';
+import type { AppState, Block, ContentThemeId, Notebook, NotebookMetadata, OperationLogEntry, Page, PageMetadata, ShellId, ThemeId } from './types';
 import { contentThemeIds } from './typora-theme-registry';
 import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import { marked } from 'marked';
@@ -16,6 +16,10 @@ const createEmptyPageMetadata = (sourceFilename?: string): PageMetadata => ({
   frontmatter: {}
 });
 
+const createEmptyNotebookMetadata = (): NotebookMetadata => ({
+  iconPack: null
+});
+
 const starterPageId = createId('page');
 const starterBlockOne = createId('block');
 const starterBlockTwo = createId('block');
@@ -26,7 +30,8 @@ export const createInitialState = (): AppState => ({
     {
       id: starterNotebookId,
       name: 'Notebook',
-      pageIds: [starterPageId]
+      pageIds: [starterPageId],
+      metadata: createEmptyNotebookMetadata()
     }
   ],
   pages: [
@@ -188,7 +193,12 @@ const normalizeState = (state: AppState): AppState => {
     ...state,
     notebooks: state.notebooks.map((notebook) => ({
       ...notebook,
-      pageIds: notebook.pageIds ?? state.pages.filter((page) => page.notebookId === notebook.id).map((page) => page.id)
+      pageIds: notebook.pageIds ?? state.pages.filter((page) => page.notebookId === notebook.id).map((page) => page.id),
+      metadata: {
+        ...createEmptyNotebookMetadata(),
+        ...(notebook.metadata ?? {}),
+        iconPack: notebook.metadata?.iconPack ?? null
+      }
     })),
     pages: state.pages.map((page) => ({
       ...page,
@@ -295,6 +305,97 @@ const localizeDataUrlMediaAssets = async (html: string, blockId: string) => {
   return container.innerHTML;
 };
 
+const filenameFromMediaSrc = (src: string, fallback: string) => {
+  try {
+    const filename = decodeURIComponent(new URL(src).pathname.split('/').pop() || '');
+    return filename || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const localPathFromMediaSrc = (src: string) => {
+  if (src.startsWith('file://')) {
+    try {
+      return normalizeAbsolutePath(new URL(src).pathname);
+    } catch {
+      return null;
+    }
+  }
+  if (src.startsWith('/Users/') || src.startsWith('/private/') || src.startsWith('/Volumes/') || src.startsWith('/var/')) return normalizeAbsolutePath(src);
+  return null;
+};
+
+const localizePersistentMediaAssets = async (html: string, blockId: string) => {
+  if (!isTauri()) return html;
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  const media = Array.from(container.querySelectorAll<HTMLImageElement | HTMLVideoElement | HTMLAudioElement>('img[src], video[src], audio[src]'));
+  if (!media.length) return html;
+
+  await Promise.all(media.map(async (element, index) => {
+    const src = element.getAttribute('src')?.trim() ?? '';
+    if (!src || element.getAttribute('data-asset-id') || src.startsWith('/app-assets/')) return;
+    if (src.startsWith('asset://localhost/') || /^https?:\/\/asset\.localhost\//i.test(src)) {
+      const id = assetIdFromStoredMediaSrc(src);
+      if (id) element.setAttribute('data-asset-id', id);
+      element.setAttribute('src', convertStoredMediaSrc(src));
+      return;
+    }
+
+    try {
+      if (src.startsWith('data:')) {
+        const parsed = bytesFromDataUrl(src);
+        if (!parsed) return;
+        const filename = `${blockId}-media-${index + 1}.${extensionForMime(parsed.mimeType)}`;
+        const imported = await invoke<ImportedAsset>('import_asset_bytes', {
+          filename,
+          mimeType: parsed.mimeType,
+          bytes: parsed.bytes
+        });
+        element.setAttribute('src', convertFileSrc(imported.storedPath));
+        element.setAttribute('data-asset-id', imported.id);
+        return;
+      }
+
+      if (src.startsWith('blob:')) {
+        const response = await fetch(src);
+        const blob = await response.blob();
+        const mimeType = blob.type || 'application/octet-stream';
+        const bytes = Array.from(new Uint8Array(await blob.arrayBuffer()));
+        const imported = await invoke<ImportedAsset>('import_asset_bytes', {
+          filename: `${blockId}-blob-${index + 1}.${extensionForMime(mimeType)}`,
+          mimeType,
+          bytes
+        });
+        element.setAttribute('src', convertFileSrc(imported.storedPath));
+        element.setAttribute('data-asset-id', imported.id);
+        return;
+      }
+
+      const localPath = localPathFromMediaSrc(src);
+      if (localPath) {
+        const imported = await invoke<ImportedAsset>('import_local_asset', { sourcePath: localPath });
+        element.setAttribute('src', convertFileSrc(imported.storedPath));
+        element.setAttribute('data-asset-id', imported.id);
+        element.setAttribute('data-original-src', src);
+        return;
+      }
+
+      if (/^https?:\/\//i.test(src)) {
+        const imported = await invoke<ImportedAsset>('import_remote_asset', { url: src });
+        element.setAttribute('src', convertFileSrc(imported.storedPath));
+        element.setAttribute('data-asset-id', imported.id);
+        element.setAttribute('data-original-src', src);
+      }
+    } catch (error) {
+      console.warn('Could not localize persistent media asset.', filenameFromMediaSrc(src, `${blockId}-media-${index + 1}`), error);
+    }
+  }));
+
+  return container.innerHTML;
+};
+
 const sanitizeLargePayloads = (value: unknown): unknown => {
   if (typeof value === 'string') {
     if (value.startsWith('data:')) return `[data-url omitted: ${value.length} chars]`;
@@ -311,7 +412,7 @@ const sanitizeLargePayloads = (value: unknown): unknown => {
 const prepareStateForPersistence = async (state: AppState): Promise<AppState> => {
   const blocks = isTauri()
     ? await Promise.all(state.blocks.map(async (block) => {
-      const html = await localizeDataUrlMediaAssets(block.content.html, block.id);
+      const html = await localizePersistentMediaAssets(await localizeDataUrlMediaAssets(block.content.html, block.id), block.id);
       return html === block.content.html ? block : { ...block, content: { ...block.content, html } };
     }))
     : state.blocks;
@@ -338,6 +439,11 @@ const extractReferencedAssetIds = (state: AppState) => {
     container.querySelectorAll<HTMLImageElement | HTMLVideoElement | HTMLAudioElement>('img[src], video[src], audio[src]').forEach((element) => {
       const id = assetIdFromStoredMediaSrc(element.getAttribute('src') ?? '');
       if (id) ids.add(id);
+    });
+  });
+  state.notebooks.forEach((notebook) => {
+    notebook.metadata.iconPack?.icons.forEach((icon) => {
+      if (icon.assetId) ids.add(icon.assetId);
     });
   });
   return [...ids];
@@ -529,7 +635,11 @@ export const persistPageCreate = async (request: CreatePageRequest): Promise<Not
 
 export const persistPageDocument = async (request: SavePageDocumentRequest): Promise<PageDocumentPayload | null> => {
   if (!isTauri()) return null;
-  return invoke<PageDocumentPayload>('save_page_document', { request });
+  const blocks = await Promise.all(request.blocks.map(async (block) => {
+    const html = await localizePersistentMediaAssets(block.content.html, block.id);
+    return html === block.content.html ? block : { ...block, content: { ...block.content, html } };
+  }));
+  return invoke<PageDocumentPayload>('save_page_document', { request: { ...request, blocks } });
 };
 
 export const persistPageTreeDelete = async (request: DeletePageTreeRequest): Promise<NotebookTreePayload | null> => {
@@ -590,7 +700,8 @@ export const appendOperation = (
 export const createNotebook = (name = 'New notebook'): Notebook => ({
   id: createId('notebook'),
   name,
-  pageIds: []
+  pageIds: [],
+  metadata: createEmptyNotebookMetadata()
 });
 
 export const createPage = (notebookId: string, title = 'Untitled', parentId: string | null = null): Page => ({

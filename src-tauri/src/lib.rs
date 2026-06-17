@@ -36,6 +36,8 @@ struct NormalizedNotebook {
     name: String,
     #[serde(default)]
     page_ids: Vec<String>,
+    #[serde(default)]
+    metadata: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -53,6 +55,8 @@ struct NormalizedPageMetadata {
     aliases: Vec<String>,
     #[serde(default)]
     frontmatter: serde_json::Map<String, serde_json::Value>,
+    #[serde(default)]
+    icon_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -315,6 +319,7 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               id TEXT PRIMARY KEY,
               name TEXT NOT NULL,
               page_ids_json TEXT NOT NULL DEFAULT '[]',
+              metadata_json TEXT NOT NULL DEFAULT '{}',
               created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
               updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
@@ -381,7 +386,40 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
             ",
         )
         .map_err(|error| error.to_string())?;
+    ensure_column(
+        connection,
+        "notebooks",
+        "metadata_json",
+        "TEXT NOT NULL DEFAULT '{}'",
+    )?;
     ensure_page_block_index_backfilled(connection)?;
+    Ok(())
+}
+
+fn ensure_column(
+    connection: &Connection,
+    table: &str,
+    column: &str,
+    definition: &str,
+) -> Result<(), String> {
+    let mut statement = connection
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .map_err(|error| error.to_string())?;
+    let column_rows = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| error.to_string())?;
+    let columns = column_rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+    if columns.iter().any(|name| name == column) {
+        return Ok(());
+    }
+    connection
+        .execute(
+            &format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"),
+            [],
+        )
+        .map_err(|error| error.to_string())?;
     Ok(())
 }
 
@@ -732,6 +770,7 @@ fn default_page_metadata() -> NormalizedPageMetadata {
         status: None,
         aliases: vec![],
         frontmatter: serde_json::Map::new(),
+        icon_id: None,
     }
 }
 
@@ -842,16 +881,19 @@ fn list_notebooks_from_database(
     connection: &Connection,
 ) -> Result<Vec<NormalizedNotebook>, String> {
     let mut statement = connection
-        .prepare("SELECT id, name, page_ids_json FROM notebooks ORDER BY rowid")
+        .prepare("SELECT id, name, page_ids_json, metadata_json FROM notebooks ORDER BY rowid")
         .map_err(|error| error.to_string())?;
     let rows = statement
         .query_map([], |row| {
             let page_ids_json: String = row.get(2)?;
+            let metadata_json: String = row.get(3)?;
             let page_ids = serde_json::from_str::<Vec<String>>(&page_ids_json).unwrap_or_default();
             Ok(NormalizedNotebook {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 page_ids,
+                metadata: serde_json::from_str::<serde_json::Value>(&metadata_json)
+                    .unwrap_or_else(|_| serde_json::json!({})),
             })
         })
         .map_err(|error| error.to_string())?;
@@ -936,17 +978,19 @@ fn upsert_notebook(connection: &Connection, notebook: &NormalizedNotebook) -> Re
     connection
         .execute(
             "
-        INSERT INTO notebooks (id, name, page_ids_json, created_at, updated_at)
-        VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO notebooks (id, name, page_ids_json, metadata_json, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(id) DO UPDATE SET
           name = excluded.name,
           page_ids_json = excluded.page_ids_json,
+          metadata_json = excluded.metadata_json,
           updated_at = excluded.updated_at
         ",
             params![
                 notebook.id,
                 notebook.name,
-                serde_json::to_string(&notebook.page_ids).map_err(|error| error.to_string())?
+                serde_json::to_string(&notebook.page_ids).map_err(|error| error.to_string())?,
+                serde_json::to_string(&notebook.metadata).map_err(|error| error.to_string())?
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -1049,6 +1093,7 @@ fn insert_operation(
     Ok(())
 }
 
+#[cfg(test)]
 fn rebuild_normalized_tables(
     connection: &Connection,
     state: &NormalizedAppState,
@@ -1312,8 +1357,29 @@ fn save_page_document_in_transaction(
     if existing_page.notebook_id != request.page.notebook_id {
         return Err(format!("Page notebook mismatch: {}", request.page.id));
     }
+    let existing_blocks = blocks_from_page_content_json(
+        &transaction
+            .query_row(
+                "SELECT content_json FROM pages WHERE id = ?1",
+                params![request.page.id],
+                |row| row.get::<_, String>(0),
+            )
+            .map_err(|error| error.to_string())?,
+    );
+    let allows_empty_document = request
+        .operation
+        .as_ref()
+        .map(|operation| operation.kind == "block.delete")
+        .unwrap_or(false);
+    if !existing_blocks.is_empty() && request.blocks.is_empty() && !allows_empty_document {
+        return Err(format!(
+            "Refusing to overwrite non-empty page with an empty document: {}",
+            request.page.id
+        ));
+    }
 
     let page_for_save = NormalizedPage {
+        metadata: request.page.metadata.clone(),
         block_ids: request.page.block_ids.clone(),
         block_order: request.page.block_order.clone(),
         updated_at: request.page.updated_at.clone(),
@@ -2200,9 +2266,10 @@ fn delete_notebook(
     })
 }
 
-#[tauri::command]
-fn save_state_snapshot(app: AppHandle, state_json: String) -> Result<(), String> {
-    let mut connection = open_database(&app)?;
+fn save_state_snapshot_in_transaction(
+    connection: &mut Connection,
+    state_json: String,
+) -> Result<(), String> {
     let transaction = connection
         .transaction()
         .map_err(|error| error.to_string())?;
@@ -2219,16 +2286,68 @@ fn save_state_snapshot(app: AppHandle, state_json: String) -> Result<(), String>
         )
         .map_err(|error| error.to_string())?;
     transaction.commit().map_err(|error| error.to_string())?;
-    if let Ok(state) = serde_json::from_str::<NormalizedAppState>(&state_json) {
-        rebuild_normalized_tables(&connection, &state)?;
-    }
     Ok(())
+}
+
+#[tauri::command]
+fn save_state_snapshot(app: AppHandle, state_json: String) -> Result<(), String> {
+    let mut connection = open_database(&app)?;
+    save_state_snapshot_in_transaction(&mut connection, state_json)
 }
 
 #[tauri::command]
 fn import_local_asset(app: AppHandle, source_path: String) -> Result<ImportedAsset, String> {
     let connection = open_database(&app)?;
     import_asset_into_store(&connection, app_data_dir(&app)?, source_path)
+}
+
+#[tauri::command]
+fn import_remote_asset(app: AppHandle, url: String) -> Result<ImportedAsset, String> {
+    let trimmed = url.trim();
+    if !(trimmed.starts_with("http://") || trimmed.starts_with("https://")) {
+        return Err("Only http and https URLs are supported".to_string());
+    }
+
+    let response = ureq::get(trimmed)
+        .set("User-Agent", "Notebook/1.0")
+        .call()
+        .map_err(|error| error.to_string())?;
+
+    let mime_type = response
+        .header("content-type")
+        .unwrap_or("application/octet-stream")
+        .split(';')
+        .next()
+        .unwrap_or("application/octet-stream")
+        .trim()
+        .to_string();
+
+    let mut bytes = Vec::new();
+    response
+        .into_reader()
+        .read_to_end(&mut bytes)
+        .map_err(|error| error.to_string())?;
+
+    let filename = trimmed
+        .split('?')
+        .next()
+        .unwrap_or(trimmed)
+        .rsplit('/')
+        .next()
+        .map(|value| value.to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "online-icon.png".to_string());
+
+    let connection = open_database(&app)?;
+    let mut imported = import_asset_bytes_into_store(
+        &connection,
+        app_data_dir(&app)?,
+        filename,
+        mime_type,
+        bytes,
+    )?;
+    imported.original_path = trimmed.to_string();
+    Ok(imported)
 }
 
 #[tauri::command]
@@ -2277,6 +2396,7 @@ pub fn run() {
             load_state_snapshot,
             save_state_snapshot,
             import_local_asset,
+            import_remote_asset,
             import_asset_bytes,
             cleanup_orphan_attachments
         ])
@@ -2301,6 +2421,7 @@ mod tests {
                 id: "notebook_demo".to_string(),
                 name: "Demo".to_string(),
                 page_ids: vec!["page_demo".to_string()],
+                metadata: serde_json::json!({}),
             }],
             pages: vec![NormalizedPage {
                 id: "page_demo".to_string(),
@@ -2316,6 +2437,7 @@ mod tests {
                     status: Some("draft".to_string()),
                     aliases: vec!["Inbox alias".to_string()],
                     frontmatter: serde_json::Map::new(),
+                    icon_id: None,
                 },
                 created_at: "2026-06-15T00:00:00Z".to_string(),
                 updated_at: "2026-06-15T00:00:00Z".to_string(),
@@ -2501,10 +2623,11 @@ mod tests {
         persist_import_batch_in_transaction(
             &mut connection,
             &NormalizedImportBatch {
-                notebook: NormalizedNotebook {
-                    id: "notebook_batch_docs".to_string(),
-                    name: "Batch Docs".to_string(),
-                    page_ids: vec!["page_one".to_string(), "page_two".to_string()],
+            notebook: NormalizedNotebook {
+                id: "notebook_batch_docs".to_string(),
+                name: "Batch Docs".to_string(),
+                page_ids: vec!["page_one".to_string(), "page_two".to_string()],
+                metadata: serde_json::json!({}),
                 },
                 pages: vec![
                     NormalizedPage {
@@ -2720,6 +2843,37 @@ mod tests {
     }
 
     #[test]
+    fn state_snapshot_does_not_rebuild_page_documents_from_partial_state() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+        let snapshot = NormalizedAppState {
+            blocks: vec![],
+            ..demo_normalized_state()
+        };
+
+        save_state_snapshot_in_transaction(
+            &mut connection,
+            serde_json::to_string(&snapshot).expect("snapshot json"),
+        )
+        .expect("snapshot save");
+
+        let content_json: String = connection
+            .query_row(
+                "SELECT content_json FROM pages WHERE id = 'page_demo'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("page content");
+        assert_eq!(page_content_from_json(&content_json).blocks.len(), 2);
+        let indexed_blocks: i64 = connection
+            .query_row("SELECT COUNT(*) FROM page_block_index", [], |row| row.get(0))
+            .expect("indexed block count");
+        assert_eq!(indexed_blocks, 2);
+    }
+
+    #[test]
     fn workspace_preferences_fall_back_without_loading_full_library() {
         let mut connection = Connection::open_in_memory().expect("memory database");
         initialize_database(&connection).expect("database schema");
@@ -2861,6 +3015,7 @@ mod tests {
             page_ids: (0..page_count)
                 .map(|index| format!("page_{index:04}"))
                 .collect(),
+            metadata: serde_json::json!({}),
         };
         let pages: Vec<NormalizedPage> = (0..page_count)
             .map(|index| NormalizedPage {
@@ -3012,6 +3167,7 @@ mod tests {
                 id: "notebook_move".to_string(),
                 name: "Move Demo".to_string(),
                 page_ids: vec!["page_parent".to_string(), "page_child".to_string()],
+                metadata: serde_json::json!({}),
             },
             pages: vec![
                 NormalizedPage {
@@ -3101,6 +3257,7 @@ mod tests {
                     id: "notebook_new".to_string(),
                     name: "New notebook".to_string(),
                     page_ids: vec!["page_new".to_string()],
+                metadata: serde_json::json!({}),
                 },
                 initial_page: NormalizedPage {
                     id: "page_new".to_string(),
@@ -3249,8 +3406,8 @@ mod tests {
         assert_eq!(saved.0, "Inbox");
         assert_eq!(saved.1, serde_json::json!(["block_saved"]).to_string());
         assert_eq!(saved.2, "desc");
-        assert!(saved.3.contains("Inbox alias"));
-        assert!(!saved.3.contains("saved.md"));
+        assert!(saved.3.contains("saved.md"));
+        assert!(saved.3.contains("sqlite"));
         assert_eq!(
             page_content_from_json(&saved.4).blocks[0]
                 .content
@@ -3278,6 +3435,46 @@ mod tests {
     }
 
     #[test]
+    fn save_page_document_refuses_accidental_empty_overwrite() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+        let page = NormalizedPage {
+            id: "page_demo".to_string(),
+            notebook_id: "notebook_demo".to_string(),
+            parent_id: None,
+            title: "Inbox".to_string(),
+            block_ids: vec![],
+            block_order: Some("asc".to_string()),
+            metadata: default_page_metadata(),
+            created_at: "2026-06-15T00:00:00Z".to_string(),
+            updated_at: "2026-06-15T05:00:00Z".to_string(),
+        };
+
+        let result = save_page_document_in_transaction(
+            &mut connection,
+            &SavePageDocumentRequest {
+                page,
+                blocks: vec![],
+                operation: None,
+            },
+        );
+
+        assert!(result
+            .expect_err("empty overwrite should fail")
+            .contains("Refusing to overwrite non-empty page"));
+        let content_json: String = connection
+            .query_row(
+                "SELECT content_json FROM pages WHERE id = 'page_demo'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("page content");
+        assert_eq!(page_content_from_json(&content_json).blocks.len(), 2);
+    }
+
+    #[test]
     fn delete_page_tree_removes_descendants_updates_notebook_and_keeps_fallback_page() {
         let mut connection = Connection::open_in_memory().expect("memory database");
         initialize_database(&connection).expect("database schema");
@@ -3291,6 +3488,7 @@ mod tests {
                     "page_child".to_string(),
                     "page_sibling".to_string(),
                 ],
+                metadata: serde_json::json!({}),
             },
             pages: vec![
                 NormalizedPage {
@@ -3438,6 +3636,7 @@ mod tests {
                 id: "notebook_fallback".to_string(),
                 name: "Fallback Demo".to_string(),
                 page_ids: vec!["page_only".to_string()],
+                metadata: serde_json::json!({}),
             },
             pages: vec![NormalizedPage {
                 id: "page_only".to_string(),
@@ -3511,6 +3710,7 @@ mod tests {
                 id: "notebook_delete".to_string(),
                 name: "Delete Demo".to_string(),
                 page_ids: vec!["page_delete_a".to_string(), "page_delete_b".to_string()],
+                metadata: serde_json::json!({}),
             },
             pages: vec![
                 NormalizedPage {
@@ -3547,6 +3747,7 @@ mod tests {
                 id: "notebook_spare".to_string(),
                 name: "Spare Notebook".to_string(),
                 page_ids: vec![],
+                metadata: serde_json::json!({}),
             },
         )
         .expect("seed spare notebook");
@@ -3610,6 +3811,7 @@ mod tests {
                 id: "notebook_single".to_string(),
                 name: "Single Notebook".to_string(),
                 page_ids: vec!["page_single".to_string()],
+                metadata: serde_json::json!({}),
             },
             pages: vec![NormalizedPage {
                 id: "page_single".to_string(),
@@ -3900,6 +4102,7 @@ mod tests {
                 id: "notebook_assets".to_string(),
                 name: "Assets".to_string(),
                 page_ids: vec!["page_assets".to_string()],
+                metadata: serde_json::json!({}),
             },
             pages: vec![NormalizedPage {
                 id: "page_assets".to_string(),

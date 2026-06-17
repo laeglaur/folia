@@ -33,6 +33,26 @@ export interface Notebook {
   id: string;
   name: string;
   pageIds: string[];
+  metadata: NotebookMetadata;
+}
+
+export interface NotebookIconAsset {
+  id: string;
+  name: string;
+  src: string;
+  assetId?: string;
+  sourceUrl?: string;
+}
+
+export interface NotebookIconPack {
+  id: string;
+  name: string;
+  icons: NotebookIconAsset[];
+}
+
+export interface NotebookMetadata {
+  iconId?: string;
+  iconPack?: NotebookIconPack | null;
 }
 
 export interface PageMetadata {
@@ -42,6 +62,7 @@ export interface PageMetadata {
   status?: string;
   aliases: string[];
   frontmatter: Record<string, string | string[]>;
+  iconId?: string;
 }
 
 export interface Page {

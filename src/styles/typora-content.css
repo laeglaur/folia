@@ -101,6 +101,10 @@
   gap: 6px;
 }
 
+.typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .file-node-content.has-node-icon {
+  grid-template-columns: 18px 18px minmax(0, 1fr);
+}
+
 .typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .file-node-content.active,
 .typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .file-node-content.active:hover {
   padding: 9px 12px;

@@ -153,6 +153,10 @@
   line-height: 1.25;
 }
 
+.typora-app-shell .file-node-content.has-node-icon {
+  grid-template-columns: 18px 18px minmax(0, 1fr);
+}
+
 .typora-app-shell .file-node-content:hover,
 .typora-app-shell .file-node-content.active,
 .typora-app-shell .notebook-node.is-active,
