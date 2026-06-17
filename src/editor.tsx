@@ -1283,6 +1283,20 @@ const handleRichCopy = (editor: Editor | null, event: ClipboardEvent) => {
   const slice = editor.state.selection.content();
   const serialized = serializer?.serializeFragment(slice.content);
   container.appendChild(serialized ?? selection.getRangeAt(0).cloneContents());
+  const listItems = Array.from(container.children).filter((child): child is HTMLLIElement => child instanceof HTMLLIElement);
+  if (listItems.length && listItems.length === container.children.length) {
+    const anchorList = selection.anchorNode instanceof Element
+      ? selection.anchorNode.closest('ol, ul')
+      : selection.anchorNode?.parentElement?.closest('ol, ul');
+    const orderedAnchorList = anchorList?.tagName.toLowerCase() === 'ol' ? anchorList as HTMLOListElement : null;
+    const list = orderedAnchorList ? document.createElement('ol') : document.createElement('ul');
+    if (orderedAnchorList && orderedAnchorList.start !== 1) {
+      const firstValue = Number.parseInt(listItems[0].getAttribute('value') ?? '', 10);
+      (list as HTMLOListElement).start = Number.isFinite(firstValue) ? firstValue : orderedAnchorList.start;
+    }
+    listItems.forEach((item) => list.appendChild(item));
+    container.replaceChildren(list);
+  }
   const html = container.innerHTML;
   if (!html.trim()) return false;
   const markdown = htmlToMarkdown(html);

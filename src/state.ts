@@ -1357,6 +1357,24 @@ export const htmlToMarkdown = (html: string) => {
       .map((list) => nodeToMarkdown(list, depth + 1))
       .join('');
 
+  const listMarkerForItem = (item: HTMLElement, index: number, ordered: boolean) => {
+    const checked = item.getAttribute('data-checked');
+    if (checked === 'true') return '- [x]';
+    if (checked === 'false') return '- [ ]';
+    if (!ordered) return '-';
+    const parent = item.parentElement;
+    const start = Number.parseInt(parent?.getAttribute('start') ?? '1', 10) || 1;
+    const value = Number.parseInt(item.getAttribute('value') ?? '', 10);
+    return `${Number.isFinite(value) ? value : start + index}.`;
+  };
+
+  const fallbackListItemIndex = (item: HTMLElement) => {
+    const siblings = Array.from(item.parentElement?.children ?? [])
+      .filter((child): child is HTMLElement => child instanceof HTMLElement && child.tagName.toLowerCase() === 'li');
+    const index = siblings.indexOf(item);
+    return index >= 0 ? index : 0;
+  };
+
   function nodeToMarkdown(node: Node, depth = 0): string {
     if (node.nodeType === Node.TEXT_NODE) return escapeMarkdown(node.textContent ?? '');
     if (!(node instanceof HTMLElement)) return textForChildren(node, depth);
@@ -1378,16 +1396,19 @@ export const htmlToMarkdown = (html: string) => {
     }
     if (tag === 'ul' || tag === 'ol') {
       const ordered = tag === 'ol';
-      const start = Number.parseInt(node.getAttribute('start') ?? '1', 10) || 1;
       return Array.from(node.children)
         .filter((child): child is HTMLElement => child instanceof HTMLElement && child.tagName.toLowerCase() === 'li')
         .map((item, index) => {
           const indent = '  '.repeat(depth);
-          const checked = item.getAttribute('data-checked');
-          const marker = checked === 'true' ? '- [x]' : checked === 'false' ? '- [ ]' : ordered ? `${start + index}.` : '-';
+          const marker = listMarkerForItem(item, index, ordered);
           return `${indent}${marker} ${listItemBody(item, depth)}\n${nestedLists(item, depth)}`;
         })
         .join('');
+    }
+    if (tag === 'li') {
+      const parentTag = node.parentElement?.tagName.toLowerCase();
+      const marker = listMarkerForItem(node, fallbackListItemIndex(node), parentTag === 'ol');
+      return `${'  '.repeat(depth)}${marker} ${listItemBody(node, depth)}\n${nestedLists(node, depth)}`;
     }
     if (tag === 'table') {
       const rows = Array.from(node.querySelectorAll('tr')).map((row) =>

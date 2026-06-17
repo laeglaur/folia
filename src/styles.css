@@ -890,6 +890,30 @@ input, select { color: var(--ink); }
   line-height: var(--floating-card-body-line-height);
 }
 
+.floating-card-body h1,
+.desktop-card h1,
+.sidebar-pin-card h1 {
+  margin: 0 0 8px;
+  font-size: 1.28em;
+  line-height: 1.18;
+}
+
+.floating-card-body h2,
+.desktop-card h2,
+.sidebar-pin-card h2 {
+  margin: 0 0 7px;
+  font-size: 1.14em;
+  line-height: 1.22;
+}
+
+.floating-card-body h3,
+.desktop-card h3,
+.sidebar-pin-card h3 {
+  margin: 0 0 6px;
+  font-size: 1.04em;
+  line-height: 1.25;
+}
+
 .floating-card-body :where(ul, ol),
 .desktop-card :where(ul, ol),
 .sidebar-pin-card :where(ul, ol) {

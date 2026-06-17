@@ -110,7 +110,7 @@ if (cardModeBlockId) {
   delete document.documentElement.dataset.cardWindow;
 }
 const cardModeRoundPinnedCards = searchParams.get('roundPinnedCards') !== '0';
-const cardModeGlowPinnedCards = searchParams.get('glowPinnedCards') === '1';
+const cardModeGlowPinnedCards = searchParams.get('glowPinnedCards') !== '0';
 const importStressMode = searchParams.has('importStress');
 const disableBrowserPersistence = searchParams.get('persistence') === 'off';
 
@@ -224,23 +224,23 @@ export function App() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [activeEditor, setActiveEditor] = useState<EditorTarget>({ kind: 'composer' });
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
-  const [showToolbar, setShowToolbar] = useState(true);
+  const [showToolbar, setShowToolbar] = useState(false);
   const [tableControls, setTableControls] = useState<TableControlsState>({ visible: false, top: 0, left: 0 });
   const [mathEditor, setMathEditor] = useState<MathEditorState | null>(null);
   const [imageAnnotationRequest, setImageAnnotationRequest] = useState<ImageAnnotationRequest | null>(null);
   const [iconPackRequest, setIconPackRequest] = useState<IconPackDialogRequest | null>(null);
   const [iconContextMenu, setIconContextMenu] = useState<IconContextMenuState | null>(null);
-  const [showComposerFooter, setShowComposerFooter] = useState(true);
-  const [showBlockBorders, setShowBlockBorders] = useState(false);
+  const [showComposerFooter, setShowComposerFooter] = useState(false);
+  const [showBlockBorders, setShowBlockBorders] = useState(true);
   const [roundPinnedCards, setRoundPinnedCards] = useState(cardModeBlockId ? cardModeRoundPinnedCards : true);
-  const [glowPinnedCards, setGlowPinnedCards] = useState(cardModeBlockId ? cardModeGlowPinnedCards : false);
+  const [glowPinnedCards, setGlowPinnedCards] = useState(cardModeBlockId ? cardModeGlowPinnedCards : true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [copiedPageId, setCopiedPageId] = useState<string | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [deletedBlockSnapshot, setDeletedBlockSnapshot] = useState<DeletedBlockSnapshot | null>(null);
   const [pageDraftName, setPageDraftName] = useState('');
-  const [outlineDrawerOpen, setOutlineDrawerOpen] = useState(false);
+  const [outlineDrawerOpen, setOutlineDrawerOpen] = useState(true);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('write');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [importNotice, setImportNotice] = useState<ImportNotice>({ kind: 'idle', message: '' });
@@ -2351,7 +2351,7 @@ export function App() {
     }
     const cardParams = new URLSearchParams({ card: blockId });
     if (!roundPinnedCards) cardParams.set('roundPinnedCards', '0');
-    if (glowPinnedCards) cardParams.set('glowPinnedCards', '1');
+    cardParams.set('glowPinnedCards', glowPinnedCards ? '1' : '0');
     const cardWindow = new WebviewWindow(label, {
       url: `${window.location.pathname}?${cardParams.toString()}`,
       title: 'Notebook card',
