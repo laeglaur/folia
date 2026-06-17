@@ -9,6 +9,7 @@ use tauri::{AppHandle, Manager};
 
 const DATABASE_FILE: &str = "notebook.sqlite3";
 const ATTACHMENTS_DIR: &str = "attachments";
+const PAGE_REVISION_LIMIT: i64 = 20;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -156,6 +157,18 @@ struct PageDocumentPayload {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+struct PageRevisionPayload {
+    id: i64,
+    page_id: String,
+    title: String,
+    content: NormalizedPageContent,
+    created_at: String,
+    reason: Option<String>,
+    size_bytes: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct PinnedBlockPayload {
     page: NormalizedPage,
     block: NormalizedBlock,
@@ -247,6 +260,22 @@ struct CreatePageRequest {
 struct SavePageDocumentRequest {
     page: NormalizedPage,
     blocks: Vec<NormalizedBlock>,
+    operation: Option<NormalizedOperationLogEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdatePageMetadataRequest {
+    page_id: String,
+    metadata: NormalizedPageMetadata,
+    operation: Option<NormalizedOperationLogEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RestorePageRevisionRequest {
+    page_id: String,
+    revision_id: i64,
     operation: Option<NormalizedOperationLogEntry>,
 }
 
@@ -373,6 +402,24 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               kind TEXT NOT NULL,
               payload_json TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS page_revisions (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              page_id TEXT NOT NULL,
+              title TEXT NOT NULL,
+              block_ids_json TEXT NOT NULL,
+              block_order TEXT NOT NULL DEFAULT 'asc',
+              metadata_json TEXT NOT NULL DEFAULT '{}',
+              content_json TEXT NOT NULL,
+              content_sha256 TEXT NOT NULL,
+              size_bytes INTEGER NOT NULL DEFAULT 0,
+              reason TEXT,
+              page_updated_at TEXT NOT NULL,
+              created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_page_revisions_page_created
+              ON page_revisions(page_id, created_at DESC, id DESC);
 
             CREATE TABLE IF NOT EXISTS attachments (
               id TEXT PRIMARY KEY,
@@ -762,6 +809,12 @@ fn blocks_from_page_content_json(content_json: &str) -> Vec<NormalizedBlock> {
     serde_json::from_str::<Vec<NormalizedBlock>>(content_json).unwrap_or_default()
 }
 
+fn sha256_text(value: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(value.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
 fn default_page_metadata() -> NormalizedPageMetadata {
     NormalizedPageMetadata {
         source_filename: None,
@@ -936,6 +989,88 @@ fn list_pages_from_database(connection: &Connection) -> Result<Vec<NormalizedPag
 
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|error| error.to_string())
+}
+
+fn insert_page_revision_if_changed(
+    connection: &Connection,
+    page_id: &str,
+    next_content_json: &str,
+    reason: Option<&str>,
+) -> Result<(), String> {
+    let existing = connection
+        .query_row(
+            "
+            SELECT title, block_ids_json, block_order, metadata_json, content_json, updated_at
+            FROM pages
+            WHERE id = ?1
+            ",
+            params![page_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+    let Some((title, block_ids_json, block_order, metadata_json, content_json, updated_at)) = existing
+    else {
+        return Ok(());
+    };
+    if content_json == next_content_json {
+        return Ok(());
+    }
+
+    let content_hash = sha256_text(&content_json);
+    connection
+        .execute(
+            "
+            INSERT INTO page_revisions (
+              page_id, title, block_ids_json, block_order, metadata_json, content_json,
+              content_sha256, size_bytes, reason, page_updated_at, created_at
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, CURRENT_TIMESTAMP)
+            ",
+            params![
+                page_id,
+                title,
+                block_ids_json,
+                block_order,
+                metadata_json,
+                content_json,
+                content_hash,
+                content_json.len() as i64,
+                reason,
+                updated_at
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+    prune_page_revisions(connection, page_id)
+}
+
+fn prune_page_revisions(connection: &Connection, page_id: &str) -> Result<(), String> {
+    connection
+        .execute(
+            "
+            DELETE FROM page_revisions
+            WHERE page_id = ?1
+              AND id NOT IN (
+                SELECT id
+                FROM page_revisions
+                WHERE page_id = ?1
+                ORDER BY created_at DESC, id DESC
+                LIMIT ?2
+              )
+            ",
+            params![page_id, PAGE_REVISION_LIMIT],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 fn load_page_metadata_from_database(
@@ -1357,6 +1492,7 @@ fn save_page_document_in_transaction(
     if existing_page.notebook_id != request.page.notebook_id {
         return Err(format!("Page notebook mismatch: {}", request.page.id));
     }
+    let next_content_json = page_content_json_from_blocks(&request.blocks)?;
     let existing_blocks = blocks_from_page_content_json(
         &transaction
             .query_row(
@@ -1377,6 +1513,12 @@ fn save_page_document_in_transaction(
             request.page.id
         ));
     }
+    insert_page_revision_if_changed(
+        &transaction,
+        &request.page.id,
+        &next_content_json,
+        request.operation.as_ref().map(|operation| operation.kind.as_str()),
+    )?;
 
     let page_for_save = NormalizedPage {
         metadata: request.page.metadata.clone(),
@@ -1390,6 +1532,137 @@ fn save_page_document_in_transaction(
         insert_operation(&transaction, operation)?;
     }
 
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn update_page_metadata_in_transaction(
+    connection: &mut Connection,
+    request: &UpdatePageMetadataRequest,
+) -> Result<(), String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    if load_page_metadata_from_database(&transaction, &request.page_id)?.is_none() {
+        return Err(format!("Page not found: {}", request.page_id));
+    }
+    transaction
+        .execute(
+            "
+            UPDATE pages
+            SET metadata_json = ?1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?2
+            ",
+            params![
+                serde_json::to_string(&request.metadata).map_err(|error| error.to_string())?,
+                request.page_id
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute(
+            "UPDATE fts_pages SET metadata_text = ?1 WHERE page_id = ?2",
+            params![normalize_text_from_metadata(&request.metadata), request.page_id],
+        )
+        .map_err(|error| error.to_string())?;
+    if let Some(operation) = &request.operation {
+        insert_operation(&transaction, operation)?;
+    }
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn list_page_revisions_from_database(
+    connection: &Connection,
+    page_id: &str,
+    limit: Option<u32>,
+) -> Result<Vec<PageRevisionPayload>, String> {
+    let max_results = i64::from(limit.unwrap_or(PAGE_REVISION_LIMIT as u32).clamp(1, 100));
+    let mut statement = connection
+        .prepare(
+            "
+            SELECT id, page_id, title, content_json, created_at, reason, size_bytes
+            FROM page_revisions
+            WHERE page_id = ?1
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?2
+            ",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map(params![page_id, max_results], |row| {
+            let content_json: String = row.get(3)?;
+            Ok(PageRevisionPayload {
+                id: row.get(0)?,
+                page_id: row.get(1)?,
+                title: row.get(2)?,
+                content: page_content_from_json(&content_json),
+                created_at: row.get(4)?,
+                reason: row.get(5)?,
+                size_bytes: row.get(6)?,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
+fn restore_page_revision_in_transaction(
+    connection: &mut Connection,
+    request: &RestorePageRevisionRequest,
+) -> Result<(), String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    let Some(existing_page) = load_page_metadata_from_database(&transaction, &request.page_id)?
+    else {
+        return Err(format!("Page not found: {}", request.page_id));
+    };
+    let revision = transaction
+        .query_row(
+            "
+            SELECT block_ids_json, block_order, content_json
+            FROM page_revisions
+            WHERE id = ?1 AND page_id = ?2
+            ",
+            params![request.revision_id, request.page_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+    let Some((block_ids_json, block_order, content_json)) = revision else {
+        return Err(format!("Page revision not found: {}", request.revision_id));
+    };
+    insert_page_revision_if_changed(
+        &transaction,
+        &request.page_id,
+        &content_json,
+        Some("page.restore_revision"),
+    )?;
+    let restored_blocks = blocks_from_page_content_json(&content_json);
+    let restored_page = NormalizedPage {
+        block_ids: serde_json::from_str::<Vec<String>>(&block_ids_json).unwrap_or_else(|_| {
+            restored_blocks
+                .iter()
+                .map(|block| block.id.clone())
+                .collect::<Vec<_>>()
+        }),
+        block_order: Some(block_order),
+        updated_at: request
+            .operation
+            .as_ref()
+            .map(|operation| operation.timestamp.clone())
+            .unwrap_or_else(|| existing_page.updated_at.clone()),
+        ..existing_page
+    };
+    upsert_page_document(&transaction, &restored_page, &restored_blocks)?;
+    if let Some(operation) = &request.operation {
+        insert_operation(&transaction, operation)?;
+    }
     transaction.commit().map_err(|error| error.to_string())
 }
 
@@ -2228,6 +2501,19 @@ fn create_page(app: AppHandle, request: CreatePageRequest) -> Result<NotebookTre
 }
 
 #[tauri::command]
+fn update_page_metadata(
+    app: AppHandle,
+    request: UpdatePageMetadataRequest,
+) -> Result<NotebookTreePayload, String> {
+    let mut connection = open_database(&app)?;
+    update_page_metadata_in_transaction(&mut connection, &request)?;
+    Ok(NotebookTreePayload {
+        notebooks: list_notebooks_from_database(&connection)?,
+        pages: list_pages_from_database(&connection)?,
+    })
+}
+
+#[tauri::command]
 fn save_page_document(
     app: AppHandle,
     request: SavePageDocumentRequest,
@@ -2236,6 +2522,27 @@ fn save_page_document(
     save_page_document_in_transaction(&mut connection, &request)?;
     load_page_document(app, request.page.id)?
         .ok_or_else(|| "Saved page document could not be loaded".to_string())
+}
+
+#[tauri::command]
+fn list_page_revisions(
+    app: AppHandle,
+    page_id: String,
+    limit: Option<u32>,
+) -> Result<Vec<PageRevisionPayload>, String> {
+    let connection = open_database(&app)?;
+    list_page_revisions_from_database(&connection, &page_id, limit)
+}
+
+#[tauri::command]
+fn restore_page_revision(
+    app: AppHandle,
+    request: RestorePageRevisionRequest,
+) -> Result<PageDocumentPayload, String> {
+    let mut connection = open_database(&app)?;
+    restore_page_revision_in_transaction(&mut connection, &request)?;
+    load_page_document(app, request.page_id)?
+        .ok_or_else(|| "Restored page document could not be loaded".to_string())
 }
 
 #[tauri::command]
@@ -2390,7 +2697,10 @@ pub fn run() {
             move_page,
             create_notebook,
             create_page,
+            update_page_metadata,
             save_page_document,
+            list_page_revisions,
+            restore_page_revision,
             delete_page_tree,
             delete_notebook,
             load_state_snapshot,
@@ -3472,6 +3782,168 @@ mod tests {
             )
             .expect("page content");
         assert_eq!(page_content_from_json(&content_json).blocks.len(), 2);
+    }
+
+    #[test]
+    fn page_document_save_records_revision_and_restore_can_recover_it() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+        let page = load_page_metadata_from_database(&connection, "page_demo")
+            .expect("page metadata")
+            .expect("page exists");
+        let next_block = NormalizedBlock {
+            id: "block_saved".to_string(),
+            page_id: "page_demo".to_string(),
+            content: NormalizedRichContent {
+                html: "<p>Fresh sqlite body</p>".to_string(),
+                plain_text: "Fresh sqlite body".to_string(),
+            },
+            collapsed: false,
+            pinned: false,
+            created_at: "2026-06-15T05:00:00Z".to_string(),
+            updated_at: "2026-06-15T05:00:00Z".to_string(),
+        };
+
+        save_page_document_in_transaction(
+            &mut connection,
+            &SavePageDocumentRequest {
+                page: NormalizedPage {
+                    block_ids: vec![next_block.id.clone()],
+                    updated_at: "2026-06-15T05:00:00Z".to_string(),
+                    ..page
+                },
+                blocks: vec![next_block],
+                operation: Some(NormalizedOperationLogEntry {
+                    id: "op_save_revision".to_string(),
+                    timestamp: "2026-06-15T05:00:00Z".to_string(),
+                    entity: "page".to_string(),
+                    entity_id: "page_demo".to_string(),
+                    kind: "page.save_document".to_string(),
+                    payload: serde_json::json!({}),
+                }),
+            },
+        )
+        .expect("save revised page");
+
+        let revisions = list_page_revisions_from_database(&connection, "page_demo", None)
+            .expect("page revisions");
+        assert_eq!(revisions.len(), 1);
+        assert_eq!(revisions[0].content.blocks.len(), 2);
+        assert_eq!(
+            revisions[0].content.blocks[0].content.plain_text,
+            "Hello world"
+        );
+
+        restore_page_revision_in_transaction(
+            &mut connection,
+            &RestorePageRevisionRequest {
+                page_id: "page_demo".to_string(),
+                revision_id: revisions[0].id,
+                operation: Some(NormalizedOperationLogEntry {
+                    id: "op_restore_revision".to_string(),
+                    timestamp: "2026-06-15T05:10:00Z".to_string(),
+                    entity: "page".to_string(),
+                    entity_id: "page_demo".to_string(),
+                    kind: "page.restore_revision".to_string(),
+                    payload: serde_json::json!({"revisionId": revisions[0].id}),
+                }),
+            },
+        )
+        .expect("restore revision");
+
+        let restored = load_page_document_from_database(&connection, "page_demo")
+            .expect("load restored page")
+            .expect("restored page exists");
+        assert_eq!(restored.content.blocks.len(), 2);
+        assert_eq!(restored.content.blocks[0].id, "block_a");
+        assert_eq!(restored.content.blocks[0].content.plain_text, "Hello world");
+    }
+
+    #[test]
+    fn metadata_update_does_not_create_page_revision() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+        let mut metadata = default_page_metadata();
+        metadata.tags = vec!["metadataonly".to_string()];
+
+        update_page_metadata_in_transaction(
+            &mut connection,
+            &UpdatePageMetadataRequest {
+                page_id: "page_demo".to_string(),
+                metadata,
+                operation: None,
+            },
+        )
+        .expect("update metadata");
+
+        let revision_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM page_revisions", [], |row| row.get(0))
+            .expect("revision count");
+        assert_eq!(revision_count, 0);
+        let content_json: String = connection
+            .query_row(
+                "SELECT content_json FROM pages WHERE id = 'page_demo'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("page content");
+        assert_eq!(page_content_from_json(&content_json).blocks.len(), 2);
+        let fts_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM fts_pages WHERE fts_pages MATCH 'metadataonly'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("metadata fts count");
+        assert_eq!(fts_count, 1);
+    }
+
+    #[test]
+    fn page_revisions_are_pruned_per_page() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        rebuild_normalized_tables(&connection, &demo_normalized_state())
+            .expect("normalized rebuild");
+
+        for index in 0..(PAGE_REVISION_LIMIT + 5) {
+            let page = load_page_metadata_from_database(&connection, "page_demo")
+                .expect("page metadata")
+                .expect("page exists");
+            let block = NormalizedBlock {
+                id: format!("block_saved_{index}"),
+                page_id: "page_demo".to_string(),
+                content: NormalizedRichContent {
+                    html: format!("<p>Version {index}</p>"),
+                    plain_text: format!("Version {index}"),
+                },
+                collapsed: false,
+                pinned: false,
+                created_at: format!("2026-06-15T05:{index:02}:00Z"),
+                updated_at: format!("2026-06-15T05:{index:02}:00Z"),
+            };
+            save_page_document_in_transaction(
+                &mut connection,
+                &SavePageDocumentRequest {
+                    page: NormalizedPage {
+                        block_ids: vec![block.id.clone()],
+                        updated_at: block.updated_at.clone(),
+                        ..page
+                    },
+                    blocks: vec![block],
+                    operation: None,
+                },
+            )
+            .expect("save page revision");
+        }
+
+        let revision_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM page_revisions", [], |row| row.get(0))
+            .expect("revision count");
+        assert_eq!(revision_count, PAGE_REVISION_LIMIT);
     }
 
     #[test]

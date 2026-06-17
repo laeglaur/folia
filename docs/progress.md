@@ -89,3 +89,31 @@ Updated: 2026-06-13
 - `11bbc57` Show markdown import feedback
 - `9abbebe` Test localized asset imports
 - `93ce867` Localize imported image assets
+# 2026-06-17 Data Chain Review
+
+## Current Desktop Data Flow
+
+- SQLite is the desktop source of truth for notebooks, pages, page documents, attachments, FTS, and the block index used by pinned/calendar views.
+- React loads notebook/page tree metadata first, then loads only the active page document.
+- Pinned blocks, calendar blocks, and search results read from derived SQLite indexes instead of loading every page into React.
+- Browser mode still uses the legacy whole `AppState` localStorage snapshot for development.
+
+## Risks Found
+
+- Desktop still had a legacy `app_state` snapshot write path. It no longer rebuilds page tables, but it can still confuse cache state with durable data.
+- `save_page_document` is intentionally powerful: it updates page content, FTS, and block index together. Callers must not use it for metadata-only edits unless they have a complete page document.
+- Frontend-driven attachment cleanup is unsafe for desktop because React does not hold every page document.
+- `operation_log` is an audit trail today, not a reliable rollback layer. It does not store enough deleted/previous content to restore arbitrary mistakes.
+
+## First Version Plan
+
+- Keep SQLite as the only desktop truth source.
+- Stop desktop from writing legacy full `app_state` snapshots.
+- Keep desktop attachment cleanup database-driven only.
+- Add bounded page document revisions:
+  - Store the previous page document before replacing it.
+  - Skip revision writes when content did not change.
+  - Keep only a small number of revisions per page.
+  - Store page JSON only; attachment binaries remain hash-deduplicated in `attachments`.
+
+This keeps the app fast while giving each page a practical recovery safety net without letting storage grow without limit.

@@ -9,7 +9,7 @@ import {
   type ReactNode,
   type RefObject
 } from 'react';
-import { Download, FilePlus, FileUp, ImagePlus, NotebookTabs, PanelRight, Pin, Plus, Search, Sparkles, Trash2, Upload } from 'lucide-react';
+import { Download, FilePlus, FileUp, History, ImagePlus, NotebookTabs, PanelRight, Pin, Plus, Search, Sparkles, Trash2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { Block, ContentThemeId, Notebook, ShellId } from './types';
 import type { PageSearchResult } from './state';
@@ -63,6 +63,7 @@ type ToolControlsProps = {
   onMarkdownFolderChange: (files: FileList | null) => void;
   onExportMarkdown: () => void;
   onExportJson: () => void;
+  onRestorePageVersion: () => void;
   onOpenNotebookIcons: () => void;
 };
 
@@ -95,6 +96,7 @@ function ToolControls({
   onMarkdownFolderChange,
   onExportMarkdown,
   onExportJson,
+  onRestorePageVersion,
   onOpenNotebookIcons
 }: ToolControlsProps) {
   return (
@@ -181,6 +183,7 @@ function ToolControls({
       <button className="secondary-button" type="button" onClick={() => markdownFolderInputRef.current?.click()}><FileUp size={15} /> Import folder</button>
       <button className="secondary-button" type="button" onClick={onExportMarkdown}><Download size={15} /> Markdown</button>
       <button className="secondary-button" type="button" onClick={onExportJson}><Upload size={15} /> Backup</button>
+      <button className="secondary-button" type="button" onClick={onRestorePageVersion}><History size={15} /> Restore page</button>
       <button className="secondary-button" type="button" onClick={onOpenNotebookIcons}><ImagePlus size={15} /> Icons</button>
     </div>
   );

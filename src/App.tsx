@@ -21,6 +21,7 @@ import {
   loadDatabaseBootstrap,
   loadBlockDocument,
   loadFullBackupState,
+  listPageRevisions,
   listCalendarBlocks,
   loadPageDocument,
   loadPageDocuments,
@@ -31,10 +32,12 @@ import {
   persistNotebookCreate,
   persistPageCreate,
   persistPageDocument,
+  persistPageMetadata,
   persistPageTreeDelete,
   persistNotebookDelete,
   persistPageMove,
   persistImportBatch,
+  restorePageRevision,
   saveState,
   saveWorkspacePreferences,
   searchPages,
@@ -349,26 +352,15 @@ export function App() {
     await persistPageDocument({ page, blocks: blocksForPage(page, blocks), operation: null });
   };
 
-  const persistPageMetadataUpdate = (page: Page, blocks: Block[]) => {
+  const persistPageMetadataUpdate = (page: Page) => {
     if (!isTauri() || !persistenceReadyRef.current) return;
-    const pageBlocks = blocksForPage(page, blocks);
-    const hasLoadedDocument = page.blockIds.every((blockId) => pageBlocks.some((block) => block.id === blockId));
-    if (hasLoadedDocument) {
-      void persistPageDocument({ page, blocks: pageBlocks, operation: null }).catch((error) => {
+    void persistPageMetadata({ pageId: page.id, metadata: page.metadata, operation: null })
+      .then((tree) => {
+        if (tree) setState((current) => mergeNotebookTree(current, tree));
+      })
+      .catch((error) => {
         console.warn('Could not persist page metadata.', error);
       });
-      return;
-    }
-    void loadPageDocument(page.id).then((document) => {
-      if (!document) return null;
-      return persistPageDocument({
-        page: { ...document.page, ...page, metadata: page.metadata },
-        blocks: document.content.blocks,
-        operation: null
-      });
-    }).catch((error) => {
-      console.warn('Could not persist page metadata.', error);
-    });
   };
 
   const cancelPageDocumentSaves = (pageIds: Iterable<string>) => {
@@ -863,7 +855,7 @@ export function App() {
         ...current,
         pages: current.pages.map((page) => page.id === pageId ? updatedPage : page)
       };
-      if (isTauri()) persistPageMetadataUpdate(updatedPage, current.blocks);
+      if (isTauri()) persistPageMetadataUpdate(updatedPage);
       return nextState;
     });
   };
@@ -1970,6 +1962,42 @@ export function App() {
     }
   };
 
+  const restorePreviousPageVersion = async () => {
+    if (!isTauri() || !activePage?.id) return;
+    try {
+      await flushPageDocumentSave(activePage, state.blocks);
+      const revisions = await listPageRevisions(activePage.id, 1);
+      const latestRevision = revisions[0];
+      if (!latestRevision) {
+        setImportNotice({ kind: 'warning', message: 'No saved previous version for this page yet.' });
+        return;
+      }
+      const confirmed = window.confirm(`Restore the previous saved version of "${activePage.title}"? Your current saved version will be kept as a revision.`);
+      if (!confirmed) return;
+      cancelPageDocumentSaves([activePage.id]);
+      const operation = createOperation({
+        entity: 'page',
+        entityId: activePage.id,
+        kind: 'page.restore_revision',
+        payload: { revisionId: latestRevision.id }
+      });
+      const restored = await restorePageRevision({ pageId: activePage.id, revisionId: latestRevision.id, operation });
+      if (!restored) return;
+      setState((current) => {
+        const merged = mergePageDocument(current, restored);
+        return { ...merged, operations: [...current.operations, operation] };
+      });
+      setPinnedBlockPayloads(await listPinnedBlocks());
+      setImportNotice({ kind: 'success', message: `Restored previous version of "${restored.page.title}".` });
+    } catch (error) {
+      setImportNotice({
+        kind: 'error',
+        message: 'Page version restore failed.',
+        details: [error instanceof Error ? error.message : String(error)]
+      });
+    }
+  };
+
   const importMarkdownFiles = async (fileList: FileList | null) => {
     const files = Array.from(fileList ?? []).filter((file) => /\.(md|markdown|txt)$/i.test(file.name));
     if (!files.length) return;
@@ -2544,6 +2572,7 @@ export function App() {
     onMarkdownFolderChange: (files: FileList | null) => void importMarkdownFolder(files),
     onExportMarkdown: exportMarkdown,
     onExportJson: exportJson,
+    onRestorePageVersion: () => void restorePreviousPageVersion(),
     onOpenNotebookIcons: () => setIconPackRequest({ target: { kind: 'notebook', notebookId: activeNotebook.id } })
   };
 

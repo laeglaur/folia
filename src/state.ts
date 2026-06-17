@@ -528,7 +528,7 @@ const persistenceSaver = createQueuedPersistenceSaver({
   persistNativeSnapshot: async (stateJson: string) => {
     await invoke('save_state_snapshot', { stateJson });
   },
-  cleanupNativeAttachments: cleanupOrphanAttachments,
+  cleanupNativeAttachments: async () => {},
   persistBrowserSnapshot: (stateJson: string) => {
     window.localStorage.setItem(STORAGE_KEY, stateJson);
   }
@@ -640,6 +640,21 @@ export const persistPageDocument = async (request: SavePageDocumentRequest): Pro
     return html === block.content.html ? block : { ...block, content: { ...block.content, html } };
   }));
   return invoke<PageDocumentPayload>('save_page_document', { request: { ...request, blocks } });
+};
+
+export const persistPageMetadata = async (request: UpdatePageMetadataRequest): Promise<NotebookTreePayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<NotebookTreePayload>('update_page_metadata', { request });
+};
+
+export const listPageRevisions = async (pageId: string, limit = 20): Promise<PageRevisionPayload[]> => {
+  if (!isTauri()) return [];
+  return invoke<PageRevisionPayload[]>('list_page_revisions', { pageId, limit });
+};
+
+export const restorePageRevision = async (request: RestorePageRevisionRequest): Promise<PageDocumentPayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<PageDocumentPayload>('restore_page_revision', { request });
 };
 
 export const persistPageTreeDelete = async (request: DeletePageTreeRequest): Promise<NotebookTreePayload | null> => {
@@ -823,6 +838,28 @@ export type CreatePageRequest = {
 export type SavePageDocumentRequest = {
   page: Page;
   blocks: Block[];
+  operation: OperationLogEntry | null;
+};
+
+export type UpdatePageMetadataRequest = {
+  pageId: string;
+  metadata: PageMetadata;
+  operation: OperationLogEntry | null;
+};
+
+export type PageRevisionPayload = {
+  id: number;
+  pageId: string;
+  title: string;
+  content: PageDocumentContent;
+  createdAt: string;
+  reason: string | null;
+  sizeBytes: number;
+};
+
+export type RestorePageRevisionRequest = {
+  pageId: string;
+  revisionId: number;
   operation: OperationLogEntry | null;
 };
 
