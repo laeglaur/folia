@@ -657,6 +657,47 @@ export const restorePageRevision = async (request: RestorePageRevisionRequest): 
   return invoke<PageDocumentPayload>('restore_page_revision', { request });
 };
 
+export type TrashItemPayload = {
+  id: number;
+  itemType: 'page' | 'notebook' | 'block' | string;
+  title: string;
+  sourceId: string;
+  parentId: string | null;
+  deletedAt: string;
+  sizeBytes: number;
+};
+
+export type DeleteBlockRequest = {
+  pageId: string;
+  blockId: string;
+  operation: OperationLogEntry | null;
+};
+
+export type RestoreTrashItemRequest = {
+  trashId: number;
+  operation: OperationLogEntry | null;
+};
+
+export const deleteBlock = async (request: DeleteBlockRequest): Promise<PageDocumentPayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<PageDocumentPayload>('delete_block', { request });
+};
+
+export const listTrashItems = async (limit = 100): Promise<TrashItemPayload[]> => {
+  if (!isTauri()) return [];
+  return invoke<TrashItemPayload[]>('list_trash_items', { limit });
+};
+
+export const restoreTrashItem = async (request: RestoreTrashItemRequest): Promise<NotebookTreePayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<NotebookTreePayload>('restore_trash_item', { request });
+};
+
+export const emptyTrash = async (): Promise<void> => {
+  if (!isTauri()) return;
+  await invoke('empty_trash');
+};
+
 export const persistPageTreeDelete = async (request: DeletePageTreeRequest): Promise<NotebookTreePayload | null> => {
   if (!isTauri()) return null;
   return invoke<NotebookTreePayload>('delete_page_tree', { request });

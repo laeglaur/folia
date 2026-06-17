@@ -12,7 +12,7 @@ import {
 import { Download, FilePlus, FileUp, History, ImagePlus, NotebookTabs, PanelRight, Pin, Plus, Search, Sparkles, Trash2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { Block, ContentThemeId, Notebook, ShellId } from './types';
-import type { PageSearchResult } from './state';
+import type { PageSearchResult, TrashItemPayload } from './state';
 import type { OutlineEntry } from './app-utils';
 import { blockTimestampLabel } from './app-utils';
 import { RichEditor, type ImageAnnotationRequest, type MediaResizeRequest } from './editor';
@@ -65,6 +65,9 @@ type ToolControlsProps = {
   onExportJson: () => void;
   onRestorePageVersion: () => void;
   onOpenNotebookIcons: () => void;
+  trashItems: TrashItemPayload[];
+  onRestoreTrashItem: (trashId: number) => void;
+  onEmptyTrash: () => void;
 };
 
 function ToolControls({
@@ -97,7 +100,10 @@ function ToolControls({
   onExportMarkdown,
   onExportJson,
   onRestorePageVersion,
-  onOpenNotebookIcons
+  onOpenNotebookIcons,
+  trashItems,
+  onRestoreTrashItem,
+  onEmptyTrash
 }: ToolControlsProps) {
   return (
     <div className={compact ? 'typora-tool-controls' : 'topbar-actions'}>
@@ -185,6 +191,20 @@ function ToolControls({
       <button className="secondary-button" type="button" onClick={onExportJson}><Upload size={15} /> Backup</button>
       <button className="secondary-button" type="button" onClick={onRestorePageVersion}><History size={15} /> Restore page</button>
       <button className="secondary-button" type="button" onClick={onOpenNotebookIcons}><ImagePlus size={15} /> Icons</button>
+      {compact ? (
+        <section className="fish-trash">
+          <div className="fish-trash-head">
+            <span>Trash</span>
+            <button className="mini-button" type="button" onClick={onEmptyTrash} disabled={!trashItems.length} aria-label="Empty trash"><Trash2 size={13} /></button>
+          </div>
+          {trashItems.length ? trashItems.map((item) => (
+            <button className="fish-trash-item" key={item.id} type="button" onClick={() => onRestoreTrashItem(item.id)} title={`Restore ${item.title}`}>
+              <span>{item.itemType}</span>
+              <strong>{item.title || 'Untitled'}</strong>
+            </button>
+          )) : <p className="fish-trash-empty">Empty</p>}
+        </section>
+      ) : null}
     </div>
   );
 }

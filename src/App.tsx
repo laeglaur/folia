@@ -16,13 +16,16 @@ import {
   createNotebook,
   createPageFromMarkdown,
   createPage,
+  deleteBlock as persistBlockDelete,
   downloadTextFile,
+  emptyTrash,
   htmlToMarkdown,
   loadDatabaseBootstrap,
   loadBlockDocument,
   loadFullBackupState,
   listPageRevisions,
   listCalendarBlocks,
+  listTrashItems,
   loadPageDocument,
   loadPageDocuments,
   listPinnedBlocks,
@@ -38,6 +41,7 @@ import {
   persistPageMove,
   persistImportBatch,
   restorePageRevision,
+  restoreTrashItem,
   saveState,
   saveWorkspacePreferences,
   searchPages,
@@ -45,7 +49,8 @@ import {
   type PageDocumentPayload,
   type PinnedBlockPayload,
   type CalendarBlockPayload,
-  type PageSearchResult
+  type PageSearchResult,
+  type TrashItemPayload
 } from './state';
 import {
   escapeHtml,
@@ -212,6 +217,7 @@ export function App() {
   const [draftsByPageId, setDraftsByPageId] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PageSearchResult[]>([]);
+  const [trashItems, setTrashItems] = useState<TrashItemPayload[]>([]);
   const [pinnedBlockPayloads, setPinnedBlockPayloads] = useState<PinnedBlockPayload[]>([]);
   const [calendarBlockPayloads, setCalendarBlockPayloads] = useState<CalendarBlockPayload[]>([]);
   const [cardDocument, setCardDocument] = useState<PageDocumentPayload | null>(null);
@@ -626,6 +632,20 @@ export function App() {
       window.clearTimeout(timer);
     };
   }, [query]);
+
+  const refreshTrashItems = () => {
+    if (!isTauri()) return;
+    void listTrashItems(5)
+      .then(setTrashItems)
+      .catch((error) => {
+        console.warn('Could not load trash items.', error);
+        setTrashItems([]);
+      });
+  };
+
+  useEffect(() => {
+    refreshTrashItems();
+  }, []);
 
   const setShell = (shell: ShellId) => {
     setState((current) => ({
@@ -1096,7 +1116,7 @@ export function App() {
     persistPageDocumentSnapshot(nextPage, state.blocks, operation);
   };
 
-  const deleteBlock = (blockId: string) => {
+  const deleteBlockWithTrash = async (blockId: string) => {
     const targetBlock = state.blocks.find((block) => block.id === blockId);
     const targetPage = state.pages.find((page) => page.id === targetBlock?.pageId);
     if (!targetBlock || !targetPage) return false;
@@ -1117,21 +1137,50 @@ export function App() {
     });
 
     cancelPageDocumentSaves([targetPage.id]);
-    setDeletedBlockSnapshot(snapshot);
-    setActiveEditor(nextSelectedBlockId ? { kind: 'block', blockId: nextSelectedBlockId } : { kind: 'composer' });
-    if (nextSelectedBlockId) {
-      window.setTimeout(() => blockEditorRefs.current[nextSelectedBlockId]?.commands.focus('start'), 0);
+    try {
+      const persisted = isTauri()
+        ? await persistBlockDelete({ pageId: targetPage.id, blockId, operation })
+        : null;
+      setDeletedBlockSnapshot(snapshot);
+      setActiveEditor(nextSelectedBlockId ? { kind: 'block', blockId: nextSelectedBlockId } : { kind: 'composer' });
+      if (nextSelectedBlockId) {
+        window.setTimeout(() => blockEditorRefs.current[nextSelectedBlockId]?.commands.focus('start'), 0);
+      }
+      delete blockEditorRefs.current[blockId];
+      setPinnedBlockPayloads((current) => current.filter((payload) => payload.block.id !== blockId));
+      setState((current) => ({
+        ...current,
+        pages: current.pages.map((page) => (page.id === targetPage.id ? nextPage : page)),
+        blocks: current.blocks.filter((block) => block.id !== blockId),
+        openCardWindowBlockId: current.openCardWindowBlockId === blockId ? null : current.openCardWindowBlockId,
+        operations: [...current.operations, operation]
+      }));
+      if (persisted) {
+        setState((current) => current.activePageId === persisted.page.id ? mergePageDocument(current, persisted) : current);
+      } else {
+        persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
+      }
+      refreshTrashItems();
+    } catch (error) {
+      console.warn('Could not persist block delete to SQLite.', error);
+      if (isTauri()) {
+        setImportNotice({
+          kind: 'error',
+          message: 'Block delete failed.',
+          details: [error instanceof Error ? error.message : String(error)]
+        });
+        return false;
+      }
+      setState((current) => ({
+        ...current,
+        pages: current.pages.map((page) => (page.id === targetPage.id ? nextPage : page)),
+        blocks: current.blocks.filter((block) => block.id !== blockId),
+        openCardWindowBlockId: current.openCardWindowBlockId === blockId ? null : current.openCardWindowBlockId,
+        operations: [...current.operations, operation]
+      }));
+      persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
+      refreshTrashItems();
     }
-    delete blockEditorRefs.current[blockId];
-    setPinnedBlockPayloads((current) => current.filter((payload) => payload.block.id !== blockId));
-    setState((current) => ({
-      ...current,
-      pages: current.pages.map((page) => (page.id === targetPage.id ? nextPage : page)),
-      blocks: current.blocks.filter((block) => block.id !== blockId),
-      openCardWindowBlockId: current.openCardWindowBlockId === blockId ? null : current.openCardWindowBlockId,
-      operations: [...current.operations, operation]
-    }));
-    persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
     return true;
   };
 
@@ -1173,6 +1222,32 @@ export function App() {
     window.setTimeout(() => {
       blockEditorRefs.current[restoredBlock.id]?.commands.focus('start');
     }, 0);
+    return true;
+  };
+
+  const restoreLatestDeletedBlockFromTrash = async () => {
+    const snapshot = deletedBlockSnapshotRef.current;
+    const items = await listTrashItems(50);
+    const trashItem = items.find((item) => item.itemType === 'block' && item.sourceId === snapshot?.block.id)
+      ?? items.find((item) => item.itemType === 'block');
+    if (!trashItem) return false;
+    const operation = createOperation({
+      entity: 'block',
+      entityId: trashItem.sourceId,
+      kind: 'block.restore_delete',
+      payload: { trashId: trashItem.id }
+    });
+    const tree = await restoreTrashItem({ trashId: trashItem.id, operation });
+    if (tree) reconcileNotebookTree(tree);
+    const targetPageId = trashItem.parentId ?? snapshot?.pageId ?? stateRef.current.activePageId;
+    const document = targetPageId ? await loadPageDocument(targetPageId) : null;
+    if (document) {
+      setState((current) => mergePageDocument(current, document));
+      setActiveEditor({ kind: 'block', blockId: trashItem.sourceId });
+      window.setTimeout(() => blockEditorRefs.current[trashItem.sourceId]?.commands.focus('start'), 0);
+    }
+    setDeletedBlockSnapshot(null);
+    setPinnedBlockPayloads(await listPinnedBlocks());
     return true;
   };
 
@@ -1631,7 +1706,10 @@ export function App() {
       payload: { pageCount: deletedPages.length, blockCount: deletedBlockIds.size }
     });
     void persistPageTreeDelete({ pageId, fallbackPage, operation })
-      .then(reconcileNotebookTree)
+      .then((tree) => {
+        reconcileNotebookTree(tree);
+        refreshTrashItems();
+      })
       .catch((error) => {
         console.warn('Could not persist page tree delete.', error);
       });
@@ -1769,7 +1847,10 @@ export function App() {
       payload: { pageCount: deletedPages.length, blockCount: deletedBlockIds.size }
     });
     void persistNotebookDelete({ notebookId, operation })
-      .then(reconcileNotebookTree)
+      .then((tree) => {
+        reconcileNotebookTree(tree);
+        refreshTrashItems();
+      })
       .catch((error) => {
         console.warn('Could not persist notebook delete.', error);
       });
@@ -1832,7 +1913,14 @@ export function App() {
       if (!event.defaultPrevented && commandKey && !event.shiftKey && key === 'z' && deletedBlockSnapshotRef.current) {
         event.preventDefault();
         event.stopPropagation();
-        undoDeletedBlock();
+        void restoreLatestDeletedBlockFromTrash()
+          .then((restored) => {
+            if (!restored) undoDeletedBlock();
+          })
+          .catch((error) => {
+            console.warn('Could not restore deleted block from trash.', error);
+            undoDeletedBlock();
+          });
         return;
       }
 
@@ -1993,6 +2081,49 @@ export function App() {
       setImportNotice({
         kind: 'error',
         message: 'Page version restore failed.',
+        details: [error instanceof Error ? error.message : String(error)]
+      });
+    }
+  };
+
+  const restoreTrashItemById = async (trashId: number) => {
+    try {
+      const item = trashItems.find((candidate) => candidate.id === trashId);
+      const operation = createOperation({
+        entity: item?.itemType === 'notebook' ? 'notebook' : item?.itemType === 'block' ? 'block' : 'page',
+        entityId: item?.sourceId ?? String(trashId),
+        kind: `${item?.itemType ?? 'trash'}.restore_trash`,
+        payload: { trashId }
+      });
+      const tree = await restoreTrashItem({ trashId, operation });
+      if (tree) reconcileNotebookTree(tree);
+      const pageId = item?.itemType === 'block'
+        ? item.parentId
+        : item?.itemType === 'page'
+          ? item.sourceId
+          : stateRef.current.activePageId;
+      const document = pageId ? await loadPageDocument(pageId) : null;
+      if (document) setState((current) => mergePageDocument(current, document));
+      setPinnedBlockPayloads(await listPinnedBlocks());
+      refreshTrashItems();
+    } catch (error) {
+      setImportNotice({
+        kind: 'error',
+        message: 'Trash restore failed.',
+        details: [error instanceof Error ? error.message : String(error)]
+      });
+    }
+  };
+
+  const emptyTrashItems = async () => {
+    if (!window.confirm('Empty trash permanently?')) return;
+    try {
+      await emptyTrash();
+      setTrashItems([]);
+    } catch (error) {
+      setImportNotice({
+        kind: 'error',
+        message: 'Could not empty trash.',
         details: [error instanceof Error ? error.message : String(error)]
       });
     }
@@ -2490,7 +2621,10 @@ export function App() {
           moveBlockByKeyboard(blockId, direction);
           return true;
         },
-        onDeleteBlock: deleteBlock,
+        onDeleteBlock: (blockId) => {
+          void deleteBlockWithTrash(blockId);
+          return true;
+        },
         onUpdateBlock: updateBlock
       }}
       calendar={{
@@ -2573,7 +2707,10 @@ export function App() {
     onExportMarkdown: exportMarkdown,
     onExportJson: exportJson,
     onRestorePageVersion: () => void restorePreviousPageVersion(),
-    onOpenNotebookIcons: () => setIconPackRequest({ target: { kind: 'notebook', notebookId: activeNotebook.id } })
+    onOpenNotebookIcons: () => setIconPackRequest({ target: { kind: 'notebook', notebookId: activeNotebook.id } }),
+    trashItems,
+    onRestoreTrashItem: (trashId: number) => void restoreTrashItemById(trashId),
+    onEmptyTrash: () => void emptyTrashItems()
   };
 
   if (cardModeBlock) {
