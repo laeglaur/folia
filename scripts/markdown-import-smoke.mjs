@@ -123,7 +123,7 @@ const checks = {
   singleBlock: blockCount === 1,
   pageTree: pageTreeText.includes(expectedTitle),
   outline: outlineText.includes('Imported Smoke') && hasBlockOutlineEntry && hasHeadingOutlineEntry && pageAndBlockArePeers && headingsNestUnderBlocks && outlineText.includes('Detail Smoke') && outlineText.includes('first bullet'),
-  frontmatterHidden: !pageText.includes('title: Frontmatter Smoke') && !pageText.includes('tags: [travel, literature]') && !pageText.includes('aliases:'),
+  frontmatterVisibleInMetadata: metadataText.includes('title: Frontmatter Smoke') && metadataText.includes('tags: [travel, literature]') && metadataText.includes('aliases:'),
   metadataUi: metadataText.includes('2026-05-02') && metadataText.includes('draft') && metadataText.includes('#travel') && metadataText.includes('#literature') && metadataText.includes('Hengdian notes') && metadataText.includes('Qin palace'),
   metadataState: storedPage?.metadata?.sourceFilename?.endsWith('.md') && storedPage.metadata.tags.includes('travel') && storedPage.metadata.tags.includes('literature') && storedPage.metadata.date === '2026-05-02' && storedPage.metadata.status === 'draft' && storedPage.metadata.aliases.includes('Hengdian notes') && storedPage.metadata.frontmatter.title === 'Frontmatter Smoke',
   paragraph: pageText.includes('Imported Smoke') && pageText.includes('A paragraph with bold'),

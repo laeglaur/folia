@@ -20,6 +20,25 @@ const createEmptyNotebookMetadata = (): NotebookMetadata => ({
   iconPack: null
 });
 
+const stringifyFrontmatter = (frontmatter: Record<string, string | string[]>) => {
+  const lines: string[] = [];
+  Object.entries(frontmatter).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      lines.push(`${key}:`);
+      value.forEach((item) => lines.push(`  - ${item}`));
+      return;
+    }
+    lines.push(`${key}: ${value}`);
+  });
+  return lines.join('\n');
+};
+
+const extractFrontmatterRaw = (markdown: string) => {
+  const normalized = markdown.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  const match = normalized.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
+  return match ? match[1].trimEnd() : '';
+};
+
 const starterPageId = createId('page');
 const starterBlockOne = createId('block');
 const starterBlockTwo = createId('block');
@@ -79,7 +98,8 @@ export const createInitialState = (): AppState => ({
   contentTheme: 'notebook',
   openCardWindowBlockId: null,
   expandedPageIds: [starterPageId],
-  operations: []
+  operations: [],
+  showPageMetadata: true
 });
 
 const normalizeTheme = (theme?: string): ThemeId => {
@@ -209,7 +229,8 @@ const normalizeState = (state: AppState): AppState => {
         ...(page.metadata ?? {}),
         tags: page.metadata?.tags ?? [],
         aliases: page.metadata?.aliases ?? [],
-        frontmatter: page.metadata?.frontmatter ?? {}
+        frontmatter: page.metadata?.frontmatter ?? {},
+        frontmatterRaw: page.metadata?.frontmatterRaw ?? stringifyFrontmatter(page.metadata?.frontmatter ?? {})
       }
     })),
     blocks: state.blocks.map((block) => ({
@@ -224,7 +245,8 @@ const normalizeState = (state: AppState): AppState => {
     contentTheme,
     openCardWindowBlockId: state.openCardWindowBlockId ?? null,
     expandedPageIds: state.expandedPageIds ?? state.pages.map((page) => page.id),
-    operations: state.operations ?? []
+    operations: state.operations ?? [],
+    showPageMetadata: state.showPageMetadata ?? true
   };
 };
 
@@ -328,6 +350,7 @@ const localPathFromMediaSrc = (src: string) => {
 
 const localizePersistentMediaAssets = async (html: string, blockId: string) => {
   if (!isTauri()) return html;
+  if (!/<(?:img|video|audio)\b/i.test(html)) return html;
   const container = document.createElement('div');
   container.innerHTML = html;
   const media = Array.from(container.querySelectorAll<HTMLImageElement | HTMLVideoElement | HTMLAudioElement>('img[src], video[src], audio[src]'));
@@ -693,9 +716,14 @@ export const restoreTrashItem = async (request: RestoreTrashItemRequest): Promis
   return invoke<NotebookTreePayload>('restore_trash_item', { request });
 };
 
-export const emptyTrash = async (): Promise<void> => {
-  if (!isTauri()) return;
-  await invoke('empty_trash');
+export type AttachmentCleanupResult = {
+  removedCount: number;
+  removedBytes: number;
+};
+
+export const emptyTrash = async (): Promise<AttachmentCleanupResult | null> => {
+  if (!isTauri()) return null;
+  return invoke<AttachmentCleanupResult>('empty_trash');
 };
 
 export const persistPageTreeDelete = async (request: DeletePageTreeRequest): Promise<NotebookTreePayload | null> => {
@@ -732,7 +760,8 @@ export const loadWorkspacePreferences = async (): Promise<WorkspacePreferencesPa
     theme: preferences.theme === 'ledger' ? 'ledger' : 'garden',
     contentTheme: contentThemeIds.has(preferences.contentTheme) ? preferences.contentTheme : 'notebook',
     openCardWindowBlockId: preferences.openCardWindowBlockId ?? null,
-    expandedPageIds: preferences.expandedPageIds ?? []
+    expandedPageIds: preferences.expandedPageIds ?? [],
+    showPageMetadata: preferences.showPageMetadata ?? true
   };
 };
 
@@ -805,11 +834,6 @@ type ImportedAsset = {
   mimeType: string;
   size: number;
   sha256: string;
-};
-
-type AttachmentCleanupResult = {
-  removedCount: number;
-  removedBytes: number;
 };
 
 export type PageDocumentContent = {
@@ -930,6 +954,7 @@ export type WorkspacePreferencesPayload = {
   contentTheme: ContentThemeId;
   openCardWindowBlockId: string | null;
   expandedPageIds: string[];
+  showPageMetadata: boolean;
 };
 
 export type WorkspacePreferencesRequest = WorkspacePreferencesPayload;
@@ -951,6 +976,21 @@ export type MarkdownFolderImportResult = {
   blocks: Block[];
   warnings: MarkdownImportWarning[];
   expandedPageIds: string[];
+};
+
+export type MarkdownFolderParsedDocument = {
+  relativePath: string;
+  filename: string;
+  pageId: string;
+  body: string;
+};
+
+export type MarkdownFolderImportPlan = {
+  notebook: Notebook;
+  pages: Page[];
+  expandedPageIds: string[];
+  parsedDocuments: MarkdownFolderParsedDocument[];
+  pageLinks: Map<string, string>;
 };
 
 type ParsedFrontmatter = {
@@ -978,6 +1018,17 @@ const normalizeStringList = (value: string | string[] | undefined) => {
   return Array.isArray(value) ? value.map(trimQuotes).filter(Boolean) : [trimQuotes(value)].filter(Boolean);
 };
 
+const frontmatterValue = (frontmatter: Record<string, string | string[]>, ...keys: string[]) => {
+  const entries = Object.entries(frontmatter);
+  for (const key of keys) {
+    const exact = frontmatter[key];
+    if (exact !== undefined) return exact;
+    const found = entries.find(([candidate]) => candidate.toLowerCase() === key.toLowerCase());
+    if (found) return found[1];
+  }
+  return undefined;
+};
+
 const parseFrontmatter = (markdown: string, filename: string): ParsedFrontmatter => {
   const normalized = markdown.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   const match = normalized.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
@@ -990,39 +1041,53 @@ const parseFrontmatter = (markdown: string, filename: string): ParsedFrontmatter
 
   const frontmatter: Record<string, string | string[]> = {};
   let currentListKey: string | null = null;
-  match[1].split('\n').forEach((line) => {
+  const lines = match[1].split('\n');
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
     const listMatch = line.match(/^\s*-\s+(.+)$/);
     if (listMatch && currentListKey) {
       const current = frontmatter[currentListKey];
       frontmatter[currentListKey] = [...normalizeStringList(current), trimQuotes(listMatch[1])];
-      return;
+      continue;
     }
 
-    const keyValue = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    const keyValue = line.match(/^([^:\n][^:\n]*?):\s*(.*)$/);
     if (!keyValue) {
       currentListKey = null;
-      return;
+      continue;
     }
-    const [, key, rawValue] = keyValue;
+    const [, rawKey, rawValue] = keyValue;
+    const key = rawKey.trim();
     if (!rawValue.trim()) {
       frontmatter[key] = [];
       currentListKey = key;
-      return;
+      continue;
+    }
+    if (rawValue.trim() === '|' || rawValue.trim() === '|-') {
+      const blockLines: string[] = [];
+      while (index + 1 < lines.length && /^\s+/.test(lines[index + 1])) {
+        index += 1;
+        blockLines.push(lines[index].replace(/^\s{2}/, ''));
+      }
+      frontmatter[key] = blockLines.join('\n').trimEnd();
+      currentListKey = null;
+      continue;
     }
     frontmatter[key] = parseFrontmatterValue(rawValue);
     currentListKey = null;
-  });
+  }
 
   return {
     body: normalized.slice(match[0].length),
-    title: typeof frontmatter.title === 'string' ? frontmatter.title : undefined,
+    title: typeof frontmatterValue(frontmatter, 'title') === 'string' ? frontmatterValue(frontmatter, 'title') as string : undefined,
     metadata: {
       sourceFilename: filename,
-      tags: normalizeStringList(frontmatter.tags),
-      date: typeof frontmatter.date === 'string' ? frontmatter.date : undefined,
-      status: typeof frontmatter.status === 'string' ? frontmatter.status : undefined,
-      aliases: normalizeStringList(frontmatter.aliases),
-      frontmatter
+      tags: normalizeStringList(frontmatterValue(frontmatter, 'tags')),
+      date: typeof frontmatterValue(frontmatter, 'date', 'created') === 'string' ? frontmatterValue(frontmatter, 'date', 'created') as string : undefined,
+      status: typeof frontmatterValue(frontmatter, 'status', 'score') === 'string' ? frontmatterValue(frontmatter, 'status', 'score') as string : undefined,
+      aliases: normalizeStringList(frontmatterValue(frontmatter, 'aliases', 'alias')),
+      frontmatter,
+      frontmatterRaw: extractFrontmatterRaw(markdown) || stringifyFrontmatter(frontmatter)
     }
   };
 };
@@ -1171,8 +1236,95 @@ const markdownToHtml = (markdown: string) => {
   return typeof html === 'string' ? html.trim() : '';
 };
 
-export const markdownToBlocks = (pageId: string, markdown: string): Block[] => {
-  const html = markdownToHtml(markdown);
+const wikiLinkRegex = /(^|[^!])\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]/g;
+const wikiEmbedRegex = /!\[\[([^\]\n]+)\]\]/g;
+const mediaLinkTargetRegex = /\.(?:png|jpe?g|gif|webp|avif|svg|mp4|mov|webm|m4v|mp3|wav|m4a|aac|ogg|flac)$/i;
+const normalizeLinkTarget = (target: string) =>
+  target
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .split('/')
+    .reduce<string[]>((parts, part) => {
+      if (!part || part === '.') return parts;
+      if (part === '..') {
+        parts.pop();
+        return parts;
+      }
+      parts.push(part);
+      return parts;
+    }, [])
+    .join('/');
+
+const pageHrefFromKey = (key: string, pageLinks: Map<string, string>) => {
+  const trimmed = key.trim();
+  if (!trimmed) return null;
+  const normalized = normalizeLinkTarget(trimmed);
+  return pageLinks.get(trimmed)
+    ?? pageLinks.get(trimmed.replace(/\.(md|markdown|txt)$/i, ''))
+    ?? pageLinks.get(normalized)
+    ?? pageLinks.get(normalized.replace(/\.(md|markdown|txt)$/i, ''))
+    ?? null;
+};
+
+const rewriteWikiLinks = (markdown: string, pageLinks: Map<string, string>) =>
+  markdown.replace(wikiLinkRegex, (_match, prefix: string, target: string, heading: string, alias: string) => {
+    const pageId = pageHrefFromKey(target, pageLinks);
+    if (!pageId) return `${prefix}${alias ? alias : target}`;
+    const label = (alias ?? target).trim() || target.trim();
+    const suffix = heading ? `#${heading.trim().replace(/\s+/g, '-')}` : '';
+    return `${prefix}[${label}](page:${pageId}${suffix})`;
+  });
+
+const rewriteWikiEmbeds = (markdown: string) =>
+  markdown.replace(wikiEmbedRegex, (match, rawTarget: string) => {
+    const [target = '', label = ''] = rawTarget.split('|').map((part) => part.trim());
+    const path = target.split('#')[0] ?? target;
+    if (!mediaLinkTargetRegex.test(path)) return match;
+    const alt = label || path.split('/').pop() || '';
+    return `![${alt}](${path})`;
+  });
+
+const linkPrefixForPage = 'page:';
+
+const dirnameFromLinkTarget = (path: string) => {
+  const normalized = normalizeLinkTarget(path);
+  const parts = normalized.split('/');
+  parts.pop();
+  return parts.join('/');
+};
+
+const pageHrefFromMarkdownHref = (href: string, pageLinks?: Map<string, string>, currentPath?: string) => {
+  if (!pageLinks) return null;
+  if (!href || href.startsWith('#') || /^(?:https?:|mailto:|tel:|asset:|data:|file:)/i.test(href)) return null;
+  const [rawPath, rawHash = ''] = href.split('#');
+  const decodedPath = decodeRepeatedly(rawPath);
+  const candidates = [
+    decodedPath,
+    currentPath ? `${dirnameFromLinkTarget(currentPath)}/${decodedPath}` : decodedPath
+  ];
+  const pageId = candidates.map((candidate) => pageHrefFromKey(candidate, pageLinks)).find(Boolean);
+  if (!pageId) return null;
+  const hash = rawHash ? `#${rawHash}` : '';
+  return `${linkPrefixForPage}${pageId}${hash}`;
+};
+
+const rewritePageLinksInHtml = (html: string, pageLinks?: Map<string, string>, currentPath?: string) => {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  container.querySelectorAll<HTMLAnchorElement>('a[href]').forEach((anchor) => {
+    let href = anchor.getAttribute('href') ?? '';
+    href = pageHrefFromMarkdownHref(href, pageLinks, currentPath) ?? href;
+    if (!href.startsWith(linkPrefixForPage)) return;
+    anchor.setAttribute('href', href);
+    anchor.setAttribute('data-page-id', href.slice(linkPrefixForPage.length).split('#')[0] ?? '');
+  });
+  return container.innerHTML;
+};
+
+export const markdownToBlocks = (pageId: string, markdown: string, pageLinks?: Map<string, string>, currentPath?: string): Block[] => {
+  const markdownWithEmbeds = rewriteWikiEmbeds(markdown);
+  const linkedMarkdown = pageLinks ? rewriteWikiLinks(markdownWithEmbeds, pageLinks) : markdownWithEmbeds;
+  const html = rewritePageLinksInHtml(markdownToHtml(linkedMarkdown), pageLinks, currentPath);
   return [blockFromHtml(pageId, html || '<p></p>')];
 };
 
@@ -1212,7 +1364,7 @@ const localizeMediaAssets = async (html: string, filename: string) => {
   return { html: container.innerHTML, warnings };
 };
 
-export const createPageFromMarkdown = async (notebookId: string, filename: string, markdown: string) => {
+export const createPageFromMarkdown = async (notebookId: string, filename: string, markdown: string, pageLinks?: Map<string, string>) => {
   const parsed = parseFrontmatter(markdown, filename);
   const fallbackTitle = filename.replace(/\.(md|markdown|txt)$/i, '').trim() || 'Imported page';
   const page = {
@@ -1221,7 +1373,7 @@ export const createPageFromMarkdown = async (notebookId: string, filename: strin
   };
   const body = parsed.body.trim();
   const warnings: MarkdownImportWarning[] = [];
-  const blocks = await Promise.all(markdownToBlocks(page.id, body).map(async (block) => {
+  const blocks = await Promise.all(markdownToBlocks(page.id, body, pageLinks, filename).map(async (block) => {
     const localized = await localizeMediaAssets(block.content.html, filename);
     warnings.push(...localized.warnings);
     return {
@@ -1261,10 +1413,10 @@ const dirnameFromPath = (path: string) => {
 
 const titleFromFolderSegment = (segment: string) => segment.trim() || 'Folder';
 
-export const createNotebookFromMarkdownDocuments = async (
+export const createMarkdownFolderImportPlan = (
   rootName: string,
   documents: MarkdownFolderDocument[]
-): Promise<MarkdownFolderImportResult> => {
+): MarkdownFolderImportPlan => {
   const normalizedDocuments = documents
     .map((document) => ({
       ...document,
@@ -1279,6 +1431,16 @@ export const createNotebookFromMarkdownDocuments = async (
   const warnings: MarkdownImportWarning[] = [];
   const expandedPageIds: string[] = [];
   const folderPageIds = new Map<string, string>();
+  const pageLinks = new Map<string, string>();
+  const parsedDocuments = normalizedDocuments.map((document) => {
+    const filename = basenameFromPath(document.relativePath);
+    const parsed = parseFrontmatter(document.markdown, filename);
+    return {
+      document,
+      filename,
+      parsed
+    };
+  });
 
   const ensureFolderPage = (folderPath: string): string | null => {
     const normalized = normalizeRelativePath(folderPath);
@@ -1296,20 +1458,27 @@ export const createNotebookFromMarkdownDocuments = async (
     return page.id;
   };
 
-  for (const document of normalizedDocuments) {
+  for (const { document, filename, parsed } of parsedDocuments) {
     const parentId = ensureFolderPage(dirnameFromPath(document.relativePath));
-    const imported = await createPageFromMarkdown(notebook.id, basenameFromPath(document.relativePath), document.markdown);
+    const fallbackTitle = filename.replace(/\.(md|markdown|txt)$/i, '').trim() || 'Imported page';
     const page = {
-      ...imported.page,
+      ...createPage(notebook.id, fallbackTitle),
       parentId,
       metadata: {
-        ...imported.page.metadata,
-        sourceFilename: document.relativePath
+        ...parsed.metadata,
+        sourceFilename: document.relativePath,
+        frontmatterRaw: parsed.metadata.frontmatterRaw ?? stringifyFrontmatter(parsed.metadata.frontmatter)
       }
     };
     pages.push(page);
-    blocks.push(...imported.blocks);
-    warnings.push(...imported.warnings);
+    const pathKey = normalizeRelativePath(document.relativePath);
+    pageLinks.set(pathKey, page.id);
+    pageLinks.set(pathKey.replace(/\.(md|markdown|txt)$/i, ''), page.id);
+    pageLinks.set(document.relativePath, page.id);
+    pageLinks.set(page.title, page.id);
+    pageLinks.set(`page:${page.id}`, page.id);
+    pageLinks.set(filename, page.id);
+    pageLinks.set(filename.replace(/\.(md|markdown|txt)$/i, ''), page.id);
   }
 
   return {
@@ -1318,9 +1487,63 @@ export const createNotebookFromMarkdownDocuments = async (
       pageIds: pages.map((page) => page.id)
     },
     pages,
+    expandedPageIds,
+    parsedDocuments: parsedDocuments.map(({ document, filename, parsed }) => {
+      const pageId = pageLinks.get(normalizeRelativePath(document.relativePath)) ?? '';
+      return {
+        relativePath: document.relativePath,
+        filename,
+        pageId,
+        body: parsed.body.trim()
+      };
+    }).filter((document) => document.pageId),
+    pageLinks
+  };
+};
+
+export const createBlocksForMarkdownFolderDocument = async (
+  document: MarkdownFolderParsedDocument,
+  pageLinks: Map<string, string>
+) => {
+  const warnings: MarkdownImportWarning[] = [];
+  const body = rewriteWikiLinks(document.body, pageLinks);
+  const blocks = await Promise.all(markdownToBlocks(document.pageId, body, pageLinks, document.relativePath).map(async (block) => {
+    const localized = await localizeMediaAssets(block.content.html, document.filename);
+    warnings.push(...localized.warnings);
+    return {
+      ...block,
+      content: {
+        html: localized.html,
+        plainText: block.content.plainText
+      }
+    };
+  }));
+  return { blocks, warnings };
+};
+
+export const createNotebookFromMarkdownDocuments = async (
+  rootName: string,
+  documents: MarkdownFolderDocument[]
+): Promise<MarkdownFolderImportResult> => {
+  const plan = createMarkdownFolderImportPlan(rootName, documents);
+  const blocks: Block[] = [];
+  const warnings: MarkdownImportWarning[] = [];
+
+  for (const document of plan.parsedDocuments) {
+    const page = plan.pages.find((candidate) => candidate.id === document.pageId);
+    if (!page) continue;
+    const pageBlocks = await createBlocksForMarkdownFolderDocument(document, plan.pageLinks);
+    warnings.push(...pageBlocks.warnings);
+    page.blockIds = pageBlocks.blocks.map((block) => block.id);
+    blocks.push(...pageBlocks.blocks);
+  }
+
+  return {
+    notebook: plan.notebook,
+    pages: plan.pages,
     blocks,
     warnings,
-    expandedPageIds
+    expandedPageIds: plan.expandedPageIds
   };
 };
 

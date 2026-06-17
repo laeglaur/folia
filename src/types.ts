@@ -62,6 +62,7 @@ export interface PageMetadata {
   status?: string;
   aliases: string[];
   frontmatter: Record<string, string | string[]>;
+  frontmatterRaw?: string;
   iconId?: string;
 }
 
@@ -113,4 +114,5 @@ export interface AppState {
   openCardWindowBlockId: string | null;
   expandedPageIds: string[];
   operations: OperationLogEntry[];
+  showPageMetadata: boolean;
 }

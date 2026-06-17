@@ -8,10 +8,11 @@ import {
 import type { Editor } from '@tiptap/react';
 import type { AppState, Block, ContentThemeId, Notebook, OperationLogEntry, Page, ShellId } from './types';
 import {
-  appendOperation,
   createBlock,
   createId,
   createInitialState,
+  createBlocksForMarkdownFolderDocument,
+  createMarkdownFolderImportPlan,
   createNotebookFromMarkdownDocuments,
   createNotebook,
   createPageFromMarkdown,
@@ -72,7 +73,6 @@ import {
   fileRelativePath,
   findBlockMathPositionNear,
   isResizableMediaNode,
-  localDateKey,
   markdownImportFileRegex,
   mediaImportFileRegex,
   monthKey,
@@ -83,6 +83,45 @@ import {
   type OutlineEntry,
   type WorkspaceView
 } from './app-utils';
+import {
+  ancestorsOfPage,
+  applyActiveNotebookToViewState,
+  applyActivePageToViewState,
+  applyBlockDeleteToViewState,
+  applyContentThemeToViewState,
+  applyNotebookDeleteToViewState,
+  applyNotebookDuplicateToViewState,
+  applyNotebookCreateToViewState,
+  applyNotebookIconPackToViewState,
+  applyNotebookIconToViewState,
+  applyNotebookRenameToViewState,
+  applyPageDocumentToViewState,
+  applyPageCreateToViewState,
+  applyPageExpandedToggleToViewState,
+  applyPageIconToViewState,
+  applyMarkdownFilesImportToViewState,
+  applyMarkdownFolderImportToViewState,
+  applyMarkdownFolderPageDocumentToViewState,
+  applyPageMoveToViewState,
+  applyPageNavigationToViewState,
+  applyPageRenameToViewState,
+  applyPageTreeDuplicateToViewState,
+  applyPageTreeDeleteToViewState,
+  applyOpenCardBlockToViewState,
+  applyRestoredPageDocumentToViewState,
+  applyShellToViewState,
+  applyShowPageMetadataToViewState,
+  blocksForCurrentPage,
+  blocksForPage,
+  calendarEntriesFromPayloads,
+  descendantsOfPage,
+  legacyCalendarEntriesFromState,
+  legacyCardModeBlockFromState,
+  legacyOpenCardBlockFromState,
+  legacyPinnedBlocksFromState,
+  mergeNotebookTree,
+  mergePageDocument
+} from './workspace-view-model';
 import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -113,6 +152,7 @@ const cardModeRoundPinnedCards = searchParams.get('roundPinnedCards') !== '0';
 const cardModeGlowPinnedCards = searchParams.get('glowPinnedCards') !== '0';
 const importStressMode = searchParams.has('importStress');
 const disableBrowserPersistence = searchParams.get('persistence') === 'off';
+const folderImportConcurrency = 4;
 
 type ImportedAsset = {
   id: string;
@@ -132,58 +172,6 @@ type IconContextMenuState = {
   target: IconPackDialogRequest['target'];
 };
 
-const mergePageDocument = (state: AppState, document: PageDocumentPayload): AppState => {
-  const pageIndex = state.pages.findIndex((page) => page.id === document.page.id);
-  const nextPageIds = document.content.blocks.map((block) => block.id);
-  if (isTauri()) {
-    const nextPage = {
-      ...(pageIndex < 0 ? document.page : state.pages[pageIndex]),
-      ...document.page,
-      blockIds: nextPageIds,
-      updatedAt: document.page.updatedAt ?? (pageIndex < 0 ? document.page.updatedAt : state.pages[pageIndex].updatedAt)
-    };
-
-    return {
-      ...state,
-      pages: pageIndex < 0
-        ? [...state.pages, nextPage]
-        : state.pages.map((page) => (page.id === document.page.id ? nextPage : page)),
-      blocks: document.content.blocks
-    };
-  }
-
-  const nextBlocksById = new Map(state.blocks.map((block) => [block.id, block]));
-  document.content.blocks.forEach((block) => {
-    nextBlocksById.set(block.id, block);
-  });
-
-  if (pageIndex < 0) {
-    return {
-      ...state,
-      pages: [...state.pages, { ...document.page, blockIds: nextPageIds }],
-      blocks: [...nextBlocksById.values()]
-    };
-  }
-
-  const nextPage = {
-    ...state.pages[pageIndex],
-    ...document.page,
-    blockIds: nextPageIds,
-    updatedAt: document.page.updatedAt ?? state.pages[pageIndex].updatedAt
-  };
-
-  return {
-    ...state,
-    pages: state.pages.map((page) => (page.id === document.page.id ? nextPage : page)),
-    blocks: [...nextBlocksById.values()]
-  };
-};
-
-const blocksForPage = (page: Page, blocks: Block[]) => {
-  const blocksById = new Map(blocks.map((block) => [block.id, block]));
-  return page.blockIds.map((blockId) => blocksById.get(blockId)).filter(Boolean) as Block[];
-};
-
 const isEditorContentEmpty = (html: string, plainText = '') => {
   if (plainText.trim()) return false;
   const container = document.createElement('div');
@@ -192,24 +180,22 @@ const isEditorContentEmpty = (html: string, plainText = '') => {
   return !container.querySelector('img, video, audio, iframe, table, pre, [data-type="block-math"], [data-type="inline-math"]');
 };
 
-const mergeNotebookTree = (state: AppState, tree: NotebookTreePayload): AppState => {
-  const notebookIds = new Set(tree.notebooks.map((notebook) => notebook.id));
-  const pageIds = new Set(tree.pages.map((page) => page.id));
-  const activeNotebookId = notebookIds.has(state.activeNotebookId)
-    ? state.activeNotebookId
-    : tree.notebooks[0]?.id ?? state.activeNotebookId;
-  const activePageId = pageIds.has(state.activePageId)
-    ? state.activePageId
-    : tree.pages.find((page) => page.notebookId === activeNotebookId)?.id ?? tree.pages[0]?.id ?? state.activePageId;
-
-  return {
-    ...state,
-    notebooks: tree.notebooks,
-    pages: tree.pages,
-    activeNotebookId,
-    activePageId,
-    expandedPageIds: state.expandedPageIds.filter((id) => pageIds.has(id))
-  };
+const mapWithConcurrency = async <Item, Result>(
+  items: Item[],
+  limit: number,
+  worker: (item: Item, index: number) => Promise<Result>
+) => {
+  const results: Result[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(Math.max(limit, 1), items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await worker(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 };
 
 export function App() {
@@ -238,6 +224,7 @@ export function App() {
   const [copiedPageId, setCopiedPageId] = useState<string | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [trashBusy, setTrashBusy] = useState(false);
   const [deletedBlockSnapshot, setDeletedBlockSnapshot] = useState<DeletedBlockSnapshot | null>(null);
   const [pageDraftName, setPageDraftName] = useState('');
   const [outlineDrawerOpen, setOutlineDrawerOpen] = useState(true);
@@ -253,6 +240,7 @@ export function App() {
   const markdownInputRef = useRef<HTMLInputElement | null>(null);
   const markdownFolderInputRef = useRef<HTMLInputElement | null>(null);
   const stateRef = useRef(state);
+  const activePageBlocksRef = useRef<Block[]>([]);
   const activePageDocumentRequestRef = useRef(0);
   const cardDocumentRequestRef = useRef(0);
   const pageDocumentSaveTimersRef = useRef<Record<string, number>>({});
@@ -283,7 +271,8 @@ export function App() {
     theme: state.theme,
     contentTheme: state.contentTheme,
     openCardWindowBlockId: state.openCardWindowBlockId,
-    expandedPageIds: state.expandedPageIds
+    expandedPageIds: state.expandedPageIds,
+    showPageMetadata: state.showPageMetadata
   }), [
     state.activeNotebookId,
     state.activePageId,
@@ -291,7 +280,8 @@ export function App() {
     state.theme,
     state.contentTheme,
     state.openCardWindowBlockId,
-    state.expandedPageIds
+    state.expandedPageIds,
+    state.showPageMetadata
   ]);
 
   useEffect(() => {
@@ -410,7 +400,8 @@ export function App() {
             ...fallbackState,
             shell: preferences?.shell ?? fallbackState.shell,
             theme: preferences?.theme ?? fallbackState.theme,
-            contentTheme: preferences?.contentTheme ?? fallbackState.contentTheme
+            contentTheme: preferences?.contentTheme ?? fallbackState.contentTheme,
+            showPageMetadata: preferences?.showPageMetadata ?? fallbackState.showPageMetadata
           });
         } catch (error) {
           console.warn('Could not load pinned card preferences from SQLite.', error);
@@ -458,7 +449,8 @@ export function App() {
         theme: preferences?.theme ?? fallbackState.theme,
         contentTheme: preferences?.contentTheme ?? fallbackState.contentTheme,
         openCardWindowBlockId: preferences?.openCardWindowBlockId ?? fallbackState.openCardWindowBlockId,
-        expandedPageIds: [...new Set([...(preferences?.expandedPageIds ?? fallbackState.expandedPageIds), preferences?.activePageId ?? bootstrap.activePageId].filter(Boolean))]
+        expandedPageIds: [...new Set([...(preferences?.expandedPageIds ?? fallbackState.expandedPageIds), preferences?.activePageId ?? bootstrap.activePageId].filter(Boolean))],
+        showPageMetadata: preferences?.showPageMetadata ?? fallbackState.showPageMetadata
       };
       let activeDocument: PageDocumentPayload | null = null;
       try {
@@ -467,7 +459,7 @@ export function App() {
         console.warn('Could not load active page document from SQLite.', error);
       }
       if (cancelled) return;
-      setState(activeDocument ? mergePageDocument(initialState, activeDocument) : initialState);
+      setState(activeDocument ? mergePageDocument(initialState, activeDocument, isTauri()) : initialState);
       persistenceReadyRef.current = true;
     })();
     return () => {
@@ -506,14 +498,18 @@ export function App() {
   const activeNotebook = state.notebooks.find((notebook) => notebook.id === state.activeNotebookId) ?? state.notebooks[0];
   const activePage = state.pages.find((page) => page.id === state.activePageId) ?? state.pages[0];
   const activeDraft = draftsByPageId[activePage.id] ?? '';
-  const pageBlocks = useMemo(
+  const activePageBlocks = useMemo(
     () => activePage.blockIds.map((blockId) => state.blocks.find((block) => block.id === blockId)).filter(Boolean) as Block[],
     [activePage.blockIds, state.blocks]
   );
   const pageBlockOrder = activePage.blockOrder === 'desc' ? 'desc' : 'asc';
+  useEffect(() => {
+    activePageBlocksRef.current = activePageBlocks;
+  }, [activePageBlocks]);
+
   const orderedPageBlocks = useMemo(
-    () => pageBlockOrder === 'desc' ? [...pageBlocks].reverse() : pageBlocks,
-    [pageBlockOrder, pageBlocks]
+    () => pageBlockOrder === 'desc' ? [...activePageBlocks].reverse() : activePageBlocks,
+    [pageBlockOrder, activePageBlocks]
   );
 
   useEffect(() => {
@@ -528,7 +524,7 @@ export function App() {
           console.warn('Could not localize loaded page media.', error);
         });
       }
-      setState((current) => current.activePageId === document.page.id ? mergePageDocument(current, document) : current);
+      setState((current) => current.activePageId === document.page.id ? mergePageDocument(current, document, isTauri()) : current);
     }).catch((error) => {
       console.warn('Could not load active page document.', error);
     });
@@ -541,45 +537,39 @@ export function App() {
   const calendarMonthKey = monthKey(calendarMonth);
   const calendarEntriesByDate = useMemo(() => {
     if (workspaceView !== 'calendar') return new Map<string, CalendarEntry[]>();
-    if (isTauri()) {
-      const entries = new Map<string, CalendarEntry[]>();
-      calendarBlockPayloads.forEach((entry) => {
-        const key = localDateKey(entry.block.createdAt);
-        if (!key) return;
-        entries.set(key, [...(entries.get(key) ?? []), entry]);
-      });
-      return entries;
-    }
-    const pagesById = new Map(state.pages.filter((page) => page.notebookId === activeNotebook.id).map((page) => [page.id, page]));
-    const entries = new Map<string, CalendarEntry[]>();
-    state.blocks.forEach((block) => {
-      const page = pagesById.get(block.pageId);
-      if (!page) return;
-      const key = localDateKey(block.createdAt);
-      if (!key) return;
-      entries.set(key, [...(entries.get(key) ?? []), { block, page }]);
-    });
-    return entries;
+    return isTauri()
+      ? calendarEntriesFromPayloads(calendarBlockPayloads)
+      : legacyCalendarEntriesFromState(state, activeNotebook.id);
   }, [activeNotebook.id, calendarBlockPayloads, state.blocks, state.pages, workspaceView]);
   const calendarDays = useMemo(() => calendarDaysForMonth(calendarMonth), [calendarMonth]);
   const pinnedBlocks = useMemo(
-    () => isTauri() ? pinnedBlockPayloads.map(({ block }) => block) : state.blocks.filter((block) => block.pinned),
+    () => isTauri() ? pinnedBlockPayloads.map(({ block }) => block) : legacyPinnedBlocksFromState(state),
     [pinnedBlockPayloads, state.blocks]
   );
-  const openCardBlock = isTauri() ? null : state.blocks.find((block) => block.id === state.openCardWindowBlockId) ?? null;
+  const openCardBlock = isTauri() ? null : legacyOpenCardBlockFromState(state);
   const cardModeBlock = cardDocument?.content.blocks.find((block) => block.id === cardModeBlockId)
-    ?? (isTauri() ? null : state.blocks.find((block) => block.id === cardModeBlockId))
+    ?? (isTauri() ? null : legacyCardModeBlockFromState(state, cardModeBlockId))
     ?? null;
   const visibleBlocks = query.trim()
     ? orderedPageBlocks.filter((block) => block.content.plainText.toLowerCase().includes(query.trim().toLowerCase()))
     : orderedPageBlocks;
   const showBlockDividers = state.shell === 'typora-base';
-  const metadataChips = [
+  const metadataChips = state.showPageMetadata ? [
     activePage.metadata?.date,
     activePage.metadata?.status,
     ...(activePage.metadata?.tags ?? []).map((tag) => `#${tag}`),
-    ...(activePage.metadata?.aliases ?? [])
-  ].filter(Boolean) as string[];
+    ...(activePage.metadata?.aliases ?? []),
+    ...Object.entries(activePage.metadata?.frontmatter ?? {})
+      .filter(([key]) => !new Set(['date', 'created', 'status', 'score', 'tags', 'aliases', 'alias', 'title', 'notion-id']).has(key.toLowerCase()))
+      .flatMap(([key, value]) => {
+        const values = Array.isArray(value) ? value : [value];
+        return values
+          .map((item) => String(item).trim())
+          .filter((item) => item && item.length <= 80 && !item.includes('\n'))
+          .map((item) => `${key}: ${item}`);
+      })
+  ].filter(Boolean) as string[] : [];
+  const metadataRaw = state.showPageMetadata ? (activePage.metadata?.frontmatterRaw ?? '').trim() : '';
 
   useEffect(() => {
     let cancelled = false;
@@ -633,14 +623,14 @@ export function App() {
     };
   }, [query]);
 
-  const refreshTrashItems = () => {
+  const refreshTrashItems = async () => {
     if (!isTauri()) return;
-    void listTrashItems(5)
-      .then(setTrashItems)
-      .catch((error) => {
-        console.warn('Could not load trash items.', error);
-        setTrashItems([]);
-      });
+    try {
+      setTrashItems(await listTrashItems(50));
+    } catch (error) {
+      console.warn('Could not load trash items.', error);
+      setTrashItems([]);
+    }
   };
 
   useEffect(() => {
@@ -648,19 +638,11 @@ export function App() {
   }, []);
 
   const setShell = (shell: ShellId) => {
-    setState((current) => ({
-      ...current,
-      shell,
-      theme: shell === 'native-ledger' ? 'ledger' : shell === 'native-garden' ? 'garden' : current.theme
-    }));
+    setState((current) => applyShellToViewState(current, shell));
   };
 
   const setContentTheme = (contentTheme: ContentThemeId) => {
-    setState((current) => ({
-      ...current,
-      contentTheme,
-      shell: contentTheme.startsWith('typora-') ? 'typora-base' : current.shell
-    }));
+    setState((current) => applyContentThemeToViewState(current, contentTheme));
   };
 
   useEffect(() => {
@@ -840,57 +822,26 @@ export function App() {
   };
 
   const setNotebookIconPack = (notebookId: string, pack: NotebookIconPack) => {
-    setState((current) => {
-      const nextNotebook = current.notebooks.find((notebook) => notebook.id === notebookId);
-      if (!nextNotebook) return current;
-      const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, iconPack: pack } };
-      const nextState = {
-        ...current,
-        notebooks: current.notebooks.map((notebook) => notebook.id === notebookId ? updatedNotebook : notebook)
-      };
-      return nextState;
-    });
+    setState((current) => applyNotebookIconPackToViewState(current, notebookId, pack));
   };
 
   const addNotebookIcon = (notebookId: string, icon: NotebookIconAsset) => {
-    setState((current) => {
-      const nextNotebook = current.notebooks.find((notebook) => notebook.id === notebookId);
-      if (!nextNotebook) return current;
-      const pack = nextNotebook.metadata.iconPack ?? { id: createId('icon_pack'), name: nextNotebook.name, icons: [] };
-      const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, iconPack: { ...pack, icons: [...pack.icons, icon] } } };
-      const nextState = {
-        ...current,
-        notebooks: current.notebooks.map((notebook) => notebook.id === notebookId ? updatedNotebook : notebook)
-      };
-      return nextState;
-    });
+    const nextNotebook = stateRef.current.notebooks.find((notebook) => notebook.id === notebookId);
+    if (!nextNotebook) return;
+    const pack = nextNotebook.metadata.iconPack ?? { id: createId('icon_pack'), name: nextNotebook.name, icons: [] };
+    setState((current) => applyNotebookIconPackToViewState(current, notebookId, { ...pack, icons: [...pack.icons, icon] }));
   };
 
   const setPageIcon = (pageId: string, iconId: string | null) => {
-    setState((current) => {
-      const nextPage = current.pages.find((page) => page.id === pageId);
-      if (!nextPage) return current;
-      const updatedPage = { ...nextPage, metadata: { ...nextPage.metadata, iconId: iconId ?? undefined } };
-      const nextState = {
-        ...current,
-        pages: current.pages.map((page) => page.id === pageId ? updatedPage : page)
-      };
-      if (isTauri()) persistPageMetadataUpdate(updatedPage);
-      return nextState;
-    });
+    const nextPage = stateRef.current.pages.find((page) => page.id === pageId);
+    if (!nextPage) return;
+    const updatedPage = { ...nextPage, metadata: { ...nextPage.metadata, iconId: iconId ?? undefined } };
+    setState((current) => applyPageIconToViewState(current, pageId, iconId));
+    if (isTauri()) persistPageMetadataUpdate(updatedPage);
   };
 
   const setNotebookIcon = (notebookId: string, iconId: string | null) => {
-    setState((current) => {
-      const nextNotebook = current.notebooks.find((notebook) => notebook.id === notebookId);
-      if (!nextNotebook) return current;
-      const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, iconId: iconId ?? undefined } };
-      const nextState = {
-        ...current,
-        notebooks: current.notebooks.map((notebook) => notebook.id === notebookId ? updatedNotebook : notebook)
-      };
-      return nextState;
-    });
+    setState((current) => applyNotebookIconToViewState(current, notebookId, iconId));
   };
 
   const openIconContextMenu = (target: IconPackDialogRequest['target'], x: number, y: number) => {
@@ -1071,6 +1022,10 @@ export function App() {
 
   const blockIndex = (blockId: string) => activePage.blockIds.indexOf(blockId);
 
+  const applyPageDocumentToView = (page: Page, blocks: Block[], operation: OperationLogEntry | null) => {
+    setState((current) => applyPageDocumentToViewState(current, page, blocks, operation, isTauri()));
+  };
+
   const jumpToOutlineEntry = (entry: OutlineEntry) => {
     setWorkspaceView('write');
     setOutlineDrawerOpen(false);
@@ -1088,7 +1043,7 @@ export function App() {
   const jumpToBlock = (pageId: string, blockId: string) => {
     saveCurrentComposerDraft();
     setWorkspaceView('write');
-    setState((current) => ({ ...current, activePageId: pageId }));
+    setState((current) => applyActivePageToViewState(current, pageId));
     window.requestAnimationFrame(() => {
       const blockElement = document.getElementById(blockId);
       blockElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1108,16 +1063,12 @@ export function App() {
     const updatedAt = new Date().toISOString();
     const nextPage = { ...activePage, blockIds: nextIds, updatedAt };
     const operation = createOperation({ entity: 'page', entityId: activePage.id, kind: 'page.keyboard_move_block', payload: { blockIds: nextIds } });
-    setState((current) => ({
-      ...current,
-      pages: current.pages.map((page) => (page.id === activePage.id ? nextPage : page)),
-      operations: [...current.operations, operation]
-    }));
-    persistPageDocumentSnapshot(nextPage, state.blocks, operation);
+    applyPageDocumentToView(nextPage, activePageBlocks, operation);
+    persistPageDocumentSnapshot(nextPage, activePageBlocks, operation);
   };
 
   const deleteBlockWithTrash = async (blockId: string) => {
-    const targetBlock = state.blocks.find((block) => block.id === blockId);
+    const targetBlock = activePageBlocks.find((block) => block.id === blockId);
     const targetPage = state.pages.find((page) => page.id === targetBlock?.pageId);
     if (!targetBlock || !targetPage) return false;
     const index = targetPage.blockIds.indexOf(blockId);
@@ -1126,7 +1077,7 @@ export function App() {
     const nextIds = targetPage.blockIds.filter((id) => id !== blockId);
     const updatedAt = new Date().toISOString();
     const nextPage = { ...targetPage, blockIds: nextIds, updatedAt };
-    const nextBlocks = state.blocks.filter((block) => block.id !== blockId);
+    const nextBlocks = activePageBlocks.filter((block) => block.id !== blockId);
     const nextSelectedBlockId = nextIds[Math.min(index, nextIds.length - 1)] ?? null;
     const snapshot = { block: targetBlock, pageId: targetPage.id, index, nextSelectedBlockId };
     const operation = createOperation({
@@ -1148,19 +1099,13 @@ export function App() {
       }
       delete blockEditorRefs.current[blockId];
       setPinnedBlockPayloads((current) => current.filter((payload) => payload.block.id !== blockId));
-      setState((current) => ({
-        ...current,
-        pages: current.pages.map((page) => (page.id === targetPage.id ? nextPage : page)),
-        blocks: current.blocks.filter((block) => block.id !== blockId),
-        openCardWindowBlockId: current.openCardWindowBlockId === blockId ? null : current.openCardWindowBlockId,
-        operations: [...current.operations, operation]
-      }));
+      setState((current) => applyBlockDeleteToViewState(current, nextPage, nextBlocks, blockId, operation, isTauri()));
       if (persisted) {
-        setState((current) => current.activePageId === persisted.page.id ? mergePageDocument(current, persisted) : current);
+        setState((current) => current.activePageId === persisted.page.id ? mergePageDocument(current, persisted, isTauri()) : current);
       } else {
         persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
       }
-      refreshTrashItems();
+      void refreshTrashItems();
     } catch (error) {
       console.warn('Could not persist block delete to SQLite.', error);
       if (isTauri()) {
@@ -1171,15 +1116,9 @@ export function App() {
         });
         return false;
       }
-      setState((current) => ({
-        ...current,
-        pages: current.pages.map((page) => (page.id === targetPage.id ? nextPage : page)),
-        blocks: current.blocks.filter((block) => block.id !== blockId),
-        openCardWindowBlockId: current.openCardWindowBlockId === blockId ? null : current.openCardWindowBlockId,
-        operations: [...current.operations, operation]
-      }));
+      setState((current) => applyBlockDeleteToViewState(current, nextPage, nextBlocks, blockId, operation, isTauri()));
       persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
-      refreshTrashItems();
+      void refreshTrashItems();
     }
     return true;
   };
@@ -1188,7 +1127,8 @@ export function App() {
     const snapshot = deletedBlockSnapshotRef.current;
     if (!snapshot) return false;
     const targetPage = stateRef.current.pages.find((page) => page.id === snapshot.pageId);
-    if (!targetPage || stateRef.current.blocks.some((block) => block.id === snapshot.block.id)) {
+    const targetBlocks = targetPage ? blocksForCurrentPage(targetPage, stateRef.current, activePageBlocksRef.current) : [];
+    if (!targetPage || targetBlocks.some((block) => block.id === snapshot.block.id)) {
       setDeletedBlockSnapshot(null);
       return false;
     }
@@ -1198,7 +1138,7 @@ export function App() {
     const updatedAt = new Date().toISOString();
     const restoredBlock = { ...snapshot.block, updatedAt };
     const nextPage = { ...targetPage, blockIds: restoredIds, updatedAt };
-    const nextBlocks = [...stateRef.current.blocks, restoredBlock];
+    const nextBlocks = [...targetBlocks, restoredBlock];
     const operation = createOperation({
       entity: 'block',
       entityId: restoredBlock.id,
@@ -1212,12 +1152,7 @@ export function App() {
     if (restoredBlock.pinned) {
       setPinnedBlockPayloads((current) => [...current.filter((payload) => payload.block.id !== restoredBlock.id), { page: nextPage, block: restoredBlock }]);
     }
-    setState((current) => ({
-      ...current,
-      pages: current.pages.map((page) => (page.id === targetPage.id ? nextPage : page)),
-      blocks: [...current.blocks, restoredBlock],
-      operations: [...current.operations, operation]
-    }));
+    applyPageDocumentToView(nextPage, nextBlocks, operation);
     persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
     window.setTimeout(() => {
       blockEditorRefs.current[restoredBlock.id]?.commands.focus('start');
@@ -1242,7 +1177,7 @@ export function App() {
     const targetPageId = trashItem.parentId ?? snapshot?.pageId ?? stateRef.current.activePageId;
     const document = targetPageId ? await loadPageDocument(targetPageId) : null;
     if (document) {
-      setState((current) => mergePageDocument(current, document));
+      setState((current) => mergePageDocument(current, document, isTauri()));
       setActiveEditor({ kind: 'block', blockId: trashItem.sourceId });
       window.setTimeout(() => blockEditorRefs.current[trashItem.sourceId]?.commands.focus('start'), 0);
     }
@@ -1264,18 +1199,9 @@ export function App() {
       blockIds: (activePage.blockOrder === 'desc' ? [block.id, ...activePage.blockIds] : [...activePage.blockIds, block.id]),
       updatedAt
     };
-    const nextBlocks = [...state.blocks, block];
+    const nextBlocks = [...activePageBlocks, block];
     const operation = createOperation({ entity: 'block', entityId: block.id, kind: 'block.create', payload: block });
-    setState((current) => ({
-      ...current,
-      blocks: [...current.blocks, block],
-      pages: current.pages.map((page) =>
-        page.id === activePage.id
-          ? { ...page, blockIds: nextPage.blockIds, updatedAt }
-          : page
-      ),
-      operations: [...current.operations, operation]
-    }));
+    applyPageDocumentToView(nextPage, nextBlocks, operation);
     persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
     setDraftsByPageId((current) => {
       const next = { ...current };
@@ -1289,10 +1215,10 @@ export function App() {
   const updateBlock = (blockId: string, html: string, plainText: string) => {
     const cleanHtml = stripOutlineAnchors(html);
     const updatedAt = new Date().toISOString();
-    const targetBlock = state.blocks.find((block) => block.id === blockId);
+    const targetBlock = activePageBlocks.find((block) => block.id === blockId);
     const targetPage = state.pages.find((page) => page.id === targetBlock?.pageId);
     const nextPage = targetPage ? { ...targetPage, updatedAt } : null;
-    const nextBlocks = state.blocks.map((block) =>
+    const nextBlocks = activePageBlocks.map((block) =>
       block.id === blockId ? { ...block, content: { html: cleanHtml, plainText }, updatedAt } : block
     );
     const operation = createOperation({
@@ -1301,14 +1227,7 @@ export function App() {
       kind: 'block.update_content',
       payload: { html: cleanHtml, plainText }
     });
-    setState((current) => ({
-      ...current,
-      blocks: current.blocks.map((block) =>
-        block.id === blockId ? { ...block, content: { html: cleanHtml, plainText }, updatedAt } : block
-      ),
-      pages: current.pages.map((page) => (page.blockIds.includes(blockId) ? { ...page, updatedAt } : page)),
-      operations: [...current.operations, operation]
-    }));
+    if (nextPage) applyPageDocumentToView(nextPage, nextBlocks, operation);
     if (targetBlock?.pinned) {
       setPinnedBlockPayloads((current) => current.map((payload) =>
         payload.block.id === blockId
@@ -1349,22 +1268,15 @@ export function App() {
 
   const toggleBlock = (blockId: string, key: 'collapsed' | 'pinned') => {
     const updatedAt = new Date().toISOString();
-    const targetBlock = state.blocks.find((block) => block.id === blockId);
+    const targetBlock = activePageBlocks.find((block) => block.id === blockId);
     const targetPage = state.pages.find((page) => page.id === targetBlock?.pageId);
-    const nextBlocks = state.blocks.map((block) =>
+    const nextBlocks = activePageBlocks.map((block) =>
       block.id === blockId ? { ...block, [key]: !block[key], updatedAt } : block
     );
     const nextBlock = nextBlocks.find((block) => block.id === blockId) ?? null;
     const nextPage = targetPage ? { ...targetPage, updatedAt } : null;
     const operation = createOperation({ entity: 'block', entityId: blockId, kind: `block.toggle_${key}`, payload: { key } });
-    setState((current) => ({
-      ...current,
-      blocks: current.blocks.map((block) =>
-        block.id === blockId ? { ...block, [key]: !block[key], updatedAt } : block
-      ),
-      pages: current.pages.map((page) => (page.blockIds.includes(blockId) ? { ...page, updatedAt } : page)),
-      operations: [...current.operations, operation]
-    }));
+    if (nextPage) applyPageDocumentToView(nextPage, nextBlocks, operation);
     if (key === 'pinned') {
       setPinnedBlockPayloads((current) => {
         if (!nextBlock || !nextPage) return current.filter((payload) => payload.block.id !== blockId);
@@ -1387,14 +1299,8 @@ export function App() {
       kind: 'page.set_block_order',
       payload: { blockOrder }
     });
-    setState((current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id === activePage.id ? { ...page, blockOrder, updatedAt } : page
-      ),
-      operations: [...current.operations, operation]
-    }));
-    persistPageDocumentSnapshot(nextPage, state.blocks, operation);
+    applyPageDocumentToView(nextPage, activePageBlocks, operation);
+    persistPageDocumentSnapshot(nextPage, activePageBlocks, operation);
   };
 
   const reorderBlock = (sourceId: string, targetId: string) => {
@@ -1409,12 +1315,8 @@ export function App() {
     const updatedAt = new Date().toISOString();
     const nextPage = { ...activePage, blockIds: nextIds, updatedAt };
     const operation = createOperation({ entity: 'page', entityId: activePage.id, kind: 'page.reorder_blocks', payload: { blockIds: nextIds } });
-    setState((current) => ({
-      ...current,
-      pages: current.pages.map((page) => (page.id === activePage.id ? nextPage : page)),
-      operations: [...current.operations, operation]
-    }));
-    persistPageDocumentSnapshot(nextPage, state.blocks, operation);
+    applyPageDocumentToView(nextPage, activePageBlocks, operation);
+    persistPageDocumentSnapshot(nextPage, activePageBlocks, operation);
   };
 
   const createOperation = (entry: Omit<OperationLogEntry, 'id' | 'timestamp'>): OperationLogEntry => ({
@@ -1439,14 +1341,7 @@ export function App() {
       .catch((error) => {
         console.warn('Could not persist notebook create.', error);
       });
-    setState((current) => ({
-      ...current,
-      notebooks: [...current.notebooks, notebookWithPage],
-      pages: [...current.pages, page],
-      activeNotebookId: notebook.id,
-      activePageId: page.id,
-      operations: [...current.operations, operation]
-    }));
+    setState((current) => applyNotebookCreateToViewState(current, notebookWithPage, page, operation));
   };
 
   const persistRename = (entity: 'notebook' | 'page', entityId: string, name: string, operation: OperationLogEntry | null) => {
@@ -1470,11 +1365,7 @@ export function App() {
       payload: { name: nextName }
     });
     persistRename('notebook', notebookId, nextName, operation);
-    setState((current) => ({
-      ...current,
-      notebooks: current.notebooks.map((candidate) => (candidate.id === notebookId ? { ...candidate, name: nextName } : candidate)),
-      operations: [...current.operations, operation]
-    }));
+    setState((current) => applyNotebookRenameToViewState(current, notebookId, nextName, operation));
   };
 
   const persistPageTitle = (pageId: string, title: string) => {
@@ -1499,24 +1390,11 @@ export function App() {
         console.warn('Could not persist page create.', error);
       });
     setSelectedPageId(page.id);
-    setState((current) => ({
-      ...current,
-      pages: [...current.pages, page],
-      notebooks: current.notebooks.map((notebook) =>
-        notebook.id === current.activeNotebookId ? { ...notebook, pageIds: [...notebook.pageIds, page.id] } : notebook
-      ),
-      activePageId: page.id,
-      operations: [...current.operations, operation]
-    }));
+    setState((current) => applyPageCreateToViewState(current, page, current.activeNotebookId, operation));
   };
 
   const togglePageExpanded = (pageId: string) => {
-    setState((current) => ({
-      ...current,
-      expandedPageIds: current.expandedPageIds.includes(pageId)
-        ? current.expandedPageIds.filter((id) => id !== pageId)
-        : [...current.expandedPageIds, pageId]
-    }));
+    setState((current) => applyPageExpandedToggleToViewState(current, pageId));
   };
 
   const movePageUnder = (pageId: string, parentId: string | null) => {
@@ -1539,19 +1417,14 @@ export function App() {
       .catch((error) => {
         console.warn('Could not persist page move.', error);
       });
-    setState((current) => ({
-      ...current,
-      pages: current.pages.map((page) => (page.id === pageId ? { ...page, parentId, updatedAt: new Date().toISOString() } : page)),
-      expandedPageIds: parentId && !current.expandedPageIds.includes(parentId) ? [...current.expandedPageIds, parentId] : current.expandedPageIds,
-      operations: [...current.operations, operation]
-    }));
+    setState((current) => applyPageMoveToViewState(current, pageId, parentId, operation));
   };
 
   const selectPage = (pageId: string) => {
     saveCurrentComposerDraft();
     setSelectedPageId(pageId);
     setWorkspaceView('write');
-    setState((current) => ({ ...current, activePageId: pageId }));
+    setState((current) => applyActivePageToViewState(current, pageId));
   };
 
   const movePageByKeyboard = (pageId: string, outdent: boolean) => {
@@ -1568,46 +1441,33 @@ export function App() {
     if (previousSibling) movePageUnder(page.id, previousSibling.id);
   };
 
-  const descendantsOfPage = (pageId: string, pages: Page[]) => {
-    const childrenByParent = new Map<string | null, Page[]>();
-    pages.forEach((page) => {
-      const key = page.parentId ?? null;
-      childrenByParent.set(key, [...(childrenByParent.get(key) ?? []), page]);
-    });
-    const collected: Page[] = [];
-    const visit = (id: string) => {
-      (childrenByParent.get(id) ?? []).forEach((child) => {
-        collected.push(child);
-        visit(child.id);
-      });
+  useEffect(() => {
+    const handlePageLink = (event: Event) => {
+      const detail = (event as CustomEvent<{ pageId?: string }>).detail;
+      const pageId = detail?.pageId;
+      if (!pageId) return;
+      const targetPage = stateRef.current.pages.find((page) => page.id === pageId);
+      if (!targetPage) return;
+      saveCurrentComposerDraft();
+      setQuery('');
+      setSelectedPageId(pageId);
+      setWorkspaceView('write');
+      setState((current) => applyPageNavigationToViewState(current, pageId));
     };
-    visit(pageId);
-    return collected;
-  };
-
-  const ancestorsOfPage = (pageId: string, pages: Page[]) => {
-    const pagesById = new Map(pages.map((page) => [page.id, page]));
-    const ancestors: Page[] = [];
-    let cursor = pagesById.get(pageId)?.parentId ?? null;
-    while (cursor) {
-      const parent = pagesById.get(cursor);
-      if (!parent) break;
-      ancestors.unshift(parent);
-      cursor = parent.parentId;
-    }
-    return ancestors;
-  };
+    window.addEventListener('notebook:open-page-link', handlePageLink);
+    return () => window.removeEventListener('notebook:open-page-link', handlePageLink);
+  }, []);
 
   const loadSourceBlocksForPages = async (sourcePages: Page[]) => {
     if (!isTauri()) {
-      return new Map(sourcePages.map((page) => [page.id, blocksForPage(page, state.blocks)] as const));
+      return new Map(sourcePages.map((page) => [page.id, blocksForCurrentPage(page, stateRef.current, activePageBlocksRef.current)] as const));
     }
 
     const documents = await loadPageDocuments(sourcePages.map((page) => page.id));
     const documentsByPageId = new Map(documents.map((document) => [document.page.id, document]));
     return new Map(sourcePages.map((page) => [
       page.id,
-      documentsByPageId.get(page.id)?.content.blocks ?? blocksForPage(page, stateRef.current.blocks)
+      documentsByPageId.get(page.id)?.content.blocks ?? blocksForCurrentPage(page, stateRef.current, activePageBlocksRef.current)
     ] as const));
   };
 
@@ -1618,7 +1478,7 @@ export function App() {
     const sourcePages = [rootPage, ...descendantsOfPage(pageId, state.pages)];
     if (isTauri() && sourcePages.some((page) => page.id === activePage.id)) {
       try {
-        await flushPageDocumentSave(activePage, state.blocks);
+        await flushPageDocumentSave(activePage, activePageBlocksRef.current);
       } catch (error) {
         console.warn('Could not flush active page before duplicate.', error);
         return;
@@ -1673,19 +1533,16 @@ export function App() {
       });
     }
 
-    setState((current) => ({
-      ...current,
-      pages: [...current.pages, ...duplicatedPages],
-      blocks: [
-        ...current.blocks.filter((block) => block.pageId !== duplicatedRootId),
-        ...(isTauri() ? duplicatedBlocks.filter((block) => block.pageId === duplicatedRootId) : duplicatedBlocks)
-      ],
-      notebooks: current.notebooks.map((candidate) => (candidate.id === rootPage.notebookId ? updatedNotebook : candidate)),
-      activeNotebookId: rootPage.notebookId,
-      activePageId: duplicatedRootId,
-      expandedPageIds: [...new Set([...current.expandedPageIds, ...duplicatedPages.map((page) => page.id)])],
-      operations: [...current.operations, operation]
-    }));
+    setState((current) => applyPageTreeDuplicateToViewState(
+      current,
+      rootPage.notebookId,
+      updatedNotebook.pageIds,
+      duplicatedPages,
+      duplicatedBlocks,
+      duplicatedRootId,
+      operation,
+      isTauri()
+    ));
     reconcileNotebookTree(persistedTree);
   };
 
@@ -1708,54 +1565,14 @@ export function App() {
     void persistPageTreeDelete({ pageId, fallbackPage, operation })
       .then((tree) => {
         reconcileNotebookTree(tree);
-        refreshTrashItems();
+        void refreshTrashItems();
       })
       .catch((error) => {
         console.warn('Could not persist page tree delete.', error);
       });
     setPinnedBlockPayloads((current) => current.filter((payload) => !deletedPageIds.has(payload.page.id)));
 
-    setState((current) => {
-      const rootPage = current.pages.find((candidate) => candidate.id === pageId);
-      if (!rootPage) return current;
-      const currentDeletedPages = [rootPage, ...descendantsOfPage(pageId, current.pages)];
-      const currentDeletedPageIds = new Set(currentDeletedPages.map((deletedPage) => deletedPage.id));
-      const currentDeletedBlockIds = new Set(currentDeletedPages.flatMap((deletedPage) => deletedPage.blockIds));
-      const currentFallbackPage = current.pages.some((candidate) => candidate.notebookId === rootPage.notebookId && !currentDeletedPageIds.has(candidate.id))
-        ? null
-        : fallbackPage;
-      const remainingPages = [
-        ...current.pages.filter((candidate) => !currentDeletedPageIds.has(candidate.id)),
-        ...(currentFallbackPage ? [currentFallbackPage] : [])
-      ];
-      const remainingNotebooks = current.notebooks.map((notebook) => ({
-        ...notebook,
-        pageIds: [
-          ...notebook.pageIds.filter((id) => !currentDeletedPageIds.has(id)),
-          ...(currentFallbackPage && notebook.id === rootPage.notebookId ? [currentFallbackPage.id] : [])
-        ]
-      }));
-      let activeNotebookId = current.activeNotebookId;
-      let activePageId = current.activePageId;
-      if (currentDeletedPageIds.has(current.activePageId)) {
-        const sameNotebook = remainingPages.find((candidate) => candidate.notebookId === rootPage.notebookId);
-        const fallback = sameNotebook ?? remainingPages[0];
-        if (fallback) {
-          activeNotebookId = fallback.notebookId;
-          activePageId = fallback.id;
-        }
-      }
-      return {
-        ...current,
-        notebooks: remainingNotebooks,
-        pages: remainingPages,
-        blocks: current.blocks.filter((block) => !currentDeletedBlockIds.has(block.id)),
-        activeNotebookId,
-        activePageId,
-        expandedPageIds: current.expandedPageIds.filter((id) => !currentDeletedPageIds.has(id)),
-        operations: [...current.operations, operation]
-      };
-    });
+    setState((current) => applyPageTreeDeleteToViewState(current, pageId, fallbackPage, operation));
   };
 
   const duplicateNotebook = async (notebookId: string) => {
@@ -1764,7 +1581,7 @@ export function App() {
     const sourcePages = state.pages.filter((page) => page.notebookId === notebookId);
     if (isTauri() && sourcePages.some((page) => page.id === activePage.id)) {
       try {
-        await flushPageDocumentSave(activePage, state.blocks);
+        await flushPageDocumentSave(activePage, activePageBlocksRef.current);
       } catch (error) {
         console.warn('Could not flush active page before notebook duplicate.', error);
         return;
@@ -1817,19 +1634,15 @@ export function App() {
       });
     }
 
-    setState((current) => ({
-      ...current,
-      notebooks: [...current.notebooks, notebook],
-      pages: [...current.pages, ...duplicatedPages],
-      blocks: [
-        ...current.blocks.filter((block) => block.pageId !== (notebook.pageIds[0] ?? '')),
-        ...(isTauri() ? duplicatedBlocks.filter((block) => block.pageId === (notebook.pageIds[0] ?? '')) : duplicatedBlocks)
-      ],
-      activeNotebookId: notebook.id,
-      activePageId: notebook.pageIds[0] ?? current.activePageId,
-      expandedPageIds: [...new Set([...current.expandedPageIds, ...duplicatedPages.map((page) => page.id)])],
-      operations: [...current.operations, operation]
-    }));
+    setState((current) => applyNotebookDuplicateToViewState(
+      current,
+      notebook,
+      notebook.pageIds[0] ?? null,
+      duplicatedPages,
+      duplicatedBlocks,
+      operation,
+      isTauri()
+    ));
     reconcileNotebookTree(persistedTree);
   };
 
@@ -1849,32 +1662,14 @@ export function App() {
     void persistNotebookDelete({ notebookId, operation })
       .then((tree) => {
         reconcileNotebookTree(tree);
-        refreshTrashItems();
+        void refreshTrashItems();
       })
       .catch((error) => {
         console.warn('Could not persist notebook delete.', error);
       });
     setPinnedBlockPayloads((current) => current.filter((payload) => payload.page.notebookId !== notebookId));
 
-    setState((current) => {
-      const currentDeletedPages = current.pages.filter((page) => page.notebookId === notebookId);
-      const currentDeletedPageIds = new Set(currentDeletedPages.map((page) => page.id));
-      const currentDeletedBlockIds = new Set(currentDeletedPages.flatMap((page) => page.blockIds));
-      const notebooks = current.notebooks.filter((candidate) => candidate.id !== notebookId);
-      const activeNotebook = current.activeNotebookId === notebookId ? notebooks[0] : current.notebooks.find((candidate) => candidate.id === current.activeNotebookId);
-      const activePageId = activeNotebook?.pageIds.find((id) => !currentDeletedPageIds.has(id)) ?? current.activePageId;
-
-      return {
-        ...current,
-        notebooks,
-        pages: current.pages.filter((page) => !currentDeletedPageIds.has(page.id)),
-        blocks: current.blocks.filter((block) => !currentDeletedBlockIds.has(block.id)),
-        activeNotebookId: activeNotebook?.id ?? notebooks[0]?.id ?? current.activeNotebookId,
-        activePageId,
-        expandedPageIds: current.expandedPageIds.filter((id) => !currentDeletedPageIds.has(id)),
-        operations: [...current.operations, operation]
-      };
-    });
+    setState((current) => applyNotebookDeleteToViewState(current, notebookId, operation));
   };
 
   const handlePageKeyboard = (event: React.KeyboardEvent<HTMLButtonElement>, page: Page) => {
@@ -1965,11 +1760,7 @@ export function App() {
   const renamePage = (title: string) => {
     if (activePage.title === title) return;
     const operation = persistPageTitle(activePage.id, title);
-    setState((current) => ({
-      ...current,
-      pages: current.pages.map((candidate) => (candidate.id === activePage.id ? { ...candidate, title } : candidate)),
-      operations: operation ? [...current.operations, operation] : current.operations
-    }));
+    if (operation) setState((current) => applyPageRenameToViewState(current, activePage.id, title, operation));
   };
 
   const beginPageRename = (page: Page) => {
@@ -1989,11 +1780,7 @@ export function App() {
     const title = pageDraftName.trim() || page.title;
     if (title !== page.title) {
       const operation = persistPageTitle(page.id, title);
-      setState((current) => ({
-        ...current,
-        pages: current.pages.map((candidate) => (candidate.id === page.id ? { ...candidate, title } : candidate)),
-        operations: operation ? [...current.operations, operation] : current.operations
-      }));
+      if (operation) setState((current) => applyPageRenameToViewState(current, page.id, title, operation));
     }
     setEditingPageId(null);
     setPageDraftName('');
@@ -2032,13 +1819,13 @@ export function App() {
   } as const);
 
   const exportMarkdown = () => {
-    const markdown = [`# ${activePage.title}`, '', ...pageBlocks.map((block) => htmlToMarkdown(block.content.html))].join('\n\n');
+    const markdown = [`# ${activePage.title}`, '', ...activePageBlocks.map((block) => htmlToMarkdown(block.content.html))].join('\n\n');
     downloadTextFile(`${activePage.title || 'page'}.md`, markdown, 'text/markdown;charset=utf-8');
   };
 
   const exportJson = async () => {
     try {
-      if (isTauri()) await flushPageDocumentSave(activePage, state.blocks);
+      if (isTauri()) await flushPageDocumentSave(activePage, activePageBlocksRef.current);
       const backupState = isTauri() ? await loadFullBackupState() : state;
       downloadTextFile('notebook-backup.json', JSON.stringify(backupState, null, 2), 'application/json;charset=utf-8');
     } catch (error) {
@@ -2053,7 +1840,7 @@ export function App() {
   const restorePreviousPageVersion = async () => {
     if (!isTauri() || !activePage?.id) return;
     try {
-      await flushPageDocumentSave(activePage, state.blocks);
+      await flushPageDocumentSave(activePage, activePageBlocksRef.current);
       const revisions = await listPageRevisions(activePage.id, 1);
       const latestRevision = revisions[0];
       if (!latestRevision) {
@@ -2071,10 +1858,7 @@ export function App() {
       });
       const restored = await restorePageRevision({ pageId: activePage.id, revisionId: latestRevision.id, operation });
       if (!restored) return;
-      setState((current) => {
-        const merged = mergePageDocument(current, restored);
-        return { ...merged, operations: [...current.operations, operation] };
-      });
+      setState((current) => applyRestoredPageDocumentToViewState(current, restored, operation, isTauri()));
       setPinnedBlockPayloads(await listPinnedBlocks());
       setImportNotice({ kind: 'success', message: `Restored previous version of "${restored.page.title}".` });
     } catch (error) {
@@ -2103,9 +1887,9 @@ export function App() {
           ? item.sourceId
           : stateRef.current.activePageId;
       const document = pageId ? await loadPageDocument(pageId) : null;
-      if (document) setState((current) => mergePageDocument(current, document));
+      if (document) setState((current) => mergePageDocument(current, document, isTauri()));
       setPinnedBlockPayloads(await listPinnedBlocks());
-      refreshTrashItems();
+      void refreshTrashItems();
     } catch (error) {
       setImportNotice({
         kind: 'error',
@@ -2116,16 +1900,20 @@ export function App() {
   };
 
   const emptyTrashItems = async () => {
-    if (!window.confirm('Empty trash permanently?')) return;
     try {
+      setTrashBusy(true);
       await emptyTrash();
       setTrashItems([]);
+      await refreshTrashItems();
+      setImportNotice({ kind: 'success', message: 'Trash emptied.' });
     } catch (error) {
       setImportNotice({
         kind: 'error',
         message: 'Could not empty trash.',
         details: [error instanceof Error ? error.message : String(error)]
       });
+    } finally {
+      setTrashBusy(false);
     }
   };
 
@@ -2174,24 +1962,14 @@ export function App() {
         });
       }
 
-      setState((current) => {
-        const activePageId = importedPageIds[importedPageIds.length - 1] ?? current.activePageId;
-        const activeImportedBlocks = importedBlocks.filter((block) => block.pageId === activePageId);
-
-        return {
-          ...current,
-          pages: [...current.pages, ...imported.map(({ page }) => page)],
-          blocks: isTauri() ? activeImportedBlocks : [...current.blocks, ...importedBlocks],
-          notebooks: current.notebooks.map((notebook) =>
-            notebook.id === current.activeNotebookId
-              ? { ...notebook, pageIds: [...notebook.pageIds, ...importedPageIds] }
-              : notebook
-          ),
-          activePageId,
-          expandedPageIds: [...new Set([...current.expandedPageIds, ...importedPageIds])],
-          operations: [...current.operations, operation]
-        };
-      });
+      setState((current) => applyMarkdownFilesImportToViewState(
+        current,
+        targetNotebook.id,
+        imported.map(({ page }) => page),
+        importedBlocks,
+        operation,
+        isTauri()
+      ));
       reconcileNotebookTree(persistedTree);
 
       const importedBlockCount = imported.reduce((sum, item) => sum + item.blocks.length, 0);
@@ -2237,77 +2015,64 @@ export function App() {
         )
       : new Map<string, File>();
 
-    setImportNotice({ kind: 'loading', message: `Importing folder "${rootName}"...` });
+    setImportNotice({ kind: 'loading', message: `Scanning folder "${rootName}"...` });
 
     try {
       const assetWarnings: string[] = [];
+      const importedAssetCache = new Map<string, Promise<{ src: string; assetId?: string } | null>>();
       const resolveImportedFolderAsset = isTauri()
         ? async (assetPath: string, file: File) => {
-            try {
-              const localPath = (file as File & { path?: string }).path;
-              const imported = localPath
-                ? await invoke<ImportedAsset>('import_local_asset', { sourcePath: localPath })
-                : await invoke<ImportedAsset>('import_asset_bytes', {
-                    filename: file.name,
-                    mimeType: file.type || 'application/octet-stream',
-                    bytes: Array.from(new Uint8Array(await file.arrayBuffer()))
-                  });
-              return { src: convertFileSrc(imported.storedPath), assetId: imported.id };
-            } catch (error) {
-              assetWarnings.push(`${assetPath}: ${error instanceof Error ? error.message : String(error)}`);
-              return null;
-            }
+            const cached = importedAssetCache.get(assetPath);
+            if (cached) return cached;
+            const promise = (async () => {
+              try {
+                const localPath = (file as File & { path?: string }).path;
+                const imported = localPath
+                  ? await invoke<ImportedAsset>('import_local_asset', { sourcePath: localPath })
+                  : await invoke<ImportedAsset>('import_asset_bytes', {
+                      filename: file.name,
+                      mimeType: file.type || 'application/octet-stream',
+                      bytes: Array.from(new Uint8Array(await file.arrayBuffer()))
+                    });
+                return { src: convertFileSrc(imported.storedPath), assetId: imported.id };
+              } catch (error) {
+                assetWarnings.push(`${assetPath}: ${error instanceof Error ? error.message : String(error)}`);
+                return null;
+              }
+            })();
+            importedAssetCache.set(assetPath, promise);
+            return promise;
           }
         : undefined;
-      const documents = await Promise.all(markdownFiles.map(async (file) => {
+      let readDocuments = 0;
+      const documents = await mapWithConcurrency(markdownFiles, folderImportConcurrency, async (file) => {
         const relativePath = stripRoot(fileRelativePath(file));
-        const markdown = await embedImportedAssetMarkdown(await file.text(), relativePath, assetFiles, resolveImportedFolderAsset);
+        const markdown = await file.text();
+        readDocuments += 1;
+        if (readDocuments === markdownFiles.length || readDocuments % 50 === 0) {
+          setImportNotice({
+            kind: 'loading',
+            message: `Scanning folder "${rootName}"... ${readDocuments}/${markdownFiles.length} Markdown files`
+          });
+          await new Promise((resolve) => window.setTimeout(resolve, 0));
+        }
         return { relativePath, markdown };
-      }));
-      const imported = await createNotebookFromMarkdownDocuments(rootName, documents);
-      let persistedTree: NotebookTreePayload | null = null;
-      if (isTauri()) {
-        persistedTree = await persistImportBatch({
-          notebook: imported.notebook,
-          pages: imported.pages,
-          blocks: imported.blocks,
-          operation: {
-            id: createId('op'),
-            timestamp: new Date().toISOString(),
-            entity: 'notebook',
-            entityId: imported.notebook.id,
-            kind: 'notebook.import_markdown_folder',
-            payload: {
-              notebook: imported.notebook,
-              pageCount: imported.pages.length,
-              blockCount: imported.blocks.length,
-              warningCount: assetWarnings.length + imported.warnings.length
-            }
-          }
-        });
-      }
-      const warningDetails = [
-        ...assetWarnings,
-        ...imported.warnings.map((warning) => `${warning.filename}: ${warning.sourcePath} (${warning.message})`)
-      ].slice(0, 4);
-      const warningCount = assetWarnings.length + imported.warnings.length;
-      const activePageId = imported.pages.find((page) => page.blockIds.length)?.id ?? imported.pages[0]?.id ?? state.activePageId;
-      const importedExpandedPageIds = imported.pages.length <= fullExpansionImportPageLimit
-        ? imported.expandedPageIds
-        : ancestorsOfPage(activePageId, imported.pages).map((page) => page.id);
-      const activeImportedBlocks = imported.blocks.filter((block) => block.pageId === activePageId);
-
-      setState((current) => ({
-        ...current,
-        notebooks: [...current.notebooks, imported.notebook],
-        pages: [...current.pages, ...imported.pages],
-        blocks: isTauri()
-          ? activeImportedBlocks
-          : [...current.blocks, ...imported.blocks],
-        activeNotebookId: imported.notebook.id,
-        activePageId,
-        expandedPageIds: [...new Set([...current.expandedPageIds, ...importedExpandedPageIds])],
-        operations: appendOperation(current, {
+      });
+      if (!isTauri()) {
+        const imported = await createNotebookFromMarkdownDocuments(rootName, await mapWithConcurrency(documents, folderImportConcurrency, async (document) => ({
+          ...document,
+          markdown: await embedImportedAssetMarkdown(document.markdown, document.relativePath, assetFiles, resolveImportedFolderAsset)
+        })));
+        const warningDetails = [
+          ...assetWarnings,
+          ...imported.warnings.map((warning) => `${warning.filename}: ${warning.sourcePath} (${warning.message})`)
+        ].slice(0, 4);
+        const warningCount = assetWarnings.length + imported.warnings.length;
+        const activePageId = imported.pages.find((page) => page.blockIds.length)?.id ?? imported.pages[0]?.id ?? state.activePageId;
+        const importedExpandedPageIds = imported.pages.length <= fullExpansionImportPageLimit
+          ? imported.expandedPageIds
+          : ancestorsOfPage(activePageId, imported.pages).map((page) => page.id);
+        const operation = createOperation({
           entity: 'notebook',
           entityId: imported.notebook.id,
           kind: 'notebook.import_markdown_folder',
@@ -2317,15 +2082,101 @@ export function App() {
             blockCount: imported.blocks.length,
             warningCount
           }
-        })
-      }));
+        });
+        setState((current) => applyMarkdownFolderImportToViewState(
+          current,
+          imported.notebook,
+          imported.pages,
+          imported.blocks,
+          activePageId,
+          importedExpandedPageIds,
+          operation,
+          false
+        ));
+        setImportNotice({
+          kind: warningCount ? 'warning' : 'success',
+          message: warningCount
+            ? `Imported folder "${rootName}" with ${imported.pages.length} page${imported.pages.length > 1 ? 's' : ''}, but ${warningCount} local asset${warningCount > 1 ? 's' : ''} could not be copied.`
+            : `Imported folder "${rootName}" with ${imported.pages.length} page${imported.pages.length > 1 ? 's' : ''} and ${imported.blocks.length} block${imported.blocks.length > 1 ? 's' : ''}.`,
+          details: warningDetails
+        });
+        return;
+      }
+
+      const plan = createMarkdownFolderImportPlan(rootName, documents);
+      const activePageId = plan.parsedDocuments[0]?.pageId ?? plan.pages[0]?.id ?? state.activePageId;
+      const importedExpandedPageIds = plan.pages.length <= fullExpansionImportPageLimit
+        ? plan.expandedPageIds
+        : ancestorsOfPage(activePageId, plan.pages).map((page) => page.id);
+      setImportNotice({
+        kind: 'loading',
+        message: `Creating folder "${rootName}"... ${plan.pages.length} pages`
+      });
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+      const importOperation = createOperation({
+        entity: 'notebook',
+        entityId: plan.notebook.id,
+        kind: 'notebook.import_markdown_folder',
+        payload: {
+          notebook: plan.notebook,
+          pageCount: plan.pages.length,
+          blockCount: 0,
+          warningCount: 0
+        }
+      });
+      const persistedTree = await persistImportBatch({
+        notebook: plan.notebook,
+        pages: plan.pages,
+        blocks: [],
+        operation: importOperation
+      });
+      setState((current) => applyMarkdownFolderImportToViewState(
+        current,
+        plan.notebook,
+        plan.pages,
+        [],
+        activePageId,
+        importedExpandedPageIds,
+        importOperation,
+        true
+      ));
       reconcileNotebookTree(persistedTree);
 
+      const blockCountRef = { current: 0 };
+      const documentWarnings: string[] = [];
+      let processedDocuments = 0;
+      await mapWithConcurrency(plan.parsedDocuments, folderImportConcurrency, async (document) => {
+        const embeddedBody = await embedImportedAssetMarkdown(document.body, document.relativePath, assetFiles, resolveImportedFolderAsset);
+        const pageBlocks = await createBlocksForMarkdownFolderDocument({ ...document, body: embeddedBody }, plan.pageLinks);
+        documentWarnings.push(...pageBlocks.warnings.map((warning) => `${warning.filename}: ${warning.sourcePath} (${warning.message})`));
+        const page = plan.pages.find((candidate) => candidate.id === document.pageId);
+        if (!page) return;
+        const nextPage = {
+          ...page,
+          blockIds: pageBlocks.blocks.map((block) => block.id),
+          updatedAt: new Date().toISOString()
+        };
+        page.blockIds = nextPage.blockIds;
+        page.updatedAt = nextPage.updatedAt;
+        blockCountRef.current += pageBlocks.blocks.length;
+        await persistPageDocument({ page: nextPage, blocks: pageBlocks.blocks, operation: null });
+        setState((current) => applyMarkdownFolderPageDocumentToViewState(current, nextPage, pageBlocks.blocks, isTauri()));
+        processedDocuments += 1;
+        if (processedDocuments === plan.parsedDocuments.length || processedDocuments % 10 === 0) {
+          setImportNotice({
+            kind: 'loading',
+            message: `Importing folder "${rootName}"... ${processedDocuments}/${plan.parsedDocuments.length} pages, ${blockCountRef.current} blocks`
+          });
+          await new Promise((resolve) => window.setTimeout(resolve, 0));
+        }
+      });
+      const warningDetails = [...assetWarnings, ...documentWarnings].slice(0, 4);
+      const warningCount = assetWarnings.length + documentWarnings.length;
       setImportNotice({
         kind: warningCount ? 'warning' : 'success',
         message: warningCount
-          ? `Imported folder "${rootName}" with ${imported.pages.length} page${imported.pages.length > 1 ? 's' : ''}, but ${warningCount} local asset${warningCount > 1 ? 's' : ''} could not be copied.`
-          : `Imported folder "${rootName}" with ${imported.pages.length} page${imported.pages.length > 1 ? 's' : ''} and ${imported.blocks.length} block${imported.blocks.length > 1 ? 's' : ''}.`,
+          ? `Imported folder "${rootName}" with ${plan.pages.length} page${plan.pages.length > 1 ? 's' : ''}, but ${warningCount} local asset${warningCount > 1 ? 's' : ''} could not be copied.`
+          : `Imported folder "${rootName}" with ${plan.pages.length} page${plan.pages.length > 1 ? 's' : ''} and ${blockCountRef.current} block${blockCountRef.current > 1 ? 's' : ''}.`,
         details: warningDetails
       });
     } catch (error) {
@@ -2339,7 +2190,7 @@ export function App() {
 
   const openPinnedWindow = async (blockId: string) => {
     if (!isTauri()) {
-      setState((current) => ({ ...current, openCardWindowBlockId: blockId }));
+      setState((current) => applyOpenCardBlockToViewState(current, blockId));
       return;
     }
 
@@ -2558,6 +2409,7 @@ export function App() {
       writeSurface={{
         activePage,
         metadataChips,
+        metadataRaw,
         blockOrder: pageBlockOrder,
         blocks: visibleBlocks,
         draggingBlockId,
@@ -2641,11 +2493,7 @@ export function App() {
   const selectNotebook = (notebook: Notebook) => {
     saveCurrentComposerDraft();
     setWorkspaceView('write');
-    setState((current) => ({
-      ...current,
-      activeNotebookId: notebook.id,
-      activePageId: notebook.pageIds[0] ?? current.activePageId
-    }));
+    setState((current) => applyActiveNotebookToViewState(current, notebook.id, notebook.pageIds[0] ?? null));
   };
 
   const selectSearchResult = (pageId: string) => {
@@ -2655,17 +2503,7 @@ export function App() {
     setQuery('');
     setSelectedPageId(pageId);
     setWorkspaceView('write');
-    setState((current) => ({
-      ...current,
-      activeNotebookId: page.notebookId,
-      activePageId: pageId,
-      expandedPageIds: [
-        ...new Set([
-          ...current.expandedPageIds,
-          ...ancestorsOfPage(pageId, current.pages).map((ancestor) => ancestor.id)
-        ])
-      ]
-    }));
+    setState((current) => applyPageNavigationToViewState(current, pageId));
   };
 
   const notebookActions = {
@@ -2682,6 +2520,7 @@ export function App() {
     showToolbar,
     showComposerFooter,
     showBlockBorders,
+    showPageMetadata: state.showPageMetadata,
     roundPinnedCards,
     glowPinnedCards,
     newestFirst: pageBlockOrder === 'desc',
@@ -2695,6 +2534,7 @@ export function App() {
     onShowToolbarChange: setShowToolbar,
     onShowComposerFooterChange: setShowComposerFooter,
     onShowBlockBordersChange: setShowBlockBorders,
+    onShowPageMetadataChange: (show: boolean) => setState((current) => applyShowPageMetadataToViewState(current, show)),
     onRoundPinnedCardsChange: setRoundPinnedCards,
     onGlowPinnedCardsChange: setGlowPinnedCards,
     onNewestFirstChange: (newestFirst: boolean) => setPageBlockOrder(newestFirst ? 'desc' : 'asc'),
@@ -2710,7 +2550,8 @@ export function App() {
     onOpenNotebookIcons: () => setIconPackRequest({ target: { kind: 'notebook', notebookId: activeNotebook.id } }),
     trashItems,
     onRestoreTrashItem: (trashId: number) => void restoreTrashItemById(trashId),
-    onEmptyTrash: () => void emptyTrashItems()
+    onEmptyTrash: () => void emptyTrashItems(),
+    trashBusy
   };
 
   if (cardModeBlock) {
@@ -2719,7 +2560,7 @@ export function App() {
         void getCurrentWindow().close();
         return;
       }
-      setState((current) => ({ ...current, openCardWindowBlockId: null }));
+      setState((current) => applyOpenCardBlockToViewState(current, null));
     };
     const dragCardWindow = (event: React.MouseEvent<HTMLElement>) => {
       const target = event.target as HTMLElement | null;
@@ -2786,7 +2627,7 @@ export function App() {
     roundPinnedCards,
     glowPinnedCards,
     onOpenPinnedWindow: (blockId: string) => void openPinnedWindow(blockId),
-    onCloseFloatingCard: () => setState((current) => ({ ...current, openCardWindowBlockId: null })),
+    onCloseFloatingCard: () => setState((current) => applyOpenCardBlockToViewState(current, null)),
     onRootPageDrop: (pageId: string) => {
       setSelectedPageId(pageId);
       movePageUnder(pageId, null);

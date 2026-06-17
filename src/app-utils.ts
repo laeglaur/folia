@@ -225,9 +225,46 @@ export const splitImportRoot = (paths: string[]) => {
 
 const videoImportFileRegex = /\.(mp4|mov|webm|m4v)$/i;
 const audioImportFileRegex = /\.(mp3|wav|m4a|aac|ogg|flac)$/i;
+const imageImportFileRegex = /\.(png|jpe?g|gif|webp|avif|svg)$/i;
 
-const resolveImportedAssetPath = (rawPath: string, markdownPath: string, assetPaths: Set<string>) => {
-  const trimmed = rawPath.trim().replace(/^<|>$/g, '');
+const createAssetPathIndex = (paths: Iterable<string>) => {
+  const aliases = new Map<string, string | null>();
+  const addAlias = (alias: string, path: string) => {
+    const normalized = normalizeImportPath(alias);
+    if (!normalized) return;
+    if (!aliases.has(normalized)) {
+      aliases.set(normalized, path);
+      return;
+    }
+    if (aliases.get(normalized) !== path) aliases.set(normalized, null);
+  };
+
+  Array.from(paths).forEach((path) => {
+    const normalized = normalizeImportPath(path);
+    if (!normalized) return;
+    addAlias(normalized, path);
+    const parts = normalized.split('/');
+    parts.forEach((_, index) => {
+      const suffix = parts.slice(index).join('/');
+      if (suffix) addAlias(suffix, path);
+    });
+  });
+  return aliases;
+};
+
+const assetPathFromIndex = (normalizedPath: string, assetPathIndex: Map<string, string | null>) => {
+  const parts = normalizeImportPath(normalizedPath).split('/').filter(Boolean);
+  for (let index = 0; index < parts.length; index += 1) {
+    const candidate = parts.slice(index).join('/');
+    const match = assetPathIndex.get(candidate);
+    if (match) return match;
+    if (match === null) return null;
+  }
+  return null;
+};
+
+const resolveImportedAssetPath = (rawPath: string, markdownPath: string, assetPathIndex: Map<string, string | null>) => {
+  const trimmed = rawPath.trim().replace(/^<|>$/g, '').split('|')[0]?.split('#')[0] ?? '';
   if (!trimmed || /^(?:[a-z]+:|#|data:)/i.test(trimmed)) return null;
   const cleanPath = trimmed.split(/[?#]/)[0] ?? trimmed;
   const decoded = (() => {
@@ -238,9 +275,10 @@ const resolveImportedAssetPath = (rawPath: string, markdownPath: string, assetPa
     }
   })();
   const fromMarkdownDir = normalizeImportPath(`${dirnameFromImportPath(markdownPath)}/${decoded}`);
-  if (assetPaths.has(fromMarkdownDir)) return fromMarkdownDir;
+  const relativeMatch = assetPathFromIndex(fromMarkdownDir, assetPathIndex);
+  if (relativeMatch) return relativeMatch;
   const normalized = normalizeImportPath(decoded);
-  return assetPaths.has(normalized) ? normalized : null;
+  return assetPathFromIndex(normalized, assetPathIndex);
 };
 
 export type ImportedAssetRewrite = {
@@ -261,7 +299,7 @@ export const embedImportedAssetMarkdown = async (
 ) => {
   if (!resolveAsset) return markdown;
 
-  const assetPaths = new Set(assets.keys());
+  const assetPathIndex = createAssetPathIndex(assets.keys());
   const assetCache = new Map<string, ImportedAssetRewrite | null>();
   const assetForPath = async (path: string) => {
     if (assetCache.has(path)) return assetCache.get(path) ?? null;
@@ -280,10 +318,29 @@ export const embedImportedAssetMarkdown = async (
     return `<${tagName} controls ${assetAttributes(asset, assetPath)}${title}></${tagName}>`;
   };
 
-  const imageMatches = Array.from(markdown.matchAll(/!\[([^\]]*)\]\(([^)\n]+)\)/g));
   let rewritten = markdown;
+
+  const wikiEmbedMatches = Array.from(rewritten.matchAll(/!\[\[([^\]\n]+)\]\]/g));
+  for (const match of wikiEmbedMatches) {
+    const target = match[1].split('|')[0]?.trim() ?? '';
+    const label = match[1].split('|').slice(1).join('|').trim();
+    const assetPath = resolveImportedAssetPath(target, markdownPath, assetPathIndex);
+    if (!assetPath) continue;
+    const asset = await assetForPath(assetPath);
+    if (!asset) continue;
+    if (imageImportFileRegex.test(assetPath)) {
+      rewritten = rewritten.replace(match[0], htmlForImage(label || target.split('/').pop() || '', assetPath, asset));
+      continue;
+    }
+    if (videoImportFileRegex.test(assetPath) || audioImportFileRegex.test(assetPath)) {
+      const tagName = videoImportFileRegex.test(assetPath) ? 'video' : 'audio';
+      rewritten = rewritten.replace(match[0], htmlForMedia(tagName, assetPath, asset, label));
+    }
+  }
+
+  const imageMatches = Array.from(rewritten.matchAll(/!\[([^\]]*)\]\(([^)\n]+)\)/g));
   for (const match of imageMatches) {
-    const assetPath = resolveImportedAssetPath(match[2], markdownPath, assetPaths);
+    const assetPath = resolveImportedAssetPath(match[2], markdownPath, assetPathIndex);
     if (!assetPath) continue;
     const asset = await assetForPath(assetPath);
     if (!asset) continue;
@@ -292,7 +349,7 @@ export const embedImportedAssetMarkdown = async (
 
   const linkMatches = Array.from(rewritten.matchAll(/(?<!!)\[([^\]]+)\]\(([^)\n]+)\)/g));
   for (const match of linkMatches) {
-    const assetPath = resolveImportedAssetPath(match[2], markdownPath, assetPaths);
+    const assetPath = resolveImportedAssetPath(match[2], markdownPath, assetPathIndex);
     if (!assetPath || (!videoImportFileRegex.test(assetPath) && !audioImportFileRegex.test(assetPath))) continue;
     const asset = await assetForPath(assetPath);
     if (!asset) continue;
@@ -302,7 +359,7 @@ export const embedImportedAssetMarkdown = async (
 
   const bareMediaMatches = Array.from(rewritten.matchAll(/^[^\S\r\n]*([^\s<>()]+?\.(?:mp4|mov|webm|m4v|mp3|wav|m4a|aac|ogg|flac))[^\S\r\n]*$/gim));
   for (const match of bareMediaMatches) {
-    const assetPath = resolveImportedAssetPath(match[1], markdownPath, assetPaths);
+    const assetPath = resolveImportedAssetPath(match[1], markdownPath, assetPathIndex);
     if (!assetPath) continue;
     const asset = await assetForPath(assetPath);
     if (!asset) continue;

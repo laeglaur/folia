@@ -139,6 +139,8 @@ struct NormalizedAppState {
     expanded_page_ids: Vec<String>,
     #[serde(default)]
     operations: Vec<NormalizedOperationLogEntry>,
+    #[serde(default = "default_true")]
+    show_page_metadata: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -225,6 +227,7 @@ struct WorkspacePreferencesPayload {
     content_theme: String,
     open_card_window_block_id: Option<String>,
     expanded_page_ids: Vec<String>,
+    show_page_metadata: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -237,6 +240,7 @@ struct WorkspacePreferencesRequest {
     content_theme: String,
     open_card_window_block_id: Option<String>,
     expanded_page_ids: Vec<String>,
+    show_page_metadata: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -342,6 +346,10 @@ fn default_normalized_page_content_version() -> u32 {
     1
 }
 
+fn default_true() -> bool {
+    true
+}
+
 fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = app
         .path()
@@ -381,6 +389,7 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               content_theme TEXT NOT NULL DEFAULT 'notebook',
               open_card_window_block_id TEXT,
               expanded_page_ids_json TEXT NOT NULL DEFAULT '[]',
+              show_page_metadata INTEGER NOT NULL DEFAULT 1,
               updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -492,6 +501,12 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
         "notebooks",
         "metadata_json",
         "TEXT NOT NULL DEFAULT '{}'",
+    )?;
+    ensure_column(
+        connection,
+        "workspace_preferences",
+        "show_page_metadata",
+        "INTEGER NOT NULL DEFAULT 1",
     )?;
     ensure_page_block_index_backfilled(connection)?;
     Ok(())
@@ -2343,6 +2358,7 @@ fn read_normalized_state_json(connection: &Connection) -> Result<Option<String>,
         open_card_window_block_id: preferences.open_card_window_block_id,
         expanded_page_ids: preferences.expanded_page_ids,
         operations,
+        show_page_metadata: preferences.show_page_metadata,
     };
 
     serde_json::to_string(&state)
@@ -2355,7 +2371,7 @@ fn read_workspace_preferences(
 ) -> Result<WorkspacePreferencesPayload, String> {
     let preferences_row = connection
         .query_row(
-            "SELECT active_notebook_id, active_page_id, shell, theme, content_theme, open_card_window_block_id, expanded_page_ids_json FROM workspace_preferences WHERE id = 1",
+            "SELECT active_notebook_id, active_page_id, shell, theme, content_theme, open_card_window_block_id, expanded_page_ids_json, show_page_metadata FROM workspace_preferences WHERE id = 1",
             [],
             |row| {
                 Ok((
@@ -2366,6 +2382,7 @@ fn read_workspace_preferences(
                     row.get::<_, String>(4)?,
                     row.get::<_, Option<String>>(5)?,
                     row.get::<_, String>(6)?,
+                    row.get::<_, i64>(7)?,
                 ))
             },
         )
@@ -2393,6 +2410,7 @@ fn read_workspace_preferences(
         content_theme,
         open_card_window_block_id,
         expanded_page_ids,
+        show_page_metadata,
     ) = if let Some((
         active_notebook_id,
         active_page_id,
@@ -2401,6 +2419,7 @@ fn read_workspace_preferences(
         content_theme,
         open_card_window_block_id,
         expanded_page_ids_json,
+        show_page_metadata,
     )) = preferences_row
     {
         (
@@ -2411,6 +2430,7 @@ fn read_workspace_preferences(
             content_theme,
             open_card_window_block_id,
             serde_json::from_str::<Vec<String>>(&expanded_page_ids_json).unwrap_or_default(),
+            show_page_metadata != 0,
         )
     } else {
         (
@@ -2441,6 +2461,7 @@ fn read_workspace_preferences(
                 .as_ref()
                 .map(|state| state.expanded_page_ids.clone())
                 .unwrap_or_default(),
+            true,
         )
     };
     let notebook_exists = if active_notebook_id.is_empty() {
@@ -2514,6 +2535,7 @@ fn read_workspace_preferences(
         content_theme,
         open_card_window_block_id,
         expanded_page_ids,
+        show_page_metadata,
     })
 }
 
@@ -2526,7 +2548,7 @@ fn save_workspace_preferences_in_transaction(
         .map_err(|error| error.to_string())?;
     transaction
         .execute(
-            "INSERT INTO workspace_preferences (id, active_notebook_id, active_page_id, shell, theme, content_theme, open_card_window_block_id, expanded_page_ids_json, updated_at) VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET active_notebook_id = excluded.active_notebook_id, active_page_id = excluded.active_page_id, shell = excluded.shell, theme = excluded.theme, content_theme = excluded.content_theme, open_card_window_block_id = excluded.open_card_window_block_id, expanded_page_ids_json = excluded.expanded_page_ids_json, updated_at = excluded.updated_at",
+            "INSERT INTO workspace_preferences (id, active_notebook_id, active_page_id, shell, theme, content_theme, open_card_window_block_id, expanded_page_ids_json, show_page_metadata, updated_at) VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET active_notebook_id = excluded.active_notebook_id, active_page_id = excluded.active_page_id, shell = excluded.shell, theme = excluded.theme, content_theme = excluded.content_theme, open_card_window_block_id = excluded.open_card_window_block_id, expanded_page_ids_json = excluded.expanded_page_ids_json, show_page_metadata = excluded.show_page_metadata, updated_at = excluded.updated_at",
             params![
                 request.active_notebook_id,
                 request.active_page_id,
@@ -2534,7 +2556,8 @@ fn save_workspace_preferences_in_transaction(
                 request.theme,
                 request.content_theme,
                 request.open_card_window_block_id,
-                serde_json::to_string(&request.expanded_page_ids).map_err(|error| error.to_string())?
+                serde_json::to_string(&request.expanded_page_ids).map_err(|error| error.to_string())?,
+                if request.show_page_metadata { 1 } else { 0 }
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -3211,6 +3234,7 @@ mod tests {
                 page_ids: vec!["page_demo".to_string()],
                 metadata: serde_json::json!({}),
             }],
+            show_page_metadata: true,
             pages: vec![NormalizedPage {
                 id: "page_demo".to_string(),
                 notebook_id: "notebook_demo".to_string(),
@@ -3611,6 +3635,7 @@ mod tests {
             theme: "ledger".to_string(),
             content_theme: "typora-swiss".to_string(),
             expanded_page_ids: vec!["page_demo".to_string()],
+            show_page_metadata: true,
             ..demo_normalized_state()
         };
         connection
@@ -3638,6 +3663,7 @@ mod tests {
             .expect("normalized rebuild");
         let snapshot = NormalizedAppState {
             blocks: vec![],
+            show_page_metadata: true,
             ..demo_normalized_state()
         };
 
@@ -3680,6 +3706,7 @@ mod tests {
                 content_theme: "notebook".to_string(),
                 open_card_window_block_id: None,
                 expanded_page_ids: vec![],
+                show_page_metadata: true,
             },
         )
         .expect("workspace preferences save");
@@ -3708,6 +3735,7 @@ mod tests {
                 content_theme: "typora-swiss".to_string(),
                 open_card_window_block_id: Some("block_a".to_string()),
                 expanded_page_ids: vec!["page_demo".to_string()],
+                show_page_metadata: false,
             },
         )
         .expect("save workspace preferences");
@@ -5029,6 +5057,7 @@ mod tests {
                 content_theme: "typora-swiss".to_string(),
                 open_card_window_block_id: Some("block_b".to_string()),
                 expanded_page_ids: vec!["page_demo".to_string(), "missing_page".to_string()],
+                show_page_metadata: true,
             },
         )
         .expect("save workspace preferences");

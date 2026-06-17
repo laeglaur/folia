@@ -11,9 +11,26 @@ await mkdir(join(folder, 'project-b'), { recursive: true });
 await mkdir(join(largeFolder, 'group'), { recursive: true });
 
 await writeFile(join(folder, 'project-a', 'day.md'), [
+  '---',
+  'Created: 2026-06-17T09:30:00',
+  'Tags:',
+  '  - notion',
+  'Score: ✅✅',
+  '评分: ★★★★',
+  '类型: TV Series',
+  '总结: |-',
+  '  line one',
+  '  line two',
+  'cover: "[[Notion/work-notes/project-a/assets/tiny.png]]"',
+  '---',
+  '',
   '# First line belongs to the body',
   '',
   'Project A keeps **bold** text.',
+  '',
+  'See [[review]] and [Review file](../project-b/review.md).',
+  '',
+  '![[Notion/work-notes/project-a/assets/tiny.png]]',
   '',
   '![tiny](./assets/tiny.png)'
 ].join('\n'));
@@ -47,6 +64,10 @@ await page.reload();
 const folderInput = page.locator('input[webkitdirectory]').first();
 await folderInput.setInputFiles(folder);
 await page.locator('.import-notice.success').waitFor({ state: 'visible' });
+await page.waitForFunction(() => {
+  const storedState = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
+  return Array.isArray(storedState.blocks) && storedState.blocks.length >= 2;
+});
 
 const pageTreeText = await page.locator('.page-tree').innerText();
 const pageHtml = await page.locator('.page-surface').evaluate((node) => node.innerHTML);
@@ -67,7 +88,10 @@ const checks = {
   folderParents: dayPage?.parentId === projectAPage?.id && reviewPage?.parentId === projectBPage?.id,
   filenameTitle: dayPage?.title === 'day' && !storedState.pages?.some((storedPage) => storedPage.title === 'First line belongs to the body'),
   sourceFilename: dayPage?.metadata?.sourceFilename === 'project-a/day.md' && reviewPage?.metadata?.sourceFilename === 'project-b/review.md',
-  relativeImageReference: dayBlock?.content?.html?.includes('src="./assets/tiny.png"') || pageHtml.includes('src="./assets/tiny.png"'),
+  notionMetadata: dayPage?.metadata?.date === '2026-06-17T09:30:00' && dayPage?.metadata?.tags?.includes('notion') && dayPage?.metadata?.status === '✅✅' && dayPage?.metadata?.frontmatter?.评分 === '★★★★' && dayPage?.metadata?.frontmatter?.类型 === 'TV Series' && dayPage?.metadata?.frontmatter?.总结 === 'line one\nline two' && dayPage?.metadata?.frontmatterRaw?.includes('cover: "[[Notion/work-notes/project-a/assets/tiny.png]]"'),
+  relativeImageReference: dayBlock?.content?.html?.includes('src="./assets/tiny.png"') || dayBlock?.content?.html?.includes('src="assets/tiny.png"') || pageHtml.includes('src="./assets/tiny.png"') || pageHtml.includes('src="assets/tiny.png"'),
+  notionWikiImage: dayBlock?.content?.html?.includes('src="Notion/work-notes/project-a/assets/tiny.png"'),
+  pageLinks: dayBlock?.content?.html?.includes(`href="page:${reviewPage?.id}"`) && dayBlock?.content?.html?.includes(`data-page-id="${reviewPage?.id}"`),
   noDataUrlImage: !dayBlock?.content?.html?.includes('src="data:image/png;base64,') && !pageHtml.includes('src="data:image/png;base64,'),
   notice: importNoticeText.includes('Imported folder "work-notes" with 4 pages and 2 blocks')
 };

@@ -8,6 +8,7 @@
     "build": "pnpm build:typora-css && tsc && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test:editor": "node scripts/editor-smoke.mjs",
+    "test:view-model": "node scripts/workspace-view-model-smoke.mjs",
     "test:markdown": "node scripts/markdown-import-smoke.mjs",
     "test:markdown-folder": "node scripts/markdown-folder-import-smoke.mjs",
     "test:markdown-folder:stress": "node scripts/markdown-folder-stress.mjs",

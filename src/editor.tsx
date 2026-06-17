@@ -137,6 +137,11 @@ const dispatchMathEditRequest = (editor: Editor, pos: number) => {
   window.dispatchEvent(new CustomEvent('notebook:edit-block-math', { detail: { editor, pos } }));
 };
 
+const dispatchPageLinkRequest = (pageId: string) => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('notebook:open-page-link', { detail: { pageId } }));
+};
+
 const syncDomSelectionToEditor = (editor: Editor) => {
   const selection = window.getSelection();
   if (!selection?.anchorNode || !editor.view.dom.contains(selection.anchorNode)) return;
@@ -1624,7 +1629,17 @@ function RichEditor({
       },
       handlePaste: (_view, event) => handleRichPaste(editorHolderRef.current, event),
       handleDOMEvents: {
-        copy: (_view, event) => handleRichCopy(editorHolderRef.current, event)
+        copy: (_view, event) => handleRichCopy(editorHolderRef.current, event),
+        click: (_view, event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          const link = target?.closest<HTMLAnchorElement>('a[href^="page:"], a[data-page-id]');
+          if (!link) return false;
+          const pageId = link.dataset.pageId ?? link.getAttribute('href')?.replace(/^page:/, '').split('#')[0] ?? '';
+          if (!pageId) return false;
+          event.preventDefault();
+          dispatchPageLinkRequest(pageId);
+          return true;
+        }
       }
     },
     onFocus: ({ editor }) => {

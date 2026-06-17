@@ -125,20 +125,18 @@ checks.typoraShellSwitches = await page.evaluate(() => Boolean(
   !document.querySelector('.topbar')
 ));
 await page.waitForTimeout(220);
-checks.typoraOutlineClosedByDefault = await page.evaluate(() => {
+checks.typoraOutlineOpenByDefault = await page.evaluate(() => {
   const shell = document.querySelector('.typora-app-shell');
   const drawer = document.querySelector('.outline-drawer');
   if (!(shell instanceof HTMLElement) || !(drawer instanceof HTMLElement)) return false;
-  const shellStyles = getComputedStyle(shell);
   const drawerStyles = getComputedStyle(drawer);
-  return !shell.classList.contains('outline-open') &&
-    drawerStyles.opacity === '0' &&
-    drawerStyles.pointerEvents === 'none' &&
-    shellStyles.gridTemplateColumns.endsWith('0px');
+  return shell.classList.contains('outline-open') &&
+    drawer.classList.contains('is-open') &&
+    drawerStyles.pointerEvents === 'auto' &&
+    drawer.getBoundingClientRect().width > 0;
 });
 
 await page.locator('.fish-desk-trigger').hover();
-await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Outline' }).click();
 await page.setViewportSize({ width: 1240, height: 720 });
 checks.typoraMediumViewportHidesLeftPanelFirst = await page.evaluate(() => {
   const sidebar = document.querySelector('#typora-sidebar');
@@ -551,13 +549,15 @@ checks.typoraEditorChromeBaseOwnsBlockUi = await page.evaluate(() => {
   const writeRect = write.getBoundingClientRect();
   const titleRect = title.getBoundingClientRect();
 
-  return writeStyles.paddingTop === '8px' &&
+  return write.classList.contains('show-block-borders') &&
+    writeStyles.paddingTop === '8px' &&
     titleRect.top - writeRect.top < 16 &&
     Number.parseFloat(titleStyles.fontSize) < 36 &&
     titleStyles.borderRadius === '0px' &&
     blockStyles.backgroundColor === 'rgba(0, 0, 0, 0)' &&
-    blockStyles.borderTopStyle === 'none' &&
-    blockStyles.borderRadius === '0px' &&
+    blockStyles.borderTopStyle === 'solid' &&
+    Number.parseFloat(blockStyles.borderTopWidth) > 0 &&
+    Number.parseFloat(blockStyles.borderRadius) > 0 &&
     blockDivider.classList.contains('block-divider') &&
     composerStyles.backgroundColor === 'rgba(0, 0, 0, 0)' &&
     composerStyles.borderRadius === '0px' &&
@@ -565,6 +565,9 @@ checks.typoraEditorChromeBaseOwnsBlockUi = await page.evaluate(() => {
 });
 
 await composer.click();
+await page.locator('.fish-desk-trigger').hover();
+await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Toolbar' }).click();
+await page.locator('.typora-write .format-toolbar').waitFor({ state: 'visible' });
 checks.typoraEditorToolbarIsCompact = await page.evaluate(() => {
   const toolbar = document.querySelector('.typora-write .format-toolbar');
   if (!(toolbar instanceof HTMLElement)) return false;
@@ -772,7 +775,7 @@ checks.zeusBlockDividerHasOnlyThemeDashedLine = await page.evaluate(() => {
 });
 
 await chooseContentTheme('typora-gruvbox-dark');
-await page.locator('#typora-sidebar .file-node-content:not(.notebook-node)').first().click();
+await page.locator('#typora-sidebar .file-node-content:not(.notebook-node)').first().dblclick();
 checks.typoraDarkRenameAndChromeRemainReadable = await page.evaluate(() => {
   const channels = (value) => {
     const rgb = value.match(/rgba?\(([^)]+)\)/i);
@@ -871,12 +874,15 @@ checks.typoraPinnedPopupCollapseIsCompact = await page.evaluate((expandedHeight)
   const title = document.querySelector('.floating-card-window .floating-card-title');
   if (!(popup instanceof HTMLElement) || !(title instanceof HTMLButtonElement)) return false;
   const collapsedHeight = popup.getBoundingClientRect().height;
+  const header = document.querySelector('.floating-card-window .floating-card-head');
+  const headerHeight = header instanceof HTMLElement ? header.getBoundingClientRect().height : 0;
   const body = document.querySelector('.floating-card-window .floating-card-body');
+  const headerText = document.querySelector('.floating-card-window .floating-card-head')?.textContent ?? '';
   return popup.classList.contains('is-collapsed') &&
     !(body instanceof HTMLElement) &&
     collapsedHeight < expandedHeight &&
-    collapsedHeight <= 44 &&
-    /\S+\s{2}\S+/.test(title.textContent ?? '');
+    collapsedHeight <= headerHeight + 8 &&
+    /\S+\s+\S+/.test(headerText);
 }, popupExpandedHeight);
 await page.locator('.floating-card-title').click();
 await page.waitForFunction(() => document.querySelector('.floating-card-window .floating-card-body'));

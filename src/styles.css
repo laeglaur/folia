@@ -658,6 +658,20 @@ input, select { color: var(--ink); }
   overflow-wrap: anywhere;
 }
 
+.page-frontmatter {
+  flex-basis: 100%;
+  max-width: 100%;
+  margin: 2px 0 0;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--shape-control-radius);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  color: var(--ink);
+  padding: 8px 10px;
+  font: 12px/1.45 var(--mono-font);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .format-toolbar {
   position: relative;
   z-index: 4;

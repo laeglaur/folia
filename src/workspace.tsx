@@ -267,6 +267,7 @@ function BlockItem({
 type WriteSurfaceProps = {
   activePage: Page;
   metadataChips: string[];
+  metadataRaw: string;
   blockOrder: 'asc' | 'desc';
   blocks: Block[];
   draggingBlockId: string | null;
@@ -299,6 +300,7 @@ type WriteSurfaceProps = {
 function WriteSurface({
   activePage,
   metadataChips,
+  metadataRaw,
   blockOrder,
   blocks,
   draggingBlockId,
@@ -333,9 +335,10 @@ function WriteSurface({
   return (
     <section className={`page-surface typora-content-surface typora-write ${showBlockBorders ? 'show-block-borders' : ''}`} id="write">
       <input className="page-title" value={activePage.title} onChange={(event) => onRenamePage(event.target.value)} aria-label="Page title" />
-      {metadataChips.length ? (
+      {metadataChips.length || metadataRaw ? (
         <div className="page-metadata" aria-label="Page metadata">
           {metadataChips.map((chip, index) => <span key={`${chip}-${index}`}>{chip}</span>)}
+          {metadataRaw ? <pre className="page-frontmatter">{metadataRaw}</pre> : null}
         </div>
       ) : null}
 

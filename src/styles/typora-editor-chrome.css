@@ -60,6 +60,20 @@
   padding: 2px 6px;
 }
 
+.typora-app-shell .page-frontmatter {
+  flex-basis: 100%;
+  max-width: 100%;
+  margin: 2px 0 0;
+  border: 1px solid color-mix(in srgb, var(--typora-shell-divider) 78%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--typora-shell-panel) 56%, transparent);
+  color: inherit;
+  padding: 8px 10px;
+  font: 12px/1.45 var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .typora-app-shell .block-list {
   display: grid;
   gap: 8px;

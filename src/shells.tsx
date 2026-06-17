@@ -39,6 +39,7 @@ type ToolControlsProps = {
   showToolbar: boolean;
   showComposerFooter: boolean;
   showBlockBorders: boolean;
+  showPageMetadata: boolean;
   roundPinnedCards: boolean;
   glowPinnedCards: boolean;
   newestFirst: boolean;
@@ -52,6 +53,7 @@ type ToolControlsProps = {
   onShowToolbarChange: (show: boolean) => void;
   onShowComposerFooterChange: (show: boolean) => void;
   onShowBlockBordersChange: (show: boolean) => void;
+  onShowPageMetadataChange: (show: boolean) => void;
   onRoundPinnedCardsChange: (round: boolean) => void;
   onGlowPinnedCardsChange: (glow: boolean) => void;
   onNewestFirstChange: (newestFirst: boolean) => void;
@@ -68,6 +70,7 @@ type ToolControlsProps = {
   trashItems: TrashItemPayload[];
   onRestoreTrashItem: (trashId: number) => void;
   onEmptyTrash: () => void;
+  trashBusy: boolean;
 };
 
 function ToolControls({
@@ -75,6 +78,7 @@ function ToolControls({
   showToolbar,
   showComposerFooter,
   showBlockBorders,
+  showPageMetadata,
   roundPinnedCards,
   glowPinnedCards,
   newestFirst,
@@ -88,6 +92,7 @@ function ToolControls({
   onShowToolbarChange,
   onShowComposerFooterChange,
   onShowBlockBordersChange,
+  onShowPageMetadataChange,
   onRoundPinnedCardsChange,
   onGlowPinnedCardsChange,
   onNewestFirstChange,
@@ -103,13 +108,15 @@ function ToolControls({
   onOpenNotebookIcons,
   trashItems,
   onRestoreTrashItem,
-  onEmptyTrash
+  onEmptyTrash,
+  trashBusy
 }: ToolControlsProps) {
   return (
     <div className={compact ? 'typora-tool-controls' : 'topbar-actions'}>
       <label className="view-toggle"><input type="checkbox" checked={showToolbar} onChange={(event) => onShowToolbarChange(event.target.checked)} /> Toolbar</label>
       <label className="view-toggle"><input type="checkbox" checked={showComposerFooter} onChange={(event) => onShowComposerFooterChange(event.target.checked)} /> Add</label>
       <label className="view-toggle"><input type="checkbox" checked={showBlockBorders} onChange={(event) => onShowBlockBordersChange(event.target.checked)} /> Block borders</label>
+      <label className="view-toggle"><input type="checkbox" checked={showPageMetadata} onChange={(event) => onShowPageMetadataChange(event.target.checked)} /> Metadata</label>
       <label className="view-toggle"><input type="checkbox" checked={roundPinnedCards} onChange={(event) => onRoundPinnedCardsChange(event.target.checked)} /> Round pinned cards</label>
       <label className="view-toggle"><input type="checkbox" checked={glowPinnedCards} onChange={(event) => onGlowPinnedCardsChange(event.target.checked)} /> Glow pinned cards</label>
       <label className="view-toggle">
@@ -191,11 +198,12 @@ function ToolControls({
       <button className="secondary-button" type="button" onClick={onExportJson}><Upload size={15} /> Backup</button>
       <button className="secondary-button" type="button" onClick={onRestorePageVersion}><History size={15} /> Restore page</button>
       <button className="secondary-button" type="button" onClick={onOpenNotebookIcons}><ImagePlus size={15} /> Icons</button>
+      <button className="secondary-button" type="button" onClick={onEmptyTrash} disabled={trashBusy}><Trash2 size={15} /> {trashBusy ? 'Emptying trash' : 'Empty trash'}</button>
       {compact ? (
         <section className="fish-trash">
           <div className="fish-trash-head">
             <span>Trash</span>
-            <button className="mini-button" type="button" onClick={onEmptyTrash} disabled={!trashItems.length} aria-label="Empty trash"><Trash2 size={13} /></button>
+            <button className="mini-button" type="button" onClick={onEmptyTrash} disabled={trashBusy} aria-label={trashBusy ? 'Emptying trash' : 'Empty trash'} title={trashBusy ? 'Emptying trash' : 'Empty trash'}><Trash2 size={13} /></button>
           </div>
           {trashItems.length ? trashItems.map((item) => (
             <button className="fish-trash-item" key={item.id} type="button" onClick={() => onRestoreTrashItem(item.id)} title={`Restore ${item.title}`}>
