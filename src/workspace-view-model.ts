@@ -418,11 +418,17 @@ export const applyPageRenameToViewState = (
 export const applyPageMoveToViewState = (
   current: AppState,
   pageId: string,
+  notebookId: string,
   parentId: string | null,
   operation: OperationLogEntry
 ) => ({
   ...current,
-  pages: current.pages.map((page) => (page.id === pageId ? { ...page, parentId, updatedAt: new Date().toISOString() } : page)),
+  pages: current.pages.map((page) => (page.id === pageId ? { ...page, notebookId, parentId, updatedAt: new Date().toISOString() } : page)),
+  notebooks: current.notebooks.map((notebook) => {
+    const withoutPage = notebook.pageIds.filter((id) => id !== pageId);
+    return notebook.id === notebookId ? { ...notebook, pageIds: [...withoutPage, pageId] } : { ...notebook, pageIds: withoutPage };
+  }),
+  activeNotebookId: current.activePageId === pageId ? notebookId : current.activeNotebookId,
   expandedPageIds: parentId && !current.expandedPageIds.includes(parentId) ? [...current.expandedPageIds, parentId] : current.expandedPageIds,
   operations: [...current.operations, operation]
 });

@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
+  CornerDownRight,
   Trash2
 } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
@@ -171,6 +172,13 @@ type EmojiContextMenuState = {
   target: EmojiPickerRequest['target'];
 };
 
+type PageContextMenuState = {
+  x: number;
+  y: number;
+  pageId: string;
+  moveOpen: boolean;
+};
+
 type PageFindMatch = {
   blockId: string;
   preview: string;
@@ -256,6 +264,7 @@ export function App() {
   const [imageAnnotationRequest, setImageAnnotationRequest] = useState<ImageAnnotationRequest | null>(null);
   const [emojiPickerRequest, setEmojiPickerRequest] = useState<EmojiPickerRequest | null>(null);
   const [emojiContextMenu, setEmojiContextMenu] = useState<EmojiContextMenuState | null>(null);
+  const [pageContextMenu, setPageContextMenu] = useState<PageContextMenuState | null>(null);
   const [showComposerFooter, setShowComposerFooter] = useState(false);
   const [showBlockBorders, setShowBlockBorders] = useState(true);
   const [roundPinnedCards, setRoundPinnedCards] = useState(cardModeBlockId ? cardModeRoundPinnedCards : true);
@@ -290,6 +299,7 @@ export function App() {
   const deletedBlockSnapshotRef = useRef<DeletedBlockSnapshot | null>(null);
 
   const closeEmojiContextMenu = () => setEmojiContextMenu(null);
+  const closePageContextMenu = () => setPageContextMenu(null);
 
   useEffect(() => {
     if (!emojiContextMenu) return;
@@ -304,6 +314,20 @@ export function App() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [emojiContextMenu]);
+
+  useEffect(() => {
+    if (!pageContextMenu) return;
+    const close = () => closePageContextMenu();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', close);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [pageContextMenu]);
 
   useEffect(() => {
     if (cardModeBlockId) return;
@@ -324,6 +348,22 @@ export function App() {
     window.addEventListener('keydown', handlePageFindShortcut, true);
     return () => window.removeEventListener('keydown', handlePageFindShortcut, true);
   }, [pageFindOpen]);
+
+  useEffect(() => {
+    const handleSidebarShortcuts = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
+      if (event.key !== '[' && event.key !== ']') return;
+      const activeElement = document.activeElement as HTMLElement | null;
+      if (activeElement?.closest('input, textarea, select, [contenteditable="true"], .ProseMirror')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === '[') setSidebarCollapsed((collapsed) => !collapsed);
+      if (event.key === ']') setOutlineDrawerOpen((open) => !open);
+    };
+    window.addEventListener('keydown', handleSidebarShortcuts, true);
+    return () => window.removeEventListener('keydown', handleSidebarShortcuts, true);
+  }, []);
 
   const workspacePreferences = useMemo(() => ({
     activeNotebookId: state.activeNotebookId,
@@ -975,6 +1015,14 @@ export function App() {
     setEmojiContextMenu({ target, x: left, y: top });
   };
 
+  const openPageContextMenu = (pageId: string, x: number, y: number) => {
+    const width = 260;
+    const height = 320;
+    const left = Math.max(12, Math.min(x, window.innerWidth - width - 12));
+    const top = Math.max(12, Math.min(y, window.innerHeight - height - 12));
+    setPageContextMenu({ pageId, x: left, y: top, moveOpen: false });
+  };
+
   const saveImageAnnotations = (request: ImageAnnotationRequest, annotations: ImageAnnotationDocument) => {
     const node = request.editor.state.doc.nodeAt(request.pos);
     if (!node || node.type.name !== 'image') {
@@ -1149,18 +1197,56 @@ export function App() {
     setState((current) => applyPageDocumentToViewState(current, page, blocks, operation, isTauri()));
   };
 
+  const scrollOutlineTargetIntoView = (target: Element) => {
+    const workspace = target.closest('.typora-workspace');
+    if (!(workspace instanceof HTMLElement)) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    const targetRect = target.getBoundingClientRect();
+    const workspaceRect = workspace.getBoundingClientRect();
+    const offset = 56;
+    const nextTop = workspace.scrollTop + (targetRect.top - workspaceRect.top) - offset;
+    workspace.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
+  };
+
+  const findOutlineTargetElement = (blockElement: HTMLElement, entry: OutlineEntry) => {
+    const anchored = blockElement.querySelector<HTMLElement>(`[data-outline-id="${CSS.escape(entry.id)}"]`);
+    if (anchored) return anchored;
+    if (entry.kind === 'heading') {
+      const headings = Array.from(blockElement.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6'));
+      return headings[entry.index] ?? blockElement;
+    }
+    if (entry.kind === 'list') {
+      const listItems = Array.from(blockElement.querySelectorAll<HTMLElement>('li'));
+      return listItems[entry.index] ?? blockElement;
+    }
+    return blockElement;
+  };
+
   const jumpToOutlineEntry = (entry: OutlineEntry) => {
     setWorkspaceView('write');
-    setOutlineDrawerOpen(false);
     if (!entry.blockId) {
       document.querySelector<HTMLInputElement>('.page-title')?.focus();
       document.querySelector('.page-surface')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-    const blockElement = document.getElementById(entry.blockId);
-    if (!blockElement) return;
-    const target = blockElement.querySelector(`[data-outline-id="${entry.id}"]`) ?? blockElement;
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.requestAnimationFrame(() => {
+      const tryScroll = (attempt = 0) => {
+        if (attempt === 0) {
+          document.querySelector<HTMLInputElement>('.page-title')?.blur();
+          document.querySelector<HTMLElement>('.typora-workspace')?.focus?.();
+        }
+        const blockElement = document.getElementById(entry.blockId ?? '');
+        if (!blockElement) {
+          if (attempt < 2) window.requestAnimationFrame(() => tryScroll(attempt + 1));
+          return;
+        }
+        const target = findOutlineTargetElement(blockElement, entry);
+        scrollOutlineTargetIntoView(target);
+      };
+      tryScroll();
+    });
   };
 
   const jumpToBlock = (pageId: string, blockId: string) => {
@@ -1535,8 +1621,16 @@ export function App() {
     setState((current) => applyPageExpandedToggleToViewState(current, pageId));
   };
 
-  const movePageUnder = (pageId: string, parentId: string | null) => {
+  const movePageToPath = (pageId: string, notebookId: string, parentId: string | null) => {
     if (pageId === parentId) return;
+    const targetNotebook = state.notebooks.find((notebook) => notebook.id === notebookId);
+    if (!targetNotebook) return;
+    const page = state.pages.find((candidate) => candidate.id === pageId);
+    if (!page) return;
+    if (parentId) {
+      const parent = state.pages.find((candidate) => candidate.id === parentId);
+      if (!parent || parent.notebookId !== notebookId) return;
+    }
     let cursor = parentId;
     while (cursor) {
       const parent = state.pages.find((page) => page.id === cursor);
@@ -1548,14 +1642,23 @@ export function App() {
       entity: 'page',
       entityId: pageId,
       kind: 'page.move',
-      payload: { parentId }
+      payload: { notebookId, parentId }
     });
-    void persistPageMove({ pageId, parentId, operation })
+    void persistPageMove({ pageId, notebookId, parentId, operation })
       .then(reconcileNotebookTree)
       .catch((error) => {
         console.warn('Could not persist page move.', error);
       });
-    setState((current) => applyPageMoveToViewState(current, pageId, parentId, operation));
+    setState((current) => applyPageMoveToViewState(current, pageId, notebookId, parentId, operation));
+  };
+
+  const movePageUnder = (pageId: string, parentId: string | null) => {
+    const page = state.pages.find((candidate) => candidate.id === pageId);
+    if (!page) return;
+    const notebookId = parentId
+      ? state.pages.find((candidate) => candidate.id === parentId)?.notebookId ?? page.notebookId
+      : page.notebookId;
+    movePageToPath(pageId, notebookId, parentId);
   };
 
   const selectPage = (pageId: string) => {
@@ -2425,7 +2528,7 @@ export function App() {
                 onContextMenu={(event) => {
                   event.preventDefault();
                   selectPage(page.id);
-                  openEmojiContextMenu({ kind: 'page', pageId: page.id }, event.clientX, event.clientY);
+                  openPageContextMenu(page.id, event.clientX, event.clientY);
                 }}
                 type="button"
               >
@@ -2513,7 +2616,7 @@ export function App() {
                 onContextMenu={(event) => {
                   event.preventDefault();
                   selectPage(page.id);
-                  openEmojiContextMenu({ kind: 'page', pageId: page.id }, event.clientX, event.clientY);
+                  openPageContextMenu(page.id, event.clientX, event.clientY);
                 }}
                 type="button"
               >
@@ -2843,6 +2946,103 @@ export function App() {
           >
             Clear emoji
           </button>
+        </div>
+      ) : null}
+      {pageContextMenu ? (
+        <div
+          className="emoji-context-menu page-context-menu"
+          style={{ left: pageContextMenu.x, top: pageContextMenu.y }}
+          onPointerDown={(event) => event.stopPropagation()}
+          role="menu"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setEmojiPickerRequest({ target: { kind: 'page', pageId: pageContextMenu.pageId } });
+              closePageContextMenu();
+            }}
+          >
+            Set emoji
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              beginPageRename(state.pages.find((page) => page.id === pageContextMenu.pageId)!);
+              closePageContextMenu();
+            }}
+          >
+            Rename
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              const page = state.pages.find((candidate) => candidate.id === pageContextMenu.pageId);
+              if (page) {
+                setSelectedPageId(page.id);
+                void duplicatePageTree(page.id);
+              }
+              closePageContextMenu();
+            }}
+          >
+            Duplicate
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              const page = state.pages.find((candidate) => candidate.id === pageContextMenu.pageId);
+              if (page) {
+                setSelectedPageId(page.id);
+                deletePageTree(page.id);
+              }
+              closePageContextMenu();
+            }}
+          >
+            Delete
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => setPageContextMenu((current) => current ? { ...current, moveOpen: !current.moveOpen } : current)}
+          >
+            Move to
+          </button>
+          {pageContextMenu.moveOpen ? (
+            <div className="page-move-menu">
+              {state.notebooks.map((notebook) => (
+                <div key={notebook.id} className="page-move-group">
+                  <button
+                    type="button"
+                    className="page-move-item"
+                    onClick={() => {
+                      movePageToPath(pageContextMenu.pageId, notebook.id, null);
+                      closePageContextMenu();
+                    }}
+                  >
+                    <CornerDownRight size={13} />
+                    <span>{notebook.name}</span>
+                  </button>
+                  {state.pages.filter((page) => page.notebookId === notebook.id && page.id !== pageContextMenu.pageId).map((page) => (
+                    <button
+                      key={page.id}
+                      type="button"
+                      className="page-move-item"
+                      onClick={() => {
+                        movePageToPath(pageContextMenu.pageId, notebook.id, page.id);
+                        closePageContextMenu();
+                      }}
+                    >
+                      <CornerDownRight size={13} />
+                      <span>{page.title}</span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
       <ImageAnnotationEditor request={imageAnnotationRequest} onSave={saveImageAnnotations} onClose={() => setImageAnnotationRequest(null)} />

@@ -1658,7 +1658,6 @@ const todoInputRegex = /^\s*(\[\]|【】)\s$/;
 const codeBlockInputRegex = /^\s*(```|\/code)\s$/;
 const tableInputRegex = /^\s*(\/table|\[\[\[)\s$/;
 const blockMathInputRegex = /^\s*(\$\$|\/math)\s$/;
-const blockquoteInputRegex = /^\s*(>|\/quote)\s$/;
 const inlineMathInputRegex = /\$([^$\n]+?)\$$/;
 const embeddedLinkInputRegex = /^\s*\/link\s$/;
 const attachmentInputRegex = /^\s*\/at\s$/;
@@ -1755,13 +1754,6 @@ const BracketTodoInput = Extension.create({
         }
       }),
       new InputRule({
-        find: blockquoteInputRegex,
-        handler: ({ range, commands }) => {
-          commands.deleteRange(range);
-          commands.toggleBlockquote();
-        }
-      }),
-      new InputRule({
         find: embeddedLinkInputRegex,
         handler: ({ range, commands }) => {
           commands.deleteRange(range);
@@ -1819,7 +1811,17 @@ const NotebookShortcuts = Extension.create<{
 
     return {
       'Mod-h': () => this.editor.commands.toggleHighlight(),
-      Space: () => replaceCurrentParagraph(this.editor, 'blockquote') || replaceCurrentParagraph(this.editor, 'blockMath'),
+      Space: () => {
+        syncDomSelectionToEditor(this.editor);
+        const { state } = this.editor;
+        const { $from } = state.selection;
+        if ($from.parent.type.name !== 'paragraph') return false;
+        const text = $from.parent.textContent.trim();
+        if (replaceCurrentParagraph(this.editor, 'blockquote')) return true;
+        if (replaceCurrentParagraph(this.editor, 'blockMath')) return true;
+        if (!['>', '/quote'].includes(text)) return false;
+        return this.editor.chain().deleteRange({ from: $from.start(), to: $from.end() }).toggleBlockquote().run();
+      },
       Enter: () => {
         syncDomSelectionToEditor(this.editor);
         const { state } = this.editor;

@@ -265,6 +265,7 @@ struct RenameEntityRequest {
 #[serde(rename_all = "camelCase")]
 struct MovePageRequest {
     page_id: String,
+    notebook_id: String,
     parent_id: Option<String>,
     operation: Option<NormalizedOperationLogEntry>,
 }
@@ -1546,8 +1547,33 @@ fn move_page_in_transaction(
     if !page_exists {
         return Err(format!("Page not found: {}", request.page_id));
     }
+    let target_notebook_exists = transaction
+        .query_row(
+            "SELECT COUNT(*) FROM notebooks WHERE id = ?1",
+            params![request.notebook_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| error.to_string())?
+        > 0;
+    if !target_notebook_exists {
+        return Err(format!("Notebook not found: {}", request.notebook_id));
+    }
 
     if let Some(parent_id) = &request.parent_id {
+        let parent_notebook_id = transaction
+            .query_row(
+                "SELECT notebook_id FROM pages WHERE id = ?1",
+                params![parent_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|error| error.to_string())?;
+        let Some(parent_notebook_id) = parent_notebook_id else {
+            return Err(format!("Parent page not found: {parent_id}"));
+        };
+        if parent_notebook_id != request.notebook_id {
+            return Err("Parent page must be in the target notebook".to_string());
+        }
         let mut cursor = Some(parent_id.clone());
         while let Some(current_id) = cursor {
             if current_id == request.page_id {
@@ -1562,28 +1588,46 @@ fn move_page_in_transaction(
                 .optional()
                 .map_err(|error| error.to_string())?
                 .flatten();
-            if cursor.is_none() {
-                let parent_exists = transaction
-                    .query_row(
-                        "SELECT COUNT(*) FROM pages WHERE id = ?1",
-                        params![parent_id],
-                        |row| row.get::<_, i64>(0),
-                    )
-                    .map_err(|error| error.to_string())?
-                    > 0;
-                if !parent_exists {
-                    return Err(format!("Parent page not found: {parent_id}"));
-                }
-            }
         }
     }
 
-    transaction
-        .execute(
-            "UPDATE pages SET parent_id = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
-            params![request.parent_id, request.page_id],
+    let current_notebook_id = transaction
+        .query_row(
+            "SELECT notebook_id FROM pages WHERE id = ?1",
+            params![request.page_id],
+            |row| row.get::<_, String>(0),
         )
         .map_err(|error| error.to_string())?;
+
+    transaction
+        .execute(
+            "UPDATE pages SET notebook_id = ?1, parent_id = ?2, updated_at = CURRENT_TIMESTAMP WHERE id = ?3",
+            params![request.notebook_id, request.parent_id, request.page_id],
+        )
+        .map_err(|error| error.to_string())?;
+
+    let mut notebook_ids = vec![current_notebook_id];
+    if !notebook_ids.iter().any(|id| id == &request.notebook_id) {
+        notebook_ids.push(request.notebook_id.clone());
+    }
+    for notebook_id in notebook_ids {
+        let page_ids: Vec<String> = transaction
+            .prepare("SELECT id FROM pages WHERE notebook_id = ?1 ORDER BY created_at ASC, rowid ASC")
+            .map_err(|error| error.to_string())?
+            .query_map(params![notebook_id], |row| row.get::<_, String>(0))
+            .map_err(|error| error.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| error.to_string())?;
+        transaction
+            .execute(
+                "UPDATE notebooks SET page_ids_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+                params![
+                    serde_json::to_string(&page_ids).map_err(|error| error.to_string())?,
+                    notebook_id
+                ],
+            )
+            .map_err(|error| error.to_string())?;
+    }
 
     if let Some(operation) = &request.operation {
         insert_operation(&transaction, operation)?;
@@ -4072,6 +4116,7 @@ mod tests {
             &mut connection,
             &MovePageRequest {
                 page_id: "page_parent".to_string(),
+                notebook_id: "notebook_move".to_string(),
                 parent_id: Some("page_child".to_string()),
                 operation: None,
             },
@@ -4082,6 +4127,7 @@ mod tests {
             &mut connection,
             &MovePageRequest {
                 page_id: "page_child".to_string(),
+                notebook_id: "notebook_move".to_string(),
                 parent_id: None,
                 operation: Some(NormalizedOperationLogEntry {
                     id: "op_move_page".to_string(),

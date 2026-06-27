@@ -900,6 +900,7 @@ export type RenameEntityRequest = {
 
 export type MovePageRequest = {
   pageId: string;
+  notebookId: string;
   parentId: string | null;
   operation: OperationLogEntry | null;
 };

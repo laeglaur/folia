@@ -269,6 +269,43 @@ input, select { color: var(--ink); }
   cursor: not-allowed;
 }
 
+.page-context-menu {
+  min-width: 220px;
+}
+
+.page-move-menu {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  max-height: 220px;
+  overflow: auto;
+}
+
+.page-move-group {
+  display: grid;
+  gap: 2px;
+}
+
+.page-move-item {
+  width: 100%;
+  min-height: 28px;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.page-move-item:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 .emoji-picker-backdrop {
   position: fixed;
   inset: 0;
@@ -837,8 +874,8 @@ input, select { color: var(--ink); }
 }
 
 .page-title-emoji {
-  width: clamp(24px, calc(var(--title-size) * 0.68), 36px);
-  height: clamp(24px, calc(var(--title-size) * 0.68), 36px);
+  width: clamp(28px, calc(var(--title-size) * 0.8), 42px);
+  height: clamp(28px, calc(var(--title-size) * 0.8), 42px);
   align-self: center;
 }
 
