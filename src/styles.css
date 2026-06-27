@@ -245,7 +245,7 @@ input, select { color: var(--ink); }
   gap: 4px;
   border: var(--floating-layer-border);
   border-radius: var(--floating-layer-radius);
-  background: color-mix(in srgb, var(--floating-layer-background) 94%, var(--bg) 6%);
+  background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg) 12%);
   color: var(--ink);
   box-shadow: var(--floating-layer-shadow);
 }
@@ -385,7 +385,7 @@ input, select { color: var(--ink); }
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   border: var(--floating-layer-border);
   border-radius: var(--floating-layer-radius);
-  background: color-mix(in srgb, var(--floating-layer-background) 94%, var(--bg) 6%);
+  background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg) 12%);
   color: var(--ink);
   box-shadow: var(--floating-layer-shadow);
   overflow: hidden;
@@ -739,7 +739,7 @@ input, select { color: var(--ink); }
   padding: 6px;
   border: var(--floating-layer-border);
   border-radius: var(--floating-layer-radius);
-  background: color-mix(in srgb, var(--floating-layer-background) 94%, var(--bg) 6%);
+  background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg) 12%);
   box-shadow: var(--floating-layer-shadow);
   color: var(--ink);
 }
@@ -802,7 +802,7 @@ input, select { color: var(--ink); }
   padding: 8px 10px;
   border: var(--floating-layer-border);
   border-radius: var(--floating-layer-radius);
-  background: color-mix(in srgb, var(--floating-layer-background) 94%, var(--bg) 6%);
+  background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg) 12%);
   box-shadow: var(--floating-layer-shadow);
   color: var(--ink);
 }
@@ -1035,7 +1035,7 @@ input, select { color: var(--ink); }
   padding: 3px;
   border: var(--floating-layer-border);
   border-radius: var(--floating-layer-radius);
-  background: color-mix(in srgb, var(--floating-layer-background) 94%, var(--bg) 6%);
+  background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg) 12%);
   box-shadow: var(--floating-layer-shadow);
 }
 
@@ -1072,7 +1072,7 @@ input, select { color: var(--ink); }
   padding: 5px 6px;
   border: var(--floating-layer-border);
   border-radius: var(--floating-layer-radius);
-  background: color-mix(in srgb, var(--floating-layer-background) 94%, var(--bg) 6%);
+  background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg) 12%);
   box-shadow: var(--floating-layer-shadow);
 }
 
@@ -1129,7 +1129,7 @@ input, select { color: var(--ink); }
 .block:hover,
 .block:focus-within {
   border-color: var(--line);
-  background: var(--block-hover-background);
+  background: var(--block-surface-background, transparent);
   box-shadow: var(--block-hover-shadow);
 }
 
@@ -1220,7 +1220,7 @@ input, select { color: var(--ink); }
 
 .typora-theme .desktop-card {
   color: var(--desktop-card-ink);
-  background: color-mix(in srgb, var(--desktop-card-background) 96%, var(--bg) 4%);
+  background: color-mix(in srgb, var(--desktop-card-background) 90%, var(--bg) 10%);
   font-size: var(--desktop-card-font-size);
   line-height: var(--desktop-card-line-height);
 }
