@@ -199,6 +199,7 @@ function BlockItem({
     <article
       className={`block ${block.collapsed ? 'is-collapsed' : ''} ${draggingBlockId === block.id ? 'is-dragging' : ''}`}
       id={block.id}
+      data-block-id={block.id}
       onClick={expandCollapsedBlock}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {

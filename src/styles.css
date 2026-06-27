@@ -547,6 +547,67 @@ input, select { color: var(--ink); }
   padding: 8px;
 }
 
+.page-find-popover {
+  position: fixed;
+  z-index: 220;
+  top: 18px;
+  right: 22px;
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) auto;
+  gap: 6px 10px;
+  align-items: center;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  box-shadow: var(--surface-shadow);
+  color: var(--ink);
+}
+
+.page-find-popover input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 0 9px;
+  outline: 0;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.page-find-popover input:focus {
+  border-color: var(--accent);
+}
+
+.page-find-count {
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.page-find-preview {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.block.is-page-find-match {
+  outline: 2px solid var(--theme-highlight);
+  outline-offset: 4px;
+  background: color-mix(in srgb, var(--theme-highlight) 11%, transparent);
+}
+
+.page-find-text-match {
+  border-radius: 3px;
+  background: var(--theme-highlight);
+  color: var(--theme-highlight-ink);
+}
+
 .topbar-actions { display: flex; align-items: center; gap: var(--topbar-actions-gap); }
 
 .view-toggle {
@@ -1481,6 +1542,22 @@ input, select { color: var(--ink); }
   height: 100%;
   pointer-events: none;
   overflow: visible;
+}
+
+.ProseMirror-selectednode,
+.block-content .ProseMirror-selectednode,
+.composer .ProseMirror-selectednode,
+.floating-card-body .ProseMirror-selectednode,
+.desktop-card .ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: max(4px, var(--media-radius));
+}
+
+.ProseMirror-selectednode table,
+table.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .image-annotation-svg .is-selected {

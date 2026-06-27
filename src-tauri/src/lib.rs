@@ -302,6 +302,14 @@ struct UpdatePageMetadataRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct UpdateNotebookMetadataRequest {
+    notebook_id: String,
+    metadata: serde_json::Value,
+    operation: Option<NormalizedOperationLogEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct RestorePageRevisionRequest {
     page_id: String,
     revision_id: i64,
@@ -1737,6 +1745,35 @@ fn update_page_metadata_in_transaction(
     transaction.commit().map_err(|error| error.to_string())
 }
 
+fn update_notebook_metadata_in_transaction(
+    connection: &mut Connection,
+    request: &UpdateNotebookMetadataRequest,
+) -> Result<(), String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    let affected = transaction
+        .execute(
+            "
+            UPDATE notebooks
+            SET metadata_json = ?1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?2
+            ",
+            params![
+                serde_json::to_string(&request.metadata).map_err(|error| error.to_string())?,
+                request.notebook_id
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+    if affected == 0 {
+        return Err(format!("Notebook not found: {}", request.notebook_id));
+    }
+    if let Some(operation) = &request.operation {
+        insert_operation(&transaction, operation)?;
+    }
+    transaction.commit().map_err(|error| error.to_string())
+}
+
 fn list_page_revisions_from_database(
     connection: &Connection,
     page_id: &str,
@@ -2973,6 +3010,19 @@ fn update_page_metadata(
 }
 
 #[tauri::command]
+fn update_notebook_metadata(
+    app: AppHandle,
+    request: UpdateNotebookMetadataRequest,
+) -> Result<NotebookTreePayload, String> {
+    let mut connection = open_database(&app)?;
+    update_notebook_metadata_in_transaction(&mut connection, &request)?;
+    Ok(NotebookTreePayload {
+        notebooks: list_notebooks_from_database(&connection)?,
+        pages: list_pages_from_database(&connection)?,
+    })
+}
+
+#[tauri::command]
 fn save_page_document(
     app: AppHandle,
     request: SavePageDocumentRequest,
@@ -3195,6 +3245,7 @@ pub fn run() {
             create_notebook,
             create_page,
             update_page_metadata,
+            update_notebook_metadata,
             save_page_document,
             list_page_revisions,
             restore_page_revision,

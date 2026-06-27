@@ -37,6 +37,7 @@ import {
   persistPageCreate,
   persistPageDocument,
   persistPageMetadata,
+  persistNotebookMetadata,
   persistPageTreeDelete,
   persistNotebookDelete,
   persistPageMove,
@@ -172,6 +173,44 @@ type IconContextMenuState = {
   target: IconPackDialogRequest['target'];
 };
 
+type PageFindMatch = {
+  blockId: string;
+  preview: string;
+};
+
+const clearPageFindTextMarks = () => {
+  document.querySelectorAll('mark.page-find-text-match').forEach((mark) => {
+    const parent = mark.parentNode;
+    while (mark.firstChild) parent?.insertBefore(mark.firstChild, mark);
+    mark.remove();
+    parent?.normalize();
+  });
+};
+
+const highlightTextInElement = (element: HTMLElement, query: string) => {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return;
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const parent = node.parentElement;
+      if (!parent || parent.closest('script, style, textarea, input, mark.page-find-text-match')) {
+        return NodeFilter.FILTER_REJECT;
+      }
+      return node.textContent?.toLowerCase().includes(needle) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    }
+  });
+  const textNode = walker.nextNode();
+  const text = textNode?.textContent ?? '';
+  const index = text.toLowerCase().indexOf(needle);
+  if (!textNode || index < 0) return;
+  const range = document.createRange();
+  range.setStart(textNode, index);
+  range.setEnd(textNode, index + needle.length);
+  const mark = document.createElement('mark');
+  mark.className = 'page-find-text-match';
+  range.surroundContents(mark);
+};
+
 const isEditorContentEmpty = (html: string, plainText = '') => {
   if (plainText.trim()) return false;
   const container = document.createElement('div');
@@ -202,6 +241,9 @@ export function App() {
   const [state, setState] = useState<AppState>(() => (cardModeBlockId && isTauri() ? createInitialState() : loadState()));
   const [draftsByPageId, setDraftsByPageId] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
+  const [pageFindOpen, setPageFindOpen] = useState(false);
+  const [pageFindQuery, setPageFindQuery] = useState('');
+  const [pageFindIndex, setPageFindIndex] = useState(0);
   const [searchResults, setSearchResults] = useState<PageSearchResult[]>([]);
   const [trashItems, setTrashItems] = useState<TrashItemPayload[]>([]);
   const [pinnedBlockPayloads, setPinnedBlockPayloads] = useState<PinnedBlockPayload[]>([]);
@@ -239,6 +281,7 @@ export function App() {
   const persistenceReadyRef = useRef(!isTauri());
   const markdownInputRef = useRef<HTMLInputElement | null>(null);
   const markdownFolderInputRef = useRef<HTMLInputElement | null>(null);
+  const pageFindInputRef = useRef<HTMLInputElement | null>(null);
   const stateRef = useRef(state);
   const activePageBlocksRef = useRef<Block[]>([]);
   const activePageDocumentRequestRef = useRef(0);
@@ -263,6 +306,26 @@ export function App() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [iconContextMenu]);
+
+  useEffect(() => {
+    if (cardModeBlockId) return;
+    const handlePageFindShortcut = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const commandKey = event.metaKey || event.ctrlKey;
+      if (commandKey && key === 'f') {
+        event.preventDefault();
+        event.stopPropagation();
+        setPageFindOpen(true);
+      }
+      if (pageFindOpen && event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        setPageFindOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handlePageFindShortcut, true);
+    return () => window.removeEventListener('keydown', handlePageFindShortcut, true);
+  }, [pageFindOpen]);
 
   const workspacePreferences = useMemo(() => ({
     activeNotebookId: state.activeNotebookId,
@@ -356,6 +419,17 @@ export function App() {
       })
       .catch((error) => {
         console.warn('Could not persist page metadata.', error);
+      });
+  };
+
+  const persistNotebookMetadataUpdate = (notebook: Notebook) => {
+    if (!isTauri() || !persistenceReadyRef.current) return;
+    void persistNotebookMetadata({ notebookId: notebook.id, metadata: notebook.metadata, operation: null })
+      .then((tree) => {
+        if (tree) setState((current) => mergeNotebookTree(current, tree));
+      })
+      .catch((error) => {
+        console.warn('Could not persist notebook metadata.', error);
       });
   };
 
@@ -511,6 +585,58 @@ export function App() {
     () => pageBlockOrder === 'desc' ? [...activePageBlocks].reverse() : activePageBlocks,
     [pageBlockOrder, activePageBlocks]
   );
+  const pageFindMatches = useMemo<PageFindMatch[]>(() => {
+    const needle = pageFindQuery.trim().toLowerCase();
+    if (!needle) return [];
+    return orderedPageBlocks.flatMap((block) => {
+      const text = block.content.plainText.replace(/\s+/g, ' ').trim();
+      if (!text.toLowerCase().includes(needle)) return [];
+      return [{
+        blockId: block.id,
+        preview: text.length > 120 ? `${text.slice(0, 120)}...` : text
+      }];
+    });
+  }, [orderedPageBlocks, pageFindQuery]);
+
+  const movePageFind = (direction: 1 | -1) => {
+    setPageFindIndex((current) => {
+      const total = pageFindMatches.length;
+      if (!total) return 0;
+      return (current + direction + total) % total;
+    });
+  };
+
+  useEffect(() => {
+    if (!pageFindOpen) return;
+    window.setTimeout(() => {
+      pageFindInputRef.current?.focus();
+      pageFindInputRef.current?.select();
+    }, 0);
+  }, [pageFindOpen]);
+
+  useEffect(() => {
+    setPageFindIndex(0);
+  }, [pageFindQuery, activePage.id]);
+
+  useEffect(() => {
+    setPageFindIndex((current) => Math.min(current, Math.max(pageFindMatches.length - 1, 0)));
+  }, [pageFindMatches.length]);
+
+  useEffect(() => {
+    document.querySelectorAll('.is-page-find-match').forEach((element) => element.classList.remove('is-page-find-match'));
+    clearPageFindTextMarks();
+    if (!pageFindOpen || !pageFindMatches.length) return;
+    const match = pageFindMatches[pageFindIndex];
+    const blockElement = document.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(match.blockId)}"]`);
+    if (!blockElement) return;
+    blockElement.classList.add('is-page-find-match');
+    highlightTextInElement(blockElement, pageFindQuery);
+    blockElement.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return () => {
+      blockElement.classList.remove('is-page-find-match');
+      clearPageFindTextMarks();
+    };
+  }, [pageFindOpen, pageFindMatches, pageFindIndex, pageFindQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -822,14 +948,21 @@ export function App() {
   };
 
   const setNotebookIconPack = (notebookId: string, pack: NotebookIconPack) => {
+    const nextNotebook = stateRef.current.notebooks.find((notebook) => notebook.id === notebookId);
+    if (!nextNotebook) return;
+    const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, iconPack: pack } };
     setState((current) => applyNotebookIconPackToViewState(current, notebookId, pack));
+    if (isTauri()) persistNotebookMetadataUpdate(updatedNotebook);
   };
 
   const addNotebookIcon = (notebookId: string, icon: NotebookIconAsset) => {
     const nextNotebook = stateRef.current.notebooks.find((notebook) => notebook.id === notebookId);
     if (!nextNotebook) return;
     const pack = nextNotebook.metadata.iconPack ?? { id: createId('icon_pack'), name: nextNotebook.name, icons: [] };
-    setState((current) => applyNotebookIconPackToViewState(current, notebookId, { ...pack, icons: [...pack.icons, icon] }));
+    const updatedPack = { ...pack, icons: [...pack.icons, icon] };
+    const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, iconPack: updatedPack } };
+    setState((current) => applyNotebookIconPackToViewState(current, notebookId, updatedPack));
+    if (isTauri()) persistNotebookMetadataUpdate(updatedNotebook);
   };
 
   const setPageIcon = (pageId: string, iconId: string | null) => {
@@ -841,7 +974,11 @@ export function App() {
   };
 
   const setNotebookIcon = (notebookId: string, iconId: string | null) => {
+    const nextNotebook = stateRef.current.notebooks.find((notebook) => notebook.id === notebookId);
+    if (!nextNotebook) return;
+    const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, iconId: iconId ?? undefined } };
     setState((current) => applyNotebookIconToViewState(current, notebookId, iconId));
+    if (isTauri()) persistNotebookMetadataUpdate(updatedNotebook);
   };
 
   const openIconContextMenu = (target: IconPackDialogRequest['target'], x: number, y: number) => {
@@ -1197,25 +1334,30 @@ export function App() {
   };
 
   const commitDraft = () => {
+    const currentState = stateRef.current;
+    const currentPage = currentState.pages.find((page) => page.id === currentState.activePageId) ?? activePage;
+    const currentPageBlocks = currentPage
+      ? blocksForCurrentPage(currentPage, currentState, activePageBlocksRef.current)
+      : activePageBlocksRef.current;
     const editor = composerEditorRef.current;
     const html = (editor?.getHTML() ?? activeDraft).trim();
     const plainText = (editor?.getText() ?? '').trim();
     if (isEditorContentEmpty(html, plainText)) return;
 
-    const block = createBlock(activePage.id, html, plainText);
+    const block = createBlock(currentPage.id, html, plainText);
     const updatedAt = new Date().toISOString();
     const nextPage = {
-      ...activePage,
-      blockIds: (activePage.blockOrder === 'desc' ? [block.id, ...activePage.blockIds] : [...activePage.blockIds, block.id]),
+      ...currentPage,
+      blockIds: (currentPage.blockOrder === 'desc' ? [block.id, ...currentPage.blockIds] : [...currentPage.blockIds, block.id]),
       updatedAt
     };
-    const nextBlocks = [...activePageBlocks, block];
+    const nextBlocks = [...currentPageBlocks, block];
     const operation = createOperation({ entity: 'block', entityId: block.id, kind: 'block.create', payload: block });
     applyPageDocumentToView(nextPage, nextBlocks, operation);
     persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
     setDraftsByPageId((current) => {
       const next = { ...current };
-      delete next[activePage.id];
+      delete next[currentPage.id];
       return next;
     });
     editor?.commands.clearContent();
@@ -2659,6 +2801,34 @@ export function App() {
   return (
     <>
       {isTyporaShell ? <TyporaShell {...sharedShellProps} /> : <NativeShell {...sharedShellProps} />}
+      {pageFindOpen ? (
+        <div className="page-find-popover" role="search" aria-label="Search current page">
+          <input
+            ref={pageFindInputRef}
+            value={pageFindQuery}
+            onChange={(event) => setPageFindQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === 'ArrowDown') {
+                event.preventDefault();
+                movePageFind(1);
+              } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                movePageFind(-1);
+              } else if (event.key === 'Escape') {
+                event.preventDefault();
+                setPageFindOpen(false);
+              }
+            }}
+            placeholder="Search this page"
+          />
+          <span className="page-find-count">
+            {pageFindQuery.trim() ? `${pageFindMatches.length ? pageFindIndex + 1 : 0}/${pageFindMatches.length}` : '0/0'}
+          </span>
+          {pageFindQuery.trim() && pageFindMatches[pageFindIndex]?.preview ? (
+            <div className="page-find-preview">{pageFindMatches[pageFindIndex].preview}</div>
+          ) : null}
+        </div>
+      ) : null}
       {iconContextMenu ? (
         <div
           className="icon-context-menu"

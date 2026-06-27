@@ -670,6 +670,21 @@ export const persistPageMetadata = async (request: UpdatePageMetadataRequest): P
   return invoke<NotebookTreePayload>('update_page_metadata', { request });
 };
 
+export const persistNotebookMetadata = async (request: {
+  notebookId: string;
+  metadata: NotebookMetadata;
+  operation: OperationLogEntry | null;
+}): Promise<NotebookTreePayload | null> => {
+  if (!isTauri()) return null;
+  return invoke<NotebookTreePayload>('update_notebook_metadata', {
+    request: {
+      notebookId: request.notebookId,
+      metadata: request.metadata,
+      operation: request.operation
+    }
+  });
+};
+
 export const listPageRevisions = async (pageId: string, limit = 20): Promise<PageRevisionPayload[]> => {
   if (!isTauri()) return [];
   return invoke<PageRevisionPayload[]>('list_page_revisions', { pageId, limit });

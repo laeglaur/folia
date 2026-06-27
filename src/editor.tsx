@@ -1363,9 +1363,15 @@ const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
 const handleRichCopy = (editor: Editor | null, event: ClipboardEvent) => {
   if (!editor) return false;
   const clipboard = event.clipboardData;
+  if (!clipboard || editor.state.selection.empty) return false;
   const selection = window.getSelection();
-  if (!clipboard || !selection || selection.rangeCount === 0 || selection.isCollapsed) return false;
-  if (!editor.view.dom.contains(selection.anchorNode) || !editor.view.dom.contains(selection.focusNode)) return false;
+  const hasDomSelection = Boolean(
+    selection &&
+    selection.rangeCount > 0 &&
+    !selection.isCollapsed &&
+    editor.view.dom.contains(selection.anchorNode) &&
+    editor.view.dom.contains(selection.focusNode)
+  );
 
   const container = document.createElement('div');
   const serializer = (editor.view as unknown as {
@@ -1373,12 +1379,17 @@ const handleRichCopy = (editor: Editor | null, event: ClipboardEvent) => {
   }).clipboardSerializer;
   const slice = editor.state.selection.content();
   const serialized = serializer?.serializeFragment(slice.content);
-  container.appendChild(serialized ?? selection.getRangeAt(0).cloneContents());
+  if (serialized) {
+    container.appendChild(serialized);
+  } else if (selection && hasDomSelection) {
+    container.appendChild(selection.getRangeAt(0).cloneContents());
+  }
   const listItems = Array.from(container.children).filter((child): child is HTMLLIElement => child instanceof HTMLLIElement);
   if (listItems.length && listItems.length === container.children.length) {
-    const anchorList = selection.anchorNode instanceof Element
-      ? selection.anchorNode.closest('ol, ul')
-      : selection.anchorNode?.parentElement?.closest('ol, ul');
+    const anchorNode = selection?.anchorNode ?? null;
+    const anchorList = anchorNode instanceof Element
+      ? anchorNode.closest('ol, ul')
+      : anchorNode?.parentElement?.closest('ol, ul');
     const orderedAnchorList = anchorList?.tagName.toLowerCase() === 'ol' ? anchorList as HTMLOListElement : null;
     const list = orderedAnchorList ? document.createElement('ol') : document.createElement('ul');
     if (orderedAnchorList && orderedAnchorList.start !== 1) {
@@ -1430,6 +1441,66 @@ const findMediaNodePosition = (editor: Editor, element: HTMLElement) => {
     return true;
   });
   return found;
+};
+
+const findTableNodePosition = (editor: Editor, element: HTMLElement) => {
+  const tableElement = element.closest('table');
+  if (!tableElement) return null;
+  const candidates: number[] = [];
+  try {
+    const pos = editor.view.posAtDOM(tableElement, 0);
+    candidates.push(pos, pos - 1);
+  } catch {
+    // Some table DOM positions point into table internals; fall back to coordinate lookup below.
+  }
+  const rect = tableElement.getBoundingClientRect();
+  const coordinate = editor.view.posAtCoords({
+    left: rect.left + Math.min(8, Math.max(1, rect.width - 1)),
+    top: rect.top + Math.min(8, Math.max(1, rect.height - 1))
+  });
+  if (coordinate) candidates.push(coordinate.pos, coordinate.pos - 1);
+
+  for (const pos of candidates) {
+    if (pos < 0 || pos > editor.state.doc.content.size) continue;
+    const $pos = editor.state.doc.resolve(pos);
+    for (let depth = $pos.depth; depth > 0; depth -= 1) {
+      const node = $pos.node(depth);
+      if (node.type.name === 'table') return { pos: $pos.before(depth), node };
+    }
+    const node = editor.state.doc.nodeAt(pos);
+    if (node?.type.name === 'table') return { pos, node };
+  }
+
+  let found: { pos: number; node: ReturnType<Editor['state']['doc']['nodeAt']> } | null = null;
+  editor.state.doc.descendants((node, pos) => {
+    if (found || node.type.name !== 'table') return true;
+    const dom = editor.view.nodeDOM(pos);
+    const candidateTable = dom instanceof HTMLTableElement
+      ? dom
+      : dom instanceof HTMLElement
+        ? dom.querySelector('table')
+        : null;
+    if (candidateTable === tableElement) {
+      found = { pos, node };
+      return false;
+    }
+    return true;
+  });
+  return found;
+};
+
+const isTableNodeSelectionPointer = (event: React.MouseEvent<HTMLElement>) => {
+  const target = event.target as HTMLElement | null;
+  const table = target?.closest('table');
+  if (!table) return false;
+  const rect = table.getBoundingClientRect();
+  const edgeSize = 10;
+  return (
+    event.clientX <= rect.left + edgeSize ||
+    event.clientX >= rect.right - edgeSize ||
+    event.clientY <= rect.top + edgeSize ||
+    event.clientY >= rect.bottom - edgeSize
+  );
 };
 
 const domTableCellAround = (target: EventTarget | null): HTMLTableCellElement | null => {
@@ -1772,7 +1843,8 @@ const createEditorExtensions = (
     inline: false
   }),
   Table.configure({
-    resizable: true
+    resizable: true,
+    allowTableNodeSelection: true
   }),
   TableRow,
   TableHeader,
@@ -2008,12 +2080,17 @@ function RichEditor({
     return true;
   };
 
-  const selectMediaFromPointer = (event: React.MouseEvent<HTMLDivElement>) => {
-    const media = mediaAtPointer(event);
+  const selectFigureNodeFromPointer = (event: React.MouseEvent<HTMLDivElement>) => {
     const activeEditor = editorHolderRef.current;
-    if (!media || !activeEditor) return false;
-    const found = findMediaNodePosition(activeEditor, media.element);
-    if (!found?.node || !['image', 'video', 'audio', 'mediaEmbed'].includes(found.node.type.name)) return false;
+    if (!activeEditor) return false;
+    const target = event.target as HTMLElement | null;
+    const media = mediaAtPointer(event);
+    const found = media
+      ? findMediaNodePosition(activeEditor, media.element)
+      : target?.closest('table')
+        ? findTableNodePosition(activeEditor, target)
+        : null;
+    if (!found?.node || !['image', 'video', 'audio', 'mediaEmbed', 'table'].includes(found.node.type.name)) return false;
     event.preventDefault();
     event.stopPropagation();
     activeEditor.view.focus();
@@ -2089,10 +2166,11 @@ function RichEditor({
       }}
       onMouseDown={(event) => {
         const target = event.target as HTMLElement | null;
-        if (target?.closest('.tableWrapper, table, th, td, .column-resize-handle')) return;
+        if (target?.closest('.column-resize-handle')) return;
+        if (target?.closest('table') && !isTableNodeSelectionPointer(event)) return;
         if (editImageFromPointer(event)) return;
         if (startResizeFromPointer(event)) return;
-        if (selectMediaFromPointer(event)) return;
+        if (selectFigureNodeFromPointer(event)) return;
         toggleCollapsibleListItem(event, editor);
       }}
     >
