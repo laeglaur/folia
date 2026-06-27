@@ -4,20 +4,20 @@ Date: 2026-06-27
 
 ## 背景
 
-当前 Notebook 已经具备可用的编辑、搜索、移动、emoji、浮窗等能力，但显示层长期存在三个问题：
+当前 Notebook 已经具备可用的编辑、搜索、移动、emoji、浮窗等能力，但显示层长期存在一个更底层的问题：
 
-- 结构边界不够清晰，shell、sidebar、workspace、block、浮层之间容易互相影响
-- 主题覆盖链过长，局部样式经常互相打架
-- 视觉语言还不够统一，block 边界、标题、浮窗、搜索框、outline、sidebar 的质感没有形成稳定体系
+- shell、Typora theme、workspace、sidebar、outline、浮层和 block 的职责边界不清
+- 当某个显示问题需要修复时，改动很容易穿透到其他层
+- 现有 UI 不能随便推翻，只能在保留外观的大前提下把架构收紧
 
-这份设计的目标不是再做一次 editor core 重构，而是把“显示层”整理成一个更稳定、更漂亮、可维护的产品层。
+这份设计不是重新设计一套 UI，而是把“显示层”整理成一个更稳定、可维护、可分工的产品架构。
 
 ## 目标
 
 1. 建立清晰的显示层边界，让 shell / sidebar / workspace / block / floating layer 各自只做一件事。
-2. 统一当前的视觉语言，让 block 更像浮在底层上的纸条、小票、卡片，而不是散乱的编辑片段。
-3. 让主题、block borders、浮窗圆角、outline、搜索框、侧栏等 UI 在不同主题下保持一致的交互和可读性。
-4. 在不破坏现有可用功能的前提下，修复显示层相关 bug，并继续支持已有交互。
+2. 保留现有 UI 的大体样子，只对 block 边界和少量可读性问题做最小幅度调整。
+3. 让 Typora theme 和本项目自己的 shell 能稳定共存，不再互相吞样式。
+4. 让显示层相关 bug 的修复路径可预测，减少“改某个显示却牵动整页”的情况。
 
 ## 非目标
 
@@ -52,10 +52,10 @@ Date: 2026-06-27
 
 ### 3. Workspace 层
 
-负责正文编辑区、block 视图、block borders、浮窗、卡片、注释等内容展示。
+负责正文编辑区、block 视图、少量 block 视觉调整、浮窗、卡片、注释等内容展示。
 
 - page title / metadata / content body
-- block 边界与 block 纸条感
+- block 边界的最小调整
 - pinned card
 - image annotation
 - 文字与 block 的高亮显示
@@ -67,6 +67,15 @@ Date: 2026-06-27
 - 统一 surface / line / accent / highlight / chip 等关键 token
 - 明确哪些 token 由 app 控制，哪些 token 由 content theme 控制
 - 限制主题对局部组件的越权覆盖
+
+### 5. Style Ownership 约束
+
+这是这次重构最关键的一层。
+
+- app 决定布局、可见性、层级、交互壳
+- theme 决定内容区的局部观感
+- block 只允许做有限、可回退的视觉修正
+- 不允许为了一个页面效果，把样式逻辑散落到多个层里
 
 ## 设计原则
 
@@ -98,8 +107,8 @@ Date: 2026-06-27
 
 正文区是这个重构的核心。
 
-- block 之间要有一致的边界感
-- block border、圆角、阴影、胶囊、浮窗等都要收束到统一视觉语言
+- block 之间要有统一、最小化的边界调整
+- 不把 block 视觉做成新 UI，只收紧现有 block 表现
 - 任何浮层都不能遮挡正文关键操作的可见区域
 
 ### Floating Layers
@@ -153,17 +162,17 @@ Date: 2026-06-27
 - 布局不会因为某个局部组件改动而大面积抖动
 - page / block / floating surface 的层级清楚
 
-### 阶段 2：block 视觉语言统一
+### 阶段 2：block 视觉边界最小修正
 
 目标：
 
-- block border、阴影、圆角、背景层的视觉规则统一
-- 让 block 更接近“纸条浮层”的感觉
+- 只修 block 边界、层级、对比度和少量留白
+- 不重做 block 的整体视觉风格
 
 结果：
 
 - block 之间边界更清晰
-- 不同主题下 block 仍保持一致的识别度
+- 现有 UI 仍然基本保持原样
 
 ### 阶段 3：导航与浮层统一
 
