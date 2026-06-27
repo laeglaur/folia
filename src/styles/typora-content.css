@@ -30,6 +30,7 @@
   --floating-layer-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 18%, transparent);
   --floating-layer-background: color-mix(in srgb, var(--bg-color, var(--theme-surface-solid)) 72%, var(--side-bar-bg-color, var(--theme-chip)));
   --floating-layer-shadow: 0 16px 38px color-mix(in srgb, var(--text-color, #000) 14%, transparent);
+  --page-background: color-mix(in srgb, var(--bg-color, var(--theme-surface-solid)) 88%, var(--side-bar-bg-color, var(--theme-chip)));
   --desktop-card-background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg-color, var(--theme-surface-solid)));
   --desktop-card-ink: var(--text-color, var(--theme-ink));
   --floating-card-background: color-mix(in srgb, var(--floating-layer-background) 92%, var(--bg-color, var(--theme-surface-solid)));
@@ -478,9 +479,9 @@
   background: transparent;
 }
 
-.typora-theme[data-content-theme^="typora-"] .typora-write .block,
-.typora-theme[data-content-theme^="typora-"] .typora-write .block:hover,
-.typora-theme[data-content-theme^="typora-"] .typora-write .block:focus-within {
+.typora-theme[data-content-theme="typora-base"] .typora-write .block,
+.typora-theme[data-content-theme="typora-base"] .typora-write .block:hover,
+.typora-theme[data-content-theme="typora-base"] .typora-write .block:focus-within {
   background: transparent;
 }
 
