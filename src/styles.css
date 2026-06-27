@@ -270,40 +270,103 @@ input, select { color: var(--ink); }
 }
 
 .page-context-menu {
-  min-width: 220px;
+  width: 300px;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+}
+
+.page-move-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+}
+
+.page-move-header-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.page-move-header strong {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.page-move-header span,
+.page-move-empty {
+  font-size: 11px;
+  color: color-mix(in srgb, currentColor 60%, transparent);
+}
+
+.page-move-search {
+  width: 100%;
+  min-height: 30px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 6px;
+  background: var(--theme-surface-solid, #fffdf7);
+  color: inherit;
+  padding: 0 10px;
+}
+
+.page-move-emoji-button {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  color: inherit;
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+.page-move-emoji {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .page-move-menu {
   display: grid;
   gap: 4px;
-  margin-top: 4px;
   padding-top: 4px;
   border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
-  max-height: 220px;
+  max-height: 140px;
   overflow: auto;
-}
-
-.page-move-group {
-  display: grid;
-  gap: 2px;
 }
 
 .page-move-item {
   width: 100%;
   min-height: 28px;
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
   padding: 0 10px;
   border-radius: 6px;
   background: transparent;
   color: inherit;
   text-align: left;
+  font-size: 12px;
 }
 
-.page-move-item:hover {
+.page-move-item:hover,
+.page-move-item.is-selected {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.page-move-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-move-empty {
+  padding: 6px 10px 4px;
 }
 
 .emoji-picker-backdrop {
@@ -694,7 +757,8 @@ input, select { color: var(--ink); }
   cursor: pointer;
 }
 
-.search-result-item:hover {
+.search-result-item:hover,
+.search-result-item.is-selected {
   background: var(--chip);
 }
 

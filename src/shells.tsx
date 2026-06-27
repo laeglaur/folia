@@ -589,11 +589,15 @@ function SearchResults({
   query,
   results,
   loading,
+  selectedIndex,
+  onSelectedIndexChange,
   onSelect
 }: {
   query: string;
   results: PageSearchResult[];
   loading: boolean;
+  selectedIndex: number;
+  onSelectedIndexChange: (index: number) => void;
   onSelect: (pageId: string) => void;
 }) {
   const trimmed = query.trim();
@@ -601,12 +605,106 @@ function SearchResults({
 
   return (
     <div className="search-results" role="listbox" aria-label="Search results">
-      {loading ? <div className="search-result-empty">Searching...</div> : results.map((result) => (
-        <button className="search-result-item" key={result.pageId} type="button" onClick={() => onSelect(result.pageId)}>
+      {loading ? <div className="search-result-empty">Searching...</div> : results.map((result, index) => (
+        <button
+          className={`search-result-item ${selectedIndex === index ? 'is-selected' : ''}`}
+          key={result.pageId}
+          type="button"
+          data-search-index={index}
+          onFocus={() => onSelectedIndexChange(index)}
+          onMouseEnter={() => onSelectedIndexChange(index)}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              const nextIndex = Math.min(index + 1, results.length - 1);
+              onSelectedIndexChange(nextIndex);
+              focusSearchResult(nextIndex, results.length);
+              return;
+            }
+            if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              const nextIndex = Math.max(index - 1, 0);
+              onSelectedIndexChange(nextIndex);
+              focusSearchResult(nextIndex, results.length);
+            }
+          }}
+          onClick={() => onSelect(result.pageId)}
+        >
           <span className="search-result-title">{result.title}</span>
           {result.snippet ? <span className="search-result-snippet" dangerouslySetInnerHTML={{ __html: result.snippet }} /> : null}
         </button>
       ))}
+    </div>
+  );
+}
+
+function focusSearchResult(index: number, total: number) {
+  if (!total) return;
+  const nextIndex = Math.max(0, Math.min(index, total - 1));
+  window.setTimeout(() => {
+    const element = document.querySelector<HTMLButtonElement>(`.search-result-item[data-search-index="${nextIndex}"]`);
+    element?.focus();
+    element?.scrollIntoView({ block: 'nearest' });
+  }, 0);
+}
+
+function SearchBox({
+  query,
+  onQueryChange,
+  searchResults,
+  searchLoading,
+  onSearchResultSelect,
+  placeholder,
+  className = ''
+}: {
+  query: string;
+  onQueryChange: (query: string) => void;
+  searchResults: PageSearchResult[];
+  searchLoading: boolean;
+  onSearchResultSelect: (pageId: string) => void;
+  placeholder: string;
+  className?: string;
+}) {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [query, searchResults.length]);
+
+  const moveFocus = (index: number) => {
+    if (!searchResults.length) return;
+    const nextIndex = Math.max(0, Math.min(index, searchResults.length - 1));
+    setSelectedIndex(nextIndex);
+    focusSearchResult(nextIndex, searchResults.length);
+  };
+
+  return (
+    <div className={`search-box ${className}`.trim()}>
+      <Search size={16} />
+      <input
+        value={query}
+        onChange={(event) => onQueryChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            moveFocus(selectedIndex + 1);
+            return;
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            moveFocus(selectedIndex - 1);
+          }
+        }}
+        placeholder={placeholder}
+      />
+      <SearchResults
+        query={query}
+        results={searchResults}
+        loading={searchLoading}
+        selectedIndex={selectedIndex}
+        onSelectedIndexChange={setSelectedIndex}
+        onSelect={onSearchResultSelect}
+      />
     </div>
   );
 }
@@ -684,11 +782,14 @@ export function NativeShell({
 
       <main className="workspace">
         <header className="topbar">
-          <div className="search-box">
-            <Search size={16} />
-            <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="正文、block、todo" />
-            <SearchResults query={query} results={searchResults} loading={searchLoading} onSelect={onSearchResultSelect} />
-          </div>
+          <SearchBox
+            query={query}
+            onQueryChange={onQueryChange}
+            searchResults={searchResults}
+            searchLoading={searchLoading}
+            onSearchResultSelect={onSearchResultSelect}
+            placeholder="正文、block、todo"
+          />
         </header>
 
         {workspaceContent}
@@ -746,11 +847,15 @@ export function TyporaShell({
         <div id="sidebar-content" className="sidebar-content">
           <section className="typora-sidebar-pane is-active">
             <section className="typora-desk-search">
-              <div className="search-box typora-search-box">
-                <Search size={16} />
-                <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Search" />
-                <SearchResults query={query} results={searchResults} loading={searchLoading} onSelect={onSearchResultSelect} />
-              </div>
+              <SearchBox
+                query={query}
+                onQueryChange={onQueryChange}
+                searchResults={searchResults}
+                searchLoading={searchLoading}
+                onSearchResultSelect={onSearchResultSelect}
+                placeholder="Search"
+                className="typora-search-box"
+              />
             </section>
             <div className="typora-sidebar-section-header">
               <span>Notebooks</span>

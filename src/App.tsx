@@ -3,7 +3,6 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
-  CornerDownRight,
   Trash2
 } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
@@ -176,7 +175,6 @@ type PageContextMenuState = {
   x: number;
   y: number;
   pageId: string;
-  moveOpen: boolean;
 };
 
 type PageFindMatch = {
@@ -265,6 +263,8 @@ export function App() {
   const [emojiPickerRequest, setEmojiPickerRequest] = useState<EmojiPickerRequest | null>(null);
   const [emojiContextMenu, setEmojiContextMenu] = useState<EmojiContextMenuState | null>(null);
   const [pageContextMenu, setPageContextMenu] = useState<PageContextMenuState | null>(null);
+  const [pageMoveQuery, setPageMoveQuery] = useState('');
+  const [pageMoveIndex, setPageMoveIndex] = useState(0);
   const [showComposerFooter, setShowComposerFooter] = useState(false);
   const [showBlockBorders, setShowBlockBorders] = useState(true);
   const [roundPinnedCards, setRoundPinnedCards] = useState(cardModeBlockId ? cardModeRoundPinnedCards : true);
@@ -698,6 +698,51 @@ export function App() {
   }, [activePage?.id]);
 
   const outlineEntries = useMemo(() => extractOutlineEntries(activePage, orderedPageBlocks), [activePage, orderedPageBlocks]);
+  const pageMoveTargets = useMemo(() => {
+    if (!pageContextMenu) return [];
+    const needle = pageMoveQuery.trim().toLowerCase();
+    const notebookById = new Map(state.notebooks.map((notebook) => [notebook.id, notebook]));
+    const excludedPageIds = new Set([
+      pageContextMenu.pageId,
+      ...descendantsOfPage(pageContextMenu.pageId, state.pages).map((page) => page.id)
+    ]);
+    const buildPagePath = (page: Page) => {
+      const ancestors = ancestorsOfPage(page.id, state.pages);
+      const pieces = [
+        notebookById.get(page.notebookId)?.name ?? 'Notebook',
+        ...ancestors.map((ancestor) => ancestor.title),
+        page.title
+      ];
+      return pieces.join(' / ');
+    };
+    const matches = state.pages
+      .map((page) => {
+        if (excludedPageIds.has(page.id)) return null;
+        const notebook = notebookById.get(page.notebookId);
+        if (!notebook) return null;
+        const ancestors = ancestorsOfPage(page.id, state.pages);
+        const path = buildPagePath(page);
+        const haystack = [page.title, notebook.name, ...ancestors.map((ancestor) => ancestor.title), path].join(' ').toLowerCase();
+        if (needle && !haystack.includes(needle)) return null;
+        return {
+          notebookId: page.notebookId,
+          parentId: page.id,
+          label: path,
+          depth: ancestors.length
+        };
+      })
+      .filter((value): value is { notebookId: string; parentId: string; label: string; depth: number } => Boolean(value));
+    return matches.sort((left, right) => {
+      if (left.depth !== right.depth) return left.depth - right.depth;
+      const leftNotebook = notebookById.get(left.notebookId)?.name ?? '';
+      const rightNotebook = notebookById.get(right.notebookId)?.name ?? '';
+      if (leftNotebook !== rightNotebook) return leftNotebook.localeCompare(rightNotebook);
+      return left.label.localeCompare(right.label);
+    }).slice(0, 12);
+  }, [pageContextMenu, pageMoveQuery, state.notebooks, state.pages]);
+  useEffect(() => {
+    setPageMoveIndex(0);
+  }, [pageMoveQuery, pageContextMenu?.pageId]);
   const calendarMonthKey = monthKey(calendarMonth);
   const calendarEntriesByDate = useMemo(() => {
     if (workspaceView !== 'calendar') return new Map<string, CalendarEntry[]>();
@@ -1015,12 +1060,14 @@ export function App() {
     setEmojiContextMenu({ target, x: left, y: top });
   };
 
-  const openPageContextMenu = (pageId: string, x: number, y: number) => {
-    const width = 260;
-    const height = 320;
-    const left = Math.max(12, Math.min(x, window.innerWidth - width - 12));
-    const top = Math.max(12, Math.min(y, window.innerHeight - height - 12));
-    setPageContextMenu({ pageId, x: left, y: top, moveOpen: false });
+  const openPageContextMenu = (pageId: string, anchorRect: DOMRect) => {
+    const width = 300;
+    const height = 200;
+    const left = Math.max(12, Math.min(anchorRect.left + 24, window.innerWidth - width - 12));
+    const top = Math.max(12, Math.min(anchorRect.bottom + 4, window.innerHeight - height - 12));
+    setPageMoveQuery('');
+    setPageMoveIndex(0);
+    setPageContextMenu({ pageId, x: left, y: top });
   };
 
   const saveImageAnnotations = (request: ImageAnnotationRequest, annotations: ImageAnnotationDocument) => {
@@ -2528,7 +2575,8 @@ export function App() {
                 onContextMenu={(event) => {
                   event.preventDefault();
                   selectPage(page.id);
-                  openPageContextMenu(page.id, event.clientX, event.clientY);
+                  const row = event.currentTarget.closest<HTMLElement>('.page-row-shell[data-page-id]');
+                  openPageContextMenu(page.id, (row ?? event.currentTarget).getBoundingClientRect());
                 }}
                 type="button"
               >
@@ -2616,7 +2664,8 @@ export function App() {
                 onContextMenu={(event) => {
                   event.preventDefault();
                   selectPage(page.id);
-                  openPageContextMenu(page.id, event.clientX, event.clientY);
+                  const row = event.currentTarget.closest<HTMLElement>('.file-node-row-shell[data-page-id]');
+                  openPageContextMenu(page.id, (row ?? event.currentTarget).getBoundingClientRect());
                 }}
                 type="button"
               >
@@ -2948,103 +2997,100 @@ export function App() {
           </button>
         </div>
       ) : null}
-      {pageContextMenu ? (
-        <div
-          className="emoji-context-menu page-context-menu"
-          style={{ left: pageContextMenu.x, top: pageContextMenu.y }}
-          onPointerDown={(event) => event.stopPropagation()}
-          role="menu"
-        >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setEmojiPickerRequest({ target: { kind: 'page', pageId: pageContextMenu.pageId } });
-              closePageContextMenu();
-            }}
+      {pageContextMenu ? (() => {
+        const page = state.pages.find((candidate) => candidate.id === pageContextMenu.pageId) ?? null;
+        const notebookTargets: Array<{ notebookId: string; parentId: string | null; label: string }> = state.notebooks.map((notebook) => ({
+          notebookId: notebook.id,
+          parentId: null,
+          label: `${notebook.name} / Root`
+        }));
+        const targets = [...notebookTargets, ...pageMoveTargets].filter((target, index, list) =>
+          list.findIndex((candidate) => candidate.notebookId === target.notebookId && candidate.parentId === target.parentId) === index
+        );
+        const focusMoveTarget = (index: number) => {
+          const nextIndex = Math.max(0, Math.min(index, Math.max(targets.length - 1, 0)));
+          setPageMoveIndex(nextIndex);
+          window.setTimeout(() => {
+            const element = document.querySelector<HTMLButtonElement>(`.page-move-item[data-move-index="${nextIndex}"]`);
+            element?.focus();
+            element?.scrollIntoView({ block: 'nearest' });
+          }, 0);
+        };
+        return (
+          <div
+            className="emoji-context-menu page-context-menu"
+            style={{ left: pageContextMenu.x, top: pageContextMenu.y }}
+            onPointerDown={(event) => event.stopPropagation()}
+            role="menu"
           >
-            Set emoji
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              beginPageRename(state.pages.find((page) => page.id === pageContextMenu.pageId)!);
-              closePageContextMenu();
-            }}
-          >
-            Rename
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              const page = state.pages.find((candidate) => candidate.id === pageContextMenu.pageId);
-              if (page) {
-                setSelectedPageId(page.id);
-                void duplicatePageTree(page.id);
-              }
-              closePageContextMenu();
-            }}
-          >
-            Duplicate
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              const page = state.pages.find((candidate) => candidate.id === pageContextMenu.pageId);
-              if (page) {
-                setSelectedPageId(page.id);
-                deletePageTree(page.id);
-              }
-              closePageContextMenu();
-            }}
-          >
-            Delete
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => setPageContextMenu((current) => current ? { ...current, moveOpen: !current.moveOpen } : current)}
-          >
-            Move to
-          </button>
-          {pageContextMenu.moveOpen ? (
-            <div className="page-move-menu">
-              {state.notebooks.map((notebook) => (
-                <div key={notebook.id} className="page-move-group">
-                  <button
-                    type="button"
-                    className="page-move-item"
-                    onClick={() => {
-                      movePageToPath(pageContextMenu.pageId, notebook.id, null);
-                      closePageContextMenu();
-                    }}
-                  >
-                    <CornerDownRight size={13} />
-                    <span>{notebook.name}</span>
-                  </button>
-                  {state.pages.filter((page) => page.notebookId === notebook.id && page.id !== pageContextMenu.pageId).map((page) => (
-                    <button
-                      key={page.id}
-                      type="button"
-                      className="page-move-item"
-                      onClick={() => {
-                        movePageToPath(pageContextMenu.pageId, notebook.id, page.id);
-                        closePageContextMenu();
-                      }}
-                    >
-                      <CornerDownRight size={13} />
-                      <span>{page.title}</span>
-                    </button>
-                  ))}
-                </div>
-              ))}
+            <div className="page-move-header">
+              <button
+                type="button"
+                className="page-move-emoji-button"
+                title="Set emoji"
+                aria-label="Set emoji"
+                onClick={() => {
+                  setEmojiPickerRequest({ target: { kind: 'page', pageId: pageContextMenu.pageId } });
+                  closePageContextMenu();
+                }}
+              >
+                <EmojiImage emoji={page?.metadata.emoji ?? '🙂'} className="page-move-emoji" decorative />
+              </button>
+              <div className="page-move-header-copy">
+                <strong>Move page</strong>
+                <span>{page?.title ?? 'Page'}</span>
+              </div>
             </div>
-          ) : null}
-        </div>
-      ) : null}
+            <input
+              className="page-move-search"
+              value={pageMoveQuery}
+              onChange={(event) => setPageMoveQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  if (targets.length) focusMoveTarget(pageMoveIndex + 1);
+                  return;
+                }
+                if (event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  if (targets.length) focusMoveTarget(pageMoveIndex - 1);
+                }
+              }}
+              placeholder="Search page or notebook"
+              autoFocus
+            />
+            <div className="page-move-menu">
+              {targets.length ? targets.map((target, index) => (
+                <button
+                  key={`${target.notebookId}:${target.parentId ?? 'root'}`}
+                  type="button"
+                  data-move-index={index}
+                  className={`page-move-item ${index === pageMoveIndex ? 'is-selected' : ''}`}
+                  onMouseEnter={() => setPageMoveIndex(index)}
+                  onFocus={() => setPageMoveIndex(index)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'ArrowDown') {
+                      event.preventDefault();
+                      focusMoveTarget(index + 1);
+                      return;
+                    }
+                    if (event.key === 'ArrowUp') {
+                      event.preventDefault();
+                      focusMoveTarget(index - 1);
+                    }
+                  }}
+                  onClick={() => {
+                    movePageToPath(pageContextMenu.pageId, target.notebookId, target.parentId);
+                    closePageContextMenu();
+                  }}
+                >
+                  <span className="page-move-label">{target.label}</span>
+                </button>
+              )) : <div className="page-move-empty">No match</div>}
+            </div>
+          </div>
+        );
+      })() : null}
       <ImageAnnotationEditor request={imageAnnotationRequest} onSave={saveImageAnnotations} onClose={() => setImageAnnotationRequest(null)} />
       <EmojiPicker
         request={emojiPickerRequest}

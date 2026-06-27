@@ -1591,13 +1591,35 @@ fn move_page_in_transaction(
         }
     }
 
-    let current_notebook_id = transaction
-        .query_row(
-            "SELECT notebook_id FROM pages WHERE id = ?1",
-            params![request.page_id],
-            |row| row.get::<_, String>(0),
+    let moved_page_ids = transaction
+        .prepare(
+            "WITH RECURSIVE descendants(id) AS (
+                SELECT ?1
+                UNION ALL
+                SELECT pages.id FROM pages JOIN descendants ON pages.parent_id = descendants.id
+              )
+              SELECT id FROM descendants",
         )
+        .map_err(|error| error.to_string())?
+        .query_map(params![request.page_id], |row| row.get::<_, String>(0))
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
         .map_err(|error| error.to_string())?;
+    let notebook_ids: std::collections::HashSet<String> = moved_page_ids
+        .iter()
+        .map(|page_id| {
+            transaction
+                .query_row(
+                    "SELECT notebook_id FROM pages WHERE id = ?1",
+                    params![page_id],
+                    |row| row.get::<_, String>(0),
+                )
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .chain(std::iter::once(request.notebook_id.clone()))
+        .collect();
 
     transaction
         .execute(
@@ -1605,11 +1627,15 @@ fn move_page_in_transaction(
             params![request.notebook_id, request.parent_id, request.page_id],
         )
         .map_err(|error| error.to_string())?;
-
-    let mut notebook_ids = vec![current_notebook_id];
-    if !notebook_ids.iter().any(|id| id == &request.notebook_id) {
-        notebook_ids.push(request.notebook_id.clone());
+    for page_id in moved_page_ids.iter().filter(|page_id| *page_id != &request.page_id) {
+        transaction
+            .execute(
+                "UPDATE pages SET notebook_id = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+                params![request.notebook_id, page_id],
+            )
+            .map_err(|error| error.to_string())?;
     }
+
     for notebook_id in notebook_ids {
         let page_ids: Vec<String> = transaction
             .prepare("SELECT id FROM pages WHERE notebook_id = ?1 ORDER BY created_at ASC, rowid ASC")
@@ -4158,6 +4184,112 @@ mod tests {
             )
             .expect("move operation row");
         assert_eq!(operation_kind, "page.move");
+    }
+
+    #[test]
+    fn move_page_to_another_notebook_moves_descendants() {
+        let mut connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+
+        let batch = NormalizedImportBatch {
+            notebook: NormalizedNotebook {
+                id: "notebook_source".to_string(),
+                name: "Source".to_string(),
+                page_ids: vec!["page_parent".to_string(), "page_child".to_string()],
+                metadata: serde_json::json!({}),
+            },
+            pages: vec![
+                NormalizedPage {
+                    id: "page_parent".to_string(),
+                    notebook_id: "notebook_source".to_string(),
+                    parent_id: None,
+                    title: "Parent".to_string(),
+                    block_ids: vec![],
+                    block_order: Some("asc".to_string()),
+                    metadata: default_page_metadata(),
+                    created_at: "2026-06-15T00:00:00Z".to_string(),
+                    updated_at: "2026-06-15T00:00:00Z".to_string(),
+                },
+                NormalizedPage {
+                    id: "page_child".to_string(),
+                    notebook_id: "notebook_source".to_string(),
+                    parent_id: Some("page_parent".to_string()),
+                    title: "Child".to_string(),
+                    block_ids: vec![],
+                    block_order: Some("asc".to_string()),
+                    metadata: default_page_metadata(),
+                    created_at: "2026-06-15T00:01:00Z".to_string(),
+                    updated_at: "2026-06-15T00:01:00Z".to_string(),
+                },
+            ],
+            blocks: vec![],
+            operation: None,
+        };
+        persist_import_batch_in_transaction(&mut connection, &batch).expect("seed source pages");
+        create_notebook_in_transaction(
+            &mut connection,
+            &CreateNotebookRequest {
+                notebook: NormalizedNotebook {
+                    id: "notebook_target".to_string(),
+                    name: "Target".to_string(),
+                    page_ids: vec!["page_target_home".to_string()],
+                    metadata: serde_json::json!({}),
+                },
+                initial_page: NormalizedPage {
+                    id: "page_target_home".to_string(),
+                    notebook_id: "notebook_target".to_string(),
+                    parent_id: None,
+                    title: "Target home".to_string(),
+                    block_ids: vec![],
+                    block_order: Some("asc".to_string()),
+                    metadata: default_page_metadata(),
+                    created_at: "2026-06-15T00:02:00Z".to_string(),
+                    updated_at: "2026-06-15T00:02:00Z".to_string(),
+                },
+                operation: None,
+            },
+        )
+        .expect("seed target notebook");
+
+        move_page_in_transaction(
+            &mut connection,
+            &MovePageRequest {
+                page_id: "page_parent".to_string(),
+                notebook_id: "notebook_target".to_string(),
+                parent_id: None,
+                operation: None,
+            },
+        )
+        .expect("move page tree");
+
+        let child_notebook: String = connection
+            .query_row(
+                "SELECT notebook_id FROM pages WHERE id = 'page_child'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("child notebook row");
+        assert_eq!(child_notebook, "notebook_target");
+
+        let child_parent: Option<String> = connection
+            .query_row(
+                "SELECT parent_id FROM pages WHERE id = 'page_child'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("child parent row");
+        assert_eq!(child_parent, Some("page_parent".to_string()));
+
+        let target_pages_json: String = connection
+            .query_row(
+                "SELECT page_ids_json FROM notebooks WHERE id = 'notebook_target'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("target page ids");
+        let target_pages: Vec<String> = serde_json::from_str(&target_pages_json).expect("target page ids json");
+        assert!(target_pages.contains(&"page_parent".to_string()));
+        assert!(target_pages.contains(&"page_child".to_string()));
     }
 
     #[test]

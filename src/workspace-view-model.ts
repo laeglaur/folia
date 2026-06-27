@@ -421,17 +421,29 @@ export const applyPageMoveToViewState = (
   notebookId: string,
   parentId: string | null,
   operation: OperationLogEntry
-) => ({
-  ...current,
-  pages: current.pages.map((page) => (page.id === pageId ? { ...page, notebookId, parentId, updatedAt: new Date().toISOString() } : page)),
-  notebooks: current.notebooks.map((notebook) => {
-    const withoutPage = notebook.pageIds.filter((id) => id !== pageId);
-    return notebook.id === notebookId ? { ...notebook, pageIds: [...withoutPage, pageId] } : { ...notebook, pageIds: withoutPage };
-  }),
-  activeNotebookId: current.activePageId === pageId ? notebookId : current.activeNotebookId,
-  expandedPageIds: parentId && !current.expandedPageIds.includes(parentId) ? [...current.expandedPageIds, parentId] : current.expandedPageIds,
-  operations: [...current.operations, operation]
-});
+) => {
+  const movedPages = [current.pages.find((page) => page.id === pageId), ...descendantsOfPage(pageId, current.pages)].filter(Boolean) as Page[];
+  const movedPageIds = new Set(movedPages.map((page) => page.id));
+  const updatedAt = new Date().toISOString();
+  const nextPages = current.pages.map((page) => movedPageIds.has(page.id)
+    ? { ...page, notebookId, updatedAt, ...(page.id === pageId ? { parentId } : {}) }
+    : page
+  );
+  const notebookPageIds = new Map<string, string[]>();
+  current.notebooks.forEach((notebook) => {
+    notebookPageIds.set(notebook.id, notebook.pageIds.filter((id) => !movedPageIds.has(id)));
+  });
+  notebookPageIds.set(notebookId, [...(notebookPageIds.get(notebookId) ?? []), ...movedPages.map((page) => page.id)]);
+  const activeNotebookId = movedPageIds.has(current.activePageId) ? notebookId : current.activeNotebookId;
+  return {
+    ...current,
+    pages: nextPages,
+    notebooks: current.notebooks.map((notebook) => ({ ...notebook, pageIds: notebookPageIds.get(notebook.id) ?? notebook.pageIds })),
+    activeNotebookId,
+    expandedPageIds: parentId && !current.expandedPageIds.includes(parentId) ? [...current.expandedPageIds, parentId] : current.expandedPageIds,
+    operations: [...current.operations, operation]
+  };
+};
 
 export const applyMarkdownFilesImportToViewState = (
   current: AppState,
