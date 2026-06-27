@@ -10,6 +10,7 @@ Updated: 2026-06-13
 - Notebook and page creation work, including nested pages and drag/tab hierarchy changes.
 - Blocks can be created from the composer, edited in place, collapsed, pinned, reordered by drag, and moved with keyboard shortcuts.
 - Tiptap rich text editing is in place for headings, bold, italic, highlight, inline code, code blocks, links, lists, todos, tables, images, video, audio, and embeds.
+- Global page search exists in the shell/sidebar, and `Cmd/Ctrl+F` opens a current-page search popover with match navigation.
 - Markdown input shortcuts are covered for headings, bullets, todos, bracket todos, highlight, inline code, and code blocks.
 - Bullets and task list items can collapse and persist collapsed state in saved HTML.
 - Markdown import creates one rich block per imported page by default, preserving headings, links, nested lists, todos, tables, highlight, inline code, code blocks, video, audio, and common embeds.
@@ -41,6 +42,7 @@ Updated: 2026-06-13
 - Multi-device sync is designed through operation logs, but there is no sync transport or conflict UI.
 - Themes are tokenized and flexible, but custom external CSS import is not implemented.
 - Pilot Typora themes are selectable, but they still need visual QA, screenshots, asset polish, and per-theme adjustment decisions.
+- Search functionality works, but the visual treatment is unfinished: the global search box still appears too capsule-shaped, current-page match highlighting is not the desired warning-style format, and the root cause is mixed app-shell / Typora-theme CSS ownership. Defer this to a style-boundary cleanup instead of patching more selectors now.
 - Media import supports common URLs and local attachment copying, but there is no in-editor media picker/uploader yet.
 - Block-internal columns/layout groups are still not implemented.
 
@@ -68,7 +70,6 @@ Updated: 2026-06-13
 - Kanban view.
 - Excel-like database view.
 - Tags, due dates, status fields, and block references.
-- Full-text search beyond simple current-page filtering.
 - Folder import with page hierarchy.
 - HTML export.
 - Image annotation or Apple Pencil drawing.
