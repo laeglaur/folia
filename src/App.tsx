@@ -2850,43 +2850,6 @@ export function App() {
     openNotebookEmojiMenu: (notebookId: string, x: number, y: number) => openEmojiContextMenu({ kind: 'notebook', notebookId }, x, y)
   };
 
-  const shellControls = {
-    showToolbar,
-    showComposerFooter,
-    showBlockBorders,
-    showPageMetadata: state.showPageMetadata,
-    roundPinnedCards,
-    glowPinnedCards,
-    newestFirst: pageBlockOrder === 'desc',
-    shell: state.shell,
-    contentTheme: state.contentTheme,
-    shellThemes,
-    markdownInputRef,
-    markdownFolderInputRef,
-    outlineOpen: outlineDrawerOpen,
-    sidebarCollapsed,
-    onShowToolbarChange: setShowToolbar,
-    onShowComposerFooterChange: setShowComposerFooter,
-    onShowBlockBordersChange: setShowBlockBorders,
-    onShowPageMetadataChange: (show: boolean) => setState((current) => applyShowPageMetadataToViewState(current, show)),
-    onRoundPinnedCardsChange: setRoundPinnedCards,
-    onGlowPinnedCardsChange: setGlowPinnedCards,
-    onNewestFirstChange: (newestFirst: boolean) => setPageBlockOrder(newestFirst ? 'desc' : 'asc'),
-    onShellChange: setShell,
-    onContentThemeChange: setContentTheme,
-    onOutlineToggle: () => setOutlineDrawerOpen((open) => !open),
-    onSidebarToggle: () => setSidebarCollapsed((collapsed) => !collapsed),
-    onMarkdownFilesChange: (files: FileList | null) => void importMarkdownFiles(files),
-    onMarkdownFolderChange: (files: FileList | null) => void importMarkdownFolder(files),
-    onExportMarkdown: exportMarkdown,
-    onExportJson: exportJson,
-    onRestorePageVersion: () => void restorePreviousPageVersion(),
-    trashItems,
-    onRestoreTrashItem: (trashId: number) => void restoreTrashItemById(trashId),
-    onEmptyTrash: () => void emptyTrashItems(),
-    trashBusy
-  };
-
   if (cardModeBlock) {
     const closeCardWindow = () => {
       if (isTauri()) {
@@ -2933,6 +2896,43 @@ export function App() {
       </main>
     );
   }
+
+  const shellControls = {
+    showToolbar,
+    showComposerFooter,
+    showBlockBorders,
+    showPageMetadata: state.showPageMetadata,
+    roundPinnedCards,
+    glowPinnedCards,
+    newestFirst: pageBlockOrder === 'desc',
+    shell: state.shell,
+    contentTheme: state.contentTheme,
+    shellThemes,
+    markdownInputRef,
+    markdownFolderInputRef,
+    outlineOpen: outlineDrawerOpen,
+    sidebarCollapsed,
+    onShowToolbarChange: setShowToolbar,
+    onShowComposerFooterChange: setShowComposerFooter,
+    onShowBlockBordersChange: setShowBlockBorders,
+    onShowPageMetadataChange: (show: boolean) => setState((current) => applyShowPageMetadataToViewState(current, show)),
+    onRoundPinnedCardsChange: setRoundPinnedCards,
+    onGlowPinnedCardsChange: setGlowPinnedCards,
+    onNewestFirstChange: (newestFirst: boolean) => setPageBlockOrder(newestFirst ? 'desc' : 'asc'),
+    onShellChange: setShell,
+    onContentThemeChange: setContentTheme,
+    onOutlineToggle: () => setOutlineDrawerOpen((open) => !open),
+    onSidebarToggle: () => setSidebarCollapsed((collapsed) => !collapsed),
+    onMarkdownFilesChange: (files: FileList | null) => void importMarkdownFiles(files),
+    onMarkdownFolderChange: (files: FileList | null) => void importMarkdownFolder(files),
+    onExportMarkdown: exportMarkdown,
+    onExportJson: exportJson,
+    onRestorePageVersion: () => void restorePreviousPageVersion(),
+    trashItems,
+    onRestoreTrashItem: (trashId: number) => void restoreTrashItemById(trashId),
+    onEmptyTrash: () => void emptyTrashItems(),
+    trashBusy
+  };
 
   const isTyporaShell = state.shell === 'typora-base';
   const pageTree = isTyporaShell ? null : renderPageTree(null);

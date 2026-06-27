@@ -33,6 +33,12 @@
   --theme-nav-active-ink: #244f48;
   --theme-note-background: linear-gradient(180deg, #fbf7ed, #f2e7d8);
   --theme-note-ink: #56463e;
+  --block-surface-border: 1px solid rgba(36, 45, 39, 0.12);
+  --block-surface-background: rgba(250, 251, 247, 0.72);
+  --block-surface-shadow: inset 3px 0 0 rgba(47, 111, 100, 0.1);
+  --floating-layer-border: 1px solid rgba(36, 45, 39, 0.16);
+  --floating-layer-background: rgba(250, 251, 247, 0.98);
+  --floating-layer-shadow: 0 14px 30px rgba(29, 34, 31, 0.12);
 
   --layout-sidebar-width: 276px;
   --layout-right-panel-width: 318px;

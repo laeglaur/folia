@@ -92,8 +92,16 @@
 
 .typora-app-shell .typora-write.show-block-borders .block {
   padding: 8px 10px 8px 6px;
-  border: var(--typora-editor-block-border);
+  border: var(--block-surface-border, var(--typora-editor-block-border));
   border-radius: 4px;
+  background: var(--block-surface-background, transparent);
+  box-shadow: var(--block-surface-shadow, none);
+}
+
+.typora-app-shell[data-content-theme="typora-base"] {
+  --block-surface-border: var(--input-border, 1px solid color-mix(in srgb, var(--typora-shell-divider) 78%, transparent));
+  --block-surface-background: var(--input-background, color-mix(in srgb, var(--typora-shell-panel) 70%, transparent));
+  --block-surface-shadow: var(--input-shadow, none);
 }
 
 .typora-app-shell .block:hover,

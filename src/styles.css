@@ -243,11 +243,11 @@ input, select { color: var(--ink); }
   min-width: 168px;
   padding: 6px;
   gap: 4px;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  border-radius: 8px;
-  background: var(--theme-surface-solid, #fffdf7);
+  border: var(--floating-layer-border);
+  border-radius: var(--floating-layer-radius);
+  background: var(--floating-layer-background);
   color: var(--ink);
-  box-shadow: 0 18px 42px color-mix(in srgb, #000 18%, transparent);
+  box-shadow: var(--floating-layer-shadow);
 }
 
 .emoji-context-menu button {
@@ -383,11 +383,11 @@ input, select { color: var(--ink); }
   max-height: min(680px, calc(100vh - 44px));
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  border-radius: 10px;
-  background: var(--theme-surface-solid, #fffdf7);
+  border: var(--floating-layer-border);
+  border-radius: var(--floating-layer-radius);
+  background: var(--floating-layer-background);
   color: var(--ink);
-  box-shadow: 0 24px 70px color-mix(in srgb, #000 24%, transparent);
+  box-shadow: var(--floating-layer-shadow);
   overflow: hidden;
 }
 
@@ -737,10 +737,10 @@ input, select { color: var(--ink); }
   max-height: min(360px, 55vh);
   overflow: auto;
   padding: 6px;
-  border: 1px solid var(--line);
-  border-radius: var(--topbar-control-radius);
-  background: var(--panel);
-  box-shadow: var(--surface-shadow);
+  border: var(--floating-layer-border);
+  border-radius: var(--floating-layer-radius);
+  background: var(--floating-layer-background);
+  box-shadow: var(--floating-layer-shadow);
   color: var(--ink);
 }
 
@@ -800,10 +800,10 @@ input, select { color: var(--ink); }
   width: min(420px, calc(100vw - 32px));
   max-width: min(420px, calc(100vw - 32px));
   padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--panel);
-  box-shadow: var(--surface-shadow);
+  border: var(--floating-layer-border);
+  border-radius: var(--floating-layer-radius);
+  background: var(--floating-layer-background);
+  box-shadow: var(--floating-layer-shadow);
   color: var(--ink);
 }
 
@@ -1033,10 +1033,10 @@ input, select { color: var(--ink); }
   width: fit-content;
   max-width: 100%;
   padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--panel) 88%, transparent);
-  box-shadow: 0 6px 14px rgba(36, 45, 39, 0.08);
+  border: var(--floating-layer-border);
+  border-radius: var(--floating-layer-radius);
+  background: var(--floating-layer-background);
+  box-shadow: var(--floating-layer-shadow);
 }
 
 .table-control-button {
@@ -1070,10 +1070,10 @@ input, select { color: var(--ink); }
   gap: 6px;
   max-width: calc(100% - 16px);
   padding: 5px 6px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--panel) 94%, transparent);
-  box-shadow: 0 10px 24px rgba(36, 45, 39, 0.12);
+  border: var(--floating-layer-border);
+  border-radius: var(--floating-layer-radius);
+  background: var(--floating-layer-background);
+  box-shadow: var(--floating-layer-shadow);
 }
 
 .math-block-editor-delimiter {
@@ -1115,8 +1115,10 @@ input, select { color: var(--ink); }
   grid-template-columns: var(--block-grid-columns);
   gap: var(--block-gap);
   padding: var(--block-padding);
-  border: var(--block-border);
+  border: var(--block-surface-border, var(--block-border));
   border-radius: var(--block-radius);
+  background: var(--block-surface-background, transparent);
+  box-shadow: var(--block-surface-shadow, none);
   transition: var(--block-transition);
 }
 
@@ -2365,11 +2367,11 @@ body.notebook-table-column-resizing * {
   max-height: 118px;
   overflow: hidden;
   padding: 8px;
-  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border: var(--desktop-card-border);
   border-radius: var(--desktop-card-radius);
-  background: color-mix(in srgb, var(--theme-surface-solid, #fffdf7) 92%, transparent);
-  color: var(--muted);
-  box-shadow: none;
+  background: var(--desktop-card-background);
+  color: var(--desktop-card-ink, var(--muted));
+  box-shadow: var(--desktop-card-shadow);
   text-align: left;
   font-size: 11.5px;
   line-height: 1.32;
