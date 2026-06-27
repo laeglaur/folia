@@ -1130,7 +1130,7 @@ input, select { color: var(--ink); }
 .block:focus-within {
   border-color: var(--line);
   background: var(--block-surface-background, transparent);
-  box-shadow: var(--block-hover-shadow);
+  box-shadow: var(--block-surface-shadow, none);
 }
 
 .block.is-dragging { opacity: var(--block-drag-opacity); transform: var(--block-drag-transform); }

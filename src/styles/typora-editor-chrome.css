@@ -114,6 +114,7 @@
 .typora-app-shell .typora-write.show-block-borders .block:hover,
 .typora-app-shell .typora-write.show-block-borders .block:focus-within {
   border-color: var(--typora-editor-toolbar-border);
+  box-shadow: var(--block-surface-shadow, none);
 }
 
 .typora-app-shell .block-divider {
