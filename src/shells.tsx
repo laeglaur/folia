@@ -9,7 +9,7 @@ import {
   type ReactNode,
   type RefObject
 } from 'react';
-import { Download, FilePlus, FileUp, History, ImagePlus, NotebookTabs, PanelRight, Pin, Plus, Search, Sparkles, Trash2, Upload } from 'lucide-react';
+import { Download, FilePlus, FileUp, History, NotebookTabs, PanelRight, Pin, Plus, Search, Sparkles, Trash2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { Block, ContentThemeId, Notebook, ShellId } from './types';
 import type { PageSearchResult, TrashItemPayload } from './state';
@@ -30,8 +30,7 @@ type NotebookActions = {
   renameNotebook: (notebookId: string, name: string) => void;
   duplicateNotebook: (notebookId: string) => void;
   deleteNotebook: (notebookId: string) => void;
-  openNotebookIcons: (notebookId: string) => void;
-  openNotebookIconMenu: (notebookId: string, x: number, y: number) => void;
+  openNotebookEmojiMenu: (notebookId: string, x: number, y: number) => void;
 };
 
 type ToolControlsProps = {
@@ -66,7 +65,6 @@ type ToolControlsProps = {
   onExportMarkdown: () => void;
   onExportJson: () => void;
   onRestorePageVersion: () => void;
-  onOpenNotebookIcons: () => void;
   trashItems: TrashItemPayload[];
   onRestoreTrashItem: (trashId: number) => void;
   onEmptyTrash: () => void;
@@ -105,7 +103,6 @@ function ToolControls({
   onExportMarkdown,
   onExportJson,
   onRestorePageVersion,
-  onOpenNotebookIcons,
   trashItems,
   onRestoreTrashItem,
   onEmptyTrash,
@@ -197,7 +194,6 @@ function ToolControls({
       <button className="secondary-button" type="button" onClick={onExportMarkdown}><Download size={15} /> Markdown</button>
       <button className="secondary-button" type="button" onClick={onExportJson}><Upload size={15} /> Backup</button>
       <button className="secondary-button" type="button" onClick={onRestorePageVersion}><History size={15} /> Restore page</button>
-      <button className="secondary-button" type="button" onClick={onOpenNotebookIcons}><ImagePlus size={15} /> Icons</button>
       <button className="secondary-button" type="button" onClick={onEmptyTrash} disabled={trashBusy}><Trash2 size={15} /> {trashBusy ? 'Emptying trash' : 'Empty trash'}</button>
       {compact ? (
         <section className="fish-trash">
@@ -334,7 +330,7 @@ function NotebookList({
   const renderNotebookLabel = (notebook: Notebook) => {
     const isEditing = editingNotebookId === notebook.id;
     const isActive = notebook.id === activeNotebook.id;
-    const icon = notebook.metadata.iconPack?.icons.find((item) => item.id === notebook.metadata.iconId) ?? null;
+    const emoji = notebook.metadata.emoji;
     const sharedInputProps = {
       ref: nameInputRef,
       className: 'notebook-name-input',
@@ -369,18 +365,18 @@ function NotebookList({
         </div>
       ) : (
         <button
-          className={`file-node-content notebook-node ${icon ? 'has-node-icon' : ''} ${isActive ? 'is-active' : ''}`}
+          className={`file-node-content notebook-node ${emoji ? 'has-node-icon' : ''} ${isActive ? 'is-active' : ''}`}
           type="button"
           onClick={() => actions.selectNotebook(notebook)}
           onDoubleClick={() => beginRename(notebook)}
           onContextMenu={(event) => {
             event.preventDefault();
             actions.selectNotebook(notebook);
-            actions.openNotebookIconMenu(notebook.id, event.clientX, event.clientY);
+            actions.openNotebookEmojiMenu(notebook.id, event.clientX, event.clientY);
           }}
         >
           <span className="file-node-open-state"><NotebookTabs size={13} /></span>
-          {icon ? <img className="node-icon-image" src={icon.src} alt="" aria-hidden="true" /> : null}
+          {emoji ? <span className="node-emoji emoji-font" aria-hidden="true">{emoji}</span> : null}
           <span className="file-node-title file-name notebook-label">{notebook.name}</span>
         </button>
       );
@@ -393,18 +389,18 @@ function NotebookList({
       </div>
     ) : (
       <button
-        className={`notebook-button ${icon ? 'has-node-icon' : ''} ${isActive ? 'active' : ''}`}
+        className={`notebook-button ${emoji ? 'has-node-icon' : ''} ${isActive ? 'active' : ''}`}
         type="button"
         onClick={() => actions.selectNotebook(notebook)}
         onDoubleClick={() => beginRename(notebook)}
         onContextMenu={(event) => {
           event.preventDefault();
           actions.selectNotebook(notebook);
-          actions.openNotebookIconMenu(notebook.id, event.clientX, event.clientY);
+          actions.openNotebookEmojiMenu(notebook.id, event.clientX, event.clientY);
         }}
       >
         <NotebookTabs size={15} />
-        {icon ? <img className="node-icon-image" src={icon.src} alt="" aria-hidden="true" /> : null}
+        {emoji ? <span className="node-emoji emoji-font" aria-hidden="true">{emoji}</span> : null}
         <span className="notebook-label">{notebook.name}</span>
       </button>
     );

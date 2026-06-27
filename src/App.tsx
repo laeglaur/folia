@@ -93,13 +93,12 @@ import {
   applyNotebookDeleteToViewState,
   applyNotebookDuplicateToViewState,
   applyNotebookCreateToViewState,
-  applyNotebookIconPackToViewState,
-  applyNotebookIconToViewState,
+  applyNotebookEmojiToViewState,
   applyNotebookRenameToViewState,
   applyPageDocumentToViewState,
   applyPageCreateToViewState,
   applyPageExpandedToggleToViewState,
-  applyPageIconToViewState,
+  applyPageEmojiToViewState,
   applyMarkdownFilesImportToViewState,
   applyMarkdownFolderImportToViewState,
   applyMarkdownFolderPageDocumentToViewState,
@@ -130,9 +129,7 @@ import 'katex/dist/katex.min.css';
 import { CardWindowPage, NativeShell, TyporaShell } from './shells';
 import { WorkspaceContent, type EditorTarget } from './workspace';
 import { ImageAnnotationEditor, serializeImageAnnotations, type ImageAnnotationDocument } from './image-annotations';
-import { IconPackDialog, type IconPackDialogRequest } from './icon-pack-dialog';
-import { iconFromPack } from './icon-packs';
-import type { NotebookIconAsset, NotebookIconPack } from './types';
+import { EmojiPicker, type EmojiPickerRequest } from './emoji-picker';
 
 const shellThemes: Array<{ id: ShellId; label: string }> = [
   { id: 'native-garden', label: 'Native Garden' },
@@ -167,10 +164,10 @@ type DeletedBlockSnapshot = {
   nextSelectedBlockId: string | null;
 };
 
-type IconContextMenuState = {
+type EmojiContextMenuState = {
   x: number;
   y: number;
-  target: IconPackDialogRequest['target'];
+  target: EmojiPickerRequest['target'];
 };
 
 type PageFindMatch = {
@@ -256,8 +253,8 @@ export function App() {
   const [tableControls, setTableControls] = useState<TableControlsState>({ visible: false, top: 0, left: 0 });
   const [mathEditor, setMathEditor] = useState<MathEditorState | null>(null);
   const [imageAnnotationRequest, setImageAnnotationRequest] = useState<ImageAnnotationRequest | null>(null);
-  const [iconPackRequest, setIconPackRequest] = useState<IconPackDialogRequest | null>(null);
-  const [iconContextMenu, setIconContextMenu] = useState<IconContextMenuState | null>(null);
+  const [emojiPickerRequest, setEmojiPickerRequest] = useState<EmojiPickerRequest | null>(null);
+  const [emojiContextMenu, setEmojiContextMenu] = useState<EmojiContextMenuState | null>(null);
   const [showComposerFooter, setShowComposerFooter] = useState(false);
   const [showBlockBorders, setShowBlockBorders] = useState(true);
   const [roundPinnedCards, setRoundPinnedCards] = useState(cardModeBlockId ? cardModeRoundPinnedCards : true);
@@ -291,11 +288,11 @@ export function App() {
   const lastSavedWorkspacePreferencesRef = useRef('');
   const deletedBlockSnapshotRef = useRef<DeletedBlockSnapshot | null>(null);
 
-  const closeIconContextMenu = () => setIconContextMenu(null);
+  const closeEmojiContextMenu = () => setEmojiContextMenu(null);
 
   useEffect(() => {
-    if (!iconContextMenu) return;
-    const close = () => closeIconContextMenu();
+    if (!emojiContextMenu) return;
+    const close = () => closeEmojiContextMenu();
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close();
     };
@@ -305,7 +302,7 @@ export function App() {
       window.removeEventListener('pointerdown', close);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [iconContextMenu]);
+  }, [emojiContextMenu]);
 
   useEffect(() => {
     if (cardModeBlockId) return;
@@ -947,46 +944,28 @@ export function App() {
     if (activeEditor.kind === 'block') updateBlock(activeEditor.blockId, html, plainText);
   };
 
-  const setNotebookIconPack = (notebookId: string, pack: NotebookIconPack) => {
-    const nextNotebook = stateRef.current.notebooks.find((notebook) => notebook.id === notebookId);
-    if (!nextNotebook) return;
-    const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, iconPack: pack } };
-    setState((current) => applyNotebookIconPackToViewState(current, notebookId, pack));
-    if (isTauri()) persistNotebookMetadataUpdate(updatedNotebook);
-  };
-
-  const addNotebookIcon = (notebookId: string, icon: NotebookIconAsset) => {
-    const nextNotebook = stateRef.current.notebooks.find((notebook) => notebook.id === notebookId);
-    if (!nextNotebook) return;
-    const pack = nextNotebook.metadata.iconPack ?? { id: createId('icon_pack'), name: nextNotebook.name, icons: [] };
-    const updatedPack = { ...pack, icons: [...pack.icons, icon] };
-    const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, iconPack: updatedPack } };
-    setState((current) => applyNotebookIconPackToViewState(current, notebookId, updatedPack));
-    if (isTauri()) persistNotebookMetadataUpdate(updatedNotebook);
-  };
-
-  const setPageIcon = (pageId: string, iconId: string | null) => {
+  const setPageEmoji = (pageId: string, emoji: string | null) => {
     const nextPage = stateRef.current.pages.find((page) => page.id === pageId);
     if (!nextPage) return;
-    const updatedPage = { ...nextPage, metadata: { ...nextPage.metadata, iconId: iconId ?? undefined } };
-    setState((current) => applyPageIconToViewState(current, pageId, iconId));
+    const updatedPage = { ...nextPage, metadata: { ...nextPage.metadata, emoji: emoji ?? undefined } };
+    setState((current) => applyPageEmojiToViewState(current, pageId, emoji));
     if (isTauri()) persistPageMetadataUpdate(updatedPage);
   };
 
-  const setNotebookIcon = (notebookId: string, iconId: string | null) => {
+  const setNotebookEmoji = (notebookId: string, emoji: string | null) => {
     const nextNotebook = stateRef.current.notebooks.find((notebook) => notebook.id === notebookId);
     if (!nextNotebook) return;
-    const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, iconId: iconId ?? undefined } };
-    setState((current) => applyNotebookIconToViewState(current, notebookId, iconId));
+    const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, emoji: emoji ?? undefined } };
+    setState((current) => applyNotebookEmojiToViewState(current, notebookId, emoji));
     if (isTauri()) persistNotebookMetadataUpdate(updatedNotebook);
   };
 
-  const openIconContextMenu = (target: IconPackDialogRequest['target'], x: number, y: number) => {
+  const openEmojiContextMenu = (target: EmojiPickerRequest['target'], x: number, y: number) => {
     const width = 188;
     const height = 100;
     const left = Math.max(12, Math.min(x, window.innerWidth - width - 12));
     const top = Math.max(12, Math.min(y, window.innerHeight - height - 12));
-    setIconContextMenu({ target, x: left, y: top });
+    setEmojiContextMenu({ target, x: left, y: top });
   };
 
   const saveImageAnnotations = (request: ImageAnnotationRequest, annotations: ImageAnnotationDocument) => {
@@ -2391,7 +2370,7 @@ export function App() {
       const selected = selectedPageId === page.id;
       const active = page.id === activePage.id;
       const editing = editingPageId === page.id;
-      const pageIcon = iconFromPack(activeNotebook.metadata.iconPack, page.metadata.iconId);
+      const pageEmoji = page.metadata.emoji;
       return (
         <div className="page-tree-row" key={page.id} style={{ '--depth': depth } as React.CSSProperties}>
           <div
@@ -2423,7 +2402,7 @@ export function App() {
               </div>
             ) : (
               <button
-                className={`page-button ${pageIcon ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
+                className={`page-button ${pageEmoji ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
                 draggable
                 onDragStart={(event) => {
                   setSelectedPageId(page.id);
@@ -2439,7 +2418,7 @@ export function App() {
                 onContextMenu={(event) => {
                   event.preventDefault();
                   selectPage(page.id);
-                  openIconContextMenu({ kind: 'page', pageId: page.id }, event.clientX, event.clientY);
+                  openEmojiContextMenu({ kind: 'page', pageId: page.id }, event.clientX, event.clientY);
                 }}
                 type="button"
               >
@@ -2452,7 +2431,7 @@ export function App() {
                 >
                   {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
                 </span>
-                {pageIcon ? <img className="node-icon-image" src={pageIcon.src} alt="" aria-hidden="true" /> : null}
+                {pageEmoji ? <span className="node-emoji emoji-font" aria-hidden="true">{pageEmoji}</span> : null}
                 <span>{page.title}</span>
               </button>
             )}
@@ -2473,7 +2452,7 @@ export function App() {
       const selected = selectedPageId === page.id;
       const active = page.id === activePage.id;
       const editing = editingPageId === page.id;
-      const pageIcon = iconFromPack(activeNotebook.metadata.iconPack, page.metadata.iconId);
+      const pageEmoji = page.metadata.emoji;
       return (
         <div
           className="file-library-node"
@@ -2511,7 +2490,7 @@ export function App() {
               </div>
             ) : (
               <button
-                className={`file-node-content ${pageIcon ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
+                className={`file-node-content ${pageEmoji ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
                 draggable
                 onDragStart={(event) => {
                   setSelectedPageId(page.id);
@@ -2527,7 +2506,7 @@ export function App() {
                 onContextMenu={(event) => {
                   event.preventDefault();
                   selectPage(page.id);
-                  openIconContextMenu({ kind: 'page', pageId: page.id }, event.clientX, event.clientY);
+                  openEmojiContextMenu({ kind: 'page', pageId: page.id }, event.clientX, event.clientY);
                 }}
                 type="button"
               >
@@ -2540,7 +2519,7 @@ export function App() {
                 >
                   {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
                 </span>
-                {pageIcon ? <img className="node-icon-image" src={pageIcon.src} alt="" aria-hidden="true" /> : null}
+                {pageEmoji ? <span className="node-emoji emoji-font" aria-hidden="true">{pageEmoji}</span> : null}
                 <span className="file-node-title file-name">{page.title}</span>
               </button>
             )}
@@ -2663,8 +2642,7 @@ export function App() {
     renameNotebook,
     duplicateNotebook,
     deleteNotebook,
-    openNotebookIcons: (notebookId: string) => setIconPackRequest({ target: { kind: 'notebook', notebookId } }),
-    openNotebookIconMenu: (notebookId: string, x: number, y: number) => openIconContextMenu({ kind: 'notebook', notebookId }, x, y)
+    openNotebookEmojiMenu: (notebookId: string, x: number, y: number) => openEmojiContextMenu({ kind: 'notebook', notebookId }, x, y)
   };
 
   const shellControls = {
@@ -2698,7 +2676,6 @@ export function App() {
     onExportMarkdown: exportMarkdown,
     onExportJson: exportJson,
     onRestorePageVersion: () => void restorePreviousPageVersion(),
-    onOpenNotebookIcons: () => setIconPackRequest({ target: { kind: 'notebook', notebookId: activeNotebook.id } }),
     trashItems,
     onRestoreTrashItem: (trashId: number) => void restoreTrashItemById(trashId),
     onEmptyTrash: () => void emptyTrashItems(),
@@ -2790,12 +2767,12 @@ export function App() {
     fishIconUrl
   };
 
-  let iconContextMenuHasIcon = false;
-  if (iconContextMenu) {
-    const target = iconContextMenu.target;
-    iconContextMenuHasIcon = Boolean(target.kind === 'notebook'
-      ? state.notebooks.find((notebook) => notebook.id === target.notebookId)?.metadata.iconId
-      : state.pages.find((page) => page.id === target.pageId)?.metadata.iconId);
+  let emojiContextMenuHasEmoji = false;
+  if (emojiContextMenu) {
+    const target = emojiContextMenu.target;
+    emojiContextMenuHasEmoji = Boolean(target.kind === 'notebook'
+      ? state.notebooks.find((notebook) => notebook.id === target.notebookId)?.metadata.emoji
+      : state.pages.find((page) => page.id === target.pageId)?.metadata.emoji);
   }
 
   return (
@@ -2829,10 +2806,10 @@ export function App() {
           ) : null}
         </div>
       ) : null}
-      {iconContextMenu ? (
+      {emojiContextMenu ? (
         <div
-          className="icon-context-menu"
-          style={{ left: iconContextMenu.x, top: iconContextMenu.y }}
+          className="emoji-context-menu"
+          style={{ left: emojiContextMenu.x, top: emojiContextMenu.y }}
           onPointerDown={(event) => event.stopPropagation()}
           role="menu"
         >
@@ -2840,58 +2817,40 @@ export function App() {
             type="button"
             role="menuitem"
             onClick={() => {
-              setIconPackRequest({ target: iconContextMenu.target });
-              closeIconContextMenu();
+              setEmojiPickerRequest({ target: emojiContextMenu.target });
+              closeEmojiContextMenu();
             }}
           >
-            Choose icon
+            Set emoji
           </button>
           <button
             type="button"
             role="menuitem"
-            disabled={!iconContextMenuHasIcon}
+            disabled={!emojiContextMenuHasEmoji}
             onClick={() => {
-              const target = iconContextMenu.target;
-              if (target.kind === 'notebook') setNotebookIcon(target.notebookId, null);
-              else setPageIcon(target.pageId, null);
-              closeIconContextMenu();
+              const target = emojiContextMenu.target;
+              if (target.kind === 'notebook') setNotebookEmoji(target.notebookId, null);
+              else setPageEmoji(target.pageId, null);
+              closeEmojiContextMenu();
             }}
           >
-            Clear icon
+            Clear emoji
           </button>
         </div>
       ) : null}
       <ImageAnnotationEditor request={imageAnnotationRequest} onSave={saveImageAnnotations} onClose={() => setImageAnnotationRequest(null)} />
-      <IconPackDialog
-        request={iconPackRequest}
+      <EmojiPicker
+        request={emojiPickerRequest}
         notebooks={state.notebooks}
         pages={state.pages}
-        onClose={() => setIconPackRequest(null)}
-        onImportPack={(pack) => {
-          if (!iconPackRequest) return;
-          const target = iconPackRequest.target;
-          if (target.kind === 'notebook') {
-            setNotebookIconPack(target.notebookId, pack);
-            return;
-          }
-          const page = state.pages.find((candidate) => candidate.id === target.pageId);
-          if (page) setNotebookIconPack(page.notebookId, pack);
+        onClose={() => setEmojiPickerRequest(null)}
+        onChoose={(target, emoji) => {
+          if (target.kind === 'notebook') setNotebookEmoji(target.notebookId, emoji);
+          else setPageEmoji(target.pageId, emoji);
         }}
-        onAddIcon={(icon) => {
-          if (!iconPackRequest) return;
-          const target = iconPackRequest.target;
-          let notebookId: string | undefined;
-          if (target.kind === 'notebook') notebookId = target.notebookId;
-          else notebookId = state.pages.find((candidate) => candidate.id === target.pageId)?.notebookId;
-          if (notebookId) addNotebookIcon(notebookId, icon);
-        }}
-        onChooseIcon={(target, iconId) => {
-          if (target.kind === 'notebook') setNotebookIcon(target.notebookId, iconId);
-          else setPageIcon(target.pageId, iconId);
-        }}
-        onClearIcon={(target) => {
-          if (target.kind === 'notebook') setNotebookIcon(target.notebookId, null);
-          else setPageIcon(target.pageId, null);
+        onClear={(target) => {
+          if (target.kind === 'notebook') setNotebookEmoji(target.notebookId, null);
+          else setPageEmoji(target.pageId, null);
         }}
       />
     </>

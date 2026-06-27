@@ -1,4 +1,4 @@
-import type { AppState, Block, ContentThemeId, Notebook, NotebookIconPack, OperationLogEntry, Page, ShellId } from './types';
+import type { AppState, Block, ContentThemeId, Notebook, OperationLogEntry, Page, ShellId } from './types';
 import { localDateKey, type CalendarEntry } from './app-utils';
 import type { CalendarBlockPayload, NotebookTreePayload, PageDocumentPayload } from './state';
 
@@ -144,42 +144,31 @@ export const applyShowPageMetadataToViewState = (
   showPageMetadata
 });
 
-export const applyNotebookIconPackToViewState = (
+export const applyNotebookEmojiToViewState = (
   current: AppState,
   notebookId: string,
-  iconPack: NotebookIconPack
+  emoji: string | null
 ): AppState => ({
   ...current,
   notebooks: current.notebooks.map((notebook) =>
-    notebook.id === notebookId
-      ? { ...notebook, metadata: { ...notebook.metadata, iconPack } }
-      : notebook
+    notebook.id === notebookId ? (() => {
+      const { iconId: _iconId, iconPack: _iconPack, ...metadata } = notebook.metadata as typeof notebook.metadata & { iconId?: string; iconPack?: unknown };
+      return { ...notebook, metadata: { ...metadata, emoji: emoji ?? undefined } };
+    })() : notebook
   )
 });
 
-export const applyNotebookIconToViewState = (
-  current: AppState,
-  notebookId: string,
-  iconId: string | null
-): AppState => ({
-  ...current,
-  notebooks: current.notebooks.map((notebook) =>
-    notebook.id === notebookId
-      ? { ...notebook, metadata: { ...notebook.metadata, iconId: iconId ?? undefined } }
-      : notebook
-  )
-});
-
-export const applyPageIconToViewState = (
+export const applyPageEmojiToViewState = (
   current: AppState,
   pageId: string,
-  iconId: string | null
+  emoji: string | null
 ): AppState => ({
   ...current,
   pages: current.pages.map((page) =>
-    page.id === pageId
-      ? { ...page, metadata: { ...page.metadata, iconId: iconId ?? undefined } }
-      : page
+    page.id === pageId ? (() => {
+      const { iconId: _iconId, iconPack: _iconPack, ...metadata } = page.metadata as typeof page.metadata & { iconId?: string; iconPack?: unknown };
+      return { ...page, metadata: { ...metadata, emoji: emoji ?? undefined } };
+    })() : page
   )
 });
 

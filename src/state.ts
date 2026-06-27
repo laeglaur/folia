@@ -16,9 +16,7 @@ const createEmptyPageMetadata = (sourceFilename?: string): PageMetadata => ({
   frontmatter: {}
 });
 
-const createEmptyNotebookMetadata = (): NotebookMetadata => ({
-  iconPack: null
-});
+const createEmptyNotebookMetadata = (): NotebookMetadata => ({});
 
 const stringifyFrontmatter = (frontmatter: Record<string, string | string[]>) => {
   const lines: string[] = [];
@@ -208,17 +206,24 @@ const normalizeState = (state: AppState): AppState => {
   const contentTheme = normalizeContentTheme(state.contentTheme);
   const shell = normalizeShell(state.shell, theme, contentTheme);
   const nativeTheme = shell === 'native-ledger' ? 'ledger' : 'garden';
+  const cleanNotebookMetadata = (metadata: Partial<NotebookMetadata> & { iconId?: string; iconPack?: unknown } = {}) => {
+    const { iconId: _iconId, iconPack: _iconPack, ...rest } = metadata;
+    return {
+      ...createEmptyNotebookMetadata(),
+      ...rest
+    };
+  };
+  const cleanPageMetadata = (metadata: Partial<PageMetadata> & { iconId?: string; iconPack?: unknown } = {}) => {
+    const { iconId: _iconId, iconPack: _iconPack, ...rest } = metadata;
+    return rest;
+  };
 
   return {
     ...state,
     notebooks: state.notebooks.map((notebook) => ({
       ...notebook,
       pageIds: notebook.pageIds ?? state.pages.filter((page) => page.notebookId === notebook.id).map((page) => page.id),
-      metadata: {
-        ...createEmptyNotebookMetadata(),
-        ...(notebook.metadata ?? {}),
-        iconPack: notebook.metadata?.iconPack ?? null
-      }
+      metadata: cleanNotebookMetadata(notebook.metadata ?? {})
     })),
     pages: state.pages.map((page) => ({
       ...page,
@@ -226,7 +231,7 @@ const normalizeState = (state: AppState): AppState => {
       blockOrder: page.blockOrder === 'desc' ? 'desc' : 'asc',
       metadata: {
         ...createEmptyPageMetadata(),
-        ...(page.metadata ?? {}),
+        ...cleanPageMetadata(page.metadata ?? {}),
         tags: page.metadata?.tags ?? [],
         aliases: page.metadata?.aliases ?? [],
         frontmatter: page.metadata?.frontmatter ?? {},
@@ -462,11 +467,6 @@ const extractReferencedAssetIds = (state: AppState) => {
     container.querySelectorAll<HTMLImageElement | HTMLVideoElement | HTMLAudioElement>('img[src], video[src], audio[src]').forEach((element) => {
       const id = assetIdFromStoredMediaSrc(element.getAttribute('src') ?? '');
       if (id) ids.add(id);
-    });
-  });
-  state.notebooks.forEach((notebook) => {
-    notebook.metadata.iconPack?.icons.forEach((icon) => {
-      if (icon.assetId) ids.add(icon.assetId);
     });
   });
   return [...ids];
