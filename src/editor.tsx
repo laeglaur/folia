@@ -16,7 +16,7 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { TableRow } from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
-import { ListItem } from '@tiptap/extension-list';
+import { ListItem, ListKeymap } from '@tiptap/extension-list';
 import { Extension, InputRule, Mark, Node, markInputRule, mergeAttributes } from '@tiptap/core';
 import { common, createLowlight } from 'lowlight';
 import { marked } from 'marked';
@@ -242,8 +242,13 @@ const toggleCollapsibleListItem = (event: React.MouseEvent<HTMLDivElement>, edit
   const listItem = target.closest('li');
   if (!listItem || !editorRoot.contains(listItem)) return;
   if (!listItem.querySelector(':scope > ul, :scope > ol, :scope > div > ul, :scope > div > ol')) return;
+  if (target.closest('a, button, input, textarea, select')) return;
   const rect = listItem.getBoundingClientRect();
-  if (event.clientX - rect.left > 28) return;
+  // The fold marker is rendered with a pseudo-element that sits to the left of the list item's content box.
+  // Use a generous hit zone around that gutter so clicking the marker works without letting body clicks collapse the list.
+  const markerZoneLeft = rect.left - 36;
+  const markerZoneRight = rect.left + 10;
+  if (event.clientX < markerZoneLeft || event.clientX > markerZoneRight) return;
   event.preventDefault();
   const collapsed = listItem.getAttribute('data-list-collapsed') !== 'true';
   setListItemCollapsed(editor, listItem, collapsed);
@@ -1235,10 +1240,52 @@ const clipboardFilesToHtml = async (files: FileList) => {
   return (await Promise.all(attachments)).filter(Boolean).join('');
 };
 
+const selectionHasAncestorNode = (editor: Editor, nodeNames: string[]) => {
+  const names = new Set(nodeNames);
+  const { $from } = editor.state.selection;
+  for (let depth = $from.depth; depth >= 0; depth -= 1) {
+    if (names.has($from.node(depth).type.name)) return true;
+  }
+  return false;
+};
+
+const isSelectionInsideCodeBlock = (editor: Editor) => selectionHasAncestorNode(editor, ['codeBlock']);
+
+const isSelectionInsideListItem = (editor: Editor) => selectionHasAncestorNode(editor, ['listItem', 'taskItem']);
+
+const htmlToPlainText = (html: string) => {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  return container.innerText.replace(/\r\n?/g, '\n');
+};
+
+const insertPlainTextPreservingBreaks = (editor: Editor, text: string) => {
+  const normalized = text.replace(/\r\n?/g, '\n');
+  if (!normalized) return false;
+  const html = normalized
+    .split('\n')
+    .map((line) => escapeHtml(line))
+    .join('<br>');
+  return editor.chain().focus().insertContent(html).run();
+};
+
+const insertPlainTextIntoCodeBlock = (editor: Editor, text: string) => {
+  const normalized = text.replace(/\r\n?/g, '\n');
+  if (!normalized) return false;
+  const { from, to } = editor.state.selection;
+  const transaction = editor.state.tr.insertText(normalized, from, to);
+  editor.view.dispatch(transaction.scrollIntoView());
+  return true;
+};
+
 const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
   if (!editor) return false;
   const clipboard = event.clipboardData;
   if (!clipboard) return false;
+  syncDomSelectionToEditor(editor);
+
+  const insideCodeBlock = isSelectionInsideCodeBlock(editor);
+  const insideListItem = isSelectionInsideListItem(editor);
 
   if (clipboard.files.length) {
     event.preventDefault();
@@ -1251,6 +1298,42 @@ const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
   const html = clipboard.getData('text/html');
   const markdown = clipboard.getData('text/markdown') || clipboard.getData('text/x-markdown');
   const text = clipboard.getData('text/plain');
+
+  // Keep code blocks plain-text only so pasted code cannot escape into neighboring nodes.
+  if (insideCodeBlock) {
+    const nextText = text || markdown || (html ? htmlToPlainText(html) : '');
+    if (!nextText) return false;
+    event.preventDefault();
+    insertPlainTextIntoCodeBlock(editor, nextText);
+    return true;
+  }
+
+  // Inside list items, prefer stable inline paste over rich structural paste that can break out of the list.
+  if (insideListItem) {
+    const nextText = text || markdown || (html ? htmlToPlainText(html) : '');
+    if (!nextText) return false;
+    event.preventDefault();
+    insertPlainTextPreservingBreaks(editor, nextText);
+    return true;
+  }
+
+  const shouldPreferMarkdownText = () => {
+    const sourceText = markdown || text;
+    if (!sourceText || !markdownishText(sourceText)) return false;
+    if (!html) return true;
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    return !container.querySelector('ul, ol, li, table, pre, blockquote, h1, h2, h3, h4, h5, h6');
+  };
+
+  if (shouldPreferMarkdownText()) {
+    const sourceText = markdown || text;
+    if (!sourceText) return false;
+    event.preventDefault();
+    editor.chain().focus().insertContent(markdownToRichHtml(sourceText)).run();
+    return true;
+  }
+
   if (html) {
     event.preventDefault();
     const normalizedHtml = normalizePastedHtml(html);
@@ -1564,6 +1647,12 @@ const createEditorExtensions = (
   TableHeader,
   TableCell,
   NotebookListItem,
+  ListKeymap.configure({
+    listTypes: [
+      { itemName: 'listItem', wrapperNames: ['bulletList', 'orderedList'] },
+      { itemName: 'taskItem', wrapperNames: ['taskList'] }
+    ]
+  }),
   TaskList,
   NotebookTaskItem.configure({ nested: true }),
   NotebookVideo,
