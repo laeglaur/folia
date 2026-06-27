@@ -77,6 +77,12 @@ importers:
       marked:
         specifier: ^18.0.5
         version: 18.0.5
+      prosemirror-state:
+        specifier: ^1.4.4
+        version: 1.4.4
+      prosemirror-view:
+        specifier: ^1.41.9
+        version: 1.41.9
       react:
         specifier: latest
         version: 19.2.7

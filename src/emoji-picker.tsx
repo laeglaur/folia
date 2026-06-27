@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { emojiRecords } from './generated/emoji-records';
+import { EmojiImage } from './emoji-image';
+import { emojiAssetFor } from './emoji-assets';
 import type { Notebook, Page } from './types';
 
 type EmojiPickerTarget =
@@ -35,14 +37,15 @@ export function EmojiPicker({
       : '';
   const trimmedQuery = query.trim().toLowerCase();
   const groupedEmoji = useMemo(() => {
+    const availableRecords = emojiRecords.filter((record) => emojiAssetFor(record.emoji));
     const records = trimmedQuery
-      ? emojiRecords.filter((record) =>
+      ? availableRecords.filter((record) =>
         record.emoji.includes(trimmedQuery) ||
         record.name.toLowerCase().includes(trimmedQuery) ||
         record.group.toLowerCase().includes(trimmedQuery) ||
         record.subgroup.toLowerCase().includes(trimmedQuery)
       ).slice(0, 240)
-      : emojiRecords;
+      : availableRecords;
     return records.reduce<Array<{ label: string; records: typeof emojiRecords }>>((groups, record) => {
       const label = trimmedQuery ? 'Matches' : record.group;
       const existing = groups.find((group) => group.label === label);
@@ -76,7 +79,7 @@ export function EmojiPicker({
               <div className="emoji-picker-grid">
                 {group.records.map((record) => (
                   <button
-                    className="emoji-choice emoji-font"
+                    className="emoji-choice"
                     key={`${group.label}-${record.emoji}-${record.name}`}
                     type="button"
                     onClick={() => {
@@ -86,7 +89,7 @@ export function EmojiPicker({
                     title={record.name}
                     aria-label={`Use ${record.name}`}
                   >
-                    {record.emoji}
+                    <EmojiImage emoji={record.emoji} decorative />
                   </button>
                 ))}
               </div>

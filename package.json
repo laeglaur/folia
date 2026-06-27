@@ -44,6 +44,8 @@
     "lowlight": "^3.3.0",
     "lucide-react": "latest",
     "marked": "^18.0.5",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-view": "^1.41.9",
     "react": "latest",
     "react-dom": "latest",
     "typescript": "latest",

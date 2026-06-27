@@ -16,6 +16,7 @@ import type { PageSearchResult, TrashItemPayload } from './state';
 import type { OutlineEntry } from './app-utils';
 import { blockTimestampLabel } from './app-utils';
 import { RichEditor, type ImageAnnotationRequest, type MediaResizeRequest } from './editor';
+import { EmojiImage } from './emoji-image';
 import { renderAnnotatedImagesInHtml } from './image-annotations';
 import { contentThemes } from './typora-theme-registry';
 
@@ -376,7 +377,7 @@ function NotebookList({
           }}
         >
           <span className="file-node-open-state"><NotebookTabs size={13} /></span>
-          {emoji ? <span className="node-emoji emoji-font" aria-hidden="true">{emoji}</span> : null}
+          {emoji ? <EmojiImage emoji={emoji} className="node-emoji" decorative /> : null}
           <span className="file-node-title file-name notebook-label">{notebook.name}</span>
         </button>
       );
@@ -400,7 +401,7 @@ function NotebookList({
         }}
       >
         <NotebookTabs size={15} />
-        {emoji ? <span className="node-emoji emoji-font" aria-hidden="true">{emoji}</span> : null}
+        {emoji ? <EmojiImage emoji={emoji} className="node-emoji" decorative /> : null}
         <span className="notebook-label">{notebook.name}</span>
       </button>
     );

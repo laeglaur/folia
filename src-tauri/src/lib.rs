@@ -57,7 +57,7 @@ struct NormalizedPageMetadata {
     #[serde(default)]
     frontmatter: serde_json::Map<String, serde_json::Value>,
     #[serde(default)]
-    icon_id: Option<String>,
+    emoji: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -991,7 +991,7 @@ fn default_page_metadata() -> NormalizedPageMetadata {
         status: None,
         aliases: vec![],
         frontmatter: serde_json::Map::new(),
-        icon_id: None,
+        emoji: None,
     }
 }
 
@@ -3300,7 +3300,7 @@ mod tests {
                     status: Some("draft".to_string()),
                     aliases: vec!["Inbox alias".to_string()],
                     frontmatter: serde_json::Map::new(),
-                    icon_id: None,
+                    emoji: None,
                 },
                 created_at: "2026-06-15T00:00:00Z".to_string(),
                 updated_at: "2026-06-15T00:00:00Z".to_string(),

@@ -19,10 +19,13 @@ import TaskList from '@tiptap/extension-task-list';
 import { ListItem, ListKeymap } from '@tiptap/extension-list';
 import { Extension, InputRule, Mark, Node, markInputRule, mergeAttributes } from '@tiptap/core';
 import { common, createLowlight } from 'lowlight';
+import { Plugin } from 'prosemirror-state';
+import { Decoration, DecorationSet } from 'prosemirror-view';
 import { marked } from 'marked';
 import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import { htmlToMarkdown } from './state';
 import { escapeHtml } from './html-utils';
+import { emojiAssetFor } from './emoji-assets';
 import { ImageAnnotationSvg, parseImageAnnotations, type ImageAnnotationDocument } from './image-annotations';
 
 declare global {
@@ -1660,6 +1663,38 @@ const inlineMathInputRegex = /\$([^$\n]+?)\$$/;
 const embeddedLinkInputRegex = /^\s*\/link\s$/;
 const attachmentInputRegex = /^\s*\/at\s$/;
 const dateInputRegex = /^\s*\/date\s$/;
+const emojiTextRegex = /\p{Extended_Pictographic}(?:\ufe0f|\u200d\p{Extended_Pictographic}(?:\ufe0f)?)*|[\u2600-\u27bf]\ufe0f?/gu;
+
+const LocalEmojiDecorations = Extension.create({
+  name: 'localEmojiDecorations',
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          decorations: (state) => {
+            const decorations: Decoration[] = [];
+            state.doc.descendants((node, pos) => {
+              if (!node.isText || !node.text) return;
+              for (const match of node.text.matchAll(emojiTextRegex)) {
+                const emoji = match[0];
+                const asset = emojiAssetFor(emoji);
+                if (!asset || match.index === undefined) continue;
+                const from = pos + match.index;
+                const to = from + emoji.length;
+                decorations.push(Decoration.inline(from, to, {
+                  class: 'local-emoji-text',
+                  style: `--emoji-image: url("${asset}")`
+                }));
+              }
+            });
+            return DecorationSet.create(state.doc, decorations);
+          }
+        }
+      })
+    ];
+  }
+});
 
 const BracketTodoInput = Extension.create({
   name: 'bracketTodoInput',
@@ -1878,6 +1913,7 @@ const createEditorExtensions = (
   }),
   BracketTodoInput,
   NotebookShortcuts.configure({ onShiftEnter, onMoveBlock, onDeleteBlock }),
+  LocalEmojiDecorations,
   Placeholder.configure({ placeholder: placeholder ?? '' })
 ];
 

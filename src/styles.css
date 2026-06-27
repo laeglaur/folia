@@ -189,7 +189,6 @@ input, select { color: var(--ink); }
   font-size: var(--nav-item-font-size);
 }
 
-.emoji-font,
 .ProseMirror,
 .floating-card-body,
 .desktop-card,
@@ -197,14 +196,39 @@ input, select { color: var(--ink); }
   font-family: var(--font-body, var(--ui-font, ui-sans-serif, system-ui, sans-serif)), "Notebook Segoe Emoji";
 }
 
+.emoji-image {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  object-fit: contain;
+  vertical-align: -0.14em;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.emoji-image.is-emoji-fallback {
+  font-family: "Notebook Segoe Emoji", "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+}
+
 .node-emoji {
   width: 18px;
   height: 18px;
-  display: inline-grid;
-  place-items: center;
   flex: 0 0 auto;
   font-size: 17px;
   line-height: 1;
+}
+
+.local-emoji-text {
+  display: inline-block;
+  width: 1.08em;
+  min-height: 1em;
+  background-image: var(--emoji-image);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  color: transparent;
+  text-shadow: none;
+  vertical-align: -0.14em;
 }
 
 .notebook-button.has-node-icon,
@@ -340,6 +364,12 @@ input, select { color: var(--ink); }
   color: var(--ink);
   font-size: 22px;
   line-height: 1;
+}
+
+.emoji-choice .emoji-image {
+  width: 24px;
+  height: 24px;
+  font-size: 24px;
 }
 
 .emoji-choice:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }

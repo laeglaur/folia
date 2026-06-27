@@ -130,6 +130,7 @@ import { CardWindowPage, NativeShell, TyporaShell } from './shells';
 import { WorkspaceContent, type EditorTarget } from './workspace';
 import { ImageAnnotationEditor, serializeImageAnnotations, type ImageAnnotationDocument } from './image-annotations';
 import { EmojiPicker, type EmojiPickerRequest } from './emoji-picker';
+import { EmojiImage } from './emoji-image';
 
 const shellThemes: Array<{ id: ShellId; label: string }> = [
   { id: 'native-garden', label: 'Native Garden' },
@@ -947,7 +948,10 @@ export function App() {
   const setPageEmoji = (pageId: string, emoji: string | null) => {
     const nextPage = stateRef.current.pages.find((page) => page.id === pageId);
     if (!nextPage) return;
-    const updatedPage = { ...nextPage, metadata: { ...nextPage.metadata, emoji: emoji ?? undefined } };
+    const metadata = { ...nextPage.metadata };
+    if (emoji) metadata.emoji = emoji;
+    else delete metadata.emoji;
+    const updatedPage = { ...nextPage, metadata };
     setState((current) => applyPageEmojiToViewState(current, pageId, emoji));
     if (isTauri()) persistPageMetadataUpdate(updatedPage);
   };
@@ -955,7 +959,10 @@ export function App() {
   const setNotebookEmoji = (notebookId: string, emoji: string | null) => {
     const nextNotebook = stateRef.current.notebooks.find((notebook) => notebook.id === notebookId);
     if (!nextNotebook) return;
-    const updatedNotebook = { ...nextNotebook, metadata: { ...nextNotebook.metadata, emoji: emoji ?? undefined } };
+    const metadata = { ...nextNotebook.metadata };
+    if (emoji) metadata.emoji = emoji;
+    else delete metadata.emoji;
+    const updatedNotebook = { ...nextNotebook, metadata };
     setState((current) => applyNotebookEmojiToViewState(current, notebookId, emoji));
     if (isTauri()) persistNotebookMetadataUpdate(updatedNotebook);
   };
@@ -2431,7 +2438,7 @@ export function App() {
                 >
                   {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
                 </span>
-                {pageEmoji ? <span className="node-emoji emoji-font" aria-hidden="true">{pageEmoji}</span> : null}
+                {pageEmoji ? <EmojiImage emoji={pageEmoji} className="node-emoji" decorative /> : null}
                 <span>{page.title}</span>
               </button>
             )}
@@ -2519,7 +2526,7 @@ export function App() {
                 >
                   {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
                 </span>
-                {pageEmoji ? <span className="node-emoji emoji-font" aria-hidden="true">{pageEmoji}</span> : null}
+                {pageEmoji ? <EmojiImage emoji={pageEmoji} className="node-emoji" decorative /> : null}
                 <span className="file-node-title file-name">{page.title}</span>
               </button>
             )}

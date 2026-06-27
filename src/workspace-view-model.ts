@@ -153,7 +153,8 @@ export const applyNotebookEmojiToViewState = (
   notebooks: current.notebooks.map((notebook) =>
     notebook.id === notebookId ? (() => {
       const { iconId: _iconId, iconPack: _iconPack, ...metadata } = notebook.metadata as typeof notebook.metadata & { iconId?: string; iconPack?: unknown };
-      return { ...notebook, metadata: { ...metadata, emoji: emoji ?? undefined } };
+      if (!emoji) delete metadata.emoji;
+      return { ...notebook, metadata: emoji ? { ...metadata, emoji } : metadata };
     })() : notebook
   )
 });
@@ -167,7 +168,8 @@ export const applyPageEmojiToViewState = (
   pages: current.pages.map((page) =>
     page.id === pageId ? (() => {
       const { iconId: _iconId, iconPack: _iconPack, ...metadata } = page.metadata as typeof page.metadata & { iconId?: string; iconPack?: unknown };
-      return { ...page, metadata: { ...metadata, emoji: emoji ?? undefined } };
+      if (!emoji) delete metadata.emoji;
+      return { ...page, metadata: emoji ? { ...metadata, emoji } : metadata };
     })() : page
   )
 });
