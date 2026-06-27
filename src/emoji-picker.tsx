@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, Search, X } from 'lucide-react';
 import { emojiRecords, type EmojiRecord } from './generated/emoji-records';
+import { peopleEmojiRecords } from './generated/people-emoji';
 import { EmojiImage } from './emoji-image';
 import { emojiAssetFor } from './emoji-assets';
 import type { Notebook, Page } from './types';
@@ -60,8 +61,10 @@ export function EmojiPicker({
       : '';
   const trimmedQuery = query.trim().toLowerCase();
   const availableRecords = useMemo(() => emojiRecords.filter((record) => emojiAssetFor(record.emoji)), []);
+  const peopleRecords = useMemo(() => peopleEmojiRecords.filter((record) => emojiAssetFor(record.emoji)), []);
   const groups = useMemo(() => {
-    return availableRecords.reduce<Array<{ label: string; records: EmojiRecord[] }>>((items, record) => {
+    const categoryRecords = availableRecords.filter((record) => record.group !== 'People & Body' && !(record.group === 'Flags' && record.subgroup === 'country-flag'));
+    return categoryRecords.reduce<Array<{ label: string; records: EmojiRecord[] }>>((items, record) => {
       const existing = items.find((item) => item.label === record.group);
       if (existing) existing.records.push(record);
       else items.push({ label: record.group, records: [record] });
@@ -79,8 +82,10 @@ export function EmojiPicker({
   }, [availableRecords, trimmedQuery]);
   const activeRecords = useMemo(() => {
     if (!activeGroup) return [];
+    if (activeGroup === 'People') return peopleRecords;
+    if (activeGroup === 'Flags') return availableRecords.filter((record) => record.group === 'Flags');
     return groups.find((group) => group.label === activeGroup)?.records ?? [];
-  }, [activeGroup, groups]);
+  }, [activeGroup, availableRecords, groups, peopleRecords]);
   const recentRecords = useMemo(() => {
     const recentSet = new Set(recentEmoji);
     return recentEmoji
@@ -181,7 +186,7 @@ export function EmojiPicker({
                 </section>
               ) : null}
               <div className="emoji-category-list">
-                {groups.map((group) => (
+                {[{ label: 'People', records: peopleRecords }, { label: 'Flags', records: availableRecords.filter((record) => record.group === 'Flags') }, ...groups].map((group) => (
                   <button className="emoji-category-card" key={group.label} type="button" onClick={() => setActiveGroup(group.label)}>
                     <span className="emoji-category-title">{group.label}</span>
                     <span className="emoji-category-count">{group.records.length}</span>

@@ -837,14 +837,17 @@ input, select { color: var(--ink); }
 }
 
 .page-title-emoji {
-  width: clamp(28px, calc(var(--title-size) * 0.9), 44px);
-  height: clamp(28px, calc(var(--title-size) * 0.9), 44px);
+  width: clamp(24px, calc(var(--title-size) * 0.68), 36px);
+  height: clamp(24px, calc(var(--title-size) * 0.68), 36px);
   align-self: center;
 }
 
 .page-title {
   width: 100%;
   min-width: 0;
+  align-self: center;
+  line-height: 1.02;
+  transform: translateY(7px);
   border: 0;
   outline: 0;
   background: transparent;
