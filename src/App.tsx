@@ -1055,9 +1055,14 @@ export function App() {
   };
 
   const moveBlockByKeyboard = (blockId: string, direction: -1 | 1) => {
-    const index = blockIndex(blockId);
-    const targetIndex = index + direction;
-    if (index < 0 || targetIndex < 0 || targetIndex >= activePage.blockIds.length) return;
+    const visualIds = pageBlockOrder === 'desc' ? [...activePage.blockIds].reverse() : activePage.blockIds;
+    const visualIndex = visualIds.indexOf(blockId);
+    const targetVisualIndex = visualIndex + direction;
+    if (visualIndex < 0 || targetVisualIndex < 0 || targetVisualIndex >= visualIds.length) return false;
+    const targetBlockId = visualIds[targetVisualIndex];
+    const index = activePage.blockIds.indexOf(blockId);
+    const targetIndex = activePage.blockIds.indexOf(targetBlockId);
+    if (index < 0 || targetIndex < 0) return false;
     const nextIds = [...activePage.blockIds];
     [nextIds[index], nextIds[targetIndex]] = [nextIds[targetIndex], nextIds[index]];
     const updatedAt = new Date().toISOString();
@@ -1065,6 +1070,11 @@ export function App() {
     const operation = createOperation({ entity: 'page', entityId: activePage.id, kind: 'page.keyboard_move_block', payload: { blockIds: nextIds } });
     applyPageDocumentToView(nextPage, activePageBlocks, operation);
     persistPageDocumentSnapshot(nextPage, activePageBlocks, operation);
+    window.requestAnimationFrame(() => {
+      blockEditorRefs.current[blockId]?.commands.focus();
+      document.getElementById(blockId)?.scrollIntoView({ block: 'nearest' });
+    });
+    return true;
   };
 
   const deleteBlockWithTrash = async (blockId: string) => {
@@ -2470,8 +2480,7 @@ export function App() {
         onMathChange: updateMathEditorLatex,
         onMathClose: () => setMathEditor(null),
         onMoveBlock: (blockId, direction) => {
-          moveBlockByKeyboard(blockId, direction);
-          return true;
+          return moveBlockByKeyboard(blockId, direction);
         },
         onDeleteBlock: (blockId) => {
           void deleteBlockWithTrash(blockId);

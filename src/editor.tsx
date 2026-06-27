@@ -142,6 +142,9 @@ const dispatchPageLinkRequest = (pageId: string) => {
   window.dispatchEvent(new CustomEvent('notebook:open-page-link', { detail: { pageId } }));
 };
 
+const tableColumnResizeHandleWidth = 6;
+const tableCellMinWidth = 25;
+
 const syncDomSelectionToEditor = (editor: Editor) => {
   const selection = window.getSelection();
   if (!selection?.anchorNode || !editor.view.dom.contains(selection.anchorNode)) return;
@@ -1429,6 +1432,134 @@ const findMediaNodePosition = (editor: Editor, element: HTMLElement) => {
   return found;
 };
 
+const domTableCellAround = (target: EventTarget | null): HTMLTableCellElement | null => {
+  let current = target instanceof globalThis.Node ? target : null;
+  while (current) {
+    if (current instanceof HTMLTableCellElement) return current;
+    if (current instanceof HTMLElement && current.classList.contains('ProseMirror')) return null;
+    current = current.parentNode;
+  }
+  return null;
+};
+
+const getTableCellForColumn = (table: HTMLTableElement, columnIndex: number) => {
+  const firstRow = table.rows.item(0);
+  if (!firstRow) return null;
+  let currentColumn = 0;
+  for (const cell of Array.from(firstRow.cells)) {
+    const colspan = Math.max(1, cell.colSpan || 1);
+    if (currentColumn <= columnIndex && currentColumn + colspan > columnIndex) return cell;
+    currentColumn += colspan;
+  }
+  return null;
+};
+
+const findTableColumnResizeCandidate = (
+  editor: Editor,
+  target: EventTarget | null,
+  clientX: number,
+  clientY: number
+) => {
+  const cellElement = domTableCellAround(target);
+  const targetElement = target instanceof HTMLElement ? target : null;
+  const tableElement = cellElement?.closest('table') ?? targetElement?.closest('table') ?? null;
+  if (!tableElement) return null;
+  const columnWidths = getTableColumnPixelWidths(tableElement);
+  if (!columnWidths.length) return null;
+  const tableRect = tableElement.getBoundingClientRect();
+  let boundaryX = tableRect.left;
+  let columnIndex = -1;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  columnWidths.forEach((width, index) => {
+    boundaryX += width;
+    const distance = Math.abs(clientX - boundaryX);
+    if (distance <= tableColumnResizeHandleWidth && distance < closestDistance) {
+      columnIndex = index;
+      closestDistance = distance;
+    }
+  });
+  if (columnIndex < 0) return null;
+  const resizeCellElement = getTableCellForColumn(tableElement, columnIndex);
+  if (!resizeCellElement) return null;
+  const resizeCellRect = resizeCellElement.getBoundingClientRect();
+  const found = editor.view.posAtCoords({
+    left: resizeCellRect.left + Math.min(resizeCellRect.width - 1, tableColumnResizeHandleWidth),
+    top: resizeCellRect.top + Math.min(resizeCellRect.height - 1, tableColumnResizeHandleWidth)
+  });
+  if (!found) return null;
+  const $pos = editor.state.doc.resolve(found.pos);
+  let cellDepth = -1;
+  for (let depth = $pos.depth; depth > 0; depth -= 1) {
+    const node = $pos.node(depth);
+    if (node.type.spec.tableRole === 'cell' || node.type.spec.tableRole === 'header_cell') {
+      cellDepth = depth;
+      break;
+    }
+  }
+  if (cellDepth < 0) return null;
+  const cellPos = $pos.before(cellDepth);
+  const cellNode = editor.state.doc.nodeAt(cellPos);
+  if (!cellNode) return null;
+  const startWidth = columnWidths[columnIndex] ?? (cellNode.attrs.colwidth?.[cellNode.attrs.colspan - 1] as number | undefined) ?? resizeCellRect.width;
+  return { cellPos, columnIndex, startWidth, tableElement };
+};
+
+const findTableNodeInfo = (editor: Editor, cellPos: number) => {
+  const $cell = editor.state.doc.resolve(cellPos);
+  for (let depth = $cell.depth; depth > 0; depth -= 1) {
+    if ($cell.node(depth).type.spec.tableRole === 'table') {
+      return { table: $cell.node(depth), tableStart: $cell.start(depth) };
+    }
+  }
+  return null;
+};
+
+const getTableColumnPixelWidths = (table: HTMLTableElement) => {
+  const firstRow = table.rows.item(0);
+  if (!firstRow) return [];
+  const widths: number[] = [];
+  let columnIndex = 0;
+  Array.from(firstRow.cells).forEach((cell) => {
+    const rect = cell.getBoundingClientRect();
+    const colspan = Math.max(1, cell.colSpan || 1);
+    const width = Math.max(tableCellMinWidth, Math.round(rect.width / colspan));
+    for (let index = 0; index < colspan; index += 1) {
+      widths[columnIndex + index] = width;
+    }
+    columnIndex += colspan;
+  });
+  return widths;
+};
+
+const setTableColumnWidths = (editor: Editor, cellPos: number, columnWidths: number[]) => {
+  const tableInfo = findTableNodeInfo(editor, cellPos);
+  if (!tableInfo) return;
+  const { table, tableStart } = tableInfo;
+  const tr = editor.state.tr;
+
+  table.forEach((rowNode, rowOffset) => {
+    let currentColumn = 0;
+    rowNode.forEach((node, cellOffset) => {
+      const colspan = Number(node.attrs.colspan) || 1;
+      const attrs = node.attrs;
+      const colwidth = attrs.colwidth ? attrs.colwidth.slice() : Array(colspan).fill(0);
+      let changed = false;
+
+      for (let index = 0; index < colspan; index += 1) {
+        const width = columnWidths[currentColumn + index] ?? tableCellMinWidth;
+        if (colwidth[index] === width) continue;
+        colwidth[index] = width;
+        changed = true;
+      }
+
+      if (changed) tr.setNodeMarkup(tableStart + rowOffset + 1 + cellOffset, null, { ...attrs, colwidth });
+      currentColumn += colspan;
+    });
+  });
+
+  if (tr.docChanged) editor.view.dispatch(tr);
+};
+
 const formatDateTime = (value: Date) =>
   value.toLocaleString(undefined, {
     year: 'numeric',
@@ -1816,6 +1947,67 @@ function RichEditor({
     return true;
   };
 
+  const startTableColumnResizeFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return false;
+    const activeEditor = editorHolderRef.current;
+    if (!activeEditor) return false;
+    const candidate = findTableColumnResizeCandidate(activeEditor, event.target, event.clientX, event.clientY);
+    if (!candidate) return false;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startClientX = event.clientX;
+    const root = activeEditor.view.dom as HTMLElement;
+    const table = candidate.tableElement;
+    const colgroup = table?.querySelector('colgroup');
+    const colElements = colgroup ? Array.from(colgroup.querySelectorAll('col')) : [];
+    const startColumnWidths = getTableColumnPixelWidths(table);
+    const baseTableWidth = startColumnWidths.reduce((total, width) => total + width, 0);
+    startColumnWidths.forEach((width, index) => {
+      const colElement = colElements[index] as HTMLTableColElement | undefined;
+      if (colElement) colElement.style.width = `${width}px`;
+    });
+    const startWidth = startColumnWidths[candidate.columnIndex] ?? candidate.startWidth;
+    table.style.width = `${baseTableWidth}px`;
+    table.style.minWidth = '';
+
+    const applyPreviewWidth = (width: number) => {
+      const colElement = colElements[candidate.columnIndex] as HTMLTableColElement | undefined;
+      if (colElement) colElement.style.width = `${width}px`;
+      const totalWidth = startColumnWidths.reduce((total, columnWidth, index) => {
+        return total + (index === candidate.columnIndex ? width : columnWidth);
+      }, 0);
+      table.style.width = `${totalWidth}px`;
+      table.style.minWidth = '';
+    };
+
+    root.classList.add('resize-cursor');
+    document.body.classList.add('notebook-table-column-resizing');
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      const width = Math.max(tableCellMinWidth, Math.round(startWidth + moveEvent.clientX - startClientX));
+      applyPreviewWidth(width);
+    };
+    const stopDragging = (endEvent: PointerEvent) => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', stopDragging);
+      window.removeEventListener('pointercancel', stopDragging);
+      root.classList.remove('resize-cursor');
+      document.body.classList.remove('notebook-table-column-resizing');
+      const width = Math.max(tableCellMinWidth, Math.round(startWidth + endEvent.clientX - startClientX));
+      const nextColumnWidths = startColumnWidths.map((columnWidth, index) => {
+        return index === candidate.columnIndex ? width : columnWidth;
+      });
+      setTableColumnWidths(activeEditor, candidate.cellPos, nextColumnWidths);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', stopDragging, { once: true });
+    window.addEventListener('pointercancel', stopDragging, { once: true });
+    return true;
+  };
+
   const selectMediaFromPointer = (event: React.MouseEvent<HTMLDivElement>) => {
     const media = mediaAtPointer(event);
     const activeEditor = editorHolderRef.current;
@@ -1867,13 +2059,37 @@ function RichEditor({
     }
   };
 
+  const handleBlockMoveKeyDownCapture = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!event.metaKey && !event.ctrlKey) return;
+    if (event.altKey || event.shiftKey) return;
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    const moved = onMoveBlock?.(event.key === 'ArrowUp' ? -1 : 1) ?? false;
+    if (!moved) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   return (
     <div
       className="rich-editor-wrap"
       onMouseMove={updateMediaCursor}
       onMouseLeave={clearMediaCursor}
+      onKeyDownCapture={handleBlockMoveKeyDownCapture}
       onKeyDown={handleMediaKeyDown}
+      onPointerDown={(event) => {
+        startTableColumnResizeFromPointer(event);
+      }}
+      onMouseDownCapture={(event) => {
+        const activeEditor = editorHolderRef.current;
+        if (!activeEditor) return;
+        const candidate = findTableColumnResizeCandidate(activeEditor, event.target, event.clientX, event.clientY);
+        if (!candidate) return;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
       onMouseDown={(event) => {
+        const target = event.target as HTMLElement | null;
+        if (target?.closest('.tableWrapper, table, th, td, .column-resize-handle')) return;
         if (editImageFromPointer(event)) return;
         if (startResizeFromPointer(event)) return;
         if (selectMediaFromPointer(event)) return;

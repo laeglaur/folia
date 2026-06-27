@@ -1617,14 +1617,31 @@ input, select { color: var(--ink); }
 .composer table,
 .floating-card-body table,
 .desktop-card table {
-  width: 100%;
+  width: auto;
+  table-layout: fixed;
   margin: var(--table-margin);
   border: var(--table-border);
   border-collapse: separate;
   border-radius: var(--table-radius);
   border-spacing: 0;
   font-size: var(--table-font-size);
-  overflow: hidden;
+}
+
+.block-content .tableWrapper,
+.composer .tableWrapper,
+.floating-card-body .tableWrapper,
+.desktop-card .tableWrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.block-content .tableWrapper table,
+.composer .tableWrapper table,
+.floating-card-body .tableWrapper table,
+.desktop-card .tableWrapper table {
+  margin: var(--table-margin);
 }
 
 .block-content th,
@@ -1640,6 +1657,58 @@ input, select { color: var(--ink); }
   padding: var(--table-cell-padding);
   text-align: left;
   vertical-align: top;
+}
+
+.block-content th,
+.block-content td,
+.composer th,
+.composer td,
+.floating-card-body th,
+.floating-card-body td,
+.desktop-card th,
+.desktop-card td {
+  box-sizing: border-box;
+  position: relative;
+}
+
+.block-content .column-resize-handle,
+.composer .column-resize-handle,
+.floating-card-body .column-resize-handle,
+.desktop-card .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 4px;
+  z-index: 20;
+  background: color-mix(in srgb, var(--accent, #6aa9ff) 72%, white 28%);
+  pointer-events: none;
+}
+
+.block-content.ProseMirror.resize-cursor,
+.composer.ProseMirror.resize-cursor,
+.floating-card-body .ProseMirror.resize-cursor,
+.desktop-card .ProseMirror.resize-cursor,
+.ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+
+body.notebook-table-column-resizing,
+body.notebook-table-column-resizing * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+.block-content .selectedCell::after,
+.composer .selectedCell::after,
+.floating-card-body .selectedCell::after,
+.desktop-card .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--accent, #6aa9ff) 22%, transparent);
+  pointer-events: none;
 }
 
 .block-content th,

@@ -33,6 +33,7 @@ Updated: 2026-06-13
 
 ## Partial
 
+- Table column resizing is usable but not fully correct. Widening columns mostly works, but shrinking column N can still start shrinking from the second column instead of only changing the column immediately before the dragged divider. This likely interacts with the table initialization/display logic that tries to keep tables on one line. Treat table resize as unfinished before doing more table work.
 - Desktop cards exist, but source-to-card live editing, card todo toggling, and jump-back behavior are still thin.
 - Outline supports page title, headings, and list-parent entries, but deeper outline filtering and richer labels are still basic.
 - Markdown export is basic and not yet a faithful round trip for tables, media, todos, and embeds.
