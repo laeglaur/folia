@@ -794,8 +794,10 @@ input, select { color: var(--ink); }
   right: 22px;
   display: grid;
   grid-template-columns: minmax(180px, 280px) auto;
+  grid-template-rows: 30px 1.1rem;
   gap: 6px 10px;
   align-items: center;
+  width: min(420px, calc(100vw - 32px));
   max-width: min(420px, calc(100vw - 32px));
   padding: 8px 10px;
   border: 1px solid var(--line);
@@ -828,6 +830,7 @@ input, select { color: var(--ink); }
 
 .page-find-preview {
   grid-column: 1 / -1;
+  min-height: 1.1rem;
   overflow: hidden;
   color: var(--muted);
   font-size: 0.78rem;
@@ -842,7 +845,7 @@ input, select { color: var(--ink); }
   background: color-mix(in srgb, var(--theme-highlight) 11%, transparent);
 }
 
-.page-find-text-match {
+::highlight(notebook-page-find) {
   border-radius: 3px;
   background: var(--theme-highlight);
   color: var(--theme-highlight-ink);

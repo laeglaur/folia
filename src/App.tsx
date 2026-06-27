@@ -179,40 +179,52 @@ type PageContextMenuState = {
 
 type PageFindMatch = {
   blockId: string;
+  occurrenceIndex: number;
   preview: string;
 };
 
-const clearPageFindTextMarks = () => {
-  document.querySelectorAll('mark.page-find-text-match').forEach((mark) => {
-    const parent = mark.parentNode;
-    while (mark.firstChild) parent?.insertBefore(mark.firstChild, mark);
-    mark.remove();
-    parent?.normalize();
-  });
+const pageFindHighlightName = 'notebook-page-find';
+
+const clearPageFindTextHighlight = () => {
+  CSS.highlights?.delete(pageFindHighlightName);
 };
 
-const highlightTextInElement = (element: HTMLElement, query: string) => {
+const findTextRangeInElement = (element: HTMLElement, query: string, occurrenceIndex = 0) => {
   const needle = query.trim().toLowerCase();
-  if (!needle) return;
+  if (!needle) return null;
+  let seen = 0;
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
       const parent = node.parentElement;
-      if (!parent || parent.closest('script, style, textarea, input, mark.page-find-text-match')) {
+      if (!parent || parent.closest('script, style, textarea, input')) {
         return NodeFilter.FILTER_REJECT;
       }
       return node.textContent?.toLowerCase().includes(needle) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
     }
   });
-  const textNode = walker.nextNode();
-  const text = textNode?.textContent ?? '';
-  const index = text.toLowerCase().indexOf(needle);
-  if (!textNode || index < 0) return;
-  const range = document.createRange();
-  range.setStart(textNode, index);
-  range.setEnd(textNode, index + needle.length);
-  const mark = document.createElement('mark');
-  mark.className = 'page-find-text-match';
-  range.surroundContents(mark);
+  let textNode = walker.nextNode();
+  while (textNode) {
+    const text = textNode.textContent ?? '';
+    const lowerText = text.toLowerCase();
+    let index = lowerText.indexOf(needle);
+    while (index >= 0) {
+      if (seen === occurrenceIndex) {
+        const range = document.createRange();
+        range.setStart(textNode, index);
+        range.setEnd(textNode, index + needle.length);
+        return range;
+      }
+      seen += 1;
+      index = lowerText.indexOf(needle, index + needle.length);
+    }
+    textNode = walker.nextNode();
+  }
+  return null;
+};
+
+const highlightTextRange = (range: Range | null) => {
+  if (!range || !CSS.highlights || typeof Highlight === 'undefined') return;
+  CSS.highlights.set(pageFindHighlightName, new Highlight(range));
 };
 
 const isEditorContentEmpty = (html: string, plainText = '') => {
@@ -289,6 +301,7 @@ export function App() {
   const markdownInputRef = useRef<HTMLInputElement | null>(null);
   const markdownFolderInputRef = useRef<HTMLInputElement | null>(null);
   const pageFindInputRef = useRef<HTMLInputElement | null>(null);
+  const pageFindPopoverRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef(state);
   const activePageBlocksRef = useRef<Block[]>([]);
   const activePageDocumentRequestRef = useRef(0);
@@ -628,11 +641,20 @@ export function App() {
     if (!needle) return [];
     return orderedPageBlocks.flatMap((block) => {
       const text = block.content.plainText.replace(/\s+/g, ' ').trim();
-      if (!text.toLowerCase().includes(needle)) return [];
-      return [{
-        blockId: block.id,
-        preview: text.length > 120 ? `${text.slice(0, 120)}...` : text
-      }];
+      const lowerText = text.toLowerCase();
+      const matches: PageFindMatch[] = [];
+      let index = lowerText.indexOf(needle);
+      while (index >= 0) {
+        const previewStart = Math.max(0, index - 48);
+        const previewEnd = Math.min(text.length, index + needle.length + 72);
+        matches.push({
+          blockId: block.id,
+          occurrenceIndex: matches.length,
+          preview: `${previewStart > 0 ? '...' : ''}${text.slice(previewStart, previewEnd)}${previewEnd < text.length ? '...' : ''}`
+        });
+        index = lowerText.indexOf(needle, index + needle.length);
+      }
+      return matches;
     });
   }, [orderedPageBlocks, pageFindQuery]);
 
@@ -653,6 +675,17 @@ export function App() {
   }, [pageFindOpen]);
 
   useEffect(() => {
+    if (!pageFindOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && pageFindPopoverRef.current?.contains(target)) return;
+      setPageFindOpen(false);
+    };
+    window.addEventListener('pointerdown', handlePointerDown, true);
+    return () => window.removeEventListener('pointerdown', handlePointerDown, true);
+  }, [pageFindOpen]);
+
+  useEffect(() => {
     setPageFindIndex(0);
   }, [pageFindQuery, activePage.id]);
 
@@ -662,17 +695,18 @@ export function App() {
 
   useEffect(() => {
     document.querySelectorAll('.is-page-find-match').forEach((element) => element.classList.remove('is-page-find-match'));
-    clearPageFindTextMarks();
+    clearPageFindTextHighlight();
     if (!pageFindOpen || !pageFindMatches.length) return;
     const match = pageFindMatches[pageFindIndex];
     const blockElement = document.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(match.blockId)}"]`);
     if (!blockElement) return;
     blockElement.classList.add('is-page-find-match');
-    highlightTextInElement(blockElement, pageFindQuery);
-    blockElement.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const matchRange = findTextRangeInElement(blockElement, pageFindQuery, match.occurrenceIndex) ?? null;
+    highlightTextRange(matchRange);
+    scrollWorkspaceTargetIntoView(matchRange ?? blockElement, 'center');
     return () => {
       blockElement.classList.remove('is-page-find-match');
-      clearPageFindTextMarks();
+      clearPageFindTextHighlight();
     };
   }, [pageFindOpen, pageFindMatches, pageFindIndex, pageFindQuery]);
 
@@ -1244,15 +1278,27 @@ export function App() {
     setState((current) => applyPageDocumentToViewState(current, page, blocks, operation, isTauri()));
   };
 
-  const scrollOutlineTargetIntoView = (target: Element) => {
-    const workspace = target.closest('.typora-workspace');
+  const scrollWorkspaceTargetIntoView = (target: Element | Range, block: ScrollLogicalPosition = 'center') => {
+    const anchorElement = target instanceof Range
+      ? target.commonAncestorContainer.parentElement
+      : target;
+    const workspace = anchorElement?.closest('.typora-workspace') ?? null;
     if (!(workspace instanceof HTMLElement)) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (target instanceof Range) {
+        const selectionMarker = target.getBoundingClientRect();
+        if (selectionMarker.height || selectionMarker.width) {
+          const nextTop = window.scrollY + selectionMarker.top - (window.innerHeight * 0.38);
+          window.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
+          return;
+        }
+      } else {
+        target.scrollIntoView({ behavior: 'smooth', block });
+      }
       return;
     }
     const targetRect = target.getBoundingClientRect();
     const workspaceRect = workspace.getBoundingClientRect();
-    const offset = 56;
+    const offset = block === 'start' ? 56 : workspaceRect.height * 0.38;
     const nextTop = workspace.scrollTop + (targetRect.top - workspaceRect.top) - offset;
     workspace.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
   };
@@ -1290,7 +1336,7 @@ export function App() {
           return;
         }
         const target = findOutlineTargetElement(blockElement, entry);
-        scrollOutlineTargetIntoView(target);
+        scrollWorkspaceTargetIntoView(target, 'start');
       };
       tryScroll();
     });
@@ -2938,7 +2984,7 @@ export function App() {
     <>
       {isTyporaShell ? <TyporaShell {...sharedShellProps} /> : <NativeShell {...sharedShellProps} />}
       {pageFindOpen ? (
-        <div className="page-find-popover" role="search" aria-label="Search current page">
+        <div ref={pageFindPopoverRef} className="page-find-popover" role="search" aria-label="Search current page">
           <input
             ref={pageFindInputRef}
             value={pageFindQuery}
@@ -2960,9 +3006,7 @@ export function App() {
           <span className="page-find-count">
             {pageFindQuery.trim() ? `${pageFindMatches.length ? pageFindIndex + 1 : 0}/${pageFindMatches.length}` : '0/0'}
           </span>
-          {pageFindQuery.trim() && pageFindMatches[pageFindIndex]?.preview ? (
-            <div className="page-find-preview">{pageFindMatches[pageFindIndex].preview}</div>
-          ) : null}
+          <div className="page-find-preview">{pageFindQuery.trim() ? pageFindMatches[pageFindIndex]?.preview ?? '' : ''}</div>
         </div>
       ) : null}
       {emojiContextMenu ? (

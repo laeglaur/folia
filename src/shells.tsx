@@ -666,10 +666,22 @@ function SearchBox({
   className?: string;
 }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const searchBoxRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setSelectedIndex(0);
   }, [query, searchResults.length]);
+
+  useEffect(() => {
+    if (!query.trim()) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && searchBoxRef.current?.contains(target)) return;
+      onQueryChange('');
+    };
+    window.addEventListener('pointerdown', handlePointerDown, true);
+    return () => window.removeEventListener('pointerdown', handlePointerDown, true);
+  }, [onQueryChange, query]);
 
   const moveFocus = (index: number) => {
     if (!searchResults.length) return;
@@ -679,7 +691,7 @@ function SearchBox({
   };
 
   return (
-    <div className={`search-box ${className}`.trim()}>
+    <div ref={searchBoxRef} className={`search-box ${className}`.trim()}>
       <Search size={16} />
       <input
         value={query}
