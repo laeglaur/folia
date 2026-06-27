@@ -22,6 +22,7 @@ import {
   type ImportNotice,
   type WorkspaceView
 } from './app-utils';
+import { EmojiImage } from './emoji-image';
 
 type ImageAnnotationTarget = NonNullable<ImageAnnotationRequest['target']>;
 
@@ -335,7 +336,10 @@ function WriteSurface({
 
   return (
     <section className={`page-surface typora-content-surface typora-write ${showBlockBorders ? 'show-block-borders' : ''}`} id="write">
-      <input className="page-title" value={activePage.title} onChange={(event) => onRenamePage(event.target.value)} aria-label="Page title" />
+      <div className={`page-title-row ${activePage.metadata.emoji ? 'has-page-emoji' : ''}`}>
+        {activePage.metadata.emoji ? <EmojiImage emoji={activePage.metadata.emoji} className="page-title-emoji" decorative /> : null}
+        <input className="page-title" value={activePage.title} onChange={(event) => onRenamePage(event.target.value)} aria-label="Page title" />
+      </div>
       {metadataChips.length || metadataRaw ? (
         <div className="page-metadata" aria-label="Page metadata">
           {metadataChips.map((chip, index) => <span key={`${chip}-${index}`}>{chip}</span>)}

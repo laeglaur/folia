@@ -348,10 +348,31 @@ input, select { color: var(--ink); }
   font-weight: 600;
 }
 
+.emoji-picker-back {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 5px;
+  min-height: 30px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  padding: 0 8px;
+}
+
+.emoji-picker-back:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 .emoji-picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
   gap: 6px;
+}
+
+.emoji-picker-grid-preview {
+  grid-template-columns: repeat(auto-fill, minmax(34px, 38px));
 }
 
 .emoji-choice {
@@ -373,6 +394,59 @@ input, select { color: var(--ink); }
 }
 
 .emoji-choice:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+.emoji-category-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.emoji-category-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-height: 72px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--theme-panel-background, transparent) 70%, transparent);
+  color: var(--ink);
+  text-align: left;
+}
+
+.emoji-category-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--theme-panel-background, transparent));
+}
+
+.emoji-category-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.emoji-category-count {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.emoji-category-preview {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.emoji-category-preview .emoji-image {
+  width: 20px;
+  height: 20px;
+}
 
 .notebook-row-shell .notebook-button,
 .page-row-shell .page-button {
@@ -750,8 +824,27 @@ input, select { color: var(--ink); }
   padding: var(--layout-page-padding);
 }
 
+.page-title-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--title-margin-bottom);
+}
+
+.page-title-row:not(.has-page-emoji) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.page-title-emoji {
+  width: clamp(28px, calc(var(--title-size) * 0.9), 44px);
+  height: clamp(28px, calc(var(--title-size) * 0.9), 44px);
+  align-self: center;
+}
+
 .page-title {
   width: 100%;
+  min-width: 0;
   border: 0;
   outline: 0;
   background: transparent;
@@ -760,7 +853,6 @@ input, select { color: var(--ink); }
   font-size: var(--title-size);
   line-height: var(--title-line-height);
   font-weight: var(--title-weight);
-  margin-bottom: var(--title-margin-bottom);
 }
 
 .page-metadata {
