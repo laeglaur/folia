@@ -1,7 +1,8 @@
-import { Fragment } from 'react';
+import { Fragment, type CSSProperties } from 'react';
 import { ChevronRight, Plus } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
-import type { Block, ContentThemeId, Page } from './types';
+import type { Block, ContentThemeId, NotebookCalendarDateSource, NotebookCalendarViewConfig, Page } from './types';
+import type { PageCalendarEntry, PageCalendarFieldCandidate } from './page-calendar';
 import {
   RichEditor,
   Toolbar,
@@ -412,8 +413,19 @@ type CalendarWorkspaceProps = {
   calendarMonth: Date;
   calendarDays: Date[];
   entriesByDate: Map<string, CalendarEntry[]>;
+  pageEntries: PageCalendarEntry[];
+  pageConfig: NotebookCalendarViewConfig | null;
+  pageDateOptions: PageCalendarFieldCandidate[];
+  pageFieldOptions: string[];
+  title: string;
+  mode: 'blocks' | 'pages';
   onMoveMonth: (delta: number) => void;
   onJumpToBlock: (pageId: string, blockId: string) => void;
+  onOpenPage: (pageId: string) => void;
+  onCreatePageForDate: (date: string) => void;
+  onPageDateSourcesChange: (dateSources: NotebookCalendarDateSource[]) => void;
+  onPageVisibleFieldsChange: (fields: string[]) => void;
+  onPageColorFieldChange: (field: string) => void;
   onShowWrite: () => void;
 };
 
@@ -421,24 +433,156 @@ function CalendarWorkspace({
   calendarMonth,
   calendarDays,
   entriesByDate,
+  pageEntries,
+  pageConfig,
+  pageDateOptions,
+  pageFieldOptions,
+  title,
+  mode,
   onMoveMonth,
   onJumpToBlock,
+  onOpenPage,
+  onCreatePageForDate,
+  onPageDateSourcesChange,
+  onPageVisibleFieldsChange,
+  onPageColorFieldChange,
   onShowWrite
 }: CalendarWorkspaceProps) {
   const currentMonthKey = monthKey(calendarMonth);
   const todayKey = localDateKey(new Date());
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const visibleFields = pageConfig?.visibleFields ?? [];
+  const activeDateSources = pageConfig
+    ? (pageConfig.dateSources?.length ? pageConfig.dateSources : [pageConfig.dateSource])
+    : [];
+  const colorKeys = [...new Set(pageEntries.map((entry) => entry.colorKey).filter(Boolean))];
+  const colorClass = (entry: PageCalendarEntry) => {
+    const index = Math.max(0, colorKeys.indexOf(entry.colorKey));
+    return `collection-color-${(index % 6) + 1}`;
+  };
+  const visibleDayKeys = new Map(calendarDays.map((day, index) => [localDateKey(day), index]));
+  const pageEntriesByDate = new Map<string, PageCalendarEntry[]>();
+  const rangeSegments: Array<{
+    entry: PageCalendarEntry;
+    key: string;
+    weekIndex: number;
+    columnStart: number;
+    columnEnd: number;
+    lane: number;
+    startsInWeek: boolean;
+    endsInWeek: boolean;
+  }> = [];
+  const rangeLaneByWeek = new Map<number, string[]>();
+
+  pageEntries.forEach((entry) => {
+    const startIndex = visibleDayKeys.get(entry.startDate);
+    const endIndex = visibleDayKeys.get(entry.endDate);
+    if (entry.startDate === entry.endDate) {
+      if (startIndex !== undefined) {
+        pageEntriesByDate.set(entry.startDate, [...(pageEntriesByDate.get(entry.startDate) ?? []), entry]);
+      }
+      return;
+    }
+    if (startIndex === undefined && endIndex === undefined) {
+      const firstKey = localDateKey(calendarDays[0]);
+      const lastKey = localDateKey(calendarDays[calendarDays.length - 1]);
+      if (entry.endDate < firstKey || entry.startDate > lastKey) return;
+    }
+    const visibleStartIndex = startIndex ?? 0;
+    const visibleEndIndex = endIndex ?? calendarDays.length - 1;
+    const firstWeek = Math.floor(visibleStartIndex / 7);
+    const lastWeek = Math.floor(visibleEndIndex / 7);
+    for (let weekIndex = firstWeek; weekIndex <= lastWeek; weekIndex += 1) {
+      const weekStartIndex = weekIndex * 7;
+      const weekEndIndex = weekStartIndex + 6;
+      const segmentStart = Math.max(visibleStartIndex, weekStartIndex);
+      const segmentEnd = Math.min(visibleEndIndex, weekEndIndex);
+      const lanes = rangeLaneByWeek.get(weekIndex) ?? [];
+      const lane = lanes.findIndex((laneEndDate) => laneEndDate < localDateKey(calendarDays[segmentStart]));
+      const nextLane = lane === -1 ? lanes.length : lane;
+      lanes[nextLane] = localDateKey(calendarDays[segmentEnd]);
+      rangeLaneByWeek.set(weekIndex, lanes);
+      rangeSegments.push({
+        entry,
+        key: `${entry.key}:${weekIndex}`,
+        weekIndex,
+        columnStart: (segmentStart % 7) + 1,
+        columnEnd: (segmentEnd % 7) + 2,
+        lane: nextLane,
+        startsInWeek: segmentStart === startIndex,
+        endsInWeek: segmentEnd === endIndex
+      });
+    }
+  });
+  const rangeLanesByWeek = new Map(Array.from(rangeLaneByWeek.entries(), ([weekIndex, lanes]) => [weekIndex, lanes.length]));
 
   return (
     <section className="calendar-workspace typora-content-surface typora-write" aria-label="Calendar workspace">
       <div className="calendar-workspace-header">
         <div>
           <p className="section-label">Calendar</p>
-          <h2>Blocks by day</h2>
+          <h2>{title}</h2>
         </div>
-        <button className="secondary-button" type="button" onClick={onShowWrite}>Write</button>
+        {mode === 'blocks' ? <button className="secondary-button" type="button" onClick={onShowWrite}>Write</button> : null}
       </div>
-      <div className="calendar-view" aria-label="Block calendar">
+      {mode === 'pages' && pageConfig ? (
+        <div className="collection-controls page-calendar-controls" aria-label="Calendar controls">
+          <div className="collection-control-row">
+            <span className="collection-control-label">Fields</span>
+            <div className="collection-chip-strip" role="group" aria-label="Visible fields">
+              {pageFieldOptions.map((field) => {
+                const checked = visibleFields.includes(field);
+                const isColorField = pageConfig.colorField === field;
+                return (
+                  <label
+                    className={`collection-chip ${checked ? 'active' : ''} ${isColorField ? 'is-color-field' : ''}`}
+                    key={field}
+                    onDoubleClick={(event) => {
+                      event.preventDefault();
+                      onPageColorFieldChange(field);
+                    }}
+                    title="Double-click to color by this field"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) => {
+                        const nextFields = event.target.checked
+                          ? [...visibleFields, field]
+                          : visibleFields.filter((candidate) => candidate !== field);
+                        onPageVisibleFieldsChange(nextFields);
+                      }}
+                    />
+                    <span>{field}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+          <div className="collection-control-row">
+            <span className="collection-control-label">Date</span>
+            <div className="collection-chip-strip" role="group" aria-label="Date field">
+              {pageDateOptions.map((option) => (
+                <label className={`collection-chip ${activeDateSources.includes(option.key) ? 'active' : ''}`} key={option.key}>
+                  <input
+                    type="checkbox"
+                    checked={activeDateSources.includes(option.key)}
+                    onChange={(event) => {
+                      const nextSources = event.target.checked
+                        ? [...activeDateSources, option.key]
+                        : activeDateSources.filter((source) => source !== option.key);
+                      onPageDateSourcesChange(nextSources.length ? nextSources : [option.key]);
+                    }}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+              {pageDateOptions.length ? null : <span className="collection-control-empty">No date fields</span>}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <div className="calendar-view" aria-label={mode === 'pages' ? 'Page calendar' : 'Block calendar'}>
         <div className="calendar-header">
           <button className="mini-button" type="button" onClick={() => onMoveMonth(-1)} aria-label="Previous month"><ChevronRight className="flip-x" size={14} /></button>
           <div className="calendar-title">{monthLabel(calendarMonth)}</div>
@@ -447,19 +591,58 @@ function CalendarWorkspace({
         <div className="calendar-weekdays" aria-hidden="true">
           {weekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}
         </div>
-        <div className="calendar-grid">
+        <div
+          className="calendar-grid"
+        >
           {calendarDays.map((day) => {
             const key = localDateKey(day);
             const entries = entriesByDate.get(key) ?? [];
+            const pageEntries = pageEntriesByDate.get(key) ?? [];
+            const weekIndex = Math.floor((visibleDayKeys.get(key) ?? 0) / 7);
             return (
               <div
                 className={`calendar-day ${monthKey(day) !== currentMonthKey ? 'is-muted' : ''} ${key === todayKey ? 'is-today' : ''}`}
                 key={key}
                 data-date={key}
+                style={{ '--calendar-range-lanes': rangeLanesByWeek.get(weekIndex) ?? 0 } as CSSProperties}
               >
-                <div className="calendar-day-number">{day.getDate()}</div>
+                <div className="calendar-day-top">
+                  <span className="calendar-day-number">{day.getDate()}</span>
+                  {mode === 'pages' ? (
+                    <button
+                      className="calendar-day-add"
+                      type="button"
+                      onClick={() => onCreatePageForDate(key)}
+                      aria-label={`Create page for ${key}`}
+                      title={`Create page for ${key}`}
+                    >
+                      <Plus size={12} />
+                    </button>
+                  ) : null}
+                </div>
                 <div className="calendar-day-entries">
-                  {entries.slice(0, 2).map(({ block, page }) => (
+                  {mode === 'pages' ? pageEntries.slice(0, 3).map((entry) => (
+                    <button
+                      className={`calendar-entry page-calendar-entry collection-calendar-entry ${colorClass(entry)}`}
+                      key={entry.key}
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpenPage(entry.page.id);
+                      }}
+                      title={entry.title}
+                    >
+                      <span>{entry.colorKey || title}</span>
+                      <span>{entry.title}</span>
+                      {entry.fields.length ? (
+                        <span className="page-calendar-entry-fields">
+                          {entry.fields.slice(0, 3).map((field) => (
+                            <span key={field.key}>{field.value}</span>
+                          ))}
+                        </span>
+                      ) : null}
+                    </button>
+                  )) : entries.slice(0, 2).map(({ block, page }) => (
                     <button
                       className="calendar-entry"
                       key={block.id}
@@ -471,11 +654,32 @@ function CalendarWorkspace({
                       <span>{firstLines(block.content.plainText, 44)}</span>
                     </button>
                   ))}
-                  {entries.length > 2 ? <div className="calendar-more">+{entries.length - 2}</div> : null}
+                  {mode === 'pages' && pageEntries.length > 3 ? <div className="calendar-more">+{pageEntries.length - 3}</div> : null}
+                  {mode === 'blocks' && entries.length > 2 ? <div className="calendar-more">+{entries.length - 2}</div> : null}
                 </div>
               </div>
             );
           })}
+          {mode === 'pages' ? rangeSegments.map((segment) => (
+            <button
+              className={`calendar-range-entry collection-calendar-entry ${colorClass(segment.entry)} ${segment.startsInWeek ? 'starts-in-week' : 'continues-from-before'} ${segment.endsInWeek ? 'ends-in-week' : 'continues-after'}`}
+              key={segment.key}
+              type="button"
+              onClick={() => onOpenPage(segment.entry.page.id)}
+              title={`${segment.entry.title}: ${segment.entry.startDate} to ${segment.entry.endDate}`}
+              style={{
+                gridColumn: `${segment.columnStart} / ${segment.columnEnd}`,
+                gridRow: segment.weekIndex + 1,
+                '--calendar-range-lane': segment.lane
+              } as CSSProperties}
+            >
+              <span>{segment.entry.colorKey || title}</span>
+              <strong>{segment.entry.title}</strong>
+              {segment.entry.fields.length ? (
+                <em>{segment.entry.fields.slice(0, 3).map((field) => field.value).join(' · ')}</em>
+              ) : null}
+            </button>
+          )) : null}
         </div>
       </div>
     </section>

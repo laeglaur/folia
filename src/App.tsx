@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -6,7 +6,7 @@ import {
   Trash2
 } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
-import type { AppState, Block, ContentThemeId, Notebook, OperationLogEntry, Page, ShellId } from './types';
+import type { AppState, Block, ContentThemeId, Notebook, NotebookCalendarDateSource, NotebookCalendarViewConfig, OperationLogEntry, Page, ShellId } from './types';
 import {
   createBlock,
   createId,
@@ -77,6 +77,7 @@ import {
   markdownImportFileRegex,
   mediaImportFileRegex,
   monthKey,
+  pageTimestampLabel,
   splitImportRoot,
   stripOutlineAnchors,
   type CalendarEntry,
@@ -126,8 +127,14 @@ import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import 'katex/dist/katex.min.css';
-import { CardWindowPage, NativeShell, TyporaShell } from './shells';
+import { CardWindowPage, NativeShell, TyporaShell, type PageThumbnailItem } from './shells';
 import { WorkspaceContent, type EditorTarget } from './workspace';
+import {
+  buildPageCalendarEntries,
+  calendarDateCandidatesForPages,
+  defaultCalendarConfigForPages,
+  visibleCalendarFieldsForPages
+} from './page-calendar';
 import { ImageAnnotationEditor, serializeImageAnnotations, type ImageAnnotationDocument } from './image-annotations';
 import { EmojiPicker, type EmojiPickerRequest } from './emoji-picker';
 import { EmojiImage } from './emoji-image';
@@ -171,6 +178,12 @@ type EmojiContextMenuState = {
   target: EmojiPickerRequest['target'];
 };
 
+type CalendarDateOption = {
+  key: NotebookCalendarDateSource;
+  label: string;
+  count: number;
+};
+
 type PageContextMenuState = {
   x: number;
   y: number;
@@ -184,6 +197,8 @@ type PageFindMatch = {
 };
 
 const pageFindHighlightName = 'notebook-page-find';
+const initialPageThumbnailLimit = 40;
+const pageThumbnailLimitStep = 30;
 
 const clearPageFindTextHighlight = () => {
   CSS.highlights?.delete(pageFindHighlightName);
@@ -275,6 +290,7 @@ export function App() {
   const [emojiPickerRequest, setEmojiPickerRequest] = useState<EmojiPickerRequest | null>(null);
   const [emojiContextMenu, setEmojiContextMenu] = useState<EmojiContextMenuState | null>(null);
   const [pageContextMenu, setPageContextMenu] = useState<PageContextMenuState | null>(null);
+  const [typoraSidebarView, setTyporaSidebarView] = useState<'files' | 'thumbnails'>('files');
   const [pageMoveQuery, setPageMoveQuery] = useState('');
   const [pageMoveIndex, setPageMoveIndex] = useState(0);
   const [showComposerFooter, setShowComposerFooter] = useState(false);
@@ -801,12 +817,48 @@ export function App() {
     setPageMoveIndex(0);
   }, [pageMoveQuery, pageContextMenu?.pageId]);
   const calendarMonthKey = monthKey(calendarMonth);
+  const notebookPages = useMemo(
+    () => state.pages.filter((page) => page.notebookId === activeNotebook.id),
+    [activeNotebook.id, state.pages]
+  );
+  const activeNotebookCalendarConfig = activeNotebook.metadata.calendarView?.enabled
+    ? activeNotebook.metadata.calendarView
+    : null;
+  const pageCalendarEntries = useMemo(
+    () => activeNotebookCalendarConfig ? buildPageCalendarEntries(notebookPages, activeNotebookCalendarConfig, activeNotebook) : [],
+    [activeNotebook, activeNotebookCalendarConfig, notebookPages]
+  );
+  const pageCalendarDateOptions = useMemo(() => {
+    const options = calendarDateCandidatesForPages(notebookPages);
+    if (!options.some((option) => option.key === 'createdAt')) {
+      options.unshift({ key: 'createdAt', label: 'Created at', count: notebookPages.length });
+    }
+    if (activeNotebookCalendarConfig?.dateSource && !options.some((option) => option.key === activeNotebookCalendarConfig.dateSource)) {
+      options.push({
+        key: activeNotebookCalendarConfig.dateSource,
+        label: activeNotebookCalendarConfig.dateSource,
+        count: 0
+      });
+    }
+    activeNotebookCalendarConfig?.dateSources?.forEach((source) => {
+      if (!options.some((option) => option.key === source)) {
+        options.push({ key: source, label: source, count: 0 });
+      }
+    });
+    return options;
+  }, [activeNotebookCalendarConfig?.dateSource, activeNotebookCalendarConfig?.dateSources, notebookPages]);
+  const pageCalendarFieldOptions = useMemo(() => {
+    const inferred = visibleCalendarFieldsForPages(notebookPages, 16);
+    const configured = activeNotebookCalendarConfig?.visibleFields ?? [];
+    return [...inferred, ...configured].filter((field, index, list) => list.indexOf(field) === index);
+  }, [activeNotebookCalendarConfig?.visibleFields, notebookPages]);
   const calendarEntriesByDate = useMemo(() => {
     if (workspaceView !== 'calendar') return new Map<string, CalendarEntry[]>();
+    if (activeNotebookCalendarConfig) return new Map<string, CalendarEntry[]>();
     return isTauri()
       ? calendarEntriesFromPayloads(calendarBlockPayloads)
       : legacyCalendarEntriesFromState(state, activeNotebook.id);
-  }, [activeNotebook.id, calendarBlockPayloads, state.blocks, state.pages, workspaceView]);
+  }, [activeNotebook.id, activeNotebookCalendarConfig, calendarBlockPayloads, state.blocks, state.pages, workspaceView]);
   const calendarDays = useMemo(() => calendarDaysForMonth(calendarMonth), [calendarMonth]);
   const pinnedBlocks = useMemo(
     () => isTauri() ? pinnedBlockPayloads.map(({ block }) => block) : legacyPinnedBlocksFromState(state),
@@ -839,7 +891,7 @@ export function App() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!isTauri() || workspaceView !== 'calendar' || !activeNotebook?.id) {
+    if (!isTauri() || workspaceView !== 'calendar' || activeNotebookCalendarConfig || !activeNotebook?.id) {
       if (!isTauri()) setCalendarBlockPayloads([]);
       return;
     }
@@ -852,7 +904,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [activeNotebook?.id, calendarMonthKey, workspaceView]);
+  }, [activeNotebook?.id, activeNotebookCalendarConfig, calendarMonthKey, workspaceView]);
 
   useEffect(() => {
     if (!activePage?.id) return;
@@ -953,14 +1005,107 @@ export function App() {
 
   const childPages = useMemo(() => {
     const map = new Map<string | null, Page[]>();
-    state.pages
-      .filter((page) => page.notebookId === activeNotebook.id)
-      .forEach((page) => {
-        const key = page.parentId ?? null;
-        map.set(key, [...(map.get(key) ?? []), page]);
-      });
+    notebookPages.forEach((page) => {
+      const key = page.parentId ?? null;
+      map.set(key, [...(map.get(key) ?? []), page]);
+    });
     return map;
-  }, [activeNotebook.id, state.pages]);
+  }, [notebookPages]);
+  type PageThumbnailPreview = {
+    excerpt: string;
+    imageSrcs: string[];
+    updatedAt: string;
+  };
+  const [pageThumbnailLimitState, setPageThumbnailLimitState] = useState({
+    notebookId: activeNotebook.id,
+    limit: initialPageThumbnailLimit
+  });
+  const pageThumbnailLimit = pageThumbnailLimitState.notebookId === activeNotebook.id
+    ? pageThumbnailLimitState.limit
+    : initialPageThumbnailLimit;
+  const [pageThumbnailCache, setPageThumbnailCache] = useState<Record<string, PageThumbnailPreview>>({});
+  const pageThumbnailCacheRef = useRef(pageThumbnailCache);
+  useEffect(() => {
+    pageThumbnailCacheRef.current = pageThumbnailCache;
+  }, [pageThumbnailCache]);
+  const visibleNotebookPages = useMemo(
+    () => notebookPages.slice(0, pageThumbnailLimit),
+    [notebookPages, pageThumbnailLimit]
+  );
+  const hasMorePageThumbnails = visibleNotebookPages.length < notebookPages.length;
+  const loadMorePageThumbnails = useCallback(() => {
+    setPageThumbnailLimitState((current) => {
+      const currentLimit = current.notebookId === activeNotebook.id ? current.limit : initialPageThumbnailLimit;
+      const nextLimit = Math.min(currentLimit + pageThumbnailLimitStep, notebookPages.length);
+      return { notebookId: activeNotebook.id, limit: nextLimit };
+    });
+  }, [activeNotebook.id, notebookPages.length]);
+  useEffect(() => {
+    if (typoraSidebarView !== 'thumbnails' || !isTauri() || !visibleNotebookPages.length) return;
+    let cancelled = false;
+    const pagesNeedingPreview = visibleNotebookPages.filter((page) => {
+      const cached = pageThumbnailCacheRef.current[page.id];
+      return !cached || cached.updatedAt !== page.updatedAt;
+    });
+    if (!pagesNeedingPreview.length) return;
+    const loadThumbnailBatch = async () => {
+      for (let index = 0; index < pagesNeedingPreview.length && !cancelled; index += 4) {
+        const batchPages = pagesNeedingPreview.slice(index, index + 4);
+        try {
+          const documents = await mapWithConcurrency(batchPages, 1, async (page) => loadPageDocument(page.id));
+          if (cancelled) return;
+          setPageThumbnailCache((current) => {
+            const next = { ...current };
+            documents.forEach((document) => {
+              if (!document) return;
+              const blocks = document.content.blocks;
+              const excerpt = blocks
+                .map((block) => block.content.plainText.trim())
+                .filter(Boolean)
+                .join(' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 220);
+              const imageSrcs = blocks
+                .flatMap((block) => Array.from(block.content.html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi), (match) => match[1]?.trim() ?? ''))
+                .filter((src, index, sources) => {
+                  if (!src || sources.indexOf(src) !== index) return false;
+                  if (/^https?:\/\/www\.notion\.so\/images\/page-cover\//i.test(src)) return false;
+                  if (/\/(notion|images)\/page-cover\//i.test(src)) return false;
+                  return true;
+                })
+                .slice(0, 4);
+              next[document.page.id] = { excerpt, imageSrcs, updatedAt: document.page.updatedAt };
+            });
+            return next;
+          });
+          await new Promise((resolve) => window.setTimeout(resolve, 48));
+        } catch (error) {
+          console.warn('Could not load page thumbnails.', error);
+        }
+      }
+    };
+    void loadThumbnailBatch();
+    return () => {
+      cancelled = true;
+    };
+  }, [typoraSidebarView, visibleNotebookPages]);
+
+  const pageThumbnails = useMemo<PageThumbnailItem[]>(() => {
+    return visibleNotebookPages.map((page) => {
+      const preview = pageThumbnailCache[page.id];
+      const isPreviewFresh = preview?.updatedAt === page.updatedAt;
+      return {
+        pageId: page.id,
+        title: page.title || 'Untitled',
+        emoji: page.metadata.emoji,
+        excerpt: isPreviewFresh ? preview.excerpt : '',
+        imageSrcs: isPreviewFresh ? preview.imageSrcs : [],
+        updatedAt: pageTimestampLabel(page.updatedAt),
+        active: page.id === activePage.id
+      };
+    });
+  }, [activePage.id, visibleNotebookPages, pageThumbnailCache]);
 
   const getActiveTiptapEditor = () => {
     if (activeEditor.kind === 'composer') return composerEditorRef.current;
@@ -1106,6 +1251,22 @@ export function App() {
     else delete metadata.emoji;
     const updatedNotebook = { ...nextNotebook, metadata };
     setState((current) => applyNotebookEmojiToViewState(current, notebookId, emoji));
+    if (isTauri()) persistNotebookMetadataUpdate(updatedNotebook);
+  };
+
+  const updateNotebookCalendarView = (notebookId: string, updater: (config: NotebookCalendarViewConfig | undefined, pages: Page[]) => NotebookCalendarViewConfig | undefined) => {
+    const nextNotebook = stateRef.current.notebooks.find((notebook) => notebook.id === notebookId);
+    if (!nextNotebook) return;
+    const pages = stateRef.current.pages.filter((page) => page.notebookId === notebookId);
+    const nextCalendarView = updater(nextNotebook.metadata.calendarView, pages);
+    const metadata = { ...nextNotebook.metadata };
+    if (nextCalendarView) metadata.calendarView = nextCalendarView;
+    else delete metadata.calendarView;
+    const updatedNotebook = { ...nextNotebook, metadata };
+    setState((current) => ({
+      ...current,
+      notebooks: current.notebooks.map((notebook) => notebook.id === notebookId ? updatedNotebook : notebook)
+    }));
     if (isTauri()) persistNotebookMetadataUpdate(updatedNotebook);
   };
 
@@ -1720,9 +1881,16 @@ export function App() {
     return operation;
   };
 
-  const addPage = (parentId: string | null = null) => {
+  const addPage = (parentId: string | null = null, metadataPatch: Partial<Page['metadata']> = {}) => {
     saveCurrentComposerDraft();
     const page = createPage(state.activeNotebookId, parentId ? 'Nested page' : 'Untitled page', parentId);
+    page.metadata = {
+      ...page.metadata,
+      ...metadataPatch,
+      tags: metadataPatch.tags ?? page.metadata.tags,
+      aliases: metadataPatch.aliases ?? page.metadata.aliases,
+      frontmatter: metadataPatch.frontmatter ?? page.metadata.frontmatter
+    };
     const operation = createOperation({ entity: 'page', entityId: page.id, kind: 'page.create', payload: page });
     void persistPageCreate({ page, operation })
       .then(reconcileNotebookTree)
@@ -1731,6 +1899,52 @@ export function App() {
       });
     setSelectedPageId(page.id);
     setState((current) => applyPageCreateToViewState(current, page, current.activeNotebookId, operation));
+  };
+
+  const addCalendarPage = (date: string) => {
+    if (!activeNotebookCalendarConfig) return;
+    const metadataPatch: Partial<Page['metadata']> = { date };
+    addPage(null, metadataPatch);
+    if (activeNotebookCalendarConfig.dateSource === 'createdAt') {
+      updateNotebookCalendarView(activeNotebook.id, (config, pages) => ({
+        ...(config ?? defaultCalendarConfigForPages(pages)),
+        enabled: true,
+        dateSource: 'metadata.date',
+        dateSources: ['metadata.date'],
+        visibleFields: config?.visibleFields?.length ? config.visibleFields : visibleCalendarFieldsForPages(pages)
+      }));
+    }
+  };
+
+  const setPageCalendarDateSources = (dateSources: NotebookCalendarDateSource[]) => {
+    if (!activeNotebookCalendarConfig) return;
+    updateNotebookCalendarView(activeNotebook.id, (config, pages) => ({
+      ...(config ?? defaultCalendarConfigForPages(pages)),
+      enabled: true,
+      dateSource: dateSources[0] ?? 'createdAt',
+      dateSources
+    }));
+  };
+
+  const setPageCalendarVisibleFields = (visibleFields: string[]) => {
+    if (!activeNotebookCalendarConfig) return;
+    updateNotebookCalendarView(activeNotebook.id, (config, pages) => {
+      const base = config ?? defaultCalendarConfigForPages(pages);
+      return {
+        ...base,
+        enabled: true,
+        visibleFields
+      };
+    });
+  };
+
+  const setPageCalendarColorField = (colorField: string) => {
+    if (!activeNotebookCalendarConfig) return;
+    updateNotebookCalendarView(activeNotebook.id, (config, pages) => ({
+      ...(config ?? defaultCalendarConfigForPages(pages)),
+      enabled: true,
+      colorField
+    }));
   };
 
   const togglePageExpanded = (pageId: string) => {
@@ -2841,8 +3055,19 @@ export function App() {
         calendarMonth,
         calendarDays,
         entriesByDate: calendarEntriesByDate,
+        pageEntries: pageCalendarEntries,
+        pageConfig: activeNotebookCalendarConfig,
+        pageDateOptions: pageCalendarDateOptions,
+        pageFieldOptions: pageCalendarFieldOptions,
+        title: activeNotebookCalendarConfig ? activeNotebook.name : 'Blocks by day',
+        mode: activeNotebookCalendarConfig ? 'pages' : 'blocks',
         onMoveMonth: moveCalendarMonth,
         onJumpToBlock: jumpToBlock,
+        onOpenPage: selectPage,
+        onCreatePageForDate: addCalendarPage,
+        onPageDateSourcesChange: setPageCalendarDateSources,
+        onPageVisibleFieldsChange: setPageCalendarVisibleFields,
+        onPageColorFieldChange: setPageCalendarColorField,
         onShowWrite: () => setWorkspaceView('write')
       }}
     />
@@ -2850,7 +3075,7 @@ export function App() {
 
   const selectNotebook = (notebook: Notebook) => {
     saveCurrentComposerDraft();
-    setWorkspaceView('write');
+    setWorkspaceView(notebook.metadata.calendarView?.enabled ? 'calendar' : 'write');
     setState((current) => applyActiveNotebookToViewState(current, notebook.id, notebook.pageIds[0] ?? null));
   };
 
@@ -2967,6 +3192,7 @@ export function App() {
     contentTheme: state.contentTheme,
     sidebarCollapsed,
     outlineOpen: outlineDrawerOpen,
+    sidebarView: typoraSidebarView,
     activeNotebook,
     notebooks: state.notebooks,
     notebookActions,
@@ -2977,6 +3203,8 @@ export function App() {
     onSearchResultSelect: selectSearchResult,
     pageTree,
     typoraFileTree,
+    pageThumbnails,
+    hasMorePageThumbnails,
     workspaceContent,
     pinnedBlocks,
     openCardBlock,
@@ -2984,6 +3212,9 @@ export function App() {
     glowPinnedCards,
     onOpenPinnedWindow: (blockId: string) => void openPinnedWindow(blockId),
     onCloseFloatingCard: () => setState((current) => applyOpenCardBlockToViewState(current, null)),
+    onSelectPage: (pageId: string) => selectPage(pageId),
+    onSidebarViewChange: setTyporaSidebarView,
+    onLoadMorePageThumbnails: loadMorePageThumbnails,
     onRootPageDrop: (pageId: string) => {
       setSelectedPageId(pageId);
       movePageUnder(pageId, null);
@@ -2996,11 +3227,37 @@ export function App() {
   };
 
   let emojiContextMenuHasEmoji = false;
+  let notebookCalendarMenu: {
+    notebook: Notebook;
+    config: NotebookCalendarViewConfig | undefined;
+    dateOptions: CalendarDateOption[];
+    visibleFieldOptions: string[];
+  } | null = null;
   if (emojiContextMenu) {
     const target = emojiContextMenu.target;
     emojiContextMenuHasEmoji = Boolean(target.kind === 'notebook'
       ? state.notebooks.find((notebook) => notebook.id === target.notebookId)?.metadata.emoji
       : state.pages.find((page) => page.id === target.pageId)?.metadata.emoji);
+    if (target.kind === 'notebook') {
+      const notebook = state.notebooks.find((candidate) => candidate.id === target.notebookId);
+      if (notebook) {
+        const pages = state.pages.filter((page) => page.notebookId === notebook.id);
+        const configuredSource = notebook.metadata.calendarView?.dateSource;
+        const dateOptions = calendarDateCandidatesForPages(pages);
+        if (!dateOptions.some((option) => option.key === 'createdAt')) {
+          dateOptions.unshift({ key: 'createdAt', label: 'Created at', count: pages.length });
+        }
+        if (configuredSource && !dateOptions.some((option) => option.key === configuredSource)) {
+          dateOptions.push({ key: configuredSource, label: configuredSource, count: 0 });
+        }
+        notebookCalendarMenu = {
+          notebook,
+          config: notebook.metadata.calendarView,
+          dateOptions,
+          visibleFieldOptions: visibleCalendarFieldsForPages(pages, 12)
+        };
+      }
+    }
   }
 
   return (
@@ -3062,6 +3319,93 @@ export function App() {
           >
             Clear emoji
           </button>
+          {notebookCalendarMenu ? (
+            <>
+              <div className="context-menu-divider" role="separator" />
+              <div className="context-menu-section-label">Calendar</div>
+              <button
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={Boolean(notebookCalendarMenu.config?.enabled)}
+                onClick={() => {
+                  const { notebook } = notebookCalendarMenu;
+                  updateNotebookCalendarView(notebook.id, (config, pages) => (
+                    config?.enabled
+                      ? undefined
+                      : defaultCalendarConfigForPages(pages)
+                  ));
+                  closeEmojiContextMenu();
+                  if (!notebookCalendarMenu.config?.enabled && activeNotebook.id === notebook.id) {
+                    setWorkspaceView('calendar');
+                  }
+                }}
+              >
+                {notebookCalendarMenu.config?.enabled ? '✓ Calendar view' : 'Calendar view'}
+              </button>
+              {notebookCalendarMenu.config?.enabled ? (
+                <>
+                  <div className="context-menu-section-label">Date field</div>
+                  {notebookCalendarMenu.dateOptions.map((option) => (
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={notebookCalendarMenu.config?.dateSource === option.key}
+                      key={option.key}
+                      onClick={() => {
+                        const { notebook } = notebookCalendarMenu;
+                        updateNotebookCalendarView(notebook.id, (config, pages) => ({
+                          ...(config ?? defaultCalendarConfigForPages(pages)),
+                          enabled: true,
+                          dateSource: option.key,
+                          dateSources: [option.key]
+                        }));
+                        closeEmojiContextMenu();
+                        if (activeNotebook.id === notebook.id) setWorkspaceView('calendar');
+                      }}
+                    >
+                      {notebookCalendarMenu.config?.dateSource === option.key ? '✓ ' : ''}{option.label}
+                      {option.count ? ` (${option.count})` : ''}
+                    </button>
+                  ))}
+                  {notebookCalendarMenu.visibleFieldOptions.length ? (
+                    <>
+                      <div className="context-menu-section-label">Show fields</div>
+                      {notebookCalendarMenu.visibleFieldOptions.map((field) => {
+                        const visible = notebookCalendarMenu.config?.visibleFields.includes(field) ?? false;
+                        return (
+                          <button
+                            type="button"
+                            role="menuitemcheckbox"
+                            aria-checked={visible}
+                            key={field}
+                            onClick={() => {
+                              const { notebook } = notebookCalendarMenu;
+                              updateNotebookCalendarView(notebook.id, (config, pages) => {
+                                const base = config ?? defaultCalendarConfigForPages(pages);
+                                const nextFields = visible
+                                  ? base.visibleFields.filter((candidate) => candidate !== field)
+                                  : [...base.visibleFields, field];
+                                return {
+                                  ...base,
+                                  enabled: true,
+                                  visibleFields: nextFields,
+                                  colorField: base.colorField && nextFields.includes(base.colorField)
+                                    ? base.colorField
+                                    : nextFields[0]
+                                };
+                              });
+                            }}
+                          >
+                            {visible ? '✓ ' : ''}{field}
+                          </button>
+                        );
+                      })}
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+            </>
+          ) : null}
         </div>
       ) : null}
       {pageContextMenu ? (() => {

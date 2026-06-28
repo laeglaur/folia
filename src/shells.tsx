@@ -7,7 +7,8 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
-  type RefObject
+  type RefObject,
+  type UIEvent
 } from 'react';
 import { Download, FilePlus, FileUp, History, NotebookTabs, PanelRight, Pin, Plus, Search, Sparkles, Trash2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
@@ -23,6 +24,16 @@ import { contentThemes } from './typora-theme-registry';
 type ShellThemeOption = {
   id: ShellId;
   label: string;
+};
+
+export type PageThumbnailItem = {
+  pageId: string;
+  title: string;
+  emoji?: string;
+  excerpt: string;
+  imageSrcs: string[];
+  updatedAt: string;
+  active: boolean;
 };
 
 type NotebookActions = {
@@ -271,6 +282,72 @@ function SidebarPins({
       </div>
       <PinnedCards pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} className="sidebar-pin-list" cardClassName="sidebar-pin-card" />
     </section>
+  );
+}
+
+function PageThumbnails({
+  pages,
+  hasMorePages,
+  onSelectPage,
+  onLoadMore
+}: {
+  pages: PageThumbnailItem[];
+  hasMorePages: boolean;
+  onSelectPage: (pageId: string) => void;
+  onLoadMore: () => void;
+}) {
+  const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    if (!hasMorePages) return;
+    const element = event.currentTarget;
+    if (element.scrollHeight - element.scrollTop - element.clientHeight < 320) {
+      onLoadMore();
+    }
+  };
+  const [brokenImageSrcs, setBrokenImageSrcs] = useState<Record<string, string[]>>({});
+
+  return (
+    <div className="typora-page-thumbnails" aria-label="Page thumbnails" onScroll={handleScroll}>
+      {pages.length ? pages.map((page) => {
+        const broken = brokenImageSrcs[page.pageId] ?? [];
+        const imageSrc = page.imageSrcs.find((src) => !broken.includes(src)) ?? '';
+        return (
+          <button
+            className={`typora-page-thumbnail ${page.active ? 'is-active' : ''} ${imageSrc ? 'has-image' : 'no-image'} ${page.emoji ? 'has-page-emoji' : 'no-page-emoji'}`}
+            key={page.pageId}
+            type="button"
+            onClick={() => onSelectPage(page.pageId)}
+          >
+            {imageSrc ? (
+              <span className="typora-page-thumbnail-figure">
+                <img
+                  className="typora-page-thumbnail-image"
+                  src={imageSrc}
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  decoding="async"
+                  onError={() => {
+                    setBrokenImageSrcs((current) => ({
+                      ...current,
+                      [page.pageId]: [...(current[page.pageId] ?? []), imageSrc]
+                    }));
+                  }}
+                />
+              </span>
+            ) : null}
+            <span className="typora-page-thumbnail-body">
+              <span className={`typora-page-thumbnail-head ${page.emoji ? 'has-page-emoji' : 'no-page-emoji'}`}>
+                {page.emoji ? <EmojiImage emoji={page.emoji} className="node-emoji typora-page-thumbnail-emoji" decorative /> : null}
+                <span className="typora-page-thumbnail-title">{page.title || 'Untitled'}</span>
+              </span>
+              {page.excerpt ? <span className="typora-page-thumbnail-excerpt">{page.excerpt}</span> : null}
+              <span className="typora-page-thumbnail-meta">{page.updatedAt}</span>
+            </span>
+          </button>
+        );
+      }) : <p className="typora-page-thumbnails-empty">No pages in this notebook.</p>}
+      {hasMorePages ? <button className="typora-page-thumbnails-more" type="button" onClick={onLoadMore}>Load more</button> : null}
+    </div>
   );
 }
 
@@ -560,6 +637,7 @@ type BaseShellProps = {
   contentTheme: ContentThemeId;
   sidebarCollapsed: boolean;
   outlineOpen: boolean;
+  sidebarView: 'files' | 'thumbnails';
   activeNotebook: Notebook;
   notebooks: Notebook[];
   notebookActions: NotebookActions;
@@ -570,6 +648,8 @@ type BaseShellProps = {
   onSearchResultSelect: (pageId: string) => void;
   pageTree: ReactNode;
   typoraFileTree: ReactNode;
+  pageThumbnails: PageThumbnailItem[];
+  hasMorePageThumbnails: boolean;
   workspaceContent: ReactNode;
   pinnedBlocks: Block[];
   openCardBlock: Block | null;
@@ -579,6 +659,9 @@ type BaseShellProps = {
   onCloseFloatingCard: () => void;
   onRootPageDrop: (pageId: string) => void;
   onAddPage: () => void;
+  onSelectPage: (pageId: string) => void;
+  onSidebarViewChange: (view: 'files' | 'thumbnails') => void;
+  onLoadMorePageThumbnails: () => void;
   controls: ShellControlsProps;
   outlineEntries: OutlineEntry[];
   onJumpToOutlineEntry: (entry: OutlineEntry) => void;
@@ -725,6 +808,7 @@ export function NativeShell({
   shell,
   contentTheme,
   sidebarCollapsed,
+  sidebarView: _sidebarView,
   activeNotebook,
   notebooks,
   notebookActions,
@@ -734,6 +818,8 @@ export function NativeShell({
   searchLoading,
   onSearchResultSelect,
   pageTree,
+  pageThumbnails: _pageThumbnails,
+  hasMorePageThumbnails: _hasMorePageThumbnails,
   workspaceContent,
   pinnedBlocks,
   openCardBlock,
@@ -743,6 +829,9 @@ export function NativeShell({
   onCloseFloatingCard,
   onRootPageDrop,
   onAddPage,
+  onSelectPage: _onSelectPage,
+  onSidebarViewChange: _onSidebarViewChange,
+  onLoadMorePageThumbnails: _onLoadMorePageThumbnails,
   controls,
   outlineEntries,
   onJumpToOutlineEntry,
@@ -830,6 +919,7 @@ export function TyporaShell({
   contentTheme,
   sidebarCollapsed,
   outlineOpen,
+  sidebarView,
   activeNotebook,
   notebooks,
   notebookActions,
@@ -839,6 +929,8 @@ export function TyporaShell({
   searchLoading,
   onSearchResultSelect,
   typoraFileTree,
+  pageThumbnails,
+  hasMorePageThumbnails,
   workspaceContent,
   pinnedBlocks,
   openCardBlock,
@@ -848,6 +940,9 @@ export function TyporaShell({
   onCloseFloatingCard,
   onRootPageDrop,
   onAddPage,
+  onSelectPage,
+  onSidebarViewChange,
+  onLoadMorePageThumbnails,
   controls,
   outlineEntries,
   onJumpToOutlineEntry,
@@ -856,8 +951,28 @@ export function TyporaShell({
   return (
     <div className={`typora-app-shell typora-theme ${outlineOpen ? 'outline-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
       <aside id="typora-sidebar" className="typora-sidebar active-tab-files">
+        <div className="sidebar-tabs" role="tablist" aria-label="Sidebar view">
+          <button
+            className={`sidebar-tab ${sidebarView === 'files' ? 'active sidebar-tab-active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={sidebarView === 'files'}
+            onClick={() => onSidebarViewChange('files')}
+          >
+            Files
+          </button>
+          <button
+            className={`sidebar-tab ${sidebarView === 'thumbnails' ? 'active sidebar-tab-active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={sidebarView === 'thumbnails'}
+            onClick={() => onSidebarViewChange('thumbnails')}
+          >
+            Thumbnails
+          </button>
+        </div>
         <div id="sidebar-content" className="sidebar-content">
-          <section className="typora-sidebar-pane is-active">
+          <section className={`typora-sidebar-pane ${sidebarView === 'files' ? 'is-active' : ''}`}>
             <section className="typora-desk-search">
               <SearchBox
                 query={query}
@@ -894,6 +1009,13 @@ export function TyporaShell({
             </div>
 
             <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} />
+          </section>
+          <section className={`typora-sidebar-pane is-thumbnail-pane ${sidebarView === 'thumbnails' ? 'is-active' : ''}`}>
+            <div className="typora-sidebar-section-header">
+              <span>Thumbnails</span>
+              <button className="mini-button" type="button" onClick={onAddPage} aria-label="New page"><FilePlus size={14} /></button>
+            </div>
+            <PageThumbnails pages={pageThumbnails} hasMorePages={hasMorePageThumbnails} onSelectPage={onSelectPage} onLoadMore={onLoadMorePageThumbnails} />
           </section>
         </div>
       </aside>

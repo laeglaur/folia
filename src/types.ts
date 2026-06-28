@@ -38,6 +38,20 @@ export interface Notebook {
 
 export interface NotebookMetadata {
   emoji?: string;
+  calendarView?: NotebookCalendarViewConfig;
+}
+
+export type NotebookCalendarDateSource = 'createdAt' | `metadata.${string}` | `frontmatter.${string}`;
+
+export interface NotebookCalendarViewConfig {
+  enabled: boolean;
+  dateSource: NotebookCalendarDateSource;
+  dateSources?: NotebookCalendarDateSource[];
+  visibleFields: string[];
+  colorField?: string;
+  dateMode?: 'point' | 'range';
+  dateStartField?: NotebookCalendarDateSource;
+  dateEndField?: NotebookCalendarDateSource;
 }
 
 export interface PageMetadata {

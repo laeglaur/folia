@@ -154,6 +154,17 @@ export const blockTimestampLabel = (value: string) => {
   return `${year}/${month}/${day} ${hours}:${minutes}`;
 };
 
+export const pageTimestampLabel = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  const hours = `${date.getHours()}`.padStart(2, '0');
+  const minutes = `${date.getMinutes()}`.padStart(2, '0');
+  return `${year}.${month}.${day} ${hours}:${minutes}`;
+};
+
 export const displayMathLatex = (latex: string) => latex === '\\;' ? '' : latex;
 
 export const findBlockMathPositionNear = (editor: { state: { doc: { content: { size: number }; nodeAt: (pos: number) => { type: { name: string }; attrs: { latex?: string } } | null; nodesBetween: (from: number, to: number, fn: (node: { type: { name: string } }, pos: number) => boolean | void) => void; descendants: (fn: (node: { type: { name: string } }, pos: number) => boolean | void) => void } } }, around: number) => {
