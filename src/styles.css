@@ -189,6 +189,10 @@ input, select { color: var(--ink); }
   font-size: var(--nav-item-font-size);
 }
 
+.notebook-button {
+  grid-template-columns: var(--nav-icon-column, 20px) minmax(0, 1fr);
+}
+
 .ProseMirror,
 .floating-card-body,
 .desktop-card,
@@ -231,7 +235,10 @@ input, select { color: var(--ink); }
   vertical-align: -0.14em;
 }
 
-.notebook-button.has-node-icon,
+.notebook-button.has-node-icon {
+  grid-template-columns: var(--nav-icon-column, 20px) minmax(0, 1fr);
+}
+
 .page-button.has-node-icon {
   grid-template-columns: var(--nav-icon-column, 20px) 18px minmax(0, 1fr);
 }

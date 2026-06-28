@@ -435,10 +435,14 @@ function NotebookList({
       }
     } as const;
 
+    const leadingIcon = emoji
+      ? <EmojiImage emoji={emoji} className="node-emoji" decorative />
+      : <NotebookTabs size={variant === 'typora' ? 13 : 15} />;
+
     if (variant === 'typora') {
       return isEditing ? (
-        <div className={`file-node-content notebook-node notebook-editing ${isActive ? 'is-active' : ''}`}>
-          <span className="file-node-open-state"><NotebookTabs size={13} /></span>
+        <div className={`file-node-content notebook-node notebook-editing ${emoji ? 'has-node-icon' : ''} ${isActive ? 'is-active' : ''}`}>
+          <span className="file-node-open-state">{leadingIcon}</span>
           <input {...sharedInputProps} />
         </div>
       ) : (
@@ -453,16 +457,15 @@ function NotebookList({
             actions.openNotebookEmojiMenu(notebook.id, event.clientX, event.clientY);
           }}
         >
-          <span className="file-node-open-state"><NotebookTabs size={13} /></span>
-          {emoji ? <EmojiImage emoji={emoji} className="node-emoji" decorative /> : null}
+          <span className="file-node-open-state">{leadingIcon}</span>
           <span className="file-node-title file-name notebook-label">{notebook.name}</span>
         </button>
       );
     }
 
     return isEditing ? (
-      <div className={`notebook-button notebook-editing ${isActive ? 'active' : ''}`}>
-        <NotebookTabs size={15} />
+      <div className={`notebook-button notebook-editing ${emoji ? 'has-node-icon' : ''} ${isActive ? 'active' : ''}`}>
+        {leadingIcon}
         <input {...sharedInputProps} />
       </div>
     ) : (
@@ -477,8 +480,7 @@ function NotebookList({
           actions.openNotebookEmojiMenu(notebook.id, event.clientX, event.clientY);
         }}
       >
-        <NotebookTabs size={15} />
-        {emoji ? <EmojiImage emoji={emoji} className="node-emoji" decorative /> : null}
+        {leadingIcon}
         <span className="notebook-label">{notebook.name}</span>
       </button>
     );
