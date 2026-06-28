@@ -461,8 +461,7 @@ function CalendarWorkspace({
     return `collection-color-${(index % 6) + 1}`;
   };
   const visibleDayKeys = new Map(calendarDays.map((day, index) => [localDateKey(day), index]));
-  const pageEntriesByDate = new Map<string, PageCalendarEntry[]>();
-  const rangeSegments: Array<{
+  const pageSegments: Array<{
     entry: PageCalendarEntry;
     key: string;
     weekIndex: number;
@@ -477,12 +476,6 @@ function CalendarWorkspace({
   pageEntries.forEach((entry) => {
     const startIndex = visibleDayKeys.get(entry.startDate);
     const endIndex = visibleDayKeys.get(entry.endDate);
-    if (entry.startDate === entry.endDate) {
-      if (startIndex !== undefined) {
-        pageEntriesByDate.set(entry.startDate, [...(pageEntriesByDate.get(entry.startDate) ?? []), entry]);
-      }
-      return;
-    }
     if (startIndex === undefined && endIndex === undefined) {
       const firstKey = localDateKey(calendarDays[0]);
       const lastKey = localDateKey(calendarDays[calendarDays.length - 1]);
@@ -502,7 +495,7 @@ function CalendarWorkspace({
       const nextLane = lane === -1 ? lanes.length : lane;
       lanes[nextLane] = localDateKey(calendarDays[segmentEnd]);
       rangeLaneByWeek.set(weekIndex, lanes);
-      rangeSegments.push({
+      pageSegments.push({
         entry,
         key: `${entry.key}:${weekIndex}`,
         weekIndex,
@@ -597,14 +590,18 @@ function CalendarWorkspace({
           {calendarDays.map((day) => {
             const key = localDateKey(day);
             const entries = entriesByDate.get(key) ?? [];
-            const pageEntries = pageEntriesByDate.get(key) ?? [];
-            const weekIndex = Math.floor((visibleDayKeys.get(key) ?? 0) / 7);
+            const dayIndex = visibleDayKeys.get(key) ?? 0;
+            const weekIndex = Math.floor(dayIndex / 7);
             return (
               <div
                 className={`calendar-day ${monthKey(day) !== currentMonthKey ? 'is-muted' : ''} ${key === todayKey ? 'is-today' : ''}`}
                 key={key}
                 data-date={key}
-                style={{ '--calendar-range-lanes': rangeLanesByWeek.get(weekIndex) ?? 0 } as CSSProperties}
+                style={{
+                  gridColumn: (dayIndex % 7) + 1,
+                  gridRow: weekIndex + 1,
+                  '--calendar-range-lanes': rangeLanesByWeek.get(weekIndex) ?? 0
+                } as CSSProperties}
               >
                 <div className="calendar-day-top">
                   <span className="calendar-day-number">{day.getDate()}</span>
@@ -621,28 +618,7 @@ function CalendarWorkspace({
                   ) : null}
                 </div>
                 <div className="calendar-day-entries">
-                  {mode === 'pages' ? pageEntries.slice(0, 3).map((entry) => (
-                    <button
-                      className={`calendar-entry page-calendar-entry collection-calendar-entry ${colorClass(entry)}`}
-                      key={entry.key}
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onOpenPage(entry.page.id);
-                      }}
-                      title={entry.title}
-                    >
-                      <span>{entry.colorKey || title}</span>
-                      <span>{entry.title}</span>
-                      {entry.fields.length ? (
-                        <span className="page-calendar-entry-fields">
-                          {entry.fields.slice(0, 3).map((field) => (
-                            <span key={field.key}>{field.value}</span>
-                          ))}
-                        </span>
-                      ) : null}
-                    </button>
-                  )) : entries.slice(0, 2).map(({ block, page }) => (
+                  {mode === 'blocks' ? entries.slice(0, 2).map(({ block, page }) => (
                     <button
                       className="calendar-entry"
                       key={block.id}
@@ -653,14 +629,13 @@ function CalendarWorkspace({
                       <span>{page.title}</span>
                       <span>{firstLines(block.content.plainText, 44)}</span>
                     </button>
-                  ))}
-                  {mode === 'pages' && pageEntries.length > 3 ? <div className="calendar-more">+{pageEntries.length - 3}</div> : null}
+                  )) : null}
                   {mode === 'blocks' && entries.length > 2 ? <div className="calendar-more">+{entries.length - 2}</div> : null}
                 </div>
               </div>
             );
           })}
-          {mode === 'pages' ? rangeSegments.map((segment) => (
+          {mode === 'pages' ? pageSegments.map((segment) => (
             <button
               className={`calendar-range-entry collection-calendar-entry ${colorClass(segment.entry)} ${segment.startsInWeek ? 'starts-in-week' : 'continues-from-before'} ${segment.endsInWeek ? 'ends-in-week' : 'continues-after'}`}
               key={segment.key}

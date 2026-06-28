@@ -2257,11 +2257,10 @@ body.notebook-table-column-resizing * {
 
 .calendar-day {
   min-width: 0;
-  min-height: 72px;
+  min-height: calc(82px + var(--calendar-range-lanes, 0) * 38px);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 3px;
-  margin-top: calc(var(--calendar-range-lanes, 0) * 36px);
+  grid-template-rows: 26px minmax(0, 1fr);
+  gap: 5px;
   border: 1px solid var(--line-soft);
   border-radius: 6px;
   background: color-mix(in srgb, var(--theme-panel-background) 76%, transparent);
@@ -2270,6 +2269,8 @@ body.notebook-table-column-resizing * {
 }
 
 .calendar-day-top {
+  position: relative;
+  z-index: 3;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -2294,6 +2295,8 @@ body.notebook-table-column-resizing * {
 }
 
 .calendar-day-add {
+  position: relative;
+  z-index: 4;
   width: 20px;
   height: 20px;
   display: inline-grid;
@@ -2356,7 +2359,7 @@ body.notebook-table-column-resizing * {
   grid-template-rows: auto auto;
   align-items: center;
   gap: 2px 6px;
-  margin: calc(var(--calendar-range-lane, 0) * 35px + 22px) 2px 0;
+  margin: calc(var(--calendar-range-lane, 0) * 37px + 32px) 4px 0;
   padding: 4px 7px;
   border-radius: 4px;
   color: var(--theme-nav-active-ink);
