@@ -600,6 +600,20 @@ export function App() {
     document.body.dataset.theme = nativeTheme;
     document.body.dataset.shell = state.shell;
     document.body.dataset.contentTheme = state.contentTheme;
+
+    if (state.contentTheme.startsWith('typora-')) {
+      const themeRoot = document.querySelector<HTMLElement>(`.typora-theme[data-content-theme="${state.contentTheme}"]`);
+      const resolvedBackground = themeRoot
+        ? getComputedStyle(themeRoot).getPropertyValue('--theme-body-background').trim() || getComputedStyle(themeRoot).getPropertyValue('--typora-shell-bg').trim()
+        : '';
+      if (resolvedBackground) {
+        document.body.style.background = resolvedBackground;
+        document.documentElement.style.background = resolvedBackground;
+      }
+    } else {
+      document.body.style.background = '';
+      document.documentElement.style.background = '';
+    }
   }, [state.shell, state.contentTheme]);
 
   useEffect(() => {

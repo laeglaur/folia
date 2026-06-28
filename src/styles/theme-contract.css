@@ -167,7 +167,7 @@
   --block-grid-columns: 32px minmax(0, 1fr);
   --block-gap: 8px;
   --block-padding: 10px 8px;
-  --block-radius: 13px;
+  --block-radius: var(--composer-card-radius, 15px);
   --block-hover-background: rgba(255, 255, 255, 0.48);
   --block-hover-shadow: 0 8px 18px rgba(83, 112, 89, 0.08);
   --block-border: 1px solid transparent;
@@ -183,14 +183,11 @@
   --block-content-padding: 4px 3px;
   --block-preview-min-height: 28px;
   --block-surface-border: 1px solid color-mix(in srgb, var(--theme-line, rgba(128, 176, 145, 0.3)) 72%, transparent);
-  --block-surface-background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--theme-surface-solid, #fffdf7) 90%, transparent),
-      color-mix(in srgb, var(--theme-surface, rgba(255, 253, 247, 0.9)) 70%, transparent));
+  --block-surface-background: var(--theme-surface-solid, #fffdf7);
   --block-surface-background-image: none;
   --block-surface-shadow:
-    0 8px 20px color-mix(in srgb, var(--theme-ink, #263934) 9%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    0 1px 0 color-mix(in srgb, #fff 50%, transparent) inset,
+    0 10px 20px color-mix(in srgb, var(--theme-ink, #263934) 10%, transparent);
   --composer-card-border: var(--block-surface-border);
   --composer-card-background: var(--block-surface-background);
   --composer-card-background-image: var(--block-surface-background-image);

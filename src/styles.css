@@ -1120,7 +1120,7 @@ input, select { color: var(--ink); }
   gap: var(--block-gap);
   padding: var(--block-padding);
   border: var(--block-surface-border, var(--block-border));
-  border-radius: var(--block-radius);
+  border-radius: var(--composer-card-radius, var(--block-radius));
   background: var(--block-surface-background, transparent);
   background-image: var(--block-surface-background-image, none);
   box-shadow: var(--block-surface-shadow, none);

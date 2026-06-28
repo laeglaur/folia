@@ -30,21 +30,24 @@
 .typora-app-shell .page-title {
   width: 100%;
   margin: 0 0 18px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
+  padding: 10px 12px;
+  border: var(--composer-card-border, var(--block-surface-border, var(--typora-editor-block-border)));
+  border-radius: var(--composer-card-radius, var(--block-radius, 4px));
   outline: 0;
-  background: transparent;
+  background: var(--composer-card-background, var(--block-surface-background, transparent));
+  background-image: var(--composer-card-background-image, var(--block-surface-background-image, none));
   color: var(--typora-shell-ink);
   font-family: var(--font-heading, var(--font-body, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif)));
   font-size: 1.82em;
   line-height: 1.24;
   font-weight: 650;
   letter-spacing: 0;
+  box-shadow: var(--composer-card-shadow, var(--block-surface-shadow, none));
 }
 
 .typora-app-shell .page-title:focus {
-  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--typora-shell-ink) 22%, transparent);
+  border-color: color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 24%, transparent);
+  box-shadow: var(--composer-card-shadow, var(--block-surface-shadow, none));
 }
 
 .typora-app-shell .page-metadata {
@@ -91,20 +94,20 @@
   grid-template-columns: 22px minmax(0, 1fr);
   gap: 7px;
   padding: 8px 10px 8px 6px;
-  border: var(--block-surface-border, var(--typora-editor-block-border));
-  border-radius: var(--block-radius, 4px);
-  background: var(--block-surface-background, transparent);
-  background-image: var(--block-surface-background-image, none);
-  box-shadow: var(--block-surface-shadow, none);
+  border: var(--composer-card-border, var(--block-surface-border, var(--typora-editor-block-border)));
+  border-radius: var(--composer-card-radius, var(--block-radius, 4px));
+  background: var(--composer-card-background, var(--block-surface-background, transparent));
+  background-image: var(--composer-card-background-image, var(--block-surface-background-image, none));
+  box-shadow: var(--composer-card-shadow, var(--block-surface-shadow, none));
 }
 
 .typora-app-shell .typora-write.show-block-borders .block {
   padding: 8px 10px 8px 6px;
-  border: var(--block-surface-border, var(--typora-editor-block-border));
-  border-radius: 4px;
-  background: var(--block-surface-background, transparent);
-  background-image: var(--block-surface-background-image, none);
-  box-shadow: var(--block-surface-shadow, none);
+  border: var(--composer-card-border, var(--block-surface-border, var(--typora-editor-block-border)));
+  border-radius: var(--composer-card-radius, var(--block-radius, 4px));
+  background: var(--composer-card-background, var(--block-surface-background, transparent));
+  background-image: var(--composer-card-background-image, var(--block-surface-background-image, none));
+  box-shadow: var(--composer-card-shadow, var(--block-surface-shadow, none));
 }
 
 .typora-app-shell[data-content-theme="typora-base"] {
@@ -122,18 +125,18 @@
 
 .typora-app-shell .block:hover,
 .typora-app-shell .block:focus-within {
-  border: var(--block-surface-border, var(--typora-editor-block-border));
-  background: var(--block-surface-background, transparent);
-  background-image: var(--block-surface-background-image, none);
-  box-shadow: var(--block-surface-shadow, none);
+  border: var(--composer-card-border, var(--block-surface-border, var(--typora-editor-block-border)));
+  background: var(--composer-card-background, var(--block-surface-background, transparent));
+  background-image: var(--composer-card-background-image, var(--block-surface-background-image, none));
+  box-shadow: var(--composer-card-shadow, var(--block-surface-shadow, none));
 }
 
 .typora-app-shell .typora-write.show-block-borders .block:hover,
 .typora-app-shell .typora-write.show-block-borders .block:focus-within {
   border-color: color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 22%, transparent);
-  background: var(--block-surface-background, transparent);
-  background-image: var(--block-surface-background-image, none);
-  box-shadow: var(--block-surface-shadow, none);
+  background: var(--composer-card-background, var(--block-surface-background, transparent));
+  background-image: var(--composer-card-background-image, var(--block-surface-background-image, none));
+  box-shadow: var(--composer-card-shadow, var(--block-surface-shadow, none));
 }
 
 .typora-app-shell .block-divider {

@@ -27,6 +27,9 @@
 @import "./typora/generated/typora-mark-bridge.css";
 
 .typora-theme[data-content-theme^="typora-"] {
+  --theme-body-background: var(--bg-color, var(--bg, var(--theme-bg)));
+  --typora-shell-bg: var(--bg-color, var(--bg, var(--theme-bg)));
+  --typora-shell-panel: var(--side-bar-bg-color, var(--bg-color, var(--bg, var(--theme-surface-solid))));
   --overlay-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 18%, transparent);
   --overlay-background: color-mix(in srgb, var(--side-bar-bg-color, var(--bg-color, var(--theme-surface-solid))) 86%, var(--bg-color, var(--theme-surface-solid)));
   --overlay-shadow: 0 16px 38px color-mix(in srgb, var(--text-color, #000) 14%, transparent);
@@ -39,14 +42,11 @@
   --floating-layer-background: var(--overlay-background);
   --floating-layer-shadow: var(--overlay-shadow);
   --block-surface-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 14%, transparent);
-  --block-surface-background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--bg-color, var(--theme-surface-solid)) 92%, transparent),
-      color-mix(in srgb, var(--side-bar-bg-color, var(--bg-color, var(--theme-surface-solid))) 78%, transparent));
+  --block-surface-background: var(--side-bar-bg-color, var(--bg-color, var(--theme-surface-solid)));
   --block-surface-background-image: none;
   --block-surface-shadow:
-    0 8px 20px color-mix(in srgb, var(--text-color, #000) 9%, transparent),
-    inset 0 1px 0 color-mix(in srgb, #fff 46%, transparent);
+    0 1px 0 color-mix(in srgb, #fff 28%, transparent) inset,
+    0 10px 20px color-mix(in srgb, var(--text-color, #000) 11%, transparent);
   --composer-card-border: var(--block-surface-border);
   --composer-card-background: var(--block-surface-background);
   --composer-card-background-image: var(--block-surface-background-image);
@@ -139,8 +139,8 @@
   --block-surface-border: 1px solid color-mix(in srgb, var(--border, var(--text-color)) 76%, transparent);
   --block-surface-background: var(--bg-panel, var(--side-bar-bg-color, var(--bg-color)));
   --block-surface-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.24),
-    inset 0 1px 0 color-mix(in srgb, var(--text-color) 7%, transparent);
+    0 1px 0 color-mix(in srgb, var(--text-color) 8%, transparent) inset,
+    0 12px 18px rgba(0, 0, 0, 0.28);
   --desktop-card-background: var(--bg-panel, var(--overlay-background));
   --floating-card-background: var(--bg-panel, var(--overlay-background));
   --floating-card-body-background: var(--bg-panel, var(--overlay-background));
@@ -162,8 +162,8 @@ body[data-content-theme="typora-everforest-dark"] {
   --block-surface-border: 1px solid color-mix(in srgb, var(--border, var(--text-color)) 82%, transparent);
   --block-surface-background: var(--bg-panel, var(--side-bar-bg-color, var(--bg-color)));
   --block-surface-shadow:
-    0 7px 18px rgba(92, 106, 114, 0.09),
-    inset 0 1px 0 color-mix(in srgb, #fff 58%, transparent);
+    0 1px 0 color-mix(in srgb, #fff 45%, transparent) inset,
+    0 9px 16px rgba(92, 106, 114, 0.12);
 }
 
 .typora-theme[data-content-theme="typora-torillic"] {
