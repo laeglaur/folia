@@ -243,11 +243,11 @@ input, select { color: var(--ink); }
   min-width: 168px;
   padding: 6px;
   gap: 4px;
-  border: var(--floating-layer-border);
-  border-radius: var(--floating-layer-radius);
-  background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg) 12%);
-  color: var(--ink);
-  box-shadow: var(--floating-layer-shadow);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--overlay-background);
+  color: var(--overlay-ink);
+  box-shadow: var(--overlay-shadow);
 }
 
 .emoji-context-menu button {
@@ -261,7 +261,7 @@ input, select { color: var(--ink); }
 }
 
 .emoji-context-menu button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--overlay-hover-background);
 }
 
 .emoji-context-menu button:disabled {
@@ -298,15 +298,15 @@ input, select { color: var(--ink); }
 .page-move-header span,
 .page-move-empty {
   font-size: 11px;
-  color: color-mix(in srgb, currentColor 60%, transparent);
+  color: var(--overlay-muted);
 }
 
 .page-move-search {
   width: 100%;
   min-height: 30px;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border: var(--input-border);
   border-radius: 6px;
-  background: var(--theme-surface-solid, #fffdf7);
+  background: var(--input-background);
   color: inherit;
   padding: 0 10px;
 }
@@ -317,7 +317,7 @@ input, select { color: var(--ink); }
   display: grid;
   place-items: center;
   border-radius: 6px;
-  background: color-mix(in srgb, currentColor 7%, transparent);
+  background: var(--overlay-hover-background);
   color: inherit;
   flex: 0 0 auto;
   padding: 0;
@@ -355,7 +355,8 @@ input, select { color: var(--ink); }
 
 .page-move-item:hover,
 .page-move-item.is-selected {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--overlay-selected-background);
+  color: var(--overlay-selected-ink);
 }
 
 .page-move-label {
@@ -383,11 +384,11 @@ input, select { color: var(--ink); }
   max-height: min(680px, calc(100vh - 44px));
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
-  border: var(--floating-layer-border);
-  border-radius: var(--floating-layer-radius);
-  background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg) 12%);
-  color: var(--ink);
-  box-shadow: var(--floating-layer-shadow);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--overlay-background);
+  color: var(--overlay-ink);
+  box-shadow: var(--overlay-shadow);
   overflow: hidden;
 }
 
@@ -737,11 +738,11 @@ input, select { color: var(--ink); }
   max-height: min(360px, 55vh);
   overflow: auto;
   padding: 6px;
-  border: var(--floating-layer-border);
-  border-radius: var(--floating-layer-radius);
-  background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg) 12%);
-  box-shadow: var(--floating-layer-shadow);
-  color: var(--ink);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--overlay-background);
+  box-shadow: var(--overlay-shadow);
+  color: var(--overlay-ink);
 }
 
 .search-result-item {
@@ -759,12 +760,13 @@ input, select { color: var(--ink); }
 
 .search-result-item:hover,
 .search-result-item.is-selected {
-  background: var(--chip);
+  background: var(--overlay-selected-background);
+  color: var(--overlay-selected-ink);
 }
 
 .search-result-title {
   overflow: hidden;
-  color: var(--ink);
+  color: var(--overlay-ink);
   font-size: 0.86rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -772,7 +774,7 @@ input, select { color: var(--ink); }
 
 .search-result-snippet,
 .search-result-empty {
-  color: var(--muted);
+  color: var(--overlay-muted);
   font-size: 0.78rem;
   line-height: 1.35;
 }
@@ -800,21 +802,21 @@ input, select { color: var(--ink); }
   width: min(420px, calc(100vw - 32px));
   max-width: min(420px, calc(100vw - 32px));
   padding: 8px 10px;
-  border: var(--floating-layer-border);
-  border-radius: var(--floating-layer-radius);
-  background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg) 12%);
-  box-shadow: var(--floating-layer-shadow);
-  color: var(--ink);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--overlay-background);
+  box-shadow: var(--overlay-shadow);
+  color: var(--overlay-ink);
 }
 
 .page-find-popover input {
   min-width: 0;
   height: 30px;
-  border: 1px solid var(--line);
+  border: var(--input-border);
   border-radius: 5px;
   padding: 0 9px;
   outline: 0;
-  background: var(--surface);
+  background: var(--input-background);
   color: var(--ink);
 }
 
@@ -823,7 +825,7 @@ input, select { color: var(--ink); }
 }
 
 .page-find-count {
-  color: var(--muted);
+  color: var(--overlay-muted);
   font-size: 0.78rem;
   white-space: nowrap;
 }
@@ -832,7 +834,7 @@ input, select { color: var(--ink); }
   grid-column: 1 / -1;
   min-height: 1.1rem;
   overflow: hidden;
-  color: var(--muted);
+  color: var(--overlay-muted);
   font-size: 0.78rem;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -1033,10 +1035,11 @@ input, select { color: var(--ink); }
   width: fit-content;
   max-width: 100%;
   padding: 3px;
-  border: var(--floating-layer-border);
-  border-radius: var(--floating-layer-radius);
-  background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg) 12%);
-  box-shadow: var(--floating-layer-shadow);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--overlay-background);
+  box-shadow: var(--overlay-shadow);
+  color: var(--overlay-ink);
 }
 
 .table-control-button {
@@ -1045,7 +1048,7 @@ input, select { color: var(--ink); }
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: var(--muted);
+  color: var(--overlay-muted);
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
@@ -1053,8 +1056,8 @@ input, select { color: var(--ink); }
 }
 
 .table-control-button:hover {
-  background: var(--chip);
-  color: var(--ink);
+  background: var(--overlay-hover-background);
+  color: var(--overlay-ink);
 }
 
 .table-control-button.danger:hover {
@@ -1070,14 +1073,15 @@ input, select { color: var(--ink); }
   gap: 6px;
   max-width: calc(100% - 16px);
   padding: 5px 6px;
-  border: var(--floating-layer-border);
-  border-radius: var(--floating-layer-radius);
-  background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg) 12%);
-  box-shadow: var(--floating-layer-shadow);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--overlay-background);
+  box-shadow: var(--overlay-shadow);
+  color: var(--overlay-ink);
 }
 
 .math-block-editor-delimiter {
-  color: var(--muted);
+  color: var(--overlay-muted);
   font-family: var(--mono);
   font-size: 12px;
   font-weight: 700;
@@ -1089,7 +1093,7 @@ input, select { color: var(--ink); }
   border: 0;
   outline: 0;
   background: transparent;
-  color: var(--ink);
+  color: var(--overlay-ink);
   font-family: var(--mono);
   font-size: 13px;
 }
@@ -1100,12 +1104,12 @@ input, select { color: var(--ink); }
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: var(--muted);
+  color: var(--overlay-muted);
 }
 
 .math-block-editor button:hover {
-  background: var(--chip);
-  color: var(--ink);
+  background: var(--overlay-hover-background);
+  color: var(--overlay-ink);
 }
 
 .block-list { display: grid; gap: var(--block-list-gap); }
@@ -1128,7 +1132,7 @@ input, select { color: var(--ink); }
 
 .block:hover,
 .block:focus-within {
-  border-color: var(--line);
+  border: var(--block-surface-border, var(--block-border));
   background: var(--block-surface-background, transparent);
   box-shadow: var(--block-surface-shadow, none);
 }
@@ -2438,10 +2442,11 @@ body.notebook-table-column-resizing * {
   max-height: min(620px, calc(100vh - 86px));
   overflow: auto;
   padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  border-radius: 8px;
-  background: var(--theme-surface-solid, #fffdf7);
-  box-shadow: 0 18px 42px color-mix(in srgb, #000 18%, transparent);
+  border: var(--overlay-border);
+  border-radius: var(--overlay-radius);
+  background: var(--overlay-background);
+  color: var(--overlay-ink);
+  box-shadow: var(--overlay-shadow);
   transform: translateY(8px) scale(0.98);
   transform-origin: bottom right;
   transition: transform 140ms ease, visibility 140ms ease;
@@ -2455,7 +2460,7 @@ body.notebook-table-column-resizing * {
 }
 
 .fish-desk-title {
-  color: var(--muted);
+  color: var(--overlay-muted);
   font-size: 11px;
   line-height: 1;
   text-transform: uppercase;
@@ -2472,10 +2477,10 @@ body.notebook-table-column-resizing * {
 .fish-desk .typora-tool-controls .secondary-button {
   width: 100%;
   min-height: 30px;
-  border: 1px solid var(--line);
+  border: var(--input-border);
   border-radius: var(--topbar-control-radius);
-  background: var(--theme-panel-background);
-  color: var(--muted);
+  background: var(--input-background);
+  color: var(--overlay-muted);
   box-shadow: none;
 }
 
@@ -2781,9 +2786,11 @@ body.notebook-table-column-resizing * {
 .floating-card-body { min-height: 0; padding: var(--floating-card-body-padding); background: var(--floating-card-body-background, transparent); color: var(--floating-card-body-ink); font-size: var(--floating-card-body-font-size); line-height: var(--floating-card-body-line-height); max-height: var(--floating-card-body-max-height); overflow: auto; }
 
 .typora-theme .notebook-name-input {
-  background: var(--input-background, var(--bg-color, var(--theme-surface-solid)));
+  border: var(--input-border);
+  background: var(--input-background);
   color: var(--text-color, var(--theme-ink));
   caret-color: var(--text-color, var(--theme-ink));
+  box-shadow: var(--input-shadow, none);
 }
 
 .typora-theme .panel-title,

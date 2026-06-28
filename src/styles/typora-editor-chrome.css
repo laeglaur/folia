@@ -94,14 +94,23 @@
   padding: 8px 10px 8px 6px;
   border: var(--block-surface-border, var(--typora-editor-block-border));
   border-radius: 4px;
-  background: var(--block-surface-background, transparent);
-  box-shadow: var(--block-surface-shadow, none);
+  background: transparent;
+  box-shadow: none;
 }
 
 .typora-app-shell[data-content-theme="typora-base"] {
   --block-surface-border: var(--input-border, 1px solid color-mix(in srgb, var(--typora-shell-divider) 78%, transparent));
-  --block-surface-background: var(--input-background, color-mix(in srgb, var(--typora-shell-panel) 70%, transparent));
-  --block-surface-shadow: var(--input-shadow, none);
+  --block-surface-background: transparent;
+  --block-surface-shadow: none;
+}
+
+.typora-app-shell .notebook-name-input,
+.typora-app-shell .page-name-input {
+  border: var(--input-border, var(--typora-editor-block-border));
+  background: var(--input-background, transparent);
+  color: var(--text-color, var(--typora-shell-ink));
+  caret-color: var(--text-color, var(--typora-shell-ink));
+  box-shadow: var(--input-shadow, none);
 }
 
 .typora-app-shell .block:hover,
@@ -113,8 +122,9 @@
 
 .typora-app-shell .typora-write.show-block-borders .block:hover,
 .typora-app-shell .typora-write.show-block-borders .block:focus-within {
-  border-color: var(--typora-editor-toolbar-border);
-  box-shadow: var(--block-surface-shadow, none);
+  border-color: color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 22%, transparent);
+  background: transparent;
+  box-shadow: none;
 }
 
 .typora-app-shell .block-divider {
@@ -341,42 +351,44 @@
 }
 
 .typora-app-shell .table-controls {
-  border: 1px solid var(--typora-editor-toolbar-border);
+  border: var(--overlay-border, 1px solid var(--typora-editor-toolbar-border));
   border-radius: 4px;
-  background: var(--typora-editor-toolbar-bg);
-  box-shadow: none;
+  background: var(--overlay-background, var(--typora-editor-toolbar-bg));
+  color: var(--overlay-ink, var(--typora-shell-ink));
+  box-shadow: var(--overlay-shadow, none);
   font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
 }
 
 .typora-app-shell .table-control-button {
   border-radius: 3px;
-  color: var(--typora-shell-muted);
+  color: var(--overlay-muted, var(--typora-shell-muted));
 }
 
 .typora-app-shell .table-control-button:hover {
-  background: color-mix(in srgb, var(--typora-shell-active-bg) 82%, transparent);
-  color: var(--typora-shell-active-text);
+  background: var(--overlay-hover-background, color-mix(in srgb, var(--typora-shell-active-bg) 82%, transparent));
+  color: var(--overlay-ink, var(--typora-shell-active-text));
 }
 
 .typora-app-shell .math-block-editor {
-  border: 1px solid var(--typora-editor-toolbar-border);
+  border: var(--overlay-border, 1px solid var(--typora-editor-toolbar-border));
   border-radius: 4px;
-  background: var(--typora-editor-toolbar-bg);
-  box-shadow: none;
+  background: var(--overlay-background, var(--typora-editor-toolbar-bg));
+  color: var(--overlay-ink, var(--typora-shell-ink));
+  box-shadow: var(--overlay-shadow, none);
 }
 
 .typora-app-shell .math-block-editor input {
-  color: var(--typora-shell-text);
+  color: var(--overlay-ink, var(--typora-shell-text));
 }
 
 .typora-app-shell .math-block-editor-delimiter,
 .typora-app-shell .math-block-editor button {
-  color: var(--typora-shell-muted);
+  color: var(--overlay-muted, var(--typora-shell-muted));
 }
 
 .typora-app-shell .math-block-editor button:hover {
-  background: color-mix(in srgb, var(--typora-shell-active-bg) 82%, transparent);
-  color: var(--typora-shell-active-text);
+  background: var(--overlay-hover-background, color-mix(in srgb, var(--typora-shell-active-bg) 82%, transparent));
+  color: var(--overlay-ink, var(--typora-shell-active-text));
 }
 
 .typora-app-shell .tool-button {

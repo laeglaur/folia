@@ -260,6 +260,15 @@
   --floating-layer-border: 1px solid rgba(218, 210, 190, 0.54);
   --floating-layer-background: rgba(255, 253, 247, 0.9);
   --floating-layer-shadow: 0 14px 32px rgba(74, 103, 86, 0.13);
+  --overlay-border: var(--floating-layer-border);
+  --overlay-radius: var(--floating-layer-radius);
+  --overlay-background: var(--floating-layer-background);
+  --overlay-shadow: var(--floating-layer-shadow);
+  --overlay-ink: var(--ink);
+  --overlay-muted: var(--muted);
+  --overlay-hover-background: color-mix(in srgb, var(--accent) 12%, transparent);
+  --overlay-selected-background: color-mix(in srgb, var(--accent) 16%, transparent);
+  --overlay-selected-ink: var(--ink);
 
   --legacy-todo-gap: 5px;
   --legacy-todo-min-height: 28px;
@@ -327,6 +336,10 @@
   --floating-card-body-font-size: 13px;
   --floating-card-body-line-height: 1.5;
   --floating-card-body-max-height: 320px;
+
+  --input-border: 1px solid var(--line);
+  --input-background: var(--theme-surface);
+  --input-shadow: none;
 
   --mobile-shell-padding: 12px;
   --mobile-page-padding: 20px 16px;

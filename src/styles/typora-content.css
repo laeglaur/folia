@@ -27,20 +27,31 @@
 @import "./typora/generated/typora-mark-bridge.css";
 
 .typora-theme[data-content-theme^="typora-"] {
-  --floating-layer-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 18%, transparent);
-  --floating-layer-background: color-mix(in srgb, var(--bg-color, var(--theme-surface-solid)) 72%, var(--side-bar-bg-color, var(--theme-chip)));
-  --floating-layer-shadow: 0 16px 38px color-mix(in srgb, var(--text-color, #000) 14%, transparent);
-  --block-surface-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 12%, var(--theme-line));
-  --block-surface-background: color-mix(in srgb, var(--bg-color, var(--theme-surface-solid)) 94%, var(--side-bar-bg-color, var(--theme-chip)) 6%);
-  --block-surface-shadow: 0 6px 18px color-mix(in srgb, var(--text-color, #000) 8%, transparent);
-  --desktop-card-background: color-mix(in srgb, var(--floating-layer-background) 88%, var(--bg-color, var(--theme-surface-solid)));
+  --overlay-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 18%, transparent);
+  --overlay-background: color-mix(in srgb, var(--side-bar-bg-color, var(--bg-color, var(--theme-surface-solid))) 86%, var(--bg-color, var(--theme-surface-solid)));
+  --overlay-shadow: 0 16px 38px color-mix(in srgb, var(--text-color, #000) 14%, transparent);
+  --overlay-ink: var(--text-color, var(--theme-ink));
+  --overlay-muted: var(--control-text-color, var(--theme-muted));
+  --overlay-hover-background: color-mix(in srgb, var(--text-color, var(--theme-ink)) 8%, transparent);
+  --overlay-selected-background: var(--item-hover-bg-color, color-mix(in srgb, var(--primary-color, var(--theme-accent)) 15%, transparent));
+  --overlay-selected-ink: var(--item-hover-text-color, var(--text-color, var(--theme-ink)));
+  --floating-layer-border: var(--overlay-border);
+  --floating-layer-background: var(--overlay-background);
+  --floating-layer-shadow: var(--overlay-shadow);
+  --block-surface-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 14%, transparent);
+  --block-surface-background: transparent;
+  --block-surface-shadow: none;
+  --desktop-card-background: var(--overlay-background);
   --desktop-card-ink: var(--text-color, var(--theme-ink));
-  --floating-card-background: color-mix(in srgb, var(--floating-layer-background) 92%, var(--bg-color, var(--theme-surface-solid)));
-  --floating-card-body-background: color-mix(in srgb, var(--floating-layer-background) 92%, var(--bg-color, var(--theme-surface-solid)));
-  --floating-card-mode-background: color-mix(in srgb, var(--floating-layer-background) 86%, var(--bg-color, var(--theme-surface-solid)));
+  --floating-card-background: var(--overlay-background);
+  --floating-card-body-background: var(--overlay-background);
+  --floating-card-mode-background: var(--overlay-background);
   --floating-card-grip-background: color-mix(in srgb, var(--side-bar-bg-color, var(--bg-color, var(--theme-surface-solid))) 92%, transparent);
-  --floating-card-grip-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 18%, transparent);
+  --floating-card-grip-border: var(--overlay-border);
   --floating-card-body-ink: var(--desktop-card-ink);
+  --input-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 18%, transparent);
+  --input-background: color-mix(in srgb, var(--side-bar-bg-color, var(--bg-color, var(--theme-surface-solid))) 76%, transparent);
+  --input-shadow: none;
   --block-date-pin-background: var(--mark-bg-color, var(--mark-bg, var(--ravel-mark-color, var(--yellow, var(--sal-accent, var(--typora-fallback-mark-bg))))));
   --block-date-pin-ink: var(--mark-text-color, var(--highlight-text-color, var(--bg, var(--typora-fallback-mark-text))));
   --bracket-todo: color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface-solid));
@@ -95,15 +106,37 @@
 }
 
 .typora-theme[data-content-theme="typora-print"] {
-  --floating-layer-background: color-mix(in srgb, var(--bg-color, var(--theme-surface-solid)) 78%, var(--theme-chip) 22%);
+  --overlay-background: color-mix(in srgb, var(--bg-color, var(--theme-surface-solid)) 78%, var(--theme-chip) 22%);
 }
 
 .typora-theme[data-content-theme="typora-ravel-light"] {
-  --floating-layer-background: color-mix(in srgb, var(--bg-color, var(--theme-surface-solid)) 84%, var(--side-bar-bg-color, var(--theme-chip)) 16%);
+  --overlay-background: color-mix(in srgb, var(--bg-color, var(--theme-surface-solid)) 84%, var(--side-bar-bg-color, var(--theme-chip)) 16%);
 }
 
 .typora-theme[data-content-theme="typora-chocolate-box"] {
-  --floating-layer-background: color-mix(in srgb, var(--bg-color, var(--theme-surface-solid)) 86%, var(--theme-chip) 14%);
+  --overlay-background: color-mix(in srgb, var(--bg-color, var(--theme-surface-solid)) 86%, var(--theme-chip) 14%);
+}
+
+.typora-theme[data-content-theme="typora-everforest-dark"] {
+  --overlay-background: var(--bg-panel, var(--side-bar-bg-color, var(--bg-color)));
+  --overlay-hover-background: var(--bg-soft, color-mix(in srgb, var(--text-color) 8%, transparent));
+  --overlay-selected-background: var(--bg-muted, var(--selection, color-mix(in srgb, var(--accent) 18%, transparent)));
+  --overlay-muted: var(--text-muted, var(--control-text-color, var(--theme-muted)));
+  --input-background: var(--bg-soft, var(--side-bar-bg-color, var(--bg-color)));
+  --desktop-card-background: var(--bg-panel, var(--overlay-background));
+  --floating-card-background: var(--bg-panel, var(--overlay-background));
+  --floating-card-body-background: var(--bg-panel, var(--overlay-background));
+  --floating-card-mode-background: var(--bg-panel, var(--overlay-background));
+}
+
+.typora-theme[data-content-theme="typora-torillic"] {
+  --overlay-background: color-mix(in srgb, var(--side-bar-bg-color, var(--offwhite, var(--bg-color, var(--theme-surface-solid)))) 82%, var(--bg-color, var(--theme-surface-solid)));
+  --overlay-selected-background: color-mix(in srgb, var(--red, var(--theme-accent)) 14%, var(--overlay-background));
+  --input-background: color-mix(in srgb, var(--offwhite, var(--bg-color, var(--theme-surface-solid))) 82%, transparent);
+  --desktop-card-background: var(--overlay-background);
+  --floating-card-background: var(--overlay-background);
+  --floating-card-body-background: var(--overlay-background);
+  --floating-card-mode-background: var(--overlay-background);
 }
 
 .typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .file-node-content {
@@ -549,12 +582,6 @@
   color: var(--floating-card-body-ink);
   font-size: var(--floating-card-body-font-size);
   line-height: var(--floating-card-body-line-height);
-}
-
-.typora-theme[data-content-theme^="typora-"] .notebook-name-input {
-  background: var(--input-background, var(--bg-color, var(--theme-surface-solid)));
-  color: var(--text-color, var(--theme-ink));
-  caret-color: var(--text-color, var(--theme-ink));
 }
 
 .typora-theme[data-content-theme^="typora-"] .panel-title,
