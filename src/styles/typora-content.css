@@ -41,12 +41,12 @@
   --floating-layer-border: var(--overlay-border);
   --floating-layer-background: var(--overlay-background);
   --floating-layer-shadow: var(--overlay-shadow);
-  --block-surface-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 18%, transparent);
-  --block-surface-background: color-mix(in srgb, var(--bg-color, var(--theme-bg, var(--theme-surface-solid))) 82%, #fff 18%);
+  --block-surface-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 22%, transparent);
+  --block-surface-background: var(--bg-color, var(--bg, var(--theme-bg, transparent)));
   --block-surface-background-image: none;
   --block-surface-shadow:
-    0 1px 0 color-mix(in srgb, #fff 62%, transparent) inset,
-    0 10px 20px color-mix(in srgb, var(--text-color, #000) 13%, transparent);
+    0 1px 0 color-mix(in srgb, #fff 52%, transparent) inset,
+    0 10px 20px color-mix(in srgb, var(--text-color, #000) 14%, transparent);
   --composer-card-border: var(--block-surface-border);
   --composer-card-background: var(--block-surface-background);
   --composer-card-background-image: var(--block-surface-background-image);
@@ -136,8 +136,8 @@
   --theme-body-background: var(--bg);
   --typora-shell-bg: var(--bg);
   --typora-shell-panel: var(--bg-panel);
-  --block-surface-border: 1px solid color-mix(in srgb, var(--text-color) 19%, var(--border, transparent));
-  --block-surface-background: color-mix(in srgb, var(--bg) 76%, var(--text-color) 24%);
+  --block-surface-border: 1px solid color-mix(in srgb, var(--text-color) 22%, var(--border, transparent));
+  --block-surface-background: var(--bg);
   --block-surface-shadow:
     0 1px 0 color-mix(in srgb, var(--text-color) 8%, transparent) inset,
     0 10px 14px rgba(0, 0, 0, 0.34);
@@ -160,7 +160,7 @@ body[data-content-theme="typora-everforest-dark"] {
   --typora-shell-bg: var(--bg);
   --typora-shell-panel: var(--bg-panel);
   --block-surface-border: 1px solid color-mix(in srgb, var(--border, var(--text-color)) 82%, transparent);
-  --block-surface-background: color-mix(in srgb, var(--bg) 78%, #fff 22%);
+  --block-surface-background: var(--bg);
   --block-surface-shadow:
     0 1px 0 color-mix(in srgb, #fff 45%, transparent) inset,
     0 10px 18px rgba(92, 106, 114, 0.14);
@@ -184,7 +184,7 @@ body[data-content-theme="typora-everforest-dark"] {
 
 .typora-theme[data-content-theme="typora-folio"] {
   --block-surface-border: 1px solid var(--folio-border, color-mix(in srgb, var(--text-color, #000) 16%, transparent));
-  --block-surface-background: var(--folio-paper, color-mix(in srgb, var(--bg-color, var(--theme-bg)) 78%, #fff 22%));
+  --block-surface-background: var(--folio-paper, var(--bg-color, var(--theme-bg)));
   --block-surface-shadow: 0 12px 28px var(--folio-shadow, color-mix(in srgb, var(--text-color, #000) 12%, transparent));
 }
 
@@ -198,7 +198,7 @@ body[data-content-theme="typora-everforest-dark"] {
 .typora-theme[data-content-theme="typora-blackout"],
 .typora-theme[data-content-theme="typora-chocolate-box"] {
   --block-surface-border: 1px solid color-mix(in srgb, var(--text-color, var(--typora-fallback-text)) 20%, transparent);
-  --block-surface-background: color-mix(in srgb, var(--bg-color, var(--bg, #202020)) 78%, var(--text-color, var(--typora-fallback-text)) 22%);
+  --block-surface-background: var(--bg-color, var(--bg, #202020));
   --block-surface-shadow:
     0 1px 0 color-mix(in srgb, var(--text-color, var(--typora-fallback-text)) 8%, transparent) inset,
     0 10px 14px rgba(0, 0, 0, 0.38);
