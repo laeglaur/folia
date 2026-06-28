@@ -133,6 +133,9 @@
   --overlay-selected-background: var(--bg-muted, var(--selection, color-mix(in srgb, var(--accent) 18%, transparent)));
   --overlay-muted: var(--text-muted, var(--control-text-color, var(--theme-muted)));
   --input-background: var(--bg-soft, var(--side-bar-bg-color, var(--bg-color)));
+  --theme-body-background: var(--bg);
+  --typora-shell-bg: var(--bg);
+  --typora-shell-panel: var(--bg-panel);
   --block-surface-border: 1px solid color-mix(in srgb, var(--border, var(--text-color)) 76%, transparent);
   --block-surface-background: var(--bg-panel, var(--side-bar-bg-color, var(--bg-color)));
   --block-surface-shadow:
@@ -144,7 +147,18 @@
   --floating-card-mode-background: var(--bg-panel, var(--overlay-background));
 }
 
+body[data-content-theme="typora-everforest-light"] {
+  background: var(--bg);
+}
+
+body[data-content-theme="typora-everforest-dark"] {
+  background: var(--bg);
+}
+
 .typora-theme[data-content-theme="typora-everforest-light"] {
+  --theme-body-background: var(--bg);
+  --typora-shell-bg: var(--bg);
+  --typora-shell-panel: var(--bg-panel);
   --block-surface-border: 1px solid color-mix(in srgb, var(--border, var(--text-color)) 82%, transparent);
   --block-surface-background: var(--bg-panel, var(--side-bar-bg-color, var(--bg-color)));
   --block-surface-shadow:

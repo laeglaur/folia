@@ -597,6 +597,9 @@ export function App() {
     document.documentElement.dataset.theme = nativeTheme;
     document.documentElement.dataset.shell = state.shell;
     document.documentElement.dataset.contentTheme = state.contentTheme;
+    document.body.dataset.theme = nativeTheme;
+    document.body.dataset.shell = state.shell;
+    document.body.dataset.contentTheme = state.contentTheme;
   }, [state.shell, state.contentTheme]);
 
   useEffect(() => {

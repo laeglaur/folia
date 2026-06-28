@@ -18,11 +18,12 @@
 
 .typora-app-shell .page-surface.typora-write {
   padding: var(--typora-editor-page-padding);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  background-image: none;
-  box-shadow: none;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
   transform: none;
 }
 
