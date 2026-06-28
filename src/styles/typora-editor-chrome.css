@@ -27,27 +27,40 @@
   transform: none;
 }
 
-.typora-app-shell .page-title {
-  width: 100%;
-  margin: 0 0 18px;
+.typora-app-shell .page-title-row {
   padding: 10px 12px;
   border: var(--composer-card-border, var(--block-surface-border, var(--typora-editor-block-border)));
   border-radius: var(--composer-card-radius, var(--block-radius, 4px));
-  outline: 0;
   background: var(--composer-card-background, var(--block-surface-background, transparent));
   background-image: var(--composer-card-background-image, var(--block-surface-background-image, none));
+  box-shadow: var(--composer-card-shadow, var(--block-surface-shadow, none));
+}
+
+.typora-app-shell .page-title {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  background-image: none;
   color: var(--typora-shell-ink);
   font-family: var(--font-heading, var(--font-body, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif)));
   font-size: 1.82em;
   line-height: 1.24;
   font-weight: 650;
   letter-spacing: 0;
+  box-shadow: none;
+}
+
+.typora-app-shell .page-title-row:focus-within {
+  border-color: color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 24%, transparent);
   box-shadow: var(--composer-card-shadow, var(--block-surface-shadow, none));
 }
 
 .typora-app-shell .page-title:focus {
-  border-color: color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 24%, transparent);
-  box-shadow: var(--composer-card-shadow, var(--block-surface-shadow, none));
+  box-shadow: none;
 }
 
 .typora-app-shell .page-metadata {
