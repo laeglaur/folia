@@ -1845,7 +1845,7 @@ export function App() {
     const updatedAt = new Date().toISOString();
     const nextPage = {
       ...currentPage,
-      blockIds: (currentPage.blockOrder === 'desc' ? [block.id, ...currentPage.blockIds] : [...currentPage.blockIds, block.id]),
+      blockIds: [...currentPage.blockIds, block.id],
       updatedAt
     };
     const nextBlocks = [...currentPageBlocks, block];
