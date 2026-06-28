@@ -604,7 +604,7 @@ export function App() {
     if (state.contentTheme.startsWith('typora-')) {
       const themeRoot = document.querySelector<HTMLElement>(`.typora-theme[data-content-theme="${state.contentTheme}"]`);
       const resolvedBackground = themeRoot
-        ? getComputedStyle(themeRoot).getPropertyValue('--theme-body-background').trim() || getComputedStyle(themeRoot).getPropertyValue('--typora-shell-bg').trim()
+        ? getComputedStyle(themeRoot).getPropertyValue('--typora-shell-bg').trim() || getComputedStyle(themeRoot).getPropertyValue('--theme-body-background').trim()
         : '';
       if (resolvedBackground) {
         document.body.style.background = resolvedBackground;

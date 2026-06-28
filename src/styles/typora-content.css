@@ -28,7 +28,7 @@
 
 .typora-theme[data-content-theme^="typora-"] {
   --theme-body-background: var(--bg-color, var(--bg, var(--theme-bg)));
-  --typora-shell-bg: var(--bg-color, var(--bg, var(--theme-bg)));
+  --typora-shell-bg: color-mix(in srgb, var(--bg-color, var(--bg, var(--theme-bg))) 80%, var(--text-color, var(--theme-ink, #000)) 20%);
   --typora-shell-panel: var(--side-bar-bg-color, var(--bg-color, var(--bg, var(--theme-surface-solid))));
   --overlay-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 18%, transparent);
   --overlay-background: color-mix(in srgb, var(--side-bar-bg-color, var(--bg-color, var(--theme-surface-solid))) 86%, var(--bg-color, var(--theme-surface-solid)));
@@ -83,6 +83,7 @@
   --theme-chip: #eff8f6;
   --theme-chip-primary: #e8f3ff;
   --theme-body-background: linear-gradient(145deg, #f4fbfd 0%, #eef8fb 52%, #fff7e8 100%);
+  --typora-shell-bg: color-mix(in srgb, var(--theme-bg) 80%, var(--theme-ink) 20%);
   --theme-panel-background: rgba(251, 254, 255, 0.86);
   --theme-nav-active-background: linear-gradient(90deg, rgba(74, 144, 168, 0.16), rgba(226, 168, 106, 0.1));
   --theme-nav-active-ink: #2f6f86;
@@ -102,6 +103,7 @@
   --theme-chip: #fffaf6;
   --theme-chip-primary: #f4e8dc;
   --theme-body-background: linear-gradient(180deg, #fffdf9 0%, #fcf9f4 100%);
+  --typora-shell-bg: color-mix(in srgb, var(--bg) 80%, var(--theme-ink) 20%);
   --theme-panel-background: #fffaf6;
   --theme-nav-active-background: linear-gradient(90deg, rgba(128, 55, 43, 0.12), rgba(17, 17, 17, 0.04));
   --theme-nav-active-ink: #80372b;
@@ -157,7 +159,7 @@ body[data-content-theme="typora-everforest-dark"] {
 
 .typora-theme[data-content-theme="typora-everforest-light"] {
   --theme-body-background: var(--bg);
-  --typora-shell-bg: var(--bg);
+  --typora-shell-bg: color-mix(in srgb, var(--bg) 80%, var(--text-color) 20%);
   --typora-shell-panel: var(--bg-panel);
   --block-surface-border: 1px solid color-mix(in srgb, var(--border, var(--text-color)) 82%, transparent);
   --block-surface-background: var(--bg);
@@ -170,6 +172,7 @@ body[data-content-theme="typora-everforest-dark"] {
   --overlay-background: color-mix(in srgb, var(--side-bar-bg-color, var(--offwhite, var(--bg-color, var(--theme-surface-solid)))) 82%, var(--bg-color, var(--theme-surface-solid)));
   --overlay-selected-background: color-mix(in srgb, var(--red, var(--theme-accent)) 14%, var(--overlay-background));
   --input-background: color-mix(in srgb, var(--offwhite, var(--bg-color, var(--theme-surface-solid))) 82%, transparent);
+  --typora-shell-bg: var(--bg-color, var(--theme-bg));
   --block-surface-border: 1px solid color-mix(in srgb, var(--yellow, var(--text-color, var(--theme-ink))) 46%, transparent);
   --block-surface-background: var(--offwhite, var(--bg-color, var(--theme-surface-solid)));
   --block-surface-background-image: url("/typora-assets/typora-torillic/assets/paper-texture.png");
@@ -183,12 +186,14 @@ body[data-content-theme="typora-everforest-dark"] {
 }
 
 .typora-theme[data-content-theme="typora-folio"] {
+  --typora-shell-bg: var(--folio-bg, color-mix(in srgb, var(--folio-paper, var(--bg-color)) 86%, var(--text-color, #000) 14%));
   --block-surface-border: 1px solid var(--folio-border, color-mix(in srgb, var(--text-color, #000) 16%, transparent));
   --block-surface-background: var(--folio-paper, var(--bg-color, var(--theme-bg)));
   --block-surface-shadow: 0 12px 28px var(--folio-shadow, color-mix(in srgb, var(--text-color, #000) 12%, transparent));
 }
 
 .typora-theme[data-content-theme="typora-paperglow"] {
+  --typora-shell-bg: var(--window-bg-color, color-mix(in srgb, var(--card-bg, var(--bg-color)) 88%, var(--text-color, #000) 12%));
   --block-surface-border: 1px solid var(--card-border-color, rgba(96, 78, 63, 0.1));
   --block-surface-background: var(--card-bg, var(--bg-color, var(--theme-surface-solid)));
   --block-surface-shadow: var(--card-shadow, 0 10px 22px rgba(70, 52, 38, 0.05));
@@ -196,7 +201,10 @@ body[data-content-theme="typora-everforest-dark"] {
 
 .typora-theme[data-content-theme="typora-gruvbox-dark"],
 .typora-theme[data-content-theme="typora-blackout"],
-.typora-theme[data-content-theme="typora-chocolate-box"] {
+.typora-theme[data-content-theme="typora-chocolate-box"],
+.typora-theme[data-content-theme="typora-zeus"],
+.typora-theme[data-content-theme="typora-bonne-nouvelle"] {
+  --typora-shell-bg: var(--bg-color, var(--bg, #202020));
   --block-surface-border: 1px solid color-mix(in srgb, var(--text-color, var(--typora-fallback-text)) 20%, transparent);
   --block-surface-background: var(--bg-color, var(--bg, #202020));
   --block-surface-shadow:
