@@ -601,6 +601,12 @@ export function App() {
     document.body.dataset.shell = state.shell;
     document.body.dataset.contentTheme = state.contentTheme;
 
+    if (cardModeBlockId) {
+      document.body.style.background = '';
+      document.documentElement.style.background = '';
+      return;
+    }
+
     if (state.contentTheme.startsWith('typora-')) {
       const themeRoot = document.querySelector<HTMLElement>(`.typora-theme[data-content-theme="${state.contentTheme}"]`);
       const resolvedBackground = themeRoot
