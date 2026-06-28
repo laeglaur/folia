@@ -977,7 +977,7 @@ input, select { color: var(--ink); }
   min-width: 0;
   align-self: center;
   line-height: 1.02;
-  transform: translateY(7px);
+  transform: translateY(2px);
   border: 0;
   outline: 0;
   background: transparent;
