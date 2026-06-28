@@ -182,9 +182,19 @@
   --block-content-min-height: 32px;
   --block-content-padding: 4px 3px;
   --block-preview-min-height: 28px;
-  --block-surface-border: 1px solid transparent;
-  --block-surface-background: transparent;
-  --block-surface-shadow: none;
+  --block-surface-border: 1px solid color-mix(in srgb, var(--theme-line, rgba(128, 176, 145, 0.3)) 72%, transparent);
+  --block-surface-background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--theme-surface-solid, #fffdf7) 90%, transparent),
+      color-mix(in srgb, var(--theme-surface, rgba(255, 253, 247, 0.9)) 70%, transparent));
+  --block-surface-background-image: none;
+  --block-surface-shadow:
+    0 8px 20px color-mix(in srgb, var(--theme-ink, #263934) 9%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  --composer-card-border: var(--block-surface-border);
+  --composer-card-background: var(--block-surface-background);
+  --composer-card-background-image: var(--block-surface-background-image);
+  --composer-card-shadow: var(--block-surface-shadow);
 
   --editor-font-size: 16px;
   --editor-line-height: 1.72;
@@ -279,9 +289,11 @@
   --legacy-bracket-todo-weight: 600;
 
   --composer-card-margin-top: 18px;
-  --composer-card-border: 1px dashed rgba(128, 176, 145, 0.46);
   --composer-card-radius: 15px;
-  --composer-card-background: rgba(255, 253, 247, 0.62);
+  --composer-card-border: var(--block-surface-border);
+  --composer-card-background: var(--block-surface-background);
+  --composer-card-background-image: var(--block-surface-background-image);
+  --composer-card-shadow: var(--block-surface-shadow);
   --composer-min-height: 118px;
   --composer-padding: 16px 18px;
   --composer-footer-gap: 12px;
