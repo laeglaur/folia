@@ -18,7 +18,7 @@ const createEmptyPageMetadata = (sourceFilename?: string): PageMetadata => ({
 
 const createEmptyNotebookMetadata = (): NotebookMetadata => ({});
 
-const stringifyFrontmatter = (frontmatter: Record<string, string | string[]>) => {
+export const stringifyFrontmatter = (frontmatter: Record<string, string | string[]>) => {
   const lines: string[] = [];
   Object.entries(frontmatter).forEach(([key, value]) => {
     if (Array.isArray(value)) {

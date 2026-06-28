@@ -39,6 +39,13 @@ export interface Notebook {
 export interface NotebookMetadata {
   emoji?: string;
   calendarView?: NotebookCalendarViewConfig;
+  metadataFields?: Record<string, NotebookMetadataField>;
+}
+
+export type MetadataFieldType = 'text' | 'longText' | 'date' | 'dateRange' | 'select' | 'multiSelect';
+
+export interface NotebookMetadataField {
+  type: MetadataFieldType;
 }
 
 export type NotebookCalendarDateSource = 'createdAt' | `metadata.${string}` | `frontmatter.${string}`;
@@ -63,6 +70,22 @@ export interface PageMetadata {
   frontmatter: Record<string, string | string[]>;
   frontmatterRaw?: string;
   emoji?: string;
+}
+
+export type PageMetadataFieldSource = 'date' | 'status' | 'tags' | 'aliases' | 'frontmatter';
+
+export interface PageMetadataField {
+  key: string;
+  value: string;
+  source: PageMetadataFieldSource;
+  type: MetadataFieldType;
+  valueKind: 'text' | 'list';
+}
+
+export interface PageCalendarDisplayField {
+  key: string;
+  value: string;
+  type: MetadataFieldType;
 }
 
 export interface Page {

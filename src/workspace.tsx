@@ -1,7 +1,7 @@
-import { Fragment, type CSSProperties } from 'react';
+import { Fragment, useEffect, useState, type CSSProperties, type MouseEvent } from 'react';
 import { ChevronRight, Plus } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
-import type { Block, ContentThemeId, NotebookCalendarDateSource, NotebookCalendarViewConfig, Page } from './types';
+import type { Block, ContentThemeId, MetadataFieldType, NotebookCalendarDateSource, NotebookCalendarViewConfig, Page, PageMetadataField } from './types';
 import type { PageCalendarEntry, PageCalendarFieldCandidate } from './page-calendar';
 import {
   RichEditor,
@@ -24,8 +24,21 @@ import {
   type WorkspaceView
 } from './app-utils';
 import { EmojiImage } from './emoji-image';
+import { formatMetadataDateRange, parseMetadataDateRange } from './metadata-fields';
 
 type ImageAnnotationTarget = NonNullable<ImageAnnotationRequest['target']>;
+
+const isLongMetadataField = (field: PageMetadataField) =>
+  field.type === 'longText';
+
+const metadataTypeOptions: Array<{ type: MetadataFieldType; label: string }> = [
+  { type: 'text', label: 'Text' },
+  { type: 'longText', label: 'Long text' },
+  { type: 'date', label: 'Date' },
+  { type: 'dateRange', label: 'Date range' },
+  { type: 'select', label: 'Select' },
+  { type: 'multiSelect', label: 'Multi-select' }
+];
 
 const themesWithoutNativeDivider = new Set<ContentThemeId>([
   'notebook',
@@ -269,8 +282,9 @@ function BlockItem({
 
 type WriteSurfaceProps = {
   activePage: Page;
-  metadataChips: string[];
-  metadataRaw: string;
+  metadataFields: PageMetadataField[];
+  metadataFieldOptions: Record<string, string[]>;
+  showMetadata: boolean;
   blockOrder: 'asc' | 'desc';
   blocks: Block[];
   draggingBlockId: string | null;
@@ -284,6 +298,9 @@ type WriteSurfaceProps = {
   mathEditor: MathEditorState | null;
   toolbarActions: ToolbarActions;
   onRenamePage: (title: string) => void;
+  onUpdateMetadataField: (field: PageMetadataField, value: string) => void;
+  onUpdateMetadataFieldType: (field: PageMetadataField, type: MetadataFieldType) => void;
+  onAddMetadataField: () => void;
   onDraggingBlockIdChange: (blockId: string | null) => void;
   onReorderBlock: (sourceId: string, targetId: string) => void;
   onToggleBlock: (blockId: string, key: 'collapsed' | 'pinned') => void;
@@ -300,10 +317,124 @@ type WriteSurfaceProps = {
   onUpdateBlock: (blockId: string, html: string, plainText: string) => void;
 };
 
+function PageMetadataFieldEditor({
+  field,
+  options,
+  onUpdate,
+  onOpenTypeMenu
+}: {
+  field: PageMetadataField;
+  options: string[];
+  onUpdate: (field: PageMetadataField, value: string) => void;
+  onOpenTypeMenu: (field: PageMetadataField, x: number, y: number) => void;
+}) {
+  const [draft, setDraft] = useState(field.value);
+  const isLongField = isLongMetadataField(field);
+  const dateRange = parseMetadataDateRange(draft);
+
+  useEffect(() => {
+    setDraft(field.value);
+  }, [field.value]);
+
+  const commit = () => {
+    if (draft !== field.value) onUpdate(field, draft);
+  };
+  const openTypeMenu = (event: MouseEvent) => {
+    event.preventDefault();
+    onOpenTypeMenu(field, event.clientX, event.clientY);
+  };
+
+  if (isLongField) {
+    return (
+      <label className="page-metadata-field page-metadata-field-long" onContextMenu={openTypeMenu}>
+        <span className="page-metadata-field-label">{field.key}</span>
+        <textarea
+          value={draft}
+          rows={Math.max(5, draft.split('\n').length + Math.ceil(draft.length / 92))}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) event.currentTarget.blur();
+          }}
+          aria-label={`Edit ${field.key}`}
+        />
+      </label>
+    );
+  }
+
+  if (field.type === 'dateRange') {
+    return (
+      <label className="page-metadata-field page-metadata-field-range" onContextMenu={openTypeMenu}>
+        <span className="page-metadata-field-label">{field.key}</span>
+        <input
+          type="date"
+          value={dateRange.start}
+          onChange={(event) => {
+            const next = formatMetadataDateRange(event.target.value, dateRange.end);
+            setDraft(next);
+            onUpdate(field, next);
+          }}
+          aria-label={`Edit ${field.key} start`}
+        />
+        <input
+          type="date"
+          value={dateRange.end}
+          onChange={(event) => {
+            const next = formatMetadataDateRange(dateRange.start, event.target.value);
+            setDraft(next);
+            onUpdate(field, next);
+          }}
+          aria-label={`Edit ${field.key} end`}
+        />
+      </label>
+    );
+  }
+
+  if (field.type === 'select') {
+    const selectOptions = [...new Set([field.value, ...options].filter(Boolean))];
+    return (
+      <label className="page-metadata-field" onContextMenu={openTypeMenu}>
+        <span className="page-metadata-field-label">{field.key}</span>
+        <select
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            onUpdate(field, event.target.value);
+          }}
+          aria-label={`Edit ${field.key}`}
+        >
+          {!draft ? <option value="">-</option> : null}
+          {selectOptions.map((option) => <option value={option} key={option}>{option}</option>)}
+        </select>
+      </label>
+    );
+  }
+
+  return (
+    <label className="page-metadata-field" onContextMenu={openTypeMenu}>
+      <span className="page-metadata-field-label">{field.key}</span>
+      <input
+        type={field.type === 'date' ? 'date' : 'text'}
+        value={draft}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          if (field.type === 'date') onUpdate(field, event.target.value);
+        }}
+        onBlur={field.type === 'date' ? undefined : commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur();
+        }}
+        aria-label={`Edit ${field.key}`}
+      />
+    </label>
+  );
+}
+
 function WriteSurface({
   activePage,
-  metadataChips,
-  metadataRaw,
+  metadataFields,
+  metadataFieldOptions,
+  showMetadata,
   blockOrder,
   blocks,
   draggingBlockId,
@@ -317,6 +448,9 @@ function WriteSurface({
   mathEditor,
   toolbarActions,
   onRenamePage,
+  onUpdateMetadataField,
+  onUpdateMetadataFieldType,
+  onAddMetadataField,
   onDraggingBlockIdChange,
   onReorderBlock,
   onToggleBlock,
@@ -334,6 +468,23 @@ function WriteSurface({
 }: WriteSurfaceProps) {
   const divider = () => showBlockDividers ? <BlockDivider contentTheme={contentTheme} /> : null;
   const composerCard = <ComposerCard {...composer} />;
+  const shortMetadataFields = metadataFields.filter((field) => !isLongMetadataField(field));
+  const longMetadataFields = metadataFields.filter(isLongMetadataField);
+  const [metadataTypeMenu, setMetadataTypeMenu] = useState<{ field: PageMetadataField; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!metadataTypeMenu) return;
+    const close = () => setMetadataTypeMenu(null);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('pointerdown', close);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [metadataTypeMenu]);
 
   return (
     <section className={`page-surface typora-content-surface typora-write ${showBlockBorders ? 'show-block-borders' : ''}`} id="write">
@@ -341,10 +492,52 @@ function WriteSurface({
         {activePage.metadata.emoji ? <EmojiImage emoji={activePage.metadata.emoji} className="page-title-emoji" decorative /> : null}
         <input className="page-title" value={activePage.title} onChange={(event) => onRenamePage(event.target.value)} aria-label="Page title" />
       </div>
-      {metadataChips.length || metadataRaw ? (
+      {showMetadata ? (
         <div className="page-metadata" aria-label="Page metadata">
-          {metadataChips.map((chip, index) => <span key={`${chip}-${index}`}>{chip}</span>)}
-          {metadataRaw ? <pre className="page-frontmatter">{metadataRaw}</pre> : null}
+          {shortMetadataFields.map((field) => (
+            <PageMetadataFieldEditor
+              key={`${field.source}:${field.key}`}
+              field={field}
+              options={metadataFieldOptions[field.key] ?? []}
+              onUpdate={onUpdateMetadataField}
+              onOpenTypeMenu={(field, x, y) => setMetadataTypeMenu({ field, x, y })}
+            />
+          ))}
+          <button className="page-metadata-add" type="button" onClick={onAddMetadataField} aria-label="Add metadata field">
+            <Plus size={14} />
+          </button>
+          {longMetadataFields.map((field) => (
+            <PageMetadataFieldEditor
+              key={`${field.source}:${field.key}`}
+              field={field}
+              options={metadataFieldOptions[field.key] ?? []}
+              onUpdate={onUpdateMetadataField}
+              onOpenTypeMenu={(field, x, y) => setMetadataTypeMenu({ field, x, y })}
+            />
+          ))}
+          {metadataTypeMenu ? (
+            <div
+              className="page-metadata-type-menu"
+              style={{ left: metadataTypeMenu.x, top: metadataTypeMenu.y }}
+              onPointerDown={(event) => event.stopPropagation()}
+              role="menu"
+            >
+              {metadataTypeOptions.map((option) => (
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={metadataTypeMenu.field.type === option.type}
+                  key={option.type}
+                  onClick={() => {
+                    onUpdateMetadataFieldType(metadataTypeMenu.field, option.type);
+                    setMetadataTypeMenu(null);
+                  }}
+                >
+                  {metadataTypeMenu.field.type === option.type ? '✓ ' : ''}{option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -473,16 +666,35 @@ function CalendarWorkspace({
   }> = [];
   const rangeLaneByWeek = new Map<number, string[]>();
 
-  pageEntries.forEach((entry) => {
-    const startIndex = visibleDayKeys.get(entry.startDate);
-    const endIndex = visibleDayKeys.get(entry.endDate);
-    if (startIndex === undefined && endIndex === undefined) {
+  const visiblePageEntries = pageEntries
+    .map((entry) => {
+      const startIndex = visibleDayKeys.get(entry.startDate);
+      const endIndex = visibleDayKeys.get(entry.endDate);
       const firstKey = localDateKey(calendarDays[0]);
       const lastKey = localDateKey(calendarDays[calendarDays.length - 1]);
-      if (entry.endDate < firstKey || entry.startDate > lastKey) return;
-    }
-    const visibleStartIndex = startIndex ?? 0;
-    const visibleEndIndex = endIndex ?? calendarDays.length - 1;
+      if (startIndex === undefined && endIndex === undefined && (entry.endDate < firstKey || entry.startDate > lastKey)) {
+        return null;
+      }
+      const visibleStartIndex = startIndex ?? 0;
+      const visibleEndIndex = endIndex ?? calendarDays.length - 1;
+      return { entry, startIndex, endIndex, visibleStartIndex, visibleEndIndex };
+    })
+    .filter((item): item is {
+      entry: PageCalendarEntry;
+      startIndex: number | undefined;
+      endIndex: number | undefined;
+      visibleStartIndex: number;
+      visibleEndIndex: number;
+    } => Boolean(item))
+    .sort((left, right) => {
+      if (left.visibleStartIndex !== right.visibleStartIndex) return left.visibleStartIndex - right.visibleStartIndex;
+      const leftSpan = left.visibleEndIndex - left.visibleStartIndex;
+      const rightSpan = right.visibleEndIndex - right.visibleStartIndex;
+      if (leftSpan !== rightSpan) return rightSpan - leftSpan;
+      return left.entry.title.localeCompare(right.entry.title);
+    });
+
+  visiblePageEntries.forEach(({ entry, startIndex, endIndex, visibleStartIndex, visibleEndIndex }) => {
     const firstWeek = Math.floor(visibleStartIndex / 7);
     const lastWeek = Math.floor(visibleEndIndex / 7);
     for (let weekIndex = firstWeek; weekIndex <= lastWeek; weekIndex += 1) {
@@ -651,7 +863,14 @@ function CalendarWorkspace({
               <span>{segment.entry.colorKey || title}</span>
               <strong>{segment.entry.title}</strong>
               {segment.entry.fields.length ? (
-                <em>{segment.entry.fields.slice(0, 3).map((field) => field.value).join(' · ')}</em>
+                <div className="page-calendar-entry-fields">
+                  {segment.entry.fields.map((field) => (
+                    <em className={field.type === 'longText' ? 'is-long-text' : ''} key={field.key}>
+                      <span>{field.key}</span>
+                      {field.value}
+                    </em>
+                  ))}
+                </div>
               ) : null}
             </button>
           )) : null}

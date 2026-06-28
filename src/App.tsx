@@ -6,7 +6,7 @@ import {
   Trash2
 } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
-import type { AppState, Block, ContentThemeId, Notebook, NotebookCalendarDateSource, NotebookCalendarViewConfig, OperationLogEntry, Page, ShellId } from './types';
+import type { AppState, Block, ContentThemeId, MetadataFieldType, Notebook, NotebookCalendarDateSource, NotebookCalendarViewConfig, OperationLogEntry, Page, PageMetadataField, ShellId } from './types';
 import {
   createBlock,
   createId,
@@ -47,6 +47,7 @@ import {
   saveState,
   saveWorkspacePreferences,
   searchPages,
+  stringifyFrontmatter,
   type NotebookTreePayload,
   type PageDocumentPayload,
   type PinnedBlockPayload,
@@ -138,6 +139,7 @@ import {
 import { ImageAnnotationEditor, serializeImageAnnotations, type ImageAnnotationDocument } from './image-annotations';
 import { EmojiPicker, type EmojiPickerRequest } from './emoji-picker';
 import { EmojiImage } from './emoji-image';
+import { inferNotebookMetadataFieldsForPages, metadataFieldTypeFor, metadataSelectOptionsForPages, shouldHideMetadataField } from './metadata-fields';
 
 const shellThemes: Array<{ id: ShellId; label: string }> = [
   { id: 'native-garden', label: 'Native Garden' },
@@ -314,6 +316,7 @@ export function App() {
   const cancelPageBlurCommitRef = useRef(false);
   const draftsByPageIdRef = useRef(draftsByPageId);
   const persistenceReadyRef = useRef(!isTauri());
+  const metadataSchemaSeededNotebookIdsRef = useRef(new Set<string>());
   const markdownInputRef = useRef<HTMLInputElement | null>(null);
   const markdownFolderInputRef = useRef<HTMLInputElement | null>(null);
   const pageFindInputRef = useRef<HTMLInputElement | null>(null);
@@ -659,6 +662,36 @@ export function App() {
     void saveState(state);
   }, [state]);
 
+  useEffect(() => {
+    if (!persistenceReadyRef.current || cardModeBlockId) return;
+    state.notebooks.forEach((notebook) => {
+      if (metadataSchemaSeededNotebookIdsRef.current.has(notebook.id)) return;
+      const pages = state.pages.filter((page) => page.notebookId === notebook.id);
+      const nextFields = inferNotebookMetadataFieldsForPages(pages, notebook.metadata.metadataFields);
+      if (!Object.keys(nextFields).length) {
+        metadataSchemaSeededNotebookIdsRef.current.add(notebook.id);
+        return;
+      }
+      if (JSON.stringify(nextFields) === JSON.stringify(notebook.metadata.metadataFields ?? {})) {
+        metadataSchemaSeededNotebookIdsRef.current.add(notebook.id);
+        return;
+      }
+      metadataSchemaSeededNotebookIdsRef.current.add(notebook.id);
+      const updatedNotebook = {
+        ...notebook,
+        metadata: {
+          ...notebook.metadata,
+          metadataFields: nextFields
+        }
+      };
+      setState((current) => ({
+        ...current,
+        notebooks: current.notebooks.map((candidate) => candidate.id === notebook.id ? updatedNotebook : candidate)
+      }));
+      if (isTauri()) persistNotebookMetadataUpdate(updatedNotebook);
+    });
+  }, [state.notebooks, state.pages]);
+
   const activeNotebook = state.notebooks.find((notebook) => notebook.id === state.activeNotebookId) ?? state.notebooks[0];
   const activePage = state.pages.find((page) => page.id === state.activePageId) ?? state.pages[0];
   const activeDraft = draftsByPageId[activePage.id] ?? '';
@@ -872,22 +905,33 @@ export function App() {
     ? orderedPageBlocks.filter((block) => block.content.plainText.toLowerCase().includes(query.trim().toLowerCase()))
     : orderedPageBlocks;
   const showBlockDividers = state.shell === 'typora-base';
-  const metadataChips = state.showPageMetadata ? [
-    activePage.metadata?.date,
-    activePage.metadata?.status,
-    ...(activePage.metadata?.tags ?? []).map((tag) => `#${tag}`),
-    ...(activePage.metadata?.aliases ?? []),
-    ...Object.entries(activePage.metadata?.frontmatter ?? {})
-      .filter(([key]) => !new Set(['date', 'created', 'status', 'score', 'tags', 'aliases', 'alias', 'title', 'notion-id']).has(key.toLowerCase()))
-      .flatMap(([key, value]) => {
-        const values = Array.isArray(value) ? value : [value];
-        return values
-          .map((item) => String(item).trim())
-          .filter((item) => item && item.length <= 80 && !item.includes('\n'))
-          .map((item) => `${key}: ${item}`);
-      })
-  ].filter(Boolean) as string[] : [];
-  const metadataRaw = state.showPageMetadata ? (activePage.metadata?.frontmatterRaw ?? '').trim() : '';
+  const metadataFields = useMemo<PageMetadataField[]>(() => {
+    if (!state.showPageMetadata) return [];
+    const fields: PageMetadataField[] = [];
+    const addField = (field: Omit<PageMetadataField, 'type'>) => {
+      if (shouldHideMetadataField(field.key)) return;
+      fields.push({
+        ...field,
+        type: metadataFieldTypeFor(activeNotebook, field.key, field.value, field.valueKind)
+      });
+    };
+    if (activePage.metadata.date) addField({ key: 'date', value: activePage.metadata.date, source: 'date', valueKind: 'text' });
+    if (activePage.metadata.status) addField({ key: 'status', value: activePage.metadata.status, source: 'status', valueKind: 'text' });
+    if (activePage.metadata.tags.length) addField({ key: 'tags', value: activePage.metadata.tags.join(', '), source: 'tags', valueKind: 'list' });
+    if (activePage.metadata.aliases.length) addField({ key: 'aliases', value: activePage.metadata.aliases.join(', '), source: 'aliases', valueKind: 'list' });
+    Object.entries(activePage.metadata.frontmatter ?? {}).forEach(([key, value]) => {
+      if (['date', 'status', 'tags', 'aliases', 'alias', 'title'].includes(key.toLowerCase())) return;
+      const text = Array.isArray(value) ? value.join(', ') : value;
+      addField({ key, value: text, source: 'frontmatter', valueKind: Array.isArray(value) ? 'list' : 'text' });
+    });
+    return fields;
+  }, [activeNotebook, activePage.metadata, state.showPageMetadata]);
+  const metadataFieldOptions = useMemo(() => {
+    const pages = state.pages.filter((page) => page.notebookId === activeNotebook.id);
+    return Object.fromEntries(metadataFields
+      .filter((field) => field.type === 'select' || field.type === 'multiSelect')
+      .map((field) => [field.key, metadataSelectOptionsForPages(pages, field.key)]));
+  }, [activeNotebook.id, metadataFields, state.pages]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1241,6 +1285,110 @@ export function App() {
     const updatedPage = { ...nextPage, metadata };
     setState((current) => applyPageEmojiToViewState(current, pageId, emoji));
     if (isTauri()) persistPageMetadataUpdate(updatedPage);
+  };
+
+  const updatePageMetadata = (pageId: string, updater: (metadata: Page['metadata']) => Page['metadata']) => {
+    const nextPage = stateRef.current.pages.find((page) => page.id === pageId);
+    if (!nextPage) return;
+    const metadata = updater({
+      ...nextPage.metadata,
+      tags: [...nextPage.metadata.tags],
+      aliases: [...nextPage.metadata.aliases],
+      frontmatter: { ...nextPage.metadata.frontmatter }
+    });
+    metadata.frontmatterRaw = stringifyFrontmatter(metadata.frontmatter);
+    const updatedPage = { ...nextPage, metadata };
+    setState((current) => ({
+      ...current,
+      pages: current.pages.map((page) => page.id === pageId ? updatedPage : page)
+    }));
+    if (isTauri()) persistPageMetadataUpdate(updatedPage);
+  };
+
+  const updateActivePageMetadataField = (field: PageMetadataField, value: string) => {
+    updatePageMetadata(activePage.id, (metadata) => {
+      const next = { ...metadata, frontmatter: { ...metadata.frontmatter } };
+      const normalizedList = value.split(',').map((item) => item.trim()).filter(Boolean);
+      if (field.source === 'date') {
+        if (value.trim()) next.date = value.trim();
+        else delete next.date;
+      } else if (field.source === 'status') {
+        if (value.trim()) next.status = value.trim();
+        else delete next.status;
+      } else if (field.source === 'tags') {
+        next.tags = normalizedList;
+      } else if (field.source === 'aliases') {
+        next.aliases = normalizedList;
+      } else if (value.trim()) {
+        next.frontmatter[field.key] = field.valueKind === 'list' ? normalizedList : value.trim();
+      } else {
+        delete next.frontmatter[field.key];
+      }
+      return next;
+    });
+  };
+
+  const setNotebookMetadataFieldType = (notebookId: string, key: string, type: MetadataFieldType) => {
+    const nextNotebook = stateRef.current.notebooks.find((notebook) => notebook.id === notebookId);
+    if (!nextNotebook) return;
+    const metadata = {
+      ...nextNotebook.metadata,
+      metadataFields: {
+        ...(nextNotebook.metadata.metadataFields ?? {}),
+        [key]: { type }
+      }
+    };
+    const updatedNotebook = { ...nextNotebook, metadata };
+    setState((current) => ({
+      ...current,
+      notebooks: current.notebooks.map((notebook) => notebook.id === notebookId ? updatedNotebook : notebook)
+    }));
+    if (isTauri()) persistNotebookMetadataUpdate(updatedNotebook);
+  };
+
+  const updateActivePageMetadataFieldType = (field: PageMetadataField, type: MetadataFieldType) => {
+    setNotebookMetadataFieldType(activeNotebook.id, field.key, type);
+  };
+
+  const addActivePageMetadataField = () => {
+    const key = window.prompt('Metadata field name');
+    if (!key?.trim()) return;
+    const fieldKey = key.trim();
+    if (metadataFields.some((field) => field.key.toLowerCase() === fieldKey.toLowerCase())) return;
+    const typeInput = window.prompt('Field type: text, long text, date, date range, select, multi-select', 'text')?.trim().toLowerCase() ?? 'text';
+    const typeMap: Record<string, MetadataFieldType> = {
+      text: 'text',
+      文本: 'text',
+      'long text': 'longText',
+      longtext: 'longText',
+      长文本: 'longText',
+      总结: 'longText',
+      date: 'date',
+      日期: 'date',
+      'date range': 'dateRange',
+      daterange: 'dateRange',
+      range: 'dateRange',
+      日期范围: 'dateRange',
+      时间范围: 'dateRange',
+      select: 'select',
+      choice: 'select',
+      选择: 'select',
+      单选: 'select',
+      'multi-select': 'multiSelect',
+      multiselect: 'multiSelect',
+      multi: 'multiSelect',
+      多选: 'multiSelect'
+    };
+    const type = typeMap[typeInput] ?? 'text';
+    const initialValue = type === 'multiSelect' ? [] : '';
+    setNotebookMetadataFieldType(activeNotebook.id, fieldKey, type);
+    updatePageMetadata(activePage.id, (metadata) => ({
+      ...metadata,
+      frontmatter: {
+        ...metadata.frontmatter,
+        [fieldKey]: initialValue
+      }
+    }));
   };
 
   const setNotebookEmoji = (notebookId: string, emoji: string | null) => {
@@ -2981,8 +3129,9 @@ export function App() {
       workspaceView={workspaceView}
       writeSurface={{
         activePage,
-        metadataChips,
-        metadataRaw,
+        metadataFields,
+        metadataFieldOptions,
+        showMetadata: state.showPageMetadata,
         blockOrder: pageBlockOrder,
         blocks: visibleBlocks,
         draggingBlockId,
@@ -3028,6 +3177,9 @@ export function App() {
           applyInlineCode
         },
         onRenamePage: renamePage,
+        onUpdateMetadataField: updateActivePageMetadataField,
+        onUpdateMetadataFieldType: updateActivePageMetadataFieldType,
+        onAddMetadataField: addActivePageMetadataField,
         onDraggingBlockIdChange: setDraggingBlockId,
         onReorderBlock: reorderBlock,
         onToggleBlock: toggleBlock,

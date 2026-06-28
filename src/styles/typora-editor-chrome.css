@@ -64,9 +64,10 @@
 }
 
 .typora-app-shell .page-metadata {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto;
   gap: 6px;
+  align-items: start;
   margin: -8px 0 18px;
   color: var(--typora-shell-muted);
   font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
@@ -74,13 +75,31 @@
   line-height: 1.35;
 }
 
-.typora-app-shell .page-metadata span {
+.typora-app-shell .page-metadata-field,
+.typora-app-shell .page-metadata-add {
   max-width: 100%;
   border: 1px solid color-mix(in srgb, var(--typora-shell-divider) 78%, transparent);
   border-radius: 3px;
   background: color-mix(in srgb, var(--typora-shell-panel) 56%, transparent);
   color: inherit;
+}
+
+.typora-app-shell .page-metadata-field {
   padding: 2px 6px;
+}
+
+.typora-app-shell .page-metadata-field-long {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 8px 9px;
+}
+
+.typora-app-shell .page-metadata-type-menu {
+  border-color: color-mix(in srgb, var(--typora-shell-divider) 92%, transparent);
+  background: var(--typora-shell-panel);
+  background-color: var(--typora-shell-panel);
+  color: var(--typora-shell-ink);
+  box-shadow: 0 12px 28px color-mix(in srgb, black 18%, transparent);
 }
 
 .typora-app-shell .page-frontmatter {

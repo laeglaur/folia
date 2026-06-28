@@ -1,5 +1,6 @@
-import type { Notebook, NotebookCalendarDateSource, NotebookCalendarViewConfig, Page, PageMetadata } from './types';
+import type { Notebook, NotebookCalendarDateSource, NotebookCalendarViewConfig, Page, PageCalendarDisplayField, PageMetadata } from './types';
 import { localDateKey } from './app-utils';
+import { metadataFieldTypeFor, shouldHideMetadataField } from './metadata-fields';
 
 export type PageCalendarFieldCandidate = {
   key: NotebookCalendarDateSource;
@@ -15,11 +16,9 @@ export type PageCalendarEntry = {
   startDate: string;
   endDate: string;
   title: string;
-  fields: Array<{ key: string; value: string }>;
+  fields: PageCalendarDisplayField[];
   colorKey: string;
 };
-
-const ignoredFieldKeys = new Set(['base', 'cover', 'notion-id', 'notion id', 'id', 'title', 'iconid', 'sourcefilename']);
 
 const preferredVisibleFields = [
   '类型',
@@ -179,7 +178,7 @@ export const visibleCalendarFieldsForPages = (pages: Page[], limit = 5) => {
   pages.forEach((page) => {
     Object.entries(fieldsFromMetadata(page.metadata)).forEach(([key, value]) => {
       const normalized = normalizeCalendarFieldKey(key);
-      if (ignoredFieldKeys.has(normalized)) return;
+      if (shouldHideMetadataField(normalized)) return;
       if (!scalarValue(value)) return;
       const current = counts.get(normalized) ?? { key, count: 0 };
       current.count += 1;
@@ -220,7 +219,14 @@ export const buildPageCalendarEntries = (
     ].filter(Boolean).map((key) => normalizeCalendarFieldKey(key as string)));
     const fields = config.visibleFields
       .filter((key) => !hiddenFieldKeys.has(normalizeCalendarFieldKey(key)))
-      .map((key) => ({ key, value: fieldValue(page.metadata, key) }))
+      .map((key) => {
+        const value = fieldValue(page.metadata, key);
+        return {
+          key,
+          value,
+          type: metadataFieldTypeFor(activeNotebook, key, value, Array.isArray(fieldsFromMetadata(page.metadata)[key]) ? 'list' : 'text')
+        };
+      })
       .filter((field) => field.value);
     return sources
       .map((source): PageCalendarEntry | null => {
