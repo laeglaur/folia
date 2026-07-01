@@ -21,6 +21,7 @@ export type ImageAnnotation = {
   y2?: number;
   points?: Array<[number, number]>;
   text?: string;
+  fontSize?: number;
 };
 
 export type ImageAnnotationDocument = {
@@ -40,6 +41,7 @@ export type ImageAnnotationEditRequest = {
 type AnnotationTool = ImageAnnotationKind;
 type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se';
 type AnnotationBounds = { x: number; y: number; width: number; height: number };
+type TextDraft = { x: number; y: number; value: string; fontSize: number };
 
 const defaultAnnotationDocument = (): ImageAnnotationDocument => ({ version: 1, items: [] });
 
@@ -72,11 +74,27 @@ const pointFromEvent = (event: ReactPointerEvent<SVGSVGElement>): [number, numbe
   ];
 };
 
+const clientPointFromEvent = (event: ReactPointerEvent<SVGSVGElement>): [number, number] => [event.clientX, event.clientY];
+
+const pointDistance = ([x1, y1]: [number, number], [x2, y2]: [number, number]) => Math.hypot(x2 - x1, y2 - y1);
+
+const clientDistance = ([x1, y1]: [number, number], [x2, y2]: [number, number]) => Math.hypot(x2 - x1, y2 - y1);
+
 const annotationColor = (annotation: ImageAnnotation) => annotation.color || '#ff4d4f';
 const annotationWidth = (annotation: ImageAnnotation) => Math.max(1, annotation.strokeWidth || 3);
 const annotationOpacity = (annotation: ImageAnnotation) => annotation.style === 'highlight' ? 0.34 : 1;
 const annotationStrokeOpacity = (annotation: ImageAnnotation) => annotation.style === 'highlight' ? 0.52 : 1;
 const annotationFillOpacity = (annotation: ImageAnnotation) => annotation.style === 'highlight' ? 0.34 : 0;
+const annotationFontSize = (annotation: ImageAnnotation) => Math.max(12, Math.min(48, annotation.fontSize ?? 18));
+
+const draftElementRatio = (element: HTMLTextAreaElement | null, axis: 'width' | 'height', origin: number) => {
+  if (!element) return undefined;
+  const parent = element.offsetParent instanceof HTMLElement ? element.offsetParent : null;
+  const parentSize = axis === 'width' ? parent?.clientWidth : parent?.clientHeight;
+  const ownSize = axis === 'width' ? element.offsetWidth : element.offsetHeight;
+  const ratio = ownSize / Math.max(1, parentSize ?? ownSize);
+  return Math.max(0.04, Math.min(Math.max(0.04, 0.98 - origin), ratio));
+};
 
 const rectBounds = (annotation: ImageAnnotation): AnnotationBounds => {
   const x = annotation.x ?? Math.min(annotation.x1 ?? 0, annotation.x2 ?? 0);
@@ -103,7 +121,15 @@ const annotationBounds = (annotation: ImageAnnotation): AnnotationBounds => {
     const top = Math.min(...ys);
     return { x: left, y: top, width: Math.max(...xs) - left, height: Math.max(...ys) - top };
   }
-  return { x: annotation.x ?? 0, y: (annotation.y ?? 0) - 0.045, width: Math.max(0.08, (annotation.text?.length ?? 1) * 0.022), height: 0.06 };
+  const fontSize = annotationFontSize(annotation);
+  const lines = (annotation.text || '').split('\n');
+  const longestLine = Math.max(1, ...lines.map((line) => line.length));
+  return {
+    x: annotation.x ?? 0,
+    y: annotation.y ?? 0,
+    width: annotation.width ?? Math.max(0.08, longestLine * fontSize * 0.00085),
+    height: annotation.height ?? Math.max(0.045, lines.length * fontSize * 0.0019)
+  };
 };
 
 const handlePoints = (bounds: AnnotationBounds): Record<ResizeHandle, [number, number]> => ({
@@ -183,11 +209,7 @@ export function ImageAnnotationSvg({
           const d = points.map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ');
           return <path key={annotation.id} d={d} {...common} fill="none" strokeLinecap="round" strokeLinejoin="round" />;
         }
-        return (
-          <text key={annotation.id} x={annotation.x ?? 0} y={annotation.y ?? 0} fill={color} opacity={annotation.style === 'highlight' ? 0.72 : 1} fontSize={0.045} fontFamily="system-ui, sans-serif" className={selectedId === annotation.id ? 'is-selected' : undefined}>
-            {annotation.text ?? ''}
-          </text>
-        );
+        return null;
       })}
       {interactive && selectedId ? (() => {
         const selected = annotations.items.find((annotation) => annotation.id === selectedId);
@@ -207,6 +229,38 @@ export function ImageAnnotationSvg({
   );
 }
 
+export function ImageAnnotationTextLayer({
+  annotations,
+  selectedId
+}: {
+  annotations: ImageAnnotationDocument;
+  selectedId?: string | null;
+}) {
+  const textItems = annotations.items.filter((annotation) => annotation.kind === 'text' && annotation.text?.trim());
+  if (!textItems.length) return null;
+  return (
+    <div className="image-annotation-text-layer" aria-hidden="true">
+      {textItems.map((annotation) => (
+        <span
+          key={annotation.id}
+          className={`image-annotation-text-item ${selectedId === annotation.id ? 'is-selected' : ''}`}
+          style={{
+            left: `${(annotation.x ?? 0) * 100}%`,
+            top: `${(annotation.y ?? 0) * 100}%`,
+            width: annotation.width ? `${annotation.width * 100}%` : undefined,
+            minWidth: annotation.width ? undefined : 'max-content',
+            color: annotationColor(annotation),
+            opacity: annotation.style === 'highlight' ? 0.72 : 1,
+            fontSize: annotationFontSize(annotation)
+          }}
+        >
+          {annotation.text}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function annotatedImageHtml(src: string, alt: string, annotations: string, baseAttrs: Record<string, string> = {}) {
   const document = parseImageAnnotations(annotations);
   if (!document.items.length) return '';
@@ -214,7 +268,7 @@ export function annotatedImageHtml(src: string, alt: string, annotations: string
     .filter(([, value]) => value)
     .map(([key, value]) => ` ${key}="${value.replace(/"/g, '&quot;')}"`)
     .join('');
-  return `<span class="annotated-image" data-image-annotations="${annotations.replace(/"/g, '&quot;')}"${attrs}><img src="${src.replace(/"/g, '&quot;')}" alt="${alt.replace(/"/g, '&quot;')}">${annotationSvgString(document)}</span>`;
+  return `<span class="annotated-image" data-image-annotations="${annotations.replace(/"/g, '&quot;')}"${attrs}><img src="${src.replace(/"/g, '&quot;')}" alt="${alt.replace(/"/g, '&quot;')}">${annotationSvgString(document)}${annotationTextLayerString(document)}</span>`;
 }
 
 export const renderAnnotatedImagesInHtml = (html: string) => {
@@ -261,12 +315,27 @@ const annotationSvgString = (document: ImageAnnotationDocument) => {
       const d = (annotation.points ?? []).map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ');
       return `<path d="${d}" stroke="${color}" stroke-width="${width}" vector-effect="non-scaling-stroke" opacity="${opacity}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
     }
-    return `<text x="${annotation.x ?? 0}" y="${annotation.y ?? 0}" fill="${color}" opacity="${annotation.style === 'highlight' ? 0.72 : 1}" font-size="0.045" font-family="system-ui, sans-serif">${(annotation.text ?? '').replace(/[<&]/g, (match) => match === '<' ? '&lt;' : '&amp;')}</text>`;
+    return '';
   }).join('');
   return `<svg class="image-annotation-svg" viewBox="0 0 1 1" preserveAspectRatio="none">${shapes}</svg>`;
 };
 
+const escapeText = (value: string) => value.replace(/[<&]/g, (match) => match === '<' ? '&lt;' : '&amp;');
+
+const annotationTextLayerString = (document: ImageAnnotationDocument) => {
+  const items = document.items
+    .filter((annotation) => annotation.kind === 'text' && annotation.text?.trim())
+    .map((annotation) => {
+      const width = annotation.width ? ` width: ${annotation.width * 100}%;` : '';
+      return `<span class="image-annotation-text-item" style="left: ${(annotation.x ?? 0) * 100}%; top: ${(annotation.y ?? 0) * 100}%;${width} color: ${annotationColor(annotation)}; opacity: ${annotation.style === 'highlight' ? 0.72 : 1}; font-size: ${annotationFontSize(annotation)}px;">${escapeText(annotation.text ?? '')}</span>`;
+    })
+    .join('');
+  return items ? `<span class="image-annotation-text-layer" aria-hidden="true">${items}</span>` : '';
+};
+
 const makeId = () => `anno_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+const minDrawDistance = 0.006;
+const moveStartThresholdPx = 4;
 
 const moveAnnotation = (annotation: ImageAnnotation, dx: number, dy: number): ImageAnnotation => ({
   ...annotation,
@@ -318,6 +387,24 @@ const resizeAnnotation = (annotation: ImageAnnotation, handle: ResizeHandle, poi
   return annotation;
 };
 
+const annotationIsMeaningful = (annotation: ImageAnnotation) => {
+  if (annotation.kind === 'text') return Boolean(annotation.text?.trim());
+  if (annotation.kind === 'pen') {
+    const points = annotation.points ?? [];
+    if (points.length < 2) return false;
+    return pointDistance(points[0], points[points.length - 1]) >= minDrawDistance;
+  }
+  if (annotation.kind === 'rect' || annotation.kind === 'ellipse') {
+    const bounds = rectBounds(annotation);
+    return bounds.width >= minDrawDistance && bounds.height >= minDrawDistance;
+  }
+  const x1 = annotation.x1 ?? 0;
+  const y1 = annotation.y1 ?? 0;
+  const x2 = annotation.x2 ?? x1;
+  const y2 = annotation.y2 ?? y1;
+  return pointDistance([x1, y1], [x2, y2]) >= minDrawDistance;
+};
+
 export function ImageAnnotationEditor({
   request,
   onSave,
@@ -334,16 +421,21 @@ export function ImageAnnotationEditor({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [history, setHistory] = useState<ImageAnnotationDocument[]>([defaultAnnotationDocument()]);
   const [historyIndex, setHistoryIndex] = useState(0);
+  const historyIndexRef = useRef(0);
+  const annotationsRef = useRef<ImageAnnotationDocument>(defaultAnnotationDocument());
   const draftRef = useRef<ImageAnnotation | null>(null);
   const [previewAnnotation, setPreviewAnnotation] = useState<ImageAnnotation | null>(null);
-  const [textDraft, setTextDraft] = useState<{ x: number; y: number; value: string } | null>(null);
-  const textInputRef = useRef<HTMLInputElement | null>(null);
+  const [textDraft, setTextDraftState] = useState<TextDraft | null>(null);
+  const textDraftRef = useRef<TextDraft | null>(null);
+  const textInputRef = useRef<HTMLTextAreaElement | null>(null);
   const textDraftCommittedRef = useRef(false);
   const previewAnnotationRef = useRef<ImageAnnotation | null>(null);
-  const moveRef = useRef<{ id: string; start: [number, number]; original: ImageAnnotation } | null>(null);
+  const moveRef = useRef<{ id: string; start: [number, number]; startClient: [number, number]; original: ImageAnnotation; active: boolean } | null>(null);
   const resizeRef = useRef<{ id: string; handle: ResizeHandle; original: ImageAnnotation; bounds: AnnotationBounds } | null>(null);
 
   const annotations = history[historyIndex] ?? defaultAnnotationDocument();
+  annotationsRef.current = annotations;
+  historyIndexRef.current = historyIndex;
   const visibleAnnotations = previewAnnotation
     ? {
       version: 1 as const,
@@ -353,9 +445,18 @@ export function ImageAnnotationEditor({
     }
     : annotations;
 
+  const setTextDraft = (draft: TextDraft | null) => {
+    textDraftRef.current = draft;
+    setTextDraftState(draft);
+  };
+
   const commit = (next: ImageAnnotationDocument) => {
-    setHistory((current) => [...current.slice(0, historyIndex + 1), next]);
-    setHistoryIndex((index) => index + 1);
+    const baseIndex = historyIndexRef.current;
+    annotationsRef.current = next;
+    historyIndexRef.current = baseIndex + 1;
+    setHistory((current) => [...current.slice(0, baseIndex + 1), next]);
+    setHistoryIndex(baseIndex + 1);
+    return next;
   };
 
   const clearTransientState = () => {
@@ -371,13 +472,23 @@ export function ImageAnnotationEditor({
   const undo = () => {
     clearTransientState();
     setSelectedId(null);
-    setHistoryIndex((index) => Math.max(0, index - 1));
+    setHistoryIndex((index) => {
+      const nextIndex = Math.max(0, index - 1);
+      historyIndexRef.current = nextIndex;
+      annotationsRef.current = history[nextIndex] ?? defaultAnnotationDocument();
+      return nextIndex;
+    });
   };
 
   const redo = () => {
     clearTransientState();
     setSelectedId(null);
-    setHistoryIndex((index) => Math.min(history.length - 1, index + 1));
+    setHistoryIndex((index) => {
+      const nextIndex = Math.min(history.length - 1, index + 1);
+      historyIndexRef.current = nextIndex;
+      annotationsRef.current = history[nextIndex] ?? defaultAnnotationDocument();
+      return nextIndex;
+    });
   };
 
   const deleteAnnotationById = (id: string) => {
@@ -386,7 +497,7 @@ export function ImageAnnotationEditor({
     setSelectedId(null);
   };
 
-  const updateSelectedAnnotation = (changes: Partial<Pick<ImageAnnotation, 'color' | 'strokeWidth' | 'style'>>) => {
+  const updateSelectedAnnotation = (changes: Partial<Pick<ImageAnnotation, 'color' | 'strokeWidth' | 'style' | 'fontSize'>>) => {
     if (!selectedId) return false;
     const selected = annotations.items.find((item) => item.id === selectedId);
     if (!selected) return false;
@@ -399,6 +510,8 @@ export function ImageAnnotationEditor({
     if (!request) return;
     setHistory([request.annotations]);
     setHistoryIndex(0);
+    historyIndexRef.current = 0;
+    annotationsRef.current = request.annotations;
     setSelectedId(null);
     setPreviewAnnotation(null);
     setTextDraft(null);
@@ -418,7 +531,7 @@ export function ImageAnnotationEditor({
     const selected = annotations.items.find((item) => item.id === selectedId);
     if (!selected) return;
     setColor(annotationColor(selected));
-    setStrokeWidth(annotationWidth(selected));
+    setStrokeWidth(selected.kind === 'text' ? Math.round((annotationFontSize(selected) - 6) / 3) : annotationWidth(selected));
     setStyle(selected.style);
   }, [selectedId, annotations]);
 
@@ -426,13 +539,13 @@ export function ImageAnnotationEditor({
     if (!request) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
-        if (event.target instanceof HTMLInputElement) return;
+        if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
         event.preventDefault();
         if (event.shiftKey) redo();
         else undo();
         return;
       }
-      if ((event.key === 'Backspace' || event.key === 'Delete') && selectedId && !(event.target instanceof HTMLInputElement)) {
+      if ((event.key === 'Backspace' || event.key === 'Delete') && selectedId && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) {
         event.preventDefault();
         deleteAnnotationById(selectedId);
       }
@@ -456,7 +569,25 @@ export function ImageAnnotationEditor({
   };
 
   const onPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+    event.preventDefault();
     const point = pointFromEvent(event);
+    const startClient = clientPointFromEvent(event);
+    if (tool === 'text') {
+      const hit = annotationAt(point);
+      if (hit) {
+        commitTextDraft();
+        setSelectedId(hit.id);
+        moveRef.current = { id: hit.id, start: point, startClient, original: hit, active: false };
+        event.currentTarget.setPointerCapture(event.pointerId);
+        return;
+      }
+      clearTransientState();
+      setSelectedId(null);
+      textDraftCommittedRef.current = false;
+      setTextDraft({ x: point[0], y: point[1], value: '', fontSize: Math.max(14, strokeWidth * 3 + 6) });
+      return;
+    }
+    commitTextDraft();
     const selected = selectedId ? annotations.items.find((item) => item.id === selectedId) : null;
     const handle = resizeHandleAt(point);
     if (selected && handle) {
@@ -467,7 +598,7 @@ export function ImageAnnotationEditor({
     const hit = annotationAt(point);
     if (hit) {
       setSelectedId(hit.id);
-      moveRef.current = { id: hit.id, start: point, original: hit };
+      moveRef.current = { id: hit.id, start: point, startClient, original: hit, active: false };
       event.currentTarget.setPointerCapture(event.pointerId);
       return;
     }
@@ -479,13 +610,6 @@ export function ImageAnnotationEditor({
       color,
       strokeWidth
     };
-    if (tool === 'text') {
-      clearTransientState();
-      setSelectedId(null);
-      textDraftCommittedRef.current = false;
-      setTextDraft({ x: point[0], y: point[1], value: '' });
-      return;
-    }
     setTextDraft(null);
     draftRef.current = tool === 'pen'
       ? { ...base, points: [point] }
@@ -506,6 +630,10 @@ export function ImageAnnotationEditor({
       return;
     }
     if (moveRef.current) {
+      if (!moveRef.current.active) {
+        if (clientDistance(moveRef.current.startClient, clientPointFromEvent(event)) < moveStartThresholdPx) return;
+        moveRef.current.active = true;
+      }
       const [startX, startY] = moveRef.current.start;
       const moved = moveAnnotation(moveRef.current.original, point[0] - startX, point[1] - startY);
       previewAnnotationRef.current = moved;
@@ -524,14 +652,26 @@ export function ImageAnnotationEditor({
   const onPointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
     const draft = draftRef.current;
     if (draft) {
-      commit({ version: 1, items: [...annotations.items, draft] });
+      if (annotationIsMeaningful(draft)) {
+        commit({ version: 1, items: [...annotationsRef.current.items, draft] });
+        setSelectedId(draft.id);
+      } else {
+        setSelectedId(null);
+      }
       setPreviewAnnotation(null);
       previewAnnotationRef.current = null;
     }
-    if ((moveRef.current || resizeRef.current) && previewAnnotationRef.current) {
+    if (resizeRef.current && previewAnnotationRef.current) {
       const moved = previewAnnotationRef.current;
-      const targetId = moveRef.current?.id ?? resizeRef.current?.id;
-      commit({ version: 1, items: annotations.items.map((item) => item.id === targetId ? moved : item) });
+      commit({ version: 1, items: annotationsRef.current.items.map((item) => item.id === resizeRef.current?.id ? moved : item) });
+      setSelectedId(moved.id);
+      setPreviewAnnotation(null);
+      previewAnnotationRef.current = null;
+    }
+    if (moveRef.current?.active && previewAnnotationRef.current) {
+      const moved = previewAnnotationRef.current;
+      commit({ version: 1, items: annotationsRef.current.items.map((item) => item.id === moveRef.current?.id ? moved : item) });
+      setSelectedId(moved.id);
       setPreviewAnnotation(null);
       previewAnnotationRef.current = null;
     }
@@ -551,13 +691,14 @@ export function ImageAnnotationEditor({
   };
 
   const commitTextDraft = () => {
-    if (textDraftCommittedRef.current) return;
+    if (textDraftCommittedRef.current) return annotationsRef.current;
     textDraftCommittedRef.current = true;
-    const value = textDraft?.value.trim();
-    if (!textDraft || !value) {
+    const draft = textDraftRef.current;
+    const value = (textInputRef.current?.value ?? draft?.value ?? '').trim();
+    if (!draft || !value) {
       setTextDraft(null);
       textDraftCommittedRef.current = false;
-      return;
+      return annotationsRef.current;
     }
     const next: ImageAnnotation = {
       id: makeId(),
@@ -565,13 +706,24 @@ export function ImageAnnotationEditor({
       style,
       color,
       strokeWidth,
-      x: textDraft.x,
-      y: textDraft.y,
+      x: draft.x,
+      y: draft.y,
+      width: draftElementRatio(textInputRef.current, 'width', draft.x),
+      height: draftElementRatio(textInputRef.current, 'height', draft.y),
+      fontSize: draft.fontSize,
       text: value
     };
-    commit({ version: 1, items: [...annotations.items, next] });
+    const nextDocument = commit({ version: 1, items: [...annotationsRef.current.items, next] });
     setSelectedId(next.id);
     setTextDraft(null);
+    textDraftCommittedRef.current = false;
+    return nextDocument;
+  };
+
+  const saveAnnotations = () => {
+    if (!request) return;
+    const document = commitTextDraft();
+    onSave(request, document);
   };
 
   const tools: Array<[AnnotationTool, LucideIcon, string]> = [
@@ -590,7 +742,22 @@ export function ImageAnnotationEditor({
       <div className="image-annotation-dialog">
         <div className="image-annotation-toolbar">
           {tools.map(([id, Icon, label]) => (
-            <button key={id} type="button" className={tool === id ? 'is-active' : ''} onClick={() => setTool(id)} title={label} aria-label={label}><Icon size={16} /></button>
+            <button
+              key={id}
+              type="button"
+              className={tool === id ? 'is-active' : ''}
+              onClick={() => {
+                commitTextDraft();
+                setTool(id);
+                if (id === 'text') {
+                  draftRef.current = null;
+                  previewAnnotationRef.current = null;
+                  setPreviewAnnotation(null);
+                }
+              }}
+              title={label}
+              aria-label={label}
+            ><Icon size={16} /></button>
           ))}
           <button
             type="button"
@@ -621,31 +788,37 @@ export function ImageAnnotationEditor({
             onChange={(event) => {
               const nextWidth = Number(event.target.value);
               setStrokeWidth(nextWidth);
-              updateSelectedAnnotation({ strokeWidth: nextWidth });
+              const selected = selectedId ? annotations.items.find((item) => item.id === selectedId) : null;
+              updateSelectedAnnotation(selected?.kind === 'text' ? { fontSize: Math.max(12, nextWidth * 3 + 6) } : { strokeWidth: nextWidth });
             }}
-            aria-label="Stroke width"
+            aria-label={selectedId && annotations.items.find((item) => item.id === selectedId)?.kind === 'text' ? 'Text size' : 'Stroke width'}
           />
           <button type="button" onClick={undo} disabled={historyIndex === 0} title="Undo" aria-label="Undo"><Undo2 size={16} /></button>
           <button type="button" onClick={redo} disabled={historyIndex >= history.length - 1} title="Redo" aria-label="Redo"><Redo2 size={16} /></button>
           <button type="button" onClick={deleteSelected} disabled={!selectedId} title="Delete selected" aria-label="Delete selected"><Trash2 size={16} /></button>
-          <button type="button" onClick={() => onSave(request, annotations)} title="Save" aria-label="Save"><Save size={16} /></button>
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={saveAnnotations} title="Save" aria-label="Save"><Save size={16} /></button>
           <button type="button" onClick={onClose} title="Cancel" aria-label="Cancel"><X size={16} /></button>
         </div>
         <div className="image-annotation-stage">
           <div className="image-annotation-canvas">
             <img src={request.src} alt={request.alt ?? ''} draggable={false} />
             <ImageAnnotationSvg annotations={visibleAnnotations} selectedId={selectedId} interactive />
-            <svg className="image-annotation-hit-layer" viewBox="0 0 1 1" preserveAspectRatio="none" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+            <ImageAnnotationTextLayer annotations={visibleAnnotations} selectedId={selectedId} />
+            <svg className={`image-annotation-hit-layer tool-${tool}`} viewBox="0 0 1 1" preserveAspectRatio="none" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
             {textDraft ? (
-              <input
+              <textarea
                 ref={textInputRef}
                 className="image-annotation-text-input"
                 value={textDraft.value}
-                style={{ left: `${textDraft.x * 100}%`, top: `${textDraft.y * 100}%`, color }}
-                onChange={(event) => setTextDraft((draft) => draft ? { ...draft, value: event.target.value } : draft)}
+                rows={Math.max(1, textDraft.value.split('\n').length)}
+                style={{ left: `${textDraft.x * 100}%`, top: `${textDraft.y * 100}%`, color, fontSize: textDraft.fontSize }}
+                onChange={(event) => {
+                  const draft = textDraftRef.current;
+                  if (draft) setTextDraft({ ...draft, value: event.target.value });
+                }}
                 onBlur={commitTextDraft}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
+                  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
                     event.preventDefault();
                     commitTextDraft();
                   }

@@ -152,7 +152,46 @@ await page.evaluate(async () => {
 });
 await page.keyboard.press(`${modKey}+V`);
 const greenPasteHtml = await greenPasteComposer.evaluate((node) => node.innerHTML);
-checks.greenHtmlPasteBecomesHighlight = greenPasteHtml.includes('<mark>green terminal text</mark>');
+checks.greenHtmlPasteBecomesHighlight = greenPasteHtml.includes('<mark>green terminal text</mark>') &&
+  !greenPasteHtml.includes('style=');
+
+await resetApp();
+const dirtySpanPasteComposer = page.locator('.composer').last();
+await dirtySpanPasteComposer.click();
+await page.evaluate(async () => {
+  await navigator.clipboard.write([
+    new ClipboardItem({
+      'text/html': new Blob([
+        '<span style="font-size: 16px; font-style: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration-line: none; color: oklch(0.693 0.17 162.479996); font-family: &quot;PingFang SC&quot;, &quot;Microsoft YaHei&quot;; font-weight: 300; text-align: justify; background-color: rgb(255, 255, 255); float: none; display: inline !important;">clean pasted source</span>'
+      ], { type: 'text/html' }),
+      'text/plain': new Blob(['clean pasted source'], { type: 'text/plain' })
+    })
+  ]);
+});
+await page.keyboard.press(`${modKey}+V`);
+const dirtySpanPasteHtml = await dirtySpanPasteComposer.evaluate((node) => node.innerHTML);
+checks.dirtySpanPasteIsSanitized = dirtySpanPasteHtml.includes('clean pasted source') &&
+  !/style=|font-family|oklch|PingFang|Microsoft YaHei/.test(dirtySpanPasteHtml);
+
+await resetApp();
+const bulkGreenPasteComposer = page.locator('.composer').last();
+await bulkGreenPasteComposer.click();
+await page.evaluate(async () => {
+  const html = Array.from({ length: 5 }, (_, index) =>
+    `<span style="color: rgb(0, 180, 80); font-family: &quot;PingFang SC&quot;;">green line ${index + 1}</span>`
+  ).join('<br>');
+  await navigator.clipboard.write([
+    new ClipboardItem({
+      'text/html': new Blob([html], { type: 'text/html' }),
+      'text/plain': new Blob(['green line 1\ngreen line 2\ngreen line 3\ngreen line 4\ngreen line 5'], { type: 'text/plain' })
+    })
+  ]);
+});
+await page.keyboard.press(`${modKey}+V`);
+const bulkGreenPasteHtml = await bulkGreenPasteComposer.evaluate((node) => node.innerHTML);
+checks.bulkGreenPasteSanitizesWithoutHighlight = bulkGreenPasteHtml.includes('green line 1') &&
+  !bulkGreenPasteHtml.includes('<mark') &&
+  !/style=|font-family|PingFang/.test(bulkGreenPasteHtml);
 
 await resetApp();
 const ansiPasteComposer = page.locator('.composer').last();
@@ -174,11 +213,26 @@ const markComposer = page.locator('.composer').last();
 await markComposer.click();
 await page.keyboard.type('styled marks');
 await page.keyboard.press(`${modKey}+A`);
-await page.locator('.format-toolbar .tool-button[title="Underline"]').click();
-await page.locator('.format-toolbar .tool-button[title="Strikethrough"]').click();
+await page.keyboard.press(`${modKey}+U`);
+await page.keyboard.press(`${modKey}+D`);
 const markHtml = await markComposer.evaluate((node) => node.innerHTML);
 checks.underline = markHtml.includes('<u>styled marks</u>');
 checks.strike = markHtml.includes('<s>') && markHtml.includes('styled marks');
+
+await resetApp();
+const strikeShortcutComposer = page.locator('.composer').last();
+await strikeShortcutComposer.click();
+await page.keyboard.type('shortcut strike');
+await page.keyboard.press(`${modKey}+A`);
+await page.keyboard.press(`${modKey}+D`);
+const strikeShortcutHtml = await strikeShortcutComposer.evaluate((node) => node.innerHTML);
+checks.strikeShortcut = strikeShortcutHtml.includes('<s>') && strikeShortcutHtml.includes('shortcut strike');
+
+await page.locator('label.view-toggle', { hasText: 'Toolbar' }).locator('input').evaluate((input) => {
+  if (!(input instanceof HTMLInputElement)) return;
+  if (!input.checked) input.click();
+});
+await page.locator('.format-toolbar').waitFor({ state: 'visible' });
 checks.semanticToolbarButtons = await page.locator('.format-toolbar').evaluate((toolbar) => {
   const requiredTitles = [
     'Keyboard key',

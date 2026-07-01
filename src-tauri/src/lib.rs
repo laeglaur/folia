@@ -5,7 +5,8 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager};
+use std::sync::Mutex;
+use tauri::{AppHandle, Emitter, Manager, RunEvent};
 
 const DATABASE_FILE: &str = "notebook.sqlite3";
 const ATTACHMENTS_DIR: &str = "attachments";
@@ -29,6 +30,17 @@ struct AttachmentCleanupResult {
     removed_count: usize,
     removed_bytes: u64,
 }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MarkdownFilePayload {
+    path: String,
+    filename: String,
+    markdown: String,
+}
+
+#[derive(Default)]
+struct PendingMarkdownOpens(Mutex<Vec<String>>);
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -3285,6 +3297,55 @@ fn import_asset_bytes(
     import_asset_bytes_into_store(&connection, app_data_dir(&app)?, filename, mime_type, bytes)
 }
 
+fn is_markdown_path(path: &PathBuf) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| matches!(extension.to_lowercase().as_str(), "md" | "markdown" | "txt"))
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+fn read_markdown_file(path: String) -> Result<MarkdownFilePayload, String> {
+    let source = PathBuf::from(&path);
+    if !source.is_file() {
+        return Err("The selected Markdown file does not exist.".to_string());
+    }
+    if !is_markdown_path(&source) {
+        return Err("Only .md, .markdown, and .txt files can be opened.".to_string());
+    }
+    let metadata = fs::metadata(&source).map_err(|error| error.to_string())?;
+    const MAX_MARKDOWN_BYTES: u64 = 16 * 1024 * 1024;
+    if metadata.len() > MAX_MARKDOWN_BYTES {
+        return Err("Markdown file is larger than 16 MB.".to_string());
+    }
+    let markdown = fs::read_to_string(&source).map_err(|error| error.to_string())?;
+    let filename = source
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("Untitled.md")
+        .to_string();
+    Ok(MarkdownFilePayload {
+        path,
+        filename,
+        markdown,
+    })
+}
+
+#[tauri::command]
+fn drain_pending_markdown_opens(app: AppHandle) -> Result<Vec<String>, String> {
+    let pending = app.state::<PendingMarkdownOpens>();
+    let mut paths = pending.0.lock().map_err(|error| error.to_string())?;
+    Ok(paths.drain(..).collect())
+}
+
+#[tauri::command]
+fn acknowledge_markdown_open(app: AppHandle, path: String) -> Result<(), String> {
+    let pending = app.state::<PendingMarkdownOpens>();
+    let mut paths = pending.0.lock().map_err(|error| error.to_string())?;
+    paths.retain(|candidate| candidate != &path);
+    Ok(())
+}
+
 #[tauri::command]
 fn cleanup_orphan_attachments(
     app: AppHandle,
@@ -3297,6 +3358,7 @@ fn cleanup_orphan_attachments(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(PendingMarkdownOpens::default())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             load_normalized_state,
@@ -3330,10 +3392,39 @@ pub fn run() {
             import_local_asset,
             import_remote_asset,
             import_asset_bytes,
+            read_markdown_file,
+            drain_pending_markdown_opens,
+            acknowledge_markdown_open,
             cleanup_orphan_attachments
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+            if let RunEvent::Opened { urls } = event {
+                for url in urls {
+                    if url.scheme() != "file" {
+                        continue;
+                    }
+                    let Ok(path) = url.to_file_path() else {
+                        continue;
+                    };
+                    if !is_markdown_path(&path) {
+                        continue;
+                    }
+                    let path = path.to_string_lossy().to_string();
+                    if let Ok(mut pending) = app.state::<PendingMarkdownOpens>().0.lock() {
+                        if !pending.contains(&path) {
+                            pending.push(path.clone());
+                        }
+                    }
+                    let _ = app.emit(
+                        "notebook://open-markdown-file",
+                        path,
+                    );
+                }
+            }
+        });
 }
 
 #[cfg(test)]

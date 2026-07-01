@@ -282,6 +282,7 @@ function BlockItem({
 
 type WriteSurfaceProps = {
   activePage: Page;
+  temporaryMarkdownPage: { id: string; sourcePath: string; filename: string } | null;
   metadataFields: PageMetadataField[];
   metadataFieldOptions: Record<string, string[]>;
   showMetadata: boolean;
@@ -297,6 +298,7 @@ type WriteSurfaceProps = {
   tableControls: TableControlsState;
   mathEditor: MathEditorState | null;
   toolbarActions: ToolbarActions;
+  onSaveTemporaryMarkdownPage: (pageId: string) => void;
   onRenamePage: (title: string) => void;
   onUpdateMetadataField: (field: PageMetadataField, value: string) => void;
   onUpdateMetadataFieldType: (field: PageMetadataField, type: MetadataFieldType) => void;
@@ -432,6 +434,7 @@ function PageMetadataFieldEditor({
 
 function WriteSurface({
   activePage,
+  temporaryMarkdownPage,
   metadataFields,
   metadataFieldOptions,
   showMetadata,
@@ -447,6 +450,7 @@ function WriteSurface({
   tableControls,
   mathEditor,
   toolbarActions,
+  onSaveTemporaryMarkdownPage,
   onRenamePage,
   onUpdateMetadataField,
   onUpdateMetadataFieldType,
@@ -491,6 +495,14 @@ function WriteSurface({
       <div className={`page-title-row ${activePage.metadata.emoji ? 'has-page-emoji' : ''}`}>
         {activePage.metadata.emoji ? <EmojiImage emoji={activePage.metadata.emoji} className="page-title-emoji" decorative /> : null}
         <input className="page-title" value={activePage.title} onChange={(event) => onRenamePage(event.target.value)} aria-label="Page title" />
+        {temporaryMarkdownPage ? (
+          <div className="temporary-markdown-actions">
+            <span className="temporary-markdown-badge" title={temporaryMarkdownPage.sourcePath}>Temporary MD</span>
+            <button className="primary-button temporary-markdown-save" type="button" onClick={() => onSaveTemporaryMarkdownPage(activePage.id)}>
+              Save to Notebook
+            </button>
+          </div>
+        ) : null}
       </div>
       {showMetadata ? (
         <div className="page-metadata" aria-label="Page metadata">

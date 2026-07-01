@@ -125,6 +125,7 @@ import {
   mergePageDocument
 } from './workspace-view-model';
 import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import 'katex/dist/katex.min.css';
@@ -165,6 +166,18 @@ const folderImportConcurrency = 4;
 type ImportedAsset = {
   id: string;
   storedPath: string;
+};
+
+type OpenedMarkdownFilePayload = {
+  path: string;
+  filename: string;
+  markdown: string;
+};
+
+type TemporaryMarkdownPage = {
+  id: string;
+  sourcePath: string;
+  filename: string;
 };
 
 type DeletedBlockSnapshot = {
@@ -304,6 +317,7 @@ export function App() {
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [trashBusy, setTrashBusy] = useState(false);
+  const [temporaryMarkdownPages, setTemporaryMarkdownPages] = useState<TemporaryMarkdownPage[]>([]);
   const [deletedBlockSnapshot, setDeletedBlockSnapshot] = useState<DeletedBlockSnapshot | null>(null);
   const [pageDraftName, setPageDraftName] = useState('');
   const [outlineDrawerOpen, setOutlineDrawerOpen] = useState(true);
@@ -329,6 +343,7 @@ export function App() {
   const workspacePreferencesSaveTimerRef = useRef<number | null>(null);
   const lastSavedWorkspacePreferencesRef = useRef('');
   const deletedBlockSnapshotRef = useRef<DeletedBlockSnapshot | null>(null);
+  const temporaryMarkdownPagesRef = useRef<TemporaryMarkdownPage[]>([]);
 
   const closeEmojiContextMenu = () => setEmojiContextMenu(null);
   const closePageContextMenu = () => setPageContextMenu(null);
@@ -430,6 +445,10 @@ export function App() {
   }, [deletedBlockSnapshot]);
 
   useEffect(() => {
+    temporaryMarkdownPagesRef.current = temporaryMarkdownPages;
+  }, [temporaryMarkdownPages]);
+
+  useEffect(() => {
     if (!editingPageId) return;
     const input = pageNameInputRef.current;
     if (!input) return;
@@ -446,6 +465,7 @@ export function App() {
 
   const schedulePageDocumentSave = (page: Page, blocks: Block[], operation: OperationLogEntry | null, delay = 0) => {
     if (!isTauri() || !persistenceReadyRef.current) return;
+    if (temporaryMarkdownPagesRef.current.some((item) => item.id === page.id)) return;
     const existingTimer = pageDocumentSaveTimersRef.current[page.id];
     if (existingTimer) window.clearTimeout(existingTimer);
     const pageSnapshot = { ...page };
@@ -461,6 +481,7 @@ export function App() {
 
   const persistPageDocumentSnapshot = (page: Page, blocks: Block[], operation: OperationLogEntry | null) => {
     if (!isTauri() || !persistenceReadyRef.current) return;
+    if (temporaryMarkdownPagesRef.current.some((item) => item.id === page.id)) return;
     const existingTimer = pageDocumentSaveTimersRef.current[page.id];
     if (existingTimer) {
       window.clearTimeout(existingTimer);
@@ -473,6 +494,7 @@ export function App() {
 
   const flushPageDocumentSave = async (page: Page, blocks: Block[]) => {
     if (!isTauri() || !persistenceReadyRef.current) return;
+    if (temporaryMarkdownPagesRef.current.some((item) => item.id === page.id)) return;
     const existingTimer = pageDocumentSaveTimersRef.current[page.id];
     if (existingTimer) {
       window.clearTimeout(existingTimer);
@@ -483,6 +505,7 @@ export function App() {
 
   const persistPageMetadataUpdate = (page: Page) => {
     if (!isTauri() || !persistenceReadyRef.current) return;
+    if (temporaryMarkdownPagesRef.current.some((item) => item.id === page.id)) return;
     void persistPageMetadata({ pageId: page.id, metadata: page.metadata, operation: null })
       .then((tree) => {
         if (tree) setState((current) => mergeNotebookTree(current, tree));
@@ -785,6 +808,7 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
     if (!isTauri() || cardModeBlockId || !activePage?.id || !persistenceReadyRef.current) return;
+    if (temporaryMarkdownPagesRef.current.some((item) => item.id === activePage.id)) return;
     const requestId = activePageDocumentRequestRef.current + 1;
     activePageDocumentRequestRef.current = requestId;
     loadPageDocument(activePage.id).then((document) => {
@@ -2019,6 +2043,14 @@ export function App() {
 
   const persistPageTitle = (pageId: string, title: string) => {
     if (!title.trim()) return null;
+    if (temporaryMarkdownPagesRef.current.some((item) => item.id === pageId)) {
+      return createOperation({
+        entity: 'page',
+        entityId: pageId,
+        kind: 'page.rename_temporary',
+        payload: { title }
+      });
+    }
     const operation = createOperation({
       entity: 'page',
       entityId: pageId,
@@ -2708,6 +2740,152 @@ export function App() {
     }
   };
 
+  const openTemporaryMarkdownFile = async (source: OpenedMarkdownFilePayload) => {
+    const targetNotebook = stateRef.current.notebooks.find((notebook) => notebook.id === stateRef.current.activeNotebookId) ?? stateRef.current.notebooks[0];
+    if (!targetNotebook) return;
+    const duplicate = temporaryMarkdownPagesRef.current.find((item) => item.sourcePath === source.path);
+    if (duplicate && stateRef.current.pages.some((page) => page.id === duplicate.id)) {
+      setWorkspaceView('write');
+      setState((current) => applyPageNavigationToViewState(current, duplicate.id));
+      setImportNotice({ kind: 'success', message: `Opened temporary Markdown file "${duplicate.filename}".` });
+      return;
+    }
+    setImportNotice({ kind: 'loading', message: `Opening "${source.filename}"...` });
+
+    try {
+      const imported = await createPageFromMarkdown(targetNotebook.id, source.filename, source.markdown);
+      const page = {
+        ...imported.page,
+        metadata: {
+          ...imported.page.metadata,
+          sourceFilename: source.path
+        }
+      };
+      const operation = createOperation({
+        entity: 'page',
+        entityId: page.id,
+        kind: 'page.open_temporary_markdown',
+        payload: {
+          sourcePath: source.path,
+          filename: source.filename,
+          blockCount: imported.blocks.length,
+          warningCount: imported.warnings.length
+        }
+      });
+      setTemporaryMarkdownPages((current) => [
+        ...current.filter((item) => item.sourcePath !== source.path && item.id !== page.id),
+        { id: page.id, sourcePath: source.path, filename: source.filename }
+      ]);
+      setWorkspaceView('write');
+      setState((current) => applyMarkdownFilesImportToViewState(current, targetNotebook.id, [page], imported.blocks, operation, false));
+      const warningDetails = imported.warnings.slice(0, 4).map((warning) => `${warning.filename}: ${warning.sourcePath} (${warning.message})`);
+      setImportNotice({
+        kind: imported.warnings.length ? 'warning' : 'success',
+        message: imported.warnings.length
+          ? `Opened "${source.filename}" temporarily, but ${imported.warnings.length} local asset${imported.warnings.length > 1 ? 's' : ''} could not be copied.`
+          : `Opened "${source.filename}" temporarily.`,
+        details: warningDetails
+      });
+    } catch (error) {
+      setImportNotice({
+        kind: 'error',
+        message: `Could not open "${source.filename}".`,
+        details: [error instanceof Error ? error.message : String(error)]
+      });
+    }
+  };
+
+  const saveTemporaryMarkdownPage = async (pageId: string) => {
+    const source = temporaryMarkdownPagesRef.current.find((item) => item.id === pageId);
+    const page = stateRef.current.pages.find((candidate) => candidate.id === pageId);
+    const notebook = page ? stateRef.current.notebooks.find((candidate) => candidate.id === page.notebookId) : null;
+    if (!source || !page || !notebook) return;
+    const blocks = blocksForPage(page, stateRef.current.blocks);
+    const operation = createOperation({
+      entity: 'notebook',
+      entityId: notebook.id,
+      kind: 'notebook.save_temporary_markdown',
+      payload: {
+        pageId,
+        notebookId: notebook.id,
+        sourcePath: source.sourcePath,
+        blockCount: blocks.length
+      }
+    });
+    setImportNotice({ kind: 'loading', message: `Saving "${page.title}" to ${notebook.name}...` });
+
+    try {
+      const persistedTree = await persistImportBatch({
+        notebook,
+        pages: [page],
+        blocks,
+        operation
+      });
+      setTemporaryMarkdownPages((current) => current.filter((item) => item.id !== pageId));
+      setState((current) => ({
+        ...current,
+        operations: [...current.operations, operation]
+      }));
+      reconcileNotebookTree(persistedTree);
+      setState((current) => applyPageDocumentToViewState(current, page, blocks, null, isTauri()));
+      setImportNotice({ kind: 'success', message: `Saved "${page.title}" to "${notebook.name}".` });
+    } catch (error) {
+      setImportNotice({
+        kind: 'error',
+        message: `Could not save "${page.title}".`,
+        details: [error instanceof Error ? error.message : String(error)]
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!isTauri() || cardModeBlockId) return;
+    let disposed = false;
+    let unlisten: (() => void) | null = null;
+    const openedPaths = new Set<string>();
+    const openPath = async (path: string) => {
+      if (!path || openedPaths.has(path)) return;
+      openedPaths.add(path);
+      try {
+        const payload = await invoke<OpenedMarkdownFilePayload>('read_markdown_file', { path });
+        await openTemporaryMarkdownFile(payload);
+      } catch (error) {
+        openedPaths.delete(path);
+        setImportNotice({
+          kind: 'error',
+          message: 'Markdown file open failed.',
+          details: [error instanceof Error ? error.message : String(error)]
+        });
+      } finally {
+        void invoke('acknowledge_markdown_open', { path }).catch((error) => {
+          console.warn('Could not acknowledge Markdown open.', error);
+        });
+      }
+    };
+    void invoke<string[]>('drain_pending_markdown_opens')
+      .then((paths) => {
+        paths.forEach((path) => {
+          void openPath(path);
+        });
+      })
+      .catch((error) => {
+        console.warn('Could not read pending Markdown opens.', error);
+      });
+    void listen<string>('notebook://open-markdown-file', async (event) => {
+      await openPath(event.payload);
+    }).then((cleanup) => {
+      if (disposed) {
+        cleanup();
+      } else {
+        unlisten = cleanup;
+      }
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
   const importMarkdownFolder = async (fileList: FileList | null) => {
     const files = Array.from(fileList ?? []);
     const markdownFiles = files.filter((file) => markdownImportFileRegex.test(file.name));
@@ -3129,6 +3307,7 @@ export function App() {
       workspaceView={workspaceView}
       writeSurface={{
         activePage,
+        temporaryMarkdownPage: temporaryMarkdownPages.find((item) => item.id === activePage.id) ?? null,
         metadataFields,
         metadataFieldOptions,
         showMetadata: state.showPageMetadata,
@@ -3176,6 +3355,7 @@ export function App() {
           applyHighlight,
           applyInlineCode
         },
+        onSaveTemporaryMarkdownPage: saveTemporaryMarkdownPage,
         onRenamePage: renamePage,
         onUpdateMetadataField: updateActivePageMetadataField,
         onUpdateMetadataFieldType: updateActivePageMetadataFieldType,

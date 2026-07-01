@@ -956,14 +956,14 @@ input, select { color: var(--ink); }
 
 .page-title-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   margin-bottom: var(--title-margin-bottom);
 }
 
 .page-title-row:not(.has-page-emoji) {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .page-title-emoji {
@@ -986,6 +986,50 @@ input, select { color: var(--ink); }
   font-size: var(--title-size);
   line-height: var(--title-line-height);
   font-weight: var(--title-weight);
+}
+
+.temporary-markdown-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.temporary-markdown-badge {
+  max-width: min(220px, 22vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  border-radius: var(--topbar-control-radius);
+  background: var(--chip-primary);
+  color: var(--muted);
+  padding: 5px 8px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.temporary-markdown-save {
+  min-height: 30px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .page-title-row,
+  .page-title-row:not(.has-page-emoji) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .temporary-markdown-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .temporary-markdown-badge {
+    max-width: 100%;
+  }
 }
 
 .page-metadata {
@@ -1937,7 +1981,9 @@ input, select { color: var(--ink); }
 }
 
 .annotated-image > .image-annotation-svg,
+.annotated-image > .image-annotation-text-layer,
 .image-annotation-canvas > .image-annotation-svg,
+.image-annotation-canvas > .image-annotation-text-layer,
 .image-annotation-hit-layer {
   position: absolute;
   inset: 0;
@@ -1971,10 +2017,40 @@ table.ProseMirror-selectednode {
   color: var(--accent);
 }
 
+.image-annotation-text-layer {
+  pointer-events: none;
+  overflow: hidden;
+  line-height: normal;
+}
+
+.image-annotation-text-item {
+  position: absolute;
+  display: block;
+  max-width: calc(100% - 4px);
+  transform: translateY(-0.1em);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 700;
+  line-height: 1.22;
+  text-shadow:
+    0 1px 1px color-mix(in srgb, #000 24%, transparent),
+    0 0 2px color-mix(in srgb, #fff 72%, transparent);
+}
+
+.image-annotation-text-item.is-selected {
+  outline: 1px dashed var(--accent);
+  outline-offset: 3px;
+}
+
 .image-annotation-hit-layer {
   pointer-events: auto;
   cursor: crosshair;
   touch-action: none;
+}
+
+.image-annotation-hit-layer.tool-text {
+  cursor: text;
 }
 
 .image-annotation-backdrop {
@@ -2055,15 +2131,24 @@ table.ProseMirror-selectednode {
 .image-annotation-text-input {
   position: absolute;
   z-index: 2;
-  min-width: 96px;
+  min-width: 120px;
   max-width: min(360px, 42vw);
-  transform: translateY(-50%);
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--theme-surface-solid, #fff) 92%, transparent);
-  box-shadow: 0 6px 18px color-mix(in srgb, #000 14%, transparent);
-  font: 15px/1.3 system-ui, sans-serif;
-  padding: 4px 6px;
+  min-height: 34px;
+  transform: translateY(-0.1em);
+  border: 0;
+  outline: 1px dashed color-mix(in srgb, currentColor 72%, transparent);
+  outline-offset: 2px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 700;
+  line-height: 1.22;
+  padding: 0;
+  resize: both;
+  color: currentColor;
+  caret-color: currentColor;
+  overflow: hidden;
 }
 
 .block-content img,
