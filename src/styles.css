@@ -1984,6 +1984,16 @@ input, select { color: var(--ink); }
   margin: var(--media-margin);
 }
 
+.react-renderer.node-image.ProseMirror-selectednode,
+.block-content .react-renderer.node-image.ProseMirror-selectednode,
+.composer .react-renderer.node-image.ProseMirror-selectednode,
+.floating-card-body .react-renderer.node-image.ProseMirror-selectednode,
+.desktop-card .react-renderer.node-image.ProseMirror-selectednode {
+  outline: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
 .annotated-image > img {
   display: block;
   width: 100%;
@@ -2022,11 +2032,11 @@ input, select { color: var(--ink); }
   overflow: visible;
 }
 
-.ProseMirror-selectednode:not(.annotated-image):not(img):not(video):not(audio):not(iframe),
-.block-content .ProseMirror-selectednode:not(.annotated-image):not(img):not(video):not(audio):not(iframe),
-.composer .ProseMirror-selectednode:not(.annotated-image):not(img):not(video):not(audio):not(iframe),
-.floating-card-body .ProseMirror-selectednode:not(.annotated-image):not(img):not(video):not(audio):not(iframe),
-.desktop-card .ProseMirror-selectednode:not(.annotated-image):not(img):not(video):not(audio):not(iframe) {
+.ProseMirror-selectednode:not(.node-image):not(.annotated-image):not(img):not(video):not(audio):not(iframe),
+.block-content .ProseMirror-selectednode:not(.node-image):not(.annotated-image):not(img):not(video):not(audio):not(iframe),
+.composer .ProseMirror-selectednode:not(.node-image):not(.annotated-image):not(img):not(video):not(audio):not(iframe),
+.floating-card-body .ProseMirror-selectednode:not(.node-image):not(.annotated-image):not(img):not(video):not(audio):not(iframe),
+.desktop-card .ProseMirror-selectednode:not(.node-image):not(.annotated-image):not(img):not(video):not(audio):not(iframe) {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: max(4px, var(--media-radius));
