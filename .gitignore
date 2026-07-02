@@ -1,5 +1,6 @@
 .superpowers/
 .cache/
+.DS_Store
 node_modules/
 .pnpm-store/
 dist/
