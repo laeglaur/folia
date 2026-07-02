@@ -69,23 +69,55 @@
   gap: 6px;
   align-items: start;
   margin: -8px 0 18px;
-  color: var(--typora-shell-muted);
+  color: var(--text-color, var(--typora-shell-ink));
   font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
   font-size: 11.5px;
   line-height: 1.35;
 }
 
-.typora-app-shell .page-metadata-field,
-.typora-app-shell .page-metadata-add {
+.typora-app-shell.typora-theme .typora-write .page-metadata-field,
+.typora-app-shell.typora-theme .typora-write .page-metadata-add {
   max-width: 100%;
-  border: 1px solid color-mix(in srgb, var(--typora-shell-divider) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 18%, transparent);
   border-radius: 3px;
-  background: color-mix(in srgb, var(--typora-shell-panel) 56%, transparent);
+  background: color-mix(in srgb, var(--bg-color, var(--typora-shell-panel)) 62%, transparent);
   color: inherit;
+  font: inherit;
+  box-shadow: none;
+  transition: none;
 }
 
 .typora-app-shell .page-metadata-field {
   padding: 2px 6px;
+}
+
+.typora-app-shell.typora-theme .typora-write .page-metadata-field-label {
+  color: inherit;
+  opacity: 0.7;
+}
+
+.typora-app-shell.typora-theme .typora-write .page-metadata input,
+.typora-app-shell.typora-theme .typora-write .page-metadata select,
+.typora-app-shell.typora-theme .typora-write .page-metadata textarea {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-color, var(--typora-shell-ink));
+  font: inherit;
+  line-height: inherit;
+  padding: 0;
+  box-shadow: none;
+  outline: 0;
+  transition: none;
+}
+
+.typora-app-shell.typora-theme .typora-write .page-metadata input:focus,
+.typora-app-shell.typora-theme .typora-write .page-metadata select:focus,
+.typora-app-shell.typora-theme .typora-write .page-metadata textarea:focus {
+  border-color: transparent;
+  box-shadow: none;
+  outline: 0;
 }
 
 .typora-app-shell .page-metadata-field-long {
@@ -95,20 +127,38 @@
 }
 
 .typora-app-shell .page-metadata-type-menu {
-  border-color: color-mix(in srgb, var(--typora-shell-divider) 92%, transparent);
-  background: var(--typora-shell-panel);
-  background-color: var(--typora-shell-panel);
-  color: var(--typora-shell-ink);
+  border-color: color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 22%, transparent);
+  background: color-mix(in srgb, var(--bg-color, var(--typora-shell-panel)) 92%, var(--text-color, var(--typora-shell-ink)) 8%);
+  background-color: color-mix(in srgb, var(--bg-color, var(--typora-shell-panel)) 92%, var(--text-color, var(--typora-shell-ink)) 8%);
+  color: var(--text-color, var(--typora-shell-ink));
   box-shadow: 0 12px 28px color-mix(in srgb, black 18%, transparent);
+}
+
+.typora-app-shell.typora-theme .typora-write .page-metadata-type-menu button {
+  width: 100%;
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 0 10px;
+  box-shadow: none;
+}
+
+.typora-app-shell.typora-theme .typora-write .page-metadata-type-menu button:hover {
+  background: color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 10%, transparent);
+  box-shadow: none;
 }
 
 .typora-app-shell .page-frontmatter {
   flex-basis: 100%;
   max-width: 100%;
   margin: 2px 0 0;
-  border: 1px solid color-mix(in srgb, var(--typora-shell-divider) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 18%, transparent);
   border-radius: 3px;
-  background: color-mix(in srgb, var(--typora-shell-panel) 56%, transparent);
+  background: color-mix(in srgb, var(--bg-color, var(--typora-shell-panel)) 62%, transparent);
   color: inherit;
   padding: 8px 10px;
   font: 12px/1.45 var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
@@ -454,35 +504,6 @@
 .typora-app-shell .tool-button:hover {
   background: var(--typora-editor-control-hover-bg);
   color: var(--typora-shell-ink);
-}
-
-.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-rail .fold-button,
-.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .tool-button {
-  display: inline-grid;
-  place-items: center;
-  padding: 0;
-  border-radius: 999px;
-  line-height: 1;
-}
-
-.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-rail .fold-button {
-  width: 32px;
-  height: 22px;
-}
-
-.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .tool-button {
-  width: 32px;
-  height: 24px;
-}
-
-.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .text-tool {
-  width: 38px;
-}
-
-.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .block-rail .fold-button svg,
-.typora-app-shell[data-content-theme="typora-ravel-light"] .typora-write .tool-button svg {
-  display: block;
-  margin: 0;
 }
 
 .typora-app-shell .highlight-tool {

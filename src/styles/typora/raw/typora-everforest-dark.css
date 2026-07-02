@@ -966,20 +966,6 @@ body,
   font-size: 1rem !important;
 }
 
-/* Blockquote — vertical center alignment fix */
-#write blockquote {
-  display: flex;
-  align-items: center;
-  min-height: 3.0em;
-  line-height: 1.6;
-  box-sizing: border-box;
-}
-
-#write blockquote > p,
-#write blockquote > :not(blockquote) {
-  margin: 0;
-}
-
 /* ==== Export View & Print Background ==== */
 .typora-export,
 .typora-export body {

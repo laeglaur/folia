@@ -196,10 +196,9 @@
   transform-style: preserve-3d;
   background-image: url("/typora-assets/typora-torillic/assets/paper-texture.png");
   background-color: var(--offwhite);
-  /* Add columns */
-  column-count: 2;
-  column-gap: 0.5cm;
-  column-width: 8cm;
+  column-count: 1;
+  column-gap: 0;
+  column-width: auto;
 }
 .typora-theme[data-content-theme="typora-torillic"] .typora-write .torillic-page:first-child,
 .typora-theme[data-content-theme="typora-torillic"] .typora-write .torillic-page > *:first-child,
@@ -253,12 +252,12 @@
 /* Each heading */
 .typora-theme[data-content-theme="typora-torillic"] .typora-write h1 {
   font-size: 36pt;
-  column-span: all;
-  break-before: page;
+  column-span: none;
+  break-before: auto;
 }
 .typora-theme[data-content-theme="typora-torillic"] .typora-write h2 {
   font-size: 28pt;
-  column-span: all;
+  column-span: none;
 }
 .typora-theme[data-content-theme="typora-torillic"] .typora-write h3 {
   font-size: 24pt;
@@ -384,7 +383,7 @@
 /** Blocks **/
 
 .typora-theme[data-content-theme="typora-torillic"] .typora-write .full-width {
-  column-span: all;
+  column-span: none;
 }
 
 .typora-theme[data-content-theme="typora-torillic"] .typora-write blockquote {
@@ -444,15 +443,15 @@
 }
 /* page (can use a blank h1) */
 .typora-theme[data-content-theme="typora-torillic"] .typora-write .break-page-before {
-  break-before: page;
-  column-span: all;
+  break-before: auto;
+  column-span: none;
 }
 .typora-theme[data-content-theme="typora-torillic"] .typora-write .break-page-after {
-  break-after: page;
-  column-span: all;
+  break-after: auto;
+  column-span: none;
 }
 .typora-theme[data-content-theme="typora-torillic"] .typora-write h1:empty {
-  break-before: page;
+  break-before: auto;
   margin: 0;
   line-height: 0;
 }

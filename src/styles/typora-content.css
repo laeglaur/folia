@@ -185,6 +185,35 @@ body[data-content-theme="typora-everforest-dark"] {
   --floating-card-mode-background: var(--overlay-background);
 }
 
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc {
+  column-count: 2;
+  column-gap: 0.5cm;
+  column-width: 8cm;
+}
+
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc > h1,
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc > h2,
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc > h3,
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc > h4,
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc > h5,
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc > h6,
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc > pre,
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc > table,
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc > .tableWrapper,
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc > [data-type="block-math"],
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc > .md-math-block,
+.typora-theme[data-content-theme="typora-torillic"] .typora-block-doc > .annotated-image {
+  column-span: all;
+}
+
+@media (max-width: 980px) {
+  .typora-theme[data-content-theme="typora-torillic"] .typora-block-doc {
+    column-count: 1;
+    column-gap: 0;
+    column-width: auto;
+  }
+}
+
 .typora-theme[data-content-theme="typora-folio"] {
   --typora-shell-bg: var(--folio-bg, color-mix(in srgb, var(--folio-paper, var(--bg-color)) 86%, var(--text-color, #000) 14%));
   --block-surface-border: 1px solid var(--folio-border, color-mix(in srgb, var(--text-color, #000) 16%, transparent));

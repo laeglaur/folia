@@ -512,7 +512,8 @@ mark {
   background-color: var(--ravel-highlight-color);
 }
 
-button {
+button.md-table-more,
+.ty-table-edit button {
   background-color: var(--ravel-accent-color);
   color: var(--bg-color);
   font-size: 0.9em;

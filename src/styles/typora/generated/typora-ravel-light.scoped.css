@@ -493,7 +493,8 @@
   background-color: var(--ravel-highlight-color);
 }
 
-.typora-theme[data-content-theme="typora-ravel-light"] .typora-write button {
+.typora-theme[data-content-theme="typora-ravel-light"] .typora-write button.md-table-more,
+.typora-theme[data-content-theme="typora-ravel-light"] .typora-write .ty-table-edit button {
   background-color: var(--ravel-accent-color);
   color: var(--bg-color);
   font-size: 0.9em;

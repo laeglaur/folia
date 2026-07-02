@@ -1634,6 +1634,49 @@ export function App() {
     setState((current) => applyPageDocumentToViewState(current, page, blocks, operation, isTauri()));
   };
 
+  const unpinPinnedBlock = async (blockId: string) => {
+    if (!isTauri()) {
+      toggleBlock(blockId, 'pinned');
+      return;
+    }
+    const pinnedPayload = pinnedBlockPayloads.find((payload) => payload.block.id === blockId);
+    const pageId = pinnedPayload?.page.id ?? pinnedPayload?.block.pageId;
+    if (!pageId) return;
+    const updatedAt = new Date().toISOString();
+    const operation = createOperation({
+      entity: 'block',
+      entityId: blockId,
+      kind: 'block.toggle_pinned',
+      payload: { key: 'pinned' }
+    });
+    try {
+      cancelPageDocumentSaves([pageId]);
+      const document = await loadPageDocument(pageId);
+      if (!document) {
+        setPinnedBlockPayloads((current) => current.filter((payload) => payload.block.id !== blockId));
+        return;
+      }
+      const nextBlocks = document.content.blocks.map((block) =>
+        block.id === blockId ? { ...block, pinned: false, updatedAt } : block
+      );
+      const nextPage = { ...document.page, updatedAt };
+      if (nextPage.id === stateRef.current.activePageId) {
+        applyPageDocumentToView(nextPage, nextBlocks, operation);
+      } else {
+        setState((current) => ({
+          ...current,
+          pages: current.pages.map((page) => (page.id === nextPage.id ? nextPage : page)),
+          operations: [...current.operations, operation]
+        }));
+      }
+      setPinnedBlockPayloads((current) => current.filter((payload) => payload.block.id !== blockId));
+      persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
+    } catch (error) {
+      console.warn('Could not unpin pinned block.', error);
+      setPinnedBlockPayloads(await listPinnedBlocks());
+    }
+  };
+
   const scrollWorkspaceTargetIntoView = (target: Element | Range, block: ScrollLogicalPosition = 'center') => {
     const anchorElement = target instanceof Range
       ? target.commonAncestorContainer.parentElement
@@ -3577,6 +3620,7 @@ export function App() {
     roundPinnedCards,
     glowPinnedCards,
     onOpenPinnedWindow: (blockId: string) => void openPinnedWindow(blockId),
+    onUnpinBlock: (blockId: string) => void unpinPinnedBlock(blockId),
     onCloseFloatingCard: () => setState((current) => applyOpenCardBlockToViewState(current, null)),
     onSelectPage: (pageId: string) => selectPage(pageId),
     onSidebarViewChange: setTyporaSidebarView,

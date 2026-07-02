@@ -823,8 +823,9 @@ footer.ty-footer {
 /* BUTTONS AND INPUTS                          */
 /* ============================================ */
 
-button,
-.btn {
+.btn,
+.ty-table-edit button,
+#md-searchpanel button {
   border: 0;
   background-color: var(--button-color);
   color: var(--text-color1);
@@ -834,14 +835,19 @@ button,
   box-shadow: 0 1px 3px rgba(16, 15, 15, 0.08);
 }
 
-button:hover,
-.btn:hover {
+.btn:hover,
+.ty-table-edit button:hover,
+#md-searchpanel button:hover {
   background-color: var(--hover-bg-color2);
   box-shadow: 0 2px 6px rgba(16, 15, 15, 0.12);
 }
 
-input,
-select {
+#md-searchpanel input,
+#md-searchpanel select,
+.megamenu-content input,
+.megamenu-content select,
+.ty-preferences input,
+.ty-preferences select {
   background-color: var(--input-color);
   border: 1px solid var(--flexoki-200);
   border-radius: 4px;
@@ -850,8 +856,12 @@ select {
   transition: all 0.2s ease;
 }
 
-input:focus,
-select:focus {
+#md-searchpanel input:focus,
+#md-searchpanel select:focus,
+.megamenu-content input:focus,
+.megamenu-content select:focus,
+.ty-preferences input:focus,
+.ty-preferences select:focus {
   outline: none;
   border-color: var(--focus-color);
   box-shadow: 0 0 0 3px rgba(32, 94, 166, 0.1);

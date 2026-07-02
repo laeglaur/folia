@@ -28,6 +28,12 @@ type ShellThemeOption = {
   label: string;
 };
 
+type PinnedCardMenuState = {
+  blockId: string;
+  x: number;
+  y: number;
+};
+
 export type PageThumbnailItem = {
   pageId: string;
   title: string;
@@ -246,14 +252,34 @@ function FishDesk({ fishIconUrl, controls }: { fishIconUrl: string; controls: Sh
 function PinnedCards({
   pinnedBlocks,
   onOpenPinnedWindow,
+  onUnpinBlock,
   className = 'desktop-preview',
   cardClassName = 'desktop-card'
 }: {
   pinnedBlocks: Block[];
   onOpenPinnedWindow: (blockId: string) => void;
+  onUnpinBlock: (blockId: string) => void;
   className?: string;
   cardClassName?: string;
 }) {
+  const [menu, setMenu] = useState<PinnedCardMenuState | null>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', close);
+    return () => {
+      window.removeEventListener('pointerdown', close);
+      window.removeEventListener('keydown', close);
+    };
+  }, [menu]);
+
+  useEffect(() => {
+    if (!menu) return;
+    if (!pinnedBlocks.some((block) => block.id === menu.blockId)) setMenu(null);
+  }, [menu, pinnedBlocks]);
+
   return (
     <div className={className}>
       {pinnedBlocks.length ? pinnedBlocks.map((block) => (
@@ -262,27 +288,52 @@ function PinnedCards({
           key={block.id}
           type="button"
           onClick={() => onOpenPinnedWindow(block.id)}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            setMenu({ blockId: block.id, x: event.clientX, y: event.clientY });
+          }}
         >
           <div dangerouslySetInnerHTML={{ __html: renderAnnotatedImagesInHtml(block.content.html) }} />
         </button>
       )) : <p className="muted">Pin blocks to keep them close.</p>}
+      {menu ? (
+        <div
+          className="emoji-context-menu pinned-context-menu"
+          style={{ left: menu.x, top: menu.y }}
+          role="menu"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onUnpinBlock(menu.blockId);
+              setMenu(null);
+            }}
+          >
+            Unpin
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function SidebarPins({
   pinnedBlocks,
-  onOpenPinnedWindow
+  onOpenPinnedWindow,
+  onUnpinBlock
 }: {
   pinnedBlocks: Block[];
   onOpenPinnedWindow: (blockId: string) => void;
+  onUnpinBlock: (blockId: string) => void;
 }) {
   return (
     <section className="sidebar-section pinned-sidebar-section">
       <div className="section-row">
         <div className="section-label">Pinned</div>
       </div>
-      <PinnedCards pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} className="sidebar-pin-list" cardClassName="sidebar-pin-card" />
+      <PinnedCards pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} onUnpinBlock={onUnpinBlock} className="sidebar-pin-list" cardClassName="sidebar-pin-card" />
     </section>
   );
 }
@@ -660,6 +711,7 @@ type BaseShellProps = {
   roundPinnedCards: boolean;
   glowPinnedCards: boolean;
   onOpenPinnedWindow: (blockId: string) => void;
+  onUnpinBlock: (blockId: string) => void;
   onCloseFloatingCard: () => void;
   onRootPageDrop: (pageId: string) => void;
   onAddPage: () => void;
@@ -850,6 +902,7 @@ export function NativeShell({
   roundPinnedCards,
   glowPinnedCards,
   onOpenPinnedWindow,
+  onUnpinBlock,
   onCloseFloatingCard,
   onRootPageDrop,
   onAddPage,
@@ -899,7 +952,7 @@ export function NativeShell({
           </div>
         </section>
 
-        <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} />
+        <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} onUnpinBlock={onUnpinBlock} />
       </aside>
 
       <main className="workspace">
@@ -952,6 +1005,7 @@ export function TyporaShell({
   roundPinnedCards,
   glowPinnedCards,
   onOpenPinnedWindow,
+  onUnpinBlock,
   onCloseFloatingCard,
   onRootPageDrop,
   onAddPage,
@@ -1015,7 +1069,7 @@ export function TyporaShell({
               {typoraFileTree}
             </div>
 
-            <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} />
+            <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} onUnpinBlock={onUnpinBlock} />
           </section>
           <section className={`typora-sidebar-pane is-thumbnail-pane ${sidebarView === 'thumbnails' ? 'is-active' : ''}`}>
             <div className="typora-sidebar-section-header">

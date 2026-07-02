@@ -648,8 +648,8 @@
 /* BUTTONS AND INPUTS                          */
 /* ============================================ */
 
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write button,
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .btn {
+.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .btn,
+.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .ty-table-edit button {
   border: 0;
   background-color: var(--button-color);
   color: var(--text-color1);
@@ -659,14 +659,14 @@
   box-shadow: 0 1px 3px rgba(16, 15, 15, 0.08);
 }
 
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write button:hover,
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .btn:hover {
+.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .btn:hover,
+.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .ty-table-edit button:hover {
   background-color: var(--hover-bg-color2);
   box-shadow: 0 2px 6px rgba(16, 15, 15, 0.12);
 }
 
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write input,
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write select {
+.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .ty-preferences input,
+.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .ty-preferences select {
   background-color: var(--input-color);
   border: 1px solid var(--flexoki-200);
   border-radius: 4px;
@@ -675,8 +675,8 @@
   transition: all 0.2s ease;
 }
 
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write input:focus,
-.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write select:focus {
+.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .ty-preferences input:focus,
+.typora-theme[data-content-theme="typora-flexoki-light"] .typora-write .ty-preferences select:focus {
   outline: none;
   border-color: var(--focus-color);
   box-shadow: 0 0 0 3px rgba(32, 94, 166, 0.1);

@@ -178,10 +178,9 @@ nav a.current {
   transform-style: preserve-3d;
   background-image: url("assets/paper-texture.png");
   background-color: var(--offwhite);
-  /* Add columns */
-  column-count: 2;
-  column-gap: 0.5cm;
-  column-width: 8cm;
+  column-count: 1;
+  column-gap: 0;
+  column-width: auto;
 }
 .torillic-page:first-child, /* generic HTML */
 .torillic-page > *:first-child,
@@ -234,12 +233,12 @@ h1, h2, h3, h4 {
 /* Each heading */
 h1 {
   font-size: 36pt;
-  column-span: all;
-  break-before: page;
+  column-span: none;
+  break-before: auto;
 }
 h2 {
   font-size: 28pt;
-  column-span: all;
+  column-span: none;
 }
 h3 {
   font-size: 24pt;
@@ -359,7 +358,7 @@ td, th {
 /** Blocks **/
 
 .full-width {
-  column-span: all;
+  column-span: none;
 }
 
 blockquote {
@@ -419,15 +418,15 @@ h3:empty + * {
 }
 /* page (can use a blank h1) */
 .break-page-before {
-  break-before: page;
-  column-span: all;
+  break-before: auto;
+  column-span: none;
 }
 .break-page-after {
-  break-after: page;
-  column-span: all;
+  break-after: auto;
+  column-span: none;
 }
 h1:empty {
-  break-before: page;
+  break-before: auto;
   margin: 0;
   line-height: 0;
 }

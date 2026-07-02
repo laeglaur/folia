@@ -738,20 +738,6 @@
   font-size: calc(1 * var(--typora-root-font-size, 16px)) !important;
 }
 
-/* Blockquote — vertical center alignment fix */
-.typora-theme[data-content-theme="typora-everforest-light"] .typora-write blockquote {
-  display: flex;
-  align-items: center;
-  min-height: 3em;
-  line-height: 1.6;
-  box-sizing: border-box;
-}
-
-.typora-theme[data-content-theme="typora-everforest-light"] .typora-write blockquote > p,
-.typora-theme[data-content-theme="typora-everforest-light"] .typora-write blockquote > :not(blockquote) {
-  margin: 0;
-}
-
 /* ==== Export View & Print Background ==== */
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write,
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write body {
