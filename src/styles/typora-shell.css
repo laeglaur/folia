@@ -580,7 +580,8 @@
 
 .typora-app-shell[data-shell="typora-garden"] .typora-workspace {
   height: calc(100vh - 44px);
-  padding: 0;
+  padding: 0 14px 0 0;
+  scrollbar-gutter: stable;
 }
 
 .typora-app-shell[data-shell="typora-garden"] .page-surface {

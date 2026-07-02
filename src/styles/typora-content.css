@@ -173,16 +173,42 @@ body[data-content-theme="typora-everforest-dark"] {
   --overlay-selected-background: color-mix(in srgb, var(--red, var(--theme-accent)) 14%, var(--overlay-background));
   --input-background: color-mix(in srgb, var(--offwhite, var(--bg-color, var(--theme-surface-solid))) 82%, transparent);
   --typora-shell-bg: var(--bg-color, var(--theme-bg));
-  --block-surface-border: 1px solid color-mix(in srgb, var(--yellow, var(--text-color, var(--theme-ink))) 46%, transparent);
+  --block-surface-border: 1px solid color-mix(in srgb, var(--yellow, var(--text-color, var(--theme-ink))) 30%, rgba(0, 0, 0, 0.08));
   --block-surface-background: var(--offwhite, var(--bg-color, var(--theme-surface-solid)));
   --block-surface-background-image: url("/typora-assets/typora-torillic/assets/paper-texture.png");
   --block-surface-shadow:
-    inset 0 0 0.1cm 0.02cm rgba(0, 0, 0, 0.08),
-    0 12px 24px rgba(0, 0, 0, 0.24);
+    inset 0 0 0.1cm 0.04cm rgba(0, 0, 0, 0.1),
+    0.42cm 0.42cm 0.55cm 0.12cm rgba(0, 0, 0, 0.42);
+  --composer-card-border: var(--block-surface-border);
+  --composer-card-radius: 0;
+  --composer-card-background: var(--block-surface-background);
+  --composer-card-background-image: var(--block-surface-background-image);
+  --composer-card-shadow: var(--block-surface-shadow);
   --desktop-card-background: var(--overlay-background);
   --floating-card-background: var(--overlay-background);
   --floating-card-body-background: var(--overlay-background);
   --floating-card-mode-background: var(--overlay-background);
+}
+
+.typora-app-shell.typora-theme[data-content-theme="typora-torillic"] .typora-write .block,
+.typora-app-shell.typora-theme[data-content-theme="typora-torillic"] .typora-write .block:hover,
+.typora-app-shell.typora-theme[data-content-theme="typora-torillic"] .typora-write .block:focus-within,
+.typora-app-shell.typora-theme[data-content-theme="typora-torillic"] .typora-write.show-block-borders .block,
+.typora-app-shell.typora-theme[data-content-theme="typora-torillic"] .typora-write.show-block-borders .block:hover,
+.typora-app-shell.typora-theme[data-content-theme="typora-torillic"] .typora-write.show-block-borders .block:focus-within {
+  border: var(--block-surface-border);
+  border-radius: 0;
+  background: var(--block-surface-background);
+  background-image: var(--block-surface-background-image);
+  box-shadow: var(--block-surface-shadow);
+}
+
+.typora-app-shell.typora-theme[data-content-theme="typora-torillic"] .composer-card {
+  border: var(--composer-card-border);
+  border-radius: 0;
+  background: var(--composer-card-background);
+  background-image: var(--composer-card-background-image);
+  box-shadow: var(--composer-card-shadow);
 }
 
 .typora-theme[data-content-theme="typora-torillic"] .typora-block-doc {
@@ -628,6 +654,11 @@ body[data-content-theme="typora-everforest-dark"] {
 
 .typora-theme[data-shell="typora-garden"][data-content-theme^="typora-"] {
   --block-surface-border: 1px dashed color-mix(in srgb, var(--text-color, var(--theme-ink)) 24%, transparent);
+  --composer-card-border: var(--block-surface-border);
+}
+
+.typora-theme[data-shell="typora-garden"][data-content-theme="typora-torillic"] {
+  --block-surface-border: 1px solid color-mix(in srgb, var(--yellow, var(--text-color, var(--theme-ink))) 30%, rgba(0, 0, 0, 0.08));
   --composer-card-border: var(--block-surface-border);
 }
 
