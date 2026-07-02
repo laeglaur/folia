@@ -572,6 +572,8 @@ function ImageNodeView({ node, selected }: NodeViewProps) {
       data-asset-id={node.attrs.assetId ?? undefined}
       data-original-src={node.attrs.originalSrc ?? undefined}
       data-image-annotations={node.attrs.annotations ?? undefined}
+      data-width={node.attrs.width ?? undefined}
+      data-indent={node.attrs.mediaIndent ? String(node.attrs.mediaIndent) : undefined}
       tabIndex={0}
     />
   );
@@ -2398,7 +2400,7 @@ function RichEditor({
   const handleMediaKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab') return;
     const target = event.target as HTMLElement | null;
-    const media = target?.closest(mediaSelector);
+    const media = target?.closest<HTMLElement>('.annotated-image') ?? target?.closest(mediaSelector);
     const activeEditor = editorHolderRef.current;
     if (media instanceof HTMLElement && activeEditor) {
       const found = findMediaNodePosition(activeEditor, media);

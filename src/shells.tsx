@@ -624,12 +624,12 @@ function FloatingCardWindow({
   const previewLabel = preview ? `${preview.slice(0, 72)}${preview.length > 72 ? '...' : ''}` : '';
   return (
     <div className={`floating-card-window ${roundPinnedCards ? 'is-rounded' : 'is-square'} ${glowPinnedCards ? 'has-glow' : ''} ${collapsed ? 'is-collapsed' : ''}`}>
-      <div className="floating-card-head">
-        <button className="floating-card-title" type="button" onClick={() => setCollapsed((value) => !value)} aria-expanded={!collapsed}>
+      <div className="floating-card-head" onDoubleClick={() => setCollapsed((value) => !value)}>
+        <button className="floating-card-title" type="button" aria-expanded={!collapsed} tabIndex={-1}>
           {dateLabel}
         </button>
         {collapsed && previewLabel ? <span className="floating-card-preview">{previewLabel}</span> : null}
-        <button type="button" onClick={onClose} aria-label="Close pinned card">×</button>
+        <button type="button" onDoubleClick={(event) => event.stopPropagation()} onClick={onClose} aria-label="Close pinned card">×</button>
       </div>
       {!collapsed ? <div className="floating-card-body" dangerouslySetInnerHTML={{ __html: renderAnnotatedImagesInHtml(block.content.html) }} /> : null}
     </div>
@@ -1083,7 +1083,7 @@ export function CardWindowPage({
 
   return (
     <main className={`card-window-page typora-theme ${roundPinnedCards ? 'is-rounded' : 'is-square'} ${glowPinnedCards ? 'has-glow' : ''} ${collapsed ? 'is-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
-      <header className="card-window-grip" aria-label="Pinned card controls" onMouseDown={(event) => {
+      <header className="card-window-grip" aria-label="Pinned card controls" onDoubleClick={() => setCollapsed((value) => !value)} onMouseDown={(event) => {
         const target = event.target as HTMLElement | null;
         if (target?.closest('button, a, input, textarea, select')) return;
         event.stopPropagation();
@@ -1092,14 +1092,17 @@ export function CardWindowPage({
         <button
           className="card-window-title"
           type="button"
-          onMouseDown={(event) => event.stopPropagation()}
-          onClick={(event) => { event.stopPropagation(); setCollapsed((value) => !value); }}
+          onMouseDown={(event) => {
+            event.stopPropagation();
+            onDrag(event);
+          }}
           aria-expanded={!collapsed}
+          tabIndex={-1}
         >
           {dateLabel}
         </button>
         {collapsed && previewLabel ? <span className="floating-card-preview">{previewLabel}</span> : null}
-        <button type="button" onMouseDown={(event) => event.stopPropagation()} onClick={onClose} aria-label="Close pinned card">×</button>
+        <button type="button" onMouseDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onClick={onClose} aria-label="Close pinned card">×</button>
       </header>
       {!collapsed ? <div className="floating-card-body card-mode">
         <RichEditor
@@ -1110,6 +1113,11 @@ export function CardWindowPage({
           onSelectionUpdate={onSelectionUpdate}
           onUpdate={onUpdate}
           onBlur={onBlur}
+          onShiftEnter={(editor) => {
+            onBlur(editor.getHTML(), editor.getText());
+            editor.commands.blur();
+            return true;
+          }}
           onMoveBlock={() => false}
           onMediaResizeStart={onMediaResizeStart}
           onImageAnnotate={(request) => onImageAnnotate({ ...request, target: { kind: 'card', blockId: block.id } })}

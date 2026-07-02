@@ -270,6 +270,11 @@ function BlockItem({
             onMathClose={onMathClose}
             onMoveBlock={(direction) => onMoveBlock(block.id, direction)}
             onDeleteBlock={() => onDeleteBlock(block.id)}
+            onShiftEnter={(editor) => {
+              onUpdateBlock(block.id, editor.getHTML(), editor.getText());
+              editor.commands.blur();
+              return true;
+            }}
             onBlur={(html, plainText) => onUpdateBlock(block.id, html, plainText)}
           />
         ) : (
