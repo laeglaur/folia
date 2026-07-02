@@ -398,13 +398,12 @@ export function App() {
 
   useEffect(() => {
     const handleSidebarShortcuts = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) return;
       if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
       if (event.key !== '[' && event.key !== ']') return;
       const activeElement = document.activeElement as HTMLElement | null;
-      if (activeElement?.closest('input, textarea, select, [contenteditable="true"], .ProseMirror')) return;
+      if (activeElement?.closest('input, textarea, select')) return;
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
       if (event.key === '[') setSidebarCollapsed((collapsed) => !collapsed);
       if (event.key === ']') setOutlineDrawerOpen((open) => !open);
     };

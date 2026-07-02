@@ -3319,23 +3319,23 @@ body.notebook-table-column-resizing * {
   margin-top: 0;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 760px) {
   .app-shell[data-shell="native-garden"] { grid-template-columns: minmax(0, 1fr) var(--layout-right-panel-width); }
   .app-shell[data-shell="native-garden"] .sidebar { display: none; }
 }
 
 @media (max-width: 960px) {
-  .app-shell[data-shell="native-garden"] { grid-template-columns: minmax(0, 1fr); }
+  .app-shell[data-shell="native-garden"] { grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr); }
   .app-shell[data-shell="native-garden"] .right-panel { display: none; }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 760px) {
   .app-shell[data-shell="native-ledger"] { grid-template-columns: minmax(0, 1fr) var(--layout-right-panel-width); }
   .app-shell[data-shell="native-ledger"] .sidebar { display: none; }
 }
 
 @media (max-width: 960px) {
-  .app-shell[data-shell="native-ledger"] { grid-template-columns: minmax(0, 1fr); }
+  .app-shell[data-shell="native-ledger"] { grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr); }
   .app-shell[data-shell="native-ledger"] .right-panel { display: none; }
 }
 
