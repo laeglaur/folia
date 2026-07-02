@@ -894,16 +894,180 @@ const mediaHtmlForUrl = (url: string, label = '') => {
 const markdownishText = (value: string) =>
   /(^|\n)\s{0,3}(#{1,6}\s|[-*+]\s+|\d+\.\s+|>\s|\[[ xX]\]\s|【】\s)|```|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|==[^=]+==|\[[^\]]+\]\([^)]+\)/.test(value);
 
+const normalizeEscapedNbsp = (value: string) =>
+  value.replace(/&(?:amp;)?nbsp;?/gi, ' ').replace(/\u00a0/g, ' ');
+
+const stripEmptyCodeBlockArtifacts = (value: string) => {
+  const normalized = normalizeEscapedNbsp(value).replace(/\r\n?/g, '\n');
+  const lines = normalized.split('\n');
+  const result: string[] = [];
+
+  for (let index = 0; index < lines.length;) {
+    const line = lines[index] ?? '';
+    if (!/^[^\S\n]*```/.test(line)) {
+      result.push(line);
+      index += 1;
+      continue;
+    }
+
+    const blockStart = index;
+    index += 1;
+    const body: string[] = [];
+    while (index < lines.length && !/^[^\S\n]*```[^\S\n]*$/.test(lines[index] ?? '')) {
+      body.push(lines[index] ?? '');
+      index += 1;
+    }
+    const hasClosingFence = index < lines.length;
+    if (hasClosingFence) index += 1;
+
+    const bodyText = body.join('\n').trim();
+    if (bodyText.toLowerCase() === 'empty code block') continue;
+    result.push(...lines.slice(blockStart, index));
+  }
+
+  return result.join('\n');
+};
+
+const normalizePastedText = (value: string) => stripEmptyCodeBlockArtifacts(value);
+
 const markdownToRichHtml = (value: string) => {
-  const withHighlights = value.replace(/==([^=\n][\s\S]*?[^=\n])==/g, '<mark>$1</mark>');
+  const withHighlights = normalizePastedText(value).replace(/==([^=\n][\s\S]*?[^=\n])==/g, '<mark>$1</mark>');
   return marked.parse(withHighlights, { async: false }) as string;
 };
 
 const pastedGreenHighlightMaxChars = 240;
 const pastedGreenHighlightMaxElements = 3;
 
+const codeLikeText = (value: string) =>
+  normalizeEscapedNbsp(value)
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .filter((line) => !/^\s*(copy code|复制代码)\s*$/i.test(line))
+    .join('\n')
+    .replace(/^\n+|\n+$/g, '');
+
+const pastedElementText = (element: Element) =>
+  normalizeEscapedNbsp(element.textContent ?? '').replace(/\s+/g, ' ').trim();
+
+const isPastedCopyControl = (element: Element) => {
+  const text = pastedElementText(element).toLowerCase();
+  const ariaLabel = normalizeEscapedNbsp(element.getAttribute('aria-label') ?? '').toLowerCase();
+  const testId = normalizeEscapedNbsp(element.getAttribute('data-testid') ?? '').toLowerCase();
+  return text === 'copy code' ||
+    text === '复制代码' ||
+    ariaLabel === 'copy code' ||
+    ariaLabel === '复制代码' ||
+    testId.includes('copy');
+};
+
+const replaceWithNormalizedPre = (element: HTMLElement, text: string) => {
+  const doc = element.ownerDocument;
+  const pre = doc.createElement('pre');
+  const code = doc.createElement('code');
+  code.textContent = text;
+  pre.appendChild(code);
+  element.replaceWith(pre);
+};
+
+const pastedCodeContainerPattern = /(code|hljs|language-|overflow-[xy]-auto|whitespace-pre|contain-inline-size|not-prose|rounded-md)/i;
+
+const findPastedCodeContainer = (pre: HTMLElement) => {
+  let candidate: HTMLElement | null = null;
+  let element = pre.parentElement;
+
+  while (element && element !== pre.ownerDocument.body) {
+    const className = typeof element.className === 'string' ? element.className : '';
+    const testId = element.getAttribute('data-testid') ?? '';
+    const hasSinglePre = element.querySelectorAll('pre').length === 1;
+    const hasCopyControl = Array.from(element.querySelectorAll('button, [role="button"], [aria-label], [data-testid], p, div, span'))
+      .some((child) => child !== pre && !pre.contains(child) && isPastedCopyControl(child));
+    const looksLikeCodeContainer =
+      testId.toLowerCase().includes('code') ||
+      pastedCodeContainerPattern.test(className) ||
+      hasCopyControl;
+
+    if (hasSinglePre && looksLikeCodeContainer) candidate = element;
+    element = element.parentElement;
+  }
+
+  return candidate;
+};
+
+const normalizePastedCodeBlocks = (doc: Document) => {
+  doc.querySelectorAll('.code-block-summary, .code-fold-button').forEach((element) => element.remove());
+  doc.querySelectorAll('button, [role="button"], [aria-label], [data-testid*="copy" i]').forEach((element) => {
+    if (isPastedCopyControl(element)) element.remove();
+  });
+
+  doc.querySelectorAll<HTMLElement>('pre').forEach((pre) => {
+    const codeElements = Array.from(pre.querySelectorAll<HTMLElement>('code'));
+    const text = codeLikeText(
+      codeElements.length
+        ? codeElements.map((code) => code.innerText || code.textContent || '').join('\n')
+        : pre.innerText || pre.textContent || ''
+    );
+    if (!text || text.trim().toLowerCase() === 'empty code block') {
+      pre.remove();
+      return;
+    }
+
+    const code = doc.createElement('code');
+    code.textContent = text;
+    pre.replaceChildren(code);
+  });
+
+  Array.from(doc.querySelectorAll<HTMLElement>('pre')).forEach((pre) => {
+    const container = findPastedCodeContainer(pre);
+    if (container && container !== pre) container.replaceWith(pre);
+  });
+
+  doc.querySelectorAll<HTMLElement>('p, div, span').forEach((element) => {
+    if (!isPastedCopyControl(element)) return;
+    if (element.previousElementSibling?.tagName.toLowerCase() === 'pre' || element.nextElementSibling?.tagName.toLowerCase() === 'pre') {
+      element.remove();
+    }
+  });
+
+  doc.querySelectorAll<HTMLElement>('code').forEach((code) => {
+    if (code.closest('pre')) return;
+    const text = codeLikeText(code.innerText || code.textContent || '');
+    if (!text.includes('\n') && !/[├└│─]|--->/.test(text)) return;
+    replaceWithNormalizedPre(code, text);
+  });
+
+  doc.querySelectorAll<HTMLElement>('[class*="language-"], [class*="hljs"], [class*="whitespace-pre"], [class*="overflow-x-auto"]').forEach((element) => {
+    if (element.closest('pre')) return;
+    if (element.querySelector('pre')) return;
+    const text = codeLikeText(element.innerText || element.textContent || '');
+    if (!text || (!text.includes('\n') && !/[├└│─]|--->/.test(text))) return;
+    replaceWithNormalizedPre(element, text);
+  });
+};
+
 const normalizePastedHtml = (html: string) => {
   const doc = new DOMParser().parseFromString(html, 'text/html');
+  normalizePastedCodeBlocks(doc);
+  doc.querySelectorAll<HTMLElement>('p, div, span').forEach((element) => {
+    const text = normalizeEscapedNbsp(element.textContent ?? '').replace(/\s+/g, ' ').trim();
+    if (text.toLowerCase() !== 'empty code block') return;
+    if (element.previousElementSibling?.tagName.toLowerCase() === 'pre' || element.nextElementSibling?.tagName.toLowerCase() === 'pre') {
+      element.remove();
+    }
+  });
+  doc.querySelectorAll('mjx-container, math, .MathJax, .katex').forEach((element) => {
+    if (!(element instanceof HTMLElement) || element.closest('[data-type="inline-math"], [data-type="block-math"]')) return;
+    element.replaceWith(doc.createTextNode(normalizeEscapedNbsp(element.textContent ?? '')));
+  });
+  const textWalker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  while (textWalker.nextNode()) {
+    const node = textWalker.currentNode;
+    if (node instanceof Text) textNodes.push(node);
+  }
+  textNodes.forEach((node) => {
+    const nextValue = normalizeEscapedNbsp(node.nodeValue ?? '');
+    if (nextValue !== node.nodeValue) node.nodeValue = nextValue;
+  });
   const inlineElements = Array.from(doc.querySelectorAll<HTMLElement>('span, font'));
   const sourceStyleElements = inlineElements.filter((element) => !isSemanticPastedSpan(element));
   const greenElements = sourceStyleElements.filter((element) => pastedElementIsGreen(element));
@@ -1327,7 +1491,7 @@ const isSelectionInsideListItem = (editor: Editor) => selectionHasAncestorNode(e
 const htmlToPlainText = (html: string) => {
   const container = document.createElement('div');
   container.innerHTML = html;
-  return container.innerText.replace(/\r\n?/g, '\n');
+  return normalizePastedText(container.innerText.replace(/\r\n?/g, '\n'));
 };
 
 const insertPlainTextPreservingBreaks = (editor: Editor, text: string) => {
@@ -1367,8 +1531,8 @@ const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
   }
 
   const html = clipboard.getData('text/html');
-  const markdown = clipboard.getData('text/markdown') || clipboard.getData('text/x-markdown');
-  const text = clipboard.getData('text/plain');
+  const markdown = normalizePastedText(clipboard.getData('text/markdown') || clipboard.getData('text/x-markdown'));
+  const text = normalizePastedText(clipboard.getData('text/plain'));
 
   // Keep code blocks plain-text only so pasted code cannot escape into neighboring nodes.
   if (insideCodeBlock) {
@@ -1452,6 +1616,7 @@ const handleRichCopy = (editor: Editor | null, event: ClipboardEvent) => {
   } else if (selection && hasDomSelection) {
     container.appendChild(selection.getRangeAt(0).cloneContents());
   }
+  container.querySelectorAll('.code-block-summary, .code-fold-button').forEach((element) => element.remove());
   const listItems = Array.from(container.children).filter((child): child is HTMLLIElement => child instanceof HTMLLIElement);
   if (listItems.length && listItems.length === container.children.length) {
     const anchorNode = selection?.anchorNode ?? null;

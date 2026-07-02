@@ -123,6 +123,38 @@ checks.markdownPasteKeepsStructure = markdownPasteHtml.includes('<strong>bold pa
   markdownPasteHtml.includes('second');
 
 await resetApp();
+const chatgptCodePasteComposer = page.locator('.composer').last();
+await chatgptCodePasteComposer.click();
+await page.evaluate(async () => {
+  await navigator.clipboard.write([
+    new ClipboardItem({
+      'text/html': new Blob([[
+        '<p>Linux 程序运行时，很多函数并不是编译进可执行文件里的，而是来自动态库，例如：</p>',
+        '<div class="overflow-y-auto p-4" data-testid="code-block">',
+        '<div><button>Copy code</button></div>',
+        '<pre><code>main()\n ├── printf()      ---&gt; libc.so\n ├── malloc()      ---&gt; libc.so\n ├── cudaLaunchKernel() ---&gt; libcudart.so\n └── cuLaunchKernel()   ---&gt; libcuda.so</code></pre>',
+        '</div>',
+        '<p>正常情况下：</p>'
+      ].join('')], { type: 'text/html' }),
+      'text/plain': new Blob([[
+        'Linux 程序运行时，很多函数并不是编译进可执行文件里的，而是来自动态库，例如：\n\n',
+        'main()\n ├── printf()      ---> libc.so\n ├── malloc()      ---> libc.so\n ├── cudaLaunchKernel() ---> libcudart.so\n └── cuLaunchKernel()   ---> libcuda.so\n\n',
+        '正常情况下：'
+      ].join('')], { type: 'text/plain' })
+    })
+  ]);
+});
+await page.keyboard.press(`${modKey}+V`);
+const chatgptCodePaste = await chatgptCodePasteComposer.evaluate((node) => ({
+  html: node.innerHTML,
+  pres: [...node.querySelectorAll('pre')].map((pre) => pre.querySelector('code')?.textContent?.trim() ?? pre.textContent?.trim() ?? '')
+}));
+checks.chatgptCodePasteHasSingleNonEmptyCodeBlock = chatgptCodePaste.pres.length === 1 &&
+  chatgptCodePaste.pres[0].includes('cudaLaunchKernel') &&
+  !chatgptCodePaste.html.includes('Copy code') &&
+  !chatgptCodePaste.pres.some((text) => !text || text === 'Empty code block');
+
+await resetApp();
 const assetIdPasteComposer = page.locator('.composer').last();
 await assetIdPasteComposer.click();
 await page.evaluate(async () => {
