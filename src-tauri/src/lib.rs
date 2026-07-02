@@ -2979,6 +2979,15 @@ fn search_pages(
     query: String,
     limit: Option<u32>,
 ) -> Result<Vec<PageSearchResult>, String> {
+    let connection = open_database(&app)?;
+    search_pages_in_database(&connection, &query, limit)
+}
+
+fn search_pages_in_database(
+    connection: &Connection,
+    query: &str,
+    limit: Option<u32>,
+) -> Result<Vec<PageSearchResult>, String> {
     let trimmed = query.trim();
     if trimmed.is_empty() {
         return Ok(vec![]);
@@ -2986,7 +2995,6 @@ fn search_pages(
     let Some(fts_query) = fts_query_from_search_text(trimmed) else {
         return Ok(vec![]);
     };
-    let connection = open_database(&app)?;
     let max_results = i64::from(limit.unwrap_or(30).clamp(1, 100));
     let mut statement = connection
         .prepare(
@@ -2995,17 +3003,23 @@ fn search_pages(
               fts_pages.page_id,
               pages.notebook_id,
               pages.title,
-              snippet(fts_pages, 2, '<mark>', '</mark>', '...', 12)
+              snippet(fts_pages, 2, '<mark>', '</mark>', '...', 12),
+              CASE
+                WHEN lower(pages.title) = lower(?3) THEN 0
+                WHEN lower(pages.title) LIKE lower(?3 || '%') THEN 1
+                WHEN lower(pages.title) LIKE lower('%' || ?3 || '%') THEN 2
+                ELSE 3
+              END AS title_priority
             FROM fts_pages
             JOIN pages ON pages.id = fts_pages.page_id
             WHERE fts_pages MATCH ?1
-            ORDER BY rank
+            ORDER BY title_priority, rank
             LIMIT ?2
             ",
         )
         .map_err(|error| error.to_string())?;
     let rows = statement
-        .query_map(params![fts_query, max_results], |row| {
+        .query_map(params![fts_query, max_results, trimmed], |row| {
             Ok(PageSearchResult {
                 page_id: row.get(0)?,
                 notebook_id: row.get(1)?,
@@ -5343,6 +5357,41 @@ mod tests {
             )
             .expect("fts match count");
         assert_eq!(match_count, 1);
+    }
+
+    #[test]
+    fn search_pages_prioritizes_title_matches() {
+        let connection = Connection::open_in_memory().expect("memory database");
+        initialize_database(&connection).expect("database schema");
+        connection
+            .execute(
+                "INSERT INTO notebooks (id, name, page_ids_json, metadata_json) VALUES ('notebook_search', 'Search', '[]', '{}')",
+                [],
+            )
+            .expect("insert notebook");
+        for (id, title, search_text) in [
+            ("page_body_match", "Distributed notes", "cuda cuda cuda tensor kernels"),
+            ("page_title_match", "CUDA notes", "general gpu notes"),
+        ] {
+            connection
+                .execute(
+                    "
+                    INSERT INTO pages (id, notebook_id, title, block_ids_json, block_order, metadata_json, content_json, search_text)
+                    VALUES (?1, 'notebook_search', ?2, '[]', 'asc', '{}', '{}', ?3)
+                    ",
+                    params![id, title, search_text],
+                )
+                .expect("insert page");
+            connection
+                .execute(
+                    "INSERT INTO fts_pages (page_id, title, search_text, metadata_text) VALUES (?1, ?2, ?3, '')",
+                    params![id, title, search_text],
+                )
+                .expect("insert fts page");
+        }
+
+        let results = search_pages_in_database(&connection, "cuda", Some(10)).expect("search pages");
+        assert_eq!(results.first().map(|result| result.page_id.as_str()), Some("page_title_match"));
     }
 
     #[test]
