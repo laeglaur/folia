@@ -541,6 +541,84 @@
   box-shadow: none;
 }
 
+.typora-app-shell[data-shell="typora-garden"] {
+  --typora-shell-sidebar-width: 252px;
+  --typora-shell-outline-width: 252px;
+  --typora-shell-workspace-padding: 22px 28px 80px;
+  --typora-garden-card-border: var(--panel-border, 1px solid color-mix(in srgb, var(--typora-shell-divider) 80%, transparent));
+  --typora-garden-card-radius: var(--shape-panel-radius, 18px);
+  --typora-garden-card-bg: color-mix(in srgb, var(--typora-shell-panel) 94%, var(--typora-shell-bg) 6%);
+  --typora-garden-card-shadow: var(--floating-layer-shadow, var(--overlay-shadow, 0 14px 32px color-mix(in srgb, black 12%, transparent)));
+  grid-template-columns: var(--typora-shell-sidebar-width) minmax(0, 1fr) 0;
+  gap: var(--layout-shell-gap, 22px);
+  padding: var(--layout-shell-padding, 22px);
+  background: var(--typora-shell-bg);
+}
+
+.typora-app-shell[data-shell="typora-garden"].outline-open {
+  grid-template-columns: var(--typora-shell-sidebar-width) minmax(0, 1fr) var(--typora-shell-outline-width);
+}
+
+.typora-app-shell[data-shell="typora-garden"].sidebar-collapsed {
+  grid-template-columns: 0 minmax(0, 1fr) 0;
+}
+
+.typora-app-shell[data-shell="typora-garden"].sidebar-collapsed.outline-open {
+  grid-template-columns: 0 minmax(0, 1fr) var(--typora-shell-outline-width);
+}
+
+.typora-app-shell[data-shell="typora-garden"] #typora-sidebar {
+  top: var(--layout-sidebar-top, 18px);
+  height: auto;
+  max-height: calc(100vh - var(--layout-sidebar-max-offset, 36px));
+  border: var(--typora-garden-card-border);
+  border-radius: var(--typora-garden-card-radius);
+  background: var(--typora-garden-card-bg);
+  box-shadow: var(--typora-garden-card-shadow);
+  backdrop-filter: var(--panel-backdrop-filter, blur(18px));
+}
+
+.typora-app-shell[data-shell="typora-garden"] .typora-workspace {
+  height: calc(100vh - 44px);
+  padding: 0;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .page-surface {
+  margin-top: 0;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .outline-drawer {
+  position: sticky;
+  top: var(--layout-sidebar-top, 18px);
+  align-self: start;
+  height: auto;
+  max-height: calc(100vh - var(--layout-sidebar-max-offset, 36px));
+  border: var(--typora-garden-card-border);
+  border-radius: var(--typora-garden-card-radius);
+  background: var(--typora-garden-card-bg);
+  box-shadow: var(--typora-garden-card-shadow);
+  backdrop-filter: var(--panel-backdrop-filter, blur(18px));
+}
+
+.typora-app-shell[data-shell="typora-garden"] .outline-drawer-body {
+  max-height: min(58vh, 620px);
+}
+
+.typora-app-shell[data-shell="typora-garden"] .typora-outline-search {
+  display: block;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .typora-outline-search .typora-search-box {
+  width: 100%;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .file-node-actions .duplicate-page-button,
+.typora-app-shell[data-shell="typora-garden"] .file-node-actions .delete-page-button,
+.typora-app-shell[data-shell="typora-garden"] .page-row-actions .duplicate-page-button,
+.typora-app-shell[data-shell="typora-garden"] .page-row-actions .delete-page-button {
+  display: none;
+}
+
 @media (max-width: 1340px) {
   .typora-app-shell {
     --typora-shell-sidebar-width: min(240px, 24vw);

@@ -78,7 +78,7 @@ export const applyShellToViewState = (current: AppState, shell: ShellId): AppSta
 export const applyContentThemeToViewState = (current: AppState, contentTheme: ContentThemeId): AppState => ({
   ...current,
   contentTheme,
-  shell: contentTheme.startsWith('typora-') ? 'typora-base' : current.shell
+  shell: contentTheme.startsWith('typora-') && !current.shell.startsWith('typora-') ? 'typora-base' : current.shell
 });
 
 export const applyActiveNotebookToViewState = (

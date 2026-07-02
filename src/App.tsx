@@ -145,7 +145,8 @@ import { inferNotebookMetadataFieldsForPages, metadataFieldTypeFor, metadataSele
 const shellThemes: Array<{ id: ShellId; label: string }> = [
   { id: 'native-garden', label: 'Native Garden' },
   { id: 'native-ledger', label: 'Native Ledger' },
-  { id: 'typora-base', label: 'Typora Base' }
+  { id: 'typora-base', label: 'Typora Base' },
+  { id: 'typora-garden', label: 'Garden Typora' }
 ];
 
 const fishIconUrl = '/app-assets/blue_red_fish.png';
@@ -927,7 +928,7 @@ export function App() {
   const visibleBlocks = query.trim()
     ? orderedPageBlocks.filter((block) => block.content.plainText.toLowerCase().includes(query.trim().toLowerCase()))
     : orderedPageBlocks;
-  const showBlockDividers = state.shell === 'typora-base';
+  const showBlockDividers = state.shell.startsWith('typora-');
   const metadataFields = useMemo<PageMetadataField[]>(() => {
     if (!state.showPageMetadata) return [];
     const fields: PageMetadataField[] = [];
@@ -3513,7 +3514,7 @@ export function App() {
     trashBusy
   };
 
-  const isTyporaShell = state.shell === 'typora-base';
+  const isTyporaShell = state.shell.startsWith('typora-');
   const pageTree = isTyporaShell ? null : renderPageTree(null);
   const typoraFileTree = isTyporaShell ? renderTyporaFileTree(null) : null;
   const workspaceContent = renderWorkspaceContent();

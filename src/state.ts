@@ -106,7 +106,7 @@ const normalizeTheme = (theme?: string): ThemeId => {
   return 'garden';
 };
 
-const shellIds = new Set<ShellId>(['native-garden', 'native-ledger', 'typora-base']);
+const shellIds = new Set<ShellId>(['native-garden', 'native-ledger', 'typora-base', 'typora-garden']);
 
 const shellFromLegacyState = (theme: ThemeId, contentTheme: ContentThemeId): ShellId => {
   if (contentTheme.startsWith('typora-') && contentTheme !== 'typora-base') return 'typora-base';
@@ -246,7 +246,7 @@ const normalizeState = (state: AppState): AppState => {
       }
     })),
     shell,
-    theme: shell === 'typora-base' ? theme : nativeTheme,
+    theme: shell.startsWith('typora-') ? theme : nativeTheme,
     contentTheme,
     openCardWindowBlockId: state.openCardWindowBlockId ?? null,
     expandedPageIds: state.expandedPageIds ?? state.pages.map((page) => page.id),
@@ -771,7 +771,7 @@ export const loadWorkspacePreferences = async (): Promise<WorkspacePreferencesPa
   const preferences = await invoke<WorkspacePreferencesPayload>('load_workspace_preferences');
   return {
     ...preferences,
-    shell: preferences.shell === 'native-ledger' || preferences.shell === 'typora-base' ? preferences.shell : 'native-garden',
+    shell: shellIds.has(preferences.shell as ShellId) ? preferences.shell : 'native-garden',
     theme: preferences.theme === 'ledger' ? 'ledger' : 'garden',
     contentTheme: contentThemeIds.has(preferences.contentTheme) ? preferences.contentTheme : 'notebook',
     openCardWindowBlockId: preferences.openCardWindowBlockId ?? null,

@@ -597,6 +597,11 @@ body[data-content-theme="typora-everforest-dark"] {
   background: transparent;
 }
 
+.typora-theme[data-shell="typora-garden"][data-content-theme^="typora-"] {
+  --block-surface-border: 1px dashed color-mix(in srgb, var(--text-color, var(--theme-ink)) 24%, transparent);
+  --composer-card-border: var(--block-surface-border);
+}
+
 .typora-theme[data-content-theme^="typora-"] .right-panel,
 .typora-theme[data-content-theme^="typora-"] .right-panel .panel-card,
 .typora-theme[data-content-theme^="typora-"] .right-panel .outline-list,

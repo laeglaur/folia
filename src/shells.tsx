@@ -594,8 +594,8 @@ export function OutlineDrawer({
         <button className="mini-button" type="button" onClick={onClose} aria-label="Close outline">×</button>
       </header>
       <div className="outline-drawer-body">
-        {content}
         {extraContent}
+        {content}
       </div>
     </aside>
   );
@@ -808,6 +808,26 @@ function SearchBox({
   );
 }
 
+const typoraOutlineSearch = (
+  query: string,
+  onQueryChange: (query: string) => void,
+  searchResults: PageSearchResult[],
+  searchLoading: boolean,
+  onSearchResultSelect: (pageId: string) => void
+) => (
+  <section className="typora-desk-search typora-outline-search">
+    <SearchBox
+      query={query}
+      onQueryChange={onQueryChange}
+      searchResults={searchResults}
+      searchLoading={searchLoading}
+      onSearchResultSelect={onSearchResultSelect}
+      placeholder="Search"
+      className="typora-search-box"
+    />
+  </section>
+);
+
 export function NativeShell({
   shell,
   contentTheme,
@@ -943,6 +963,8 @@ export function TyporaShell({
   onJumpToOutlineEntry,
   fishIconUrl
 }: BaseShellProps) {
+  const isGardenTypora = shell === 'typora-garden';
+
   return (
     <div className={`typora-app-shell typora-theme ${outlineOpen ? 'outline-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
       <aside id="typora-sidebar" className="typora-sidebar active-tab-files">
@@ -968,17 +990,7 @@ export function TyporaShell({
         </div>
         <div id="sidebar-content" className="sidebar-content">
           <section className={`typora-sidebar-pane ${sidebarView === 'files' ? 'is-active' : ''}`}>
-            <section className="typora-desk-search">
-              <SearchBox
-                query={query}
-                onQueryChange={onQueryChange}
-                searchResults={searchResults}
-                searchLoading={searchLoading}
-                onSearchResultSelect={onSearchResultSelect}
-                placeholder="Search"
-                className="typora-search-box"
-              />
-            </section>
+            {isGardenTypora ? null : typoraOutlineSearch(query, onQueryChange, searchResults, searchLoading, onSearchResultSelect)}
             <div className="typora-sidebar-section-header">
               <span>Notebooks</span>
               <button className="mini-button" type="button" onClick={notebookActions.addNotebook} aria-label="New notebook"><Plus size={14} /></button>
@@ -1022,6 +1034,7 @@ export function TyporaShell({
       <OutlineDrawer
         open={outlineOpen}
         content={<TyporaOutline entries={outlineEntries} onJump={onJumpToOutlineEntry} />}
+        extraContent={isGardenTypora ? typoraOutlineSearch(query, onQueryChange, searchResults, searchLoading, onSearchResultSelect) : undefined}
         onClose={controls.onOutlineToggle}
       />
 

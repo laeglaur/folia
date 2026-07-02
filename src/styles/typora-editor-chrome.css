@@ -533,6 +533,45 @@
   box-shadow: none;
 }
 
+.typora-app-shell[data-shell="typora-garden"] .page-title-row {
+  padding: 0 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .page-title-row:focus-within {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .block-list {
+  gap: var(--block-list-gap, 9px);
+}
+
+.typora-app-shell[data-shell="typora-garden"] .block,
+.typora-app-shell[data-shell="typora-garden"] .block:hover,
+.typora-app-shell[data-shell="typora-garden"] .block:focus-within,
+.typora-app-shell[data-shell="typora-garden"] .typora-write.show-block-borders .block,
+.typora-app-shell[data-shell="typora-garden"] .typora-write.show-block-borders .block:hover,
+.typora-app-shell[data-shell="typora-garden"] .typora-write.show-block-borders .block:focus-within {
+  border: var(--block-surface-border);
+  background: var(--block-surface-background);
+  background-image: var(--block-surface-background-image, none);
+  box-shadow: var(--block-surface-shadow);
+}
+
+.typora-app-shell[data-shell="typora-garden"] .block-divider {
+  display: none;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .composer-card + .block-divider + .block-list,
+.typora-app-shell[data-shell="typora-garden"] .composer-card + .block-list {
+  margin-top: var(--block-list-gap, 9px);
+}
+
 @media (max-width: 900px) {
   .typora-app-shell {
     --typora-editor-page-padding: 4px 0 72px;
