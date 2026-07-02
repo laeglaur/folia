@@ -1978,7 +1978,7 @@ input, select { color: var(--ink); }
 
 .annotated-image {
   position: relative;
-  display: block;
+  display: table;
   width: fit-content;
   max-width: 100%;
   margin: var(--media-margin);
@@ -1990,6 +1990,23 @@ input, select { color: var(--ink); }
   max-width: 100%;
   height: auto;
   margin: 0 !important;
+}
+
+.annotated-image > img:focus {
+  outline: 0;
+}
+
+.annotated-image.ProseMirror-selectednode,
+.annotated-image[data-selected="true"] {
+  outline: 0 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.annotated-image.ProseMirror-selectednode > img,
+.annotated-image[data-selected="true"] > img {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 3px !important;
 }
 
 .annotated-image > .image-annotation-svg,
@@ -2005,11 +2022,11 @@ input, select { color: var(--ink); }
   overflow: visible;
 }
 
-.ProseMirror-selectednode,
-.block-content .ProseMirror-selectednode,
-.composer .ProseMirror-selectednode,
-.floating-card-body .ProseMirror-selectednode,
-.desktop-card .ProseMirror-selectednode {
+.ProseMirror-selectednode:not(.annotated-image):not(img):not(video):not(audio):not(iframe),
+.block-content .ProseMirror-selectednode:not(.annotated-image):not(img):not(video):not(audio):not(iframe),
+.composer .ProseMirror-selectednode:not(.annotated-image):not(img):not(video):not(audio):not(iframe),
+.floating-card-body .ProseMirror-selectednode:not(.annotated-image):not(img):not(video):not(audio):not(iframe),
+.desktop-card .ProseMirror-selectednode:not(.annotated-image):not(img):not(video):not(audio):not(iframe) {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: max(4px, var(--media-radius));

@@ -578,7 +578,8 @@ function ImageNodeView({ node, selected }: NodeViewProps) {
   return (
     <NodeViewWrapper
       as="span"
-      className={`annotated-image ${selected ? 'ProseMirror-selectednode' : ''}`}
+      className="annotated-image"
+      data-selected={selected ? 'true' : undefined}
       data-width={node.attrs.width ?? undefined}
       data-indent={node.attrs.mediaIndent ? String(node.attrs.mediaIndent) : undefined}
       data-image-annotations={node.attrs.annotations ?? undefined}
@@ -2083,9 +2084,10 @@ function RichEditor({
 
   const mediaAtPointer = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
-    const element = target?.closest(mediaSelector);
+    const element = target?.closest<HTMLElement>('.annotated-image') ?? target?.closest(mediaSelector);
     if (!element || !(element instanceof HTMLElement)) return null;
-    const mediaElement = element.matches('.annotated-image') ? element.querySelector<HTMLElement>('img') ?? element : element;
+    const mediaElement = element instanceof HTMLElement ? element : null;
+    if (!mediaElement) return null;
     const rect = mediaElement.getBoundingClientRect();
     const cornerSize = 24;
     const inResizeCorner = event.clientX >= rect.right - cornerSize && event.clientY >= rect.bottom - cornerSize;
@@ -2206,7 +2208,12 @@ function RichEditor({
     if (event.detail < 2) return false;
     const media = mediaAtPointer(event);
     const activeEditor = editorHolderRef.current;
-    if (!media || !activeEditor || media.element.tagName.toLowerCase() !== 'img') return false;
+    const imageElement = media?.element.matches('.annotated-image')
+      ? media.element.querySelector<HTMLImageElement>('img')
+      : media?.element instanceof HTMLImageElement
+        ? media.element
+        : null;
+    if (!media || !activeEditor || !imageElement) return false;
     const found = findMediaNodePosition(activeEditor, media.element);
     if (!found?.node || found.node.type.name !== 'image') return false;
     event.preventDefault();
@@ -2216,8 +2223,8 @@ function RichEditor({
     onImageAnnotate?.({
       editor: activeEditor,
       pos: found.pos,
-      src: media.element.getAttribute('src') ?? found.node.attrs.src ?? '',
-      alt: media.element.getAttribute('alt') ?? found.node.attrs.alt ?? '',
+      src: imageElement.getAttribute('src') ?? found.node.attrs.src ?? '',
+      alt: imageElement.getAttribute('alt') ?? found.node.attrs.alt ?? '',
       annotations: parseImageAnnotations(found.node.attrs.annotations)
     });
     return true;
