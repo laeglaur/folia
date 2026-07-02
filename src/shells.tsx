@@ -10,7 +10,7 @@ import {
   type RefObject,
   type UIEvent
 } from 'react';
-import { Download, FilePlus, FileUp, History, NotebookTabs, PanelRight, Pin, Plus, Search, Sparkles, Trash2, Upload } from 'lucide-react';
+import { Download, FilePlus, FileUp, History, NotebookTabs, PanelRight, Pin, Plus, Search, Trash2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { Block, ContentThemeId, Notebook, ShellId } from './types';
 import type { PageSearchResult, TrashItemPayload } from './state';
@@ -20,6 +20,8 @@ import { RichEditor, type ImageAnnotationRequest, type MediaResizeRequest } from
 import { EmojiImage } from './emoji-image';
 import { renderAnnotatedImagesInHtml } from './image-annotations';
 import { contentThemes } from './typora-theme-registry';
+
+const appLogoUrl = '/app-assets/notebook-logo.jpg';
 
 type ShellThemeOption = {
   id: ShellId;
@@ -844,7 +846,7 @@ export function NativeShell({
       <aside className="sidebar">
         <div className="brand-block">
           <p className="eyebrow">{shell === 'native-ledger' ? 'ledger notes' : 'garden notes'}</p>
-          <div className="brand-mark"><Sparkles size={20} /></div>
+          <div className="brand-mark"><img src={appLogoUrl} alt="" aria-hidden="true" /></div>
           <h1>Notebook</h1>
           <p className="profile-id">block-first</p>
         </div>
@@ -877,32 +879,23 @@ export function NativeShell({
           </div>
         </section>
 
-        <section className="sidebar-note">
-          <strong>今天也要</strong>
-          <span>记录美好的一天哦~</span>
-        </section>
+        <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} />
       </aside>
 
       <main className="workspace">
-        <header className="topbar">
-          <SearchBox
-            query={query}
-            onQueryChange={onQueryChange}
-            searchResults={searchResults}
-            searchLoading={searchLoading}
-            onSearchResultSelect={onSearchResultSelect}
-            placeholder="正文、block、todo"
-          />
-        </header>
-
         {workspaceContent}
       </main>
 
       <aside className="right-panel">
-        <section className="panel-card">
-          <div className="panel-title"><Pin size={16} /> Pinned</div>
-          <PinnedCards pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} className="desktop-preview right-panel-pin-list" cardClassName="desktop-card right-panel-pin-card" />
-        </section>
+        <SearchBox
+          query={query}
+          onQueryChange={onQueryChange}
+          searchResults={searchResults}
+          searchLoading={searchLoading}
+          onSearchResultSelect={onSearchResultSelect}
+          placeholder="正文、block、todo"
+          className="right-panel-search-box"
+        />
         <section className="panel-card">
           <div className="panel-title"><PanelRight size={16} /> Outline</div>
           <NativeOutline entries={outlineEntries} onJump={onJumpToOutlineEntry} />
