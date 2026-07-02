@@ -3129,6 +3129,40 @@ export function App() {
     }, 250);
   };
 
+  useEffect(() => {
+    if (!isTauri() || cardModeBlockId) return;
+    let disposed = false;
+    let unlisten: (() => void) | null = null;
+    const openedBlockIds = new Set<string>();
+    const openBlock = async (blockId: string) => {
+      if (!blockId || openedBlockIds.has(blockId)) return;
+      openedBlockIds.add(blockId);
+      await openPinnedWindow(blockId);
+    };
+    void invoke<string[]>('drain_pending_card_opens')
+      .then((blockIds) => {
+        blockIds.forEach((blockId) => {
+          void openBlock(blockId);
+        });
+      })
+      .catch((error) => {
+        console.warn('Could not read pending card opens.', error);
+      });
+    void listen<string>('notebook://open-card-block', async (event) => {
+      await openBlock(event.payload);
+    }).then((cleanup) => {
+      if (disposed) {
+        cleanup();
+      } else {
+        unlisten = cleanup;
+      }
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [roundPinnedCards, glowPinnedCards]);
+
   const renderPageTree = (parentId: string | null = null, depth = 0): React.ReactNode =>
     (childPages.get(parentId) ?? []).map((page) => {
       const hasChildren = Boolean(childPages.get(page.id)?.length);
@@ -3440,7 +3474,7 @@ export function App() {
     };
     const dragCardWindow = (event: React.MouseEvent<HTMLElement>) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest('button, a, input, textarea, select, audio, video, .floating-card-body')) return;
+      if (target?.closest('button, a, input, textarea, select, audio, video, .floating-card-body') && !target.closest('.card-window-title')) return;
       if (isTauri()) void getCurrentWindow().startDragging();
     };
     return (

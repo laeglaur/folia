@@ -41,6 +41,13 @@
         "description": "Markdown and plain text documents",
         "role": "Editor",
         "mimeType": "text/markdown"
+      },
+      {
+        "ext": ["notecard"],
+        "name": "Notebook Card Request",
+        "description": "Open a Notebook page as a desktop card",
+        "role": "Editor",
+        "mimeType": "application/json"
       }
     ],
     "icon": [

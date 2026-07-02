@@ -42,6 +42,9 @@ struct MarkdownFilePayload {
 #[derive(Default)]
 struct PendingMarkdownOpens(Mutex<Vec<String>>);
 
+#[derive(Default)]
+struct PendingCardOpens(Mutex<Vec<String>>);
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct NormalizedNotebook {
@@ -227,6 +230,12 @@ struct PageSearchResult {
     notebook_id: String,
     title: String,
     snippet: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExternalCardRequest {
+    page_id: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1289,6 +1298,44 @@ fn fts_query_from_search_text(query: &str) -> Option<String> {
         return Some(format!("\"{}\"", fallback.replace('"', "\"\"")));
     }
     Some(tokens.join(" "))
+}
+
+fn create_external_card_block_in_database(
+    connection: &mut Connection,
+    page_id: &str,
+) -> Result<String, String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    let Some(mut document) = load_page_document_from_database(&transaction, page_id)? else {
+        return Err(format!("Page not found: {page_id}"));
+    };
+    let timestamp: String = transaction
+        .query_row("SELECT strftime('%Y-%m-%dT%H:%M:%fZ', 'now')", [], |row| row.get(0))
+        .map_err(|error| error.to_string())?;
+    let id_suffix = timestamp
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric())
+        .collect::<String>();
+    let block_id = format!("block_card_{id_suffix}");
+    let block = NormalizedBlock {
+        id: block_id.clone(),
+        page_id: document.page.id.clone(),
+        content: NormalizedRichContent {
+            html: "<p></p>".to_string(),
+            plain_text: "".to_string(),
+        },
+        collapsed: false,
+        pinned: true,
+        created_at: timestamp.clone(),
+        updated_at: timestamp.clone(),
+    };
+    document.page.block_ids.push(block_id.clone());
+    document.page.updated_at = timestamp;
+    document.content.blocks.push(block);
+    upsert_page_document(&transaction, &document.page, &document.content.blocks)?;
+    transaction.commit().map_err(|error| error.to_string())?;
+    Ok(block_id)
 }
 
 fn upsert_notebook(connection: &Connection, notebook: &NormalizedNotebook) -> Result<(), String> {
@@ -3361,6 +3408,34 @@ fn acknowledge_markdown_open(app: AppHandle, path: String) -> Result<(), String>
 }
 
 #[tauri::command]
+fn drain_pending_card_opens(app: AppHandle) -> Result<Vec<String>, String> {
+    let pending = app.state::<PendingCardOpens>();
+    let mut block_ids = pending.0.lock().map_err(|error| error.to_string())?;
+    Ok(block_ids.drain(..).collect())
+}
+
+#[tauri::command]
+fn create_external_card(app: AppHandle, page_id: String) -> Result<String, String> {
+    let mut connection = open_database(&app)?;
+    create_external_card_block_in_database(&mut connection, &page_id)
+}
+
+fn handle_external_card_request(app: &AppHandle, path: &PathBuf) -> Result<(), String> {
+    let request_text = fs::read_to_string(path).map_err(|error| error.to_string())?;
+    let request: ExternalCardRequest =
+        serde_json::from_str(&request_text).map_err(|error| error.to_string())?;
+    let mut connection = open_database(app)?;
+    let block_id = create_external_card_block_in_database(&mut connection, &request.page_id)?;
+    if let Ok(mut pending) = app.state::<PendingCardOpens>().0.lock() {
+        if !pending.contains(&block_id) {
+            pending.push(block_id.clone());
+        }
+    }
+    let _ = app.emit("notebook://open-card-block", block_id);
+    Ok(())
+}
+
+#[tauri::command]
 fn cleanup_orphan_attachments(
     app: AppHandle,
     referenced_asset_ids: Vec<String>,
@@ -3373,6 +3448,7 @@ fn cleanup_orphan_attachments(
 pub fn run() {
     tauri::Builder::default()
         .manage(PendingMarkdownOpens::default())
+        .manage(PendingCardOpens::default())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             load_normalized_state,
@@ -3409,6 +3485,8 @@ pub fn run() {
             read_markdown_file,
             drain_pending_markdown_opens,
             acknowledge_markdown_open,
+            drain_pending_card_opens,
+            create_external_card,
             cleanup_orphan_attachments
         ])
         .build(tauri::generate_context!())
@@ -3423,6 +3501,10 @@ pub fn run() {
                     let Ok(path) = url.to_file_path() else {
                         continue;
                     };
+                    if path.extension().and_then(|value| value.to_str()) == Some("notecard") {
+                        let _ = handle_external_card_request(app, &path);
+                        continue;
+                    }
                     if !is_markdown_path(&path) {
                         continue;
                     }
