@@ -304,30 +304,9 @@ input, select { color: var(--ink); }
 .page-context-menu {
   width: 300px;
   display: grid;
-  gap: 8px;
   padding: 8px;
 }
 
-.page-move-header {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  color: inherit;
-}
-
-.page-move-header-copy {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.page-move-header strong {
-  font-size: 12px;
-  line-height: 1.2;
-}
-
-.page-move-header span,
 .page-move-empty {
   font-size: 11px;
   color: var(--overlay-muted);
@@ -350,25 +329,6 @@ input, select { color: var(--ink); }
 
 .page-move-action {
   font-size: 12px;
-}
-
-.page-move-emoji-button {
-  width: 24px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  border-radius: 6px;
-  background: var(--overlay-hover-background);
-  color: inherit;
-  flex: 0 0 auto;
-  padding: 0;
-}
-
-.page-move-emoji {
-  width: 18px;
-  height: 18px;
-  font-size: 18px;
-  line-height: 1;
 }
 
 .page-move-menu {

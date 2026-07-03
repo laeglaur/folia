@@ -4034,15 +4034,6 @@ export function App() {
             onPointerDown={(event) => event.stopPropagation()}
             role="menu"
           >
-            <div className="page-move-header">
-              <span className="page-move-emoji-button" aria-hidden="true">
-                <EmojiImage emoji={page?.metadata.emoji ?? '🙂'} className="page-move-emoji" decorative />
-              </span>
-              <div className="page-move-header-copy">
-                <strong>{pageContextMenuMode === 'move' ? 'Move page' : 'Page'}</strong>
-                <span>{page?.title ?? 'Page'}</span>
-              </div>
-            </div>
             {pageContextMenuMode === 'actions' ? (
               <div className="page-context-actions">
                 <button
@@ -4054,7 +4045,7 @@ export function App() {
                     closePageContextMenu();
                   }}
                 >
-                  Set icon
+                  Set Icon
                 </button>
                 <button
                   type="button"
@@ -4065,7 +4056,7 @@ export function App() {
                     closePageContextMenu();
                   }}
                 >
-                  Open in new window
+                  Open in Window
                 </button>
                 <button
                   type="button"
@@ -4077,7 +4068,7 @@ export function App() {
                     setPageContextMenuMode('move');
                   }}
                 >
-                  Move to another...
+                  Move...
                 </button>
                 <button
                   type="button"
@@ -4089,7 +4080,7 @@ export function App() {
                     closePageContextMenu();
                   }}
                 >
-                  {firstBlockPinned ? 'Unpin' : 'Pin'}
+                  {firstBlockPinned ? 'Unpin First Block' : 'Pin First Block'}
                 </button>
               </div>
             ) : (
