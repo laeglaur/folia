@@ -988,9 +988,6 @@ const richHtmlFromPastedTextHtmlFragment = async (text: string) => {
   return normalizePastedHtml(html);
 };
 
-const pastedGreenHighlightMaxChars = 240;
-const pastedGreenHighlightMaxElements = 3;
-
 const codeLikeText = (value: string) =>
   normalizeEscapedNbsp(value)
     .replace(/\r\n?/g, '\n')
@@ -1123,37 +1120,14 @@ const normalizePastedHtml = (html: string) => {
   });
   const inlineElements = Array.from(doc.querySelectorAll<HTMLElement>('span, font'));
   const sourceStyleElements = inlineElements.filter((element) => !isSemanticPastedSpan(element));
-  const greenElements = sourceStyleElements.filter((element) => pastedElementIsGreen(element));
-  const greenTextLength = greenElements.reduce((sum, element) => sum + compactTextLength(element.textContent ?? ''), 0);
-  const shouldConvertGreenToHighlight =
-    greenElements.length > 0 &&
-    greenElements.length <= pastedGreenHighlightMaxElements &&
-    greenTextLength > 0 &&
-    greenTextLength <= pastedGreenHighlightMaxChars;
-
-  sourceStyleElements.forEach((htmlElement) => {
-    if (shouldConvertGreenToHighlight && greenElements.includes(htmlElement)) {
-      const mark = doc.createElement('mark');
-      while (htmlElement.firstChild) mark.appendChild(htmlElement.firstChild);
-      htmlElement.replaceWith(mark);
-      return;
-    }
-    unwrapElement(htmlElement);
-  });
+  sourceStyleElements.forEach((htmlElement) => unwrapElement(htmlElement));
 
   return doc.body.innerHTML || html;
 };
 
-const compactTextLength = (value: string) => value.replace(/\s+/g, ' ').trim().length;
-
 const isSemanticPastedSpan = (element: HTMLElement) =>
   element.matches('.annotated-image, [data-image-annotations]') ||
   Boolean(element.closest('.annotated-image, [data-image-annotations]'));
-
-const pastedElementIsGreen = (element: HTMLElement) => {
-  const color = element.style.color || element.getAttribute('color');
-  return isGreenishColor(color);
-};
 
 const unwrapElement = (element: HTMLElement) => {
   const parent = element.parentNode;
@@ -1161,54 +1135,6 @@ const unwrapElement = (element: HTMLElement) => {
   const fragment = element.ownerDocument.createDocumentFragment();
   while (element.firstChild) fragment.appendChild(element.firstChild);
   parent.replaceChild(fragment, element);
-};
-
-const parseOklch = (value: string) => {
-  const match = value.match(/oklch\(\s*([0-9.]+%?)\s+([0-9.]+%?)\s+([0-9.]+)/);
-  if (!match) return null;
-  const lightness = Number.parseFloat(match[1]);
-  const chroma = Number.parseFloat(match[2]) / (match[2].endsWith('%') ? 100 : 1);
-  const hue = Number.parseFloat(match[3]);
-  if (![lightness, chroma, hue].every(Number.isFinite)) return null;
-  return { chroma, hue: ((hue % 360) + 360) % 360 };
-};
-
-const parseRgb = (value: string) => {
-  const rgb = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  if (!rgb) return null;
-  const [, r, g, b] = rgb.map(Number);
-  return { r, g, b };
-};
-
-const parseHex = (value: string) => {
-  const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/);
-  if (!hex) return null;
-  const raw = hex[1].length === 3
-    ? hex[1].split('').map((char) => char + char).join('')
-    : hex[1];
-  return {
-    r: Number.parseInt(raw.slice(0, 2), 16),
-    g: Number.parseInt(raw.slice(2, 4), 16),
-    b: Number.parseInt(raw.slice(4, 6), 16)
-  };
-};
-
-const rgbIsGreenish = ({ r, g, b }: { r: number; g: number; b: number }) =>
-  g > 95 && g > r * 1.25 && g > b * 1.15;
-
-const oklchIsGreenish = ({ chroma, hue }: { chroma: number; hue: number }) =>
-  chroma >= 0.04 && hue >= 95 && hue <= 190;
-
-const isGreenishColor = (value: string | null) => {
-  if (!value) return false;
-  const normalized = value.trim().toLowerCase();
-  const rgb = parseRgb(normalized);
-  if (rgb) return rgbIsGreenish(rgb);
-  const hex = parseHex(normalized);
-  if (hex) return rgbIsGreenish(hex);
-  const oklch = parseOklch(normalized);
-  if (oklch) return oklchIsGreenish(oklch);
-  return normalized.includes('green');
 };
 
 const ansiRegex = /\x1b\[[0-9;]*m/g;

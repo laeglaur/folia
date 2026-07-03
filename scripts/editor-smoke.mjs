@@ -191,7 +191,8 @@ await page.evaluate(async () => {
 });
 await page.keyboard.press(`${modKey}+V`);
 const greenPasteHtml = await greenPasteComposer.evaluate((node) => node.innerHTML);
-checks.greenHtmlPasteBecomesHighlight = greenPasteHtml.includes('<mark>green terminal text</mark>') &&
+checks.greenHtmlPasteSanitizesWithoutHighlight = greenPasteHtml.includes('green terminal text') &&
+  !greenPasteHtml.includes('<mark') &&
   !greenPasteHtml.includes('style=');
 
 await resetApp();
