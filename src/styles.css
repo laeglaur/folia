@@ -343,6 +343,15 @@ input, select { color: var(--ink); }
   padding: 0 10px;
 }
 
+.page-context-actions {
+  display: grid;
+  gap: 3px;
+}
+
+.page-move-action {
+  font-size: 12px;
+}
+
 .page-move-emoji-button {
   width: 24px;
   height: 24px;

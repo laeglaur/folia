@@ -207,6 +207,8 @@ type PageContextMenuState = {
   pageId: string;
 };
 
+type PageContextMenuMode = 'actions' | 'move';
+
 type PageFindMatch = {
   blockId: string;
   occurrenceIndex: number;
@@ -308,6 +310,7 @@ export function App() {
   const [emojiPickerRequest, setEmojiPickerRequest] = useState<EmojiPickerRequest | null>(null);
   const [emojiContextMenu, setEmojiContextMenu] = useState<EmojiContextMenuState | null>(null);
   const [pageContextMenu, setPageContextMenu] = useState<PageContextMenuState | null>(null);
+  const [pageContextMenuMode, setPageContextMenuMode] = useState<PageContextMenuMode>('actions');
   const [typoraSidebarView, setTyporaSidebarView] = useState<'files' | 'thumbnails'>('files');
   const [pageMoveQuery, setPageMoveQuery] = useState('');
   const [pageMoveIndex, setPageMoveIndex] = useState(0);
@@ -349,7 +352,10 @@ export function App() {
   const temporaryMarkdownPagesRef = useRef<TemporaryMarkdownPage[]>([]);
 
   const closeEmojiContextMenu = () => setEmojiContextMenu(null);
-  const closePageContextMenu = () => setPageContextMenu(null);
+  const closePageContextMenu = () => {
+    setPageContextMenu(null);
+    setPageContextMenuMode('actions');
+  };
 
   useEffect(() => {
     if (!emojiContextMenu) return;
@@ -1533,11 +1539,12 @@ export function App() {
 
   const openPageContextMenu = (pageId: string, anchorRect: DOMRect) => {
     const width = 300;
-    const height = 200;
+    const height = 190;
     const left = Math.max(12, Math.min(anchorRect.left + 24, window.innerWidth - width - 12));
     const top = Math.max(12, Math.min(anchorRect.bottom + 4, window.innerHeight - height - 12));
     setPageMoveQuery('');
     setPageMoveIndex(0);
+    setPageContextMenuMode('actions');
     setPageContextMenu({ pageId, x: left, y: top });
   };
 
@@ -2093,6 +2100,55 @@ export function App() {
       });
     }
     if (nextPage) persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
+  };
+
+  const pinFirstBlockForPage = async (pageId: string) => {
+    const page = stateRef.current.pages.find((candidate) => candidate.id === pageId);
+    if (!page || !page.blockIds.length) return;
+    try {
+      const isActiveTarget = pageId === stateRef.current.activePageId;
+      const document = isTauri() && !isActiveTarget ? await loadPageDocument(pageId) : null;
+      const sourcePage = document?.page ?? page;
+      const sourceBlocks = document?.content.blocks
+        ?? (isActiveTarget ? blocksForCurrentPage(sourcePage, stateRef.current, activePageBlocksRef.current) : blocksForPage(sourcePage, stateRef.current.blocks));
+      const firstBlockId = sourcePage.blockIds[0] ?? sourceBlocks[0]?.id;
+      if (!firstBlockId) return;
+      const firstBlock = sourceBlocks.find((block) => block.id === firstBlockId) ?? sourceBlocks[0];
+      if (!firstBlock) return;
+      const updatedAt = new Date().toISOString();
+      const nextBlocks = sourceBlocks.map((block) =>
+        block.id === firstBlock.id ? { ...block, pinned: !block.pinned, updatedAt } : block
+      );
+      const nextBlock = nextBlocks.find((block) => block.id === firstBlock.id);
+      const nextPage = { ...sourcePage, updatedAt };
+      const operation = createOperation({
+        entity: 'block',
+        entityId: firstBlock.id,
+        kind: 'block.toggle_pinned',
+        payload: { key: 'pinned', source: 'page_context_menu' }
+      });
+      cancelPageDocumentSaves([pageId]);
+      if (!isTauri() || isActiveTarget) {
+        applyPageDocumentToView(nextPage, nextBlocks, operation);
+      } else {
+        setState((current) => ({
+          ...current,
+          pages: current.pages.map((candidate) => (candidate.id === nextPage.id ? nextPage : candidate)),
+          operations: [...current.operations, operation]
+        }));
+      }
+      setPinnedBlockPayloads((current) => {
+        if (!nextBlock?.pinned) return current.filter((payload) => payload.block.id !== firstBlock.id);
+        const nextPayload = { page: nextPage, block: nextBlock };
+        return current.some((payload) => payload.block.id === firstBlock.id)
+          ? current.map((payload) => (payload.block.id === firstBlock.id ? nextPayload : payload))
+          : [...current, nextPayload];
+      });
+      persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
+    } catch (error) {
+      console.warn('Could not pin first page block.', error);
+      if (isTauri()) setPinnedBlockPayloads(await listPinnedBlocks());
+    }
   };
 
   const setPageBlockOrder = (blockOrder: 'asc' | 'desc') => {
@@ -3949,6 +4005,11 @@ export function App() {
       ) : null}
       {pageContextMenu ? (() => {
         const page = state.pages.find((candidate) => candidate.id === pageContextMenu.pageId) ?? null;
+        const firstBlockId = page?.blockIds[0] ?? null;
+        const firstBlockPinned = firstBlockId
+          ? pinnedBlockPayloads.some((payload) => payload.block.id === firstBlockId)
+            || state.blocks.some((block) => block.id === firstBlockId && block.pinned)
+          : false;
         const notebookTargets: Array<{ notebookId: string; parentId: string | null; label: string }> = state.notebooks.map((notebook) => ({
           notebookId: notebook.id,
           parentId: null,
@@ -3974,81 +4035,114 @@ export function App() {
             role="menu"
           >
             <div className="page-move-header">
-              <button
-                type="button"
-                className="page-move-emoji-button"
-                title="Set emoji"
-                aria-label="Set emoji"
-                onClick={() => {
-                  setEmojiPickerRequest({ target: { kind: 'page', pageId: pageContextMenu.pageId } });
-                  closePageContextMenu();
-                }}
-              >
+              <span className="page-move-emoji-button" aria-hidden="true">
                 <EmojiImage emoji={page?.metadata.emoji ?? '🙂'} className="page-move-emoji" decorative />
-              </button>
+              </span>
               <div className="page-move-header-copy">
-                <strong>Move page</strong>
+                <strong>{pageContextMenuMode === 'move' ? 'Move page' : 'Page'}</strong>
                 <span>{page?.title ?? 'Page'}</span>
               </div>
             </div>
-            <button
-              type="button"
-              role="menuitem"
-              className="page-move-action"
-              onClick={() => {
-                void openPageWindow(pageContextMenu.pageId);
-                closePageContextMenu();
-              }}
-            >
-              Open in New Window
-            </button>
-            <input
-              className="page-move-search"
-              value={pageMoveQuery}
-              onChange={(event) => setPageMoveQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'ArrowDown') {
-                  event.preventDefault();
-                  if (targets.length) focusMoveTarget(pageMoveIndex + 1);
-                  return;
-                }
-                if (event.key === 'ArrowUp') {
-                  event.preventDefault();
-                  if (targets.length) focusMoveTarget(pageMoveIndex - 1);
-                }
-              }}
-              placeholder="Search page or notebook"
-              autoFocus
-            />
-            <div className="page-move-menu">
-              {targets.length ? targets.map((target, index) => (
+            {pageContextMenuMode === 'actions' ? (
+              <div className="page-context-actions">
                 <button
-                  key={`${target.notebookId}:${target.parentId ?? 'root'}`}
                   type="button"
-                  data-move-index={index}
-                  className={`page-move-item ${index === pageMoveIndex ? 'is-selected' : ''}`}
-                  onMouseEnter={() => setPageMoveIndex(index)}
-                  onFocus={() => setPageMoveIndex(index)}
+                  role="menuitem"
+                  className="page-move-action"
+                  onClick={() => {
+                    setEmojiPickerRequest({ target: { kind: 'page', pageId: pageContextMenu.pageId } });
+                    closePageContextMenu();
+                  }}
+                >
+                  Set icon
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="page-move-action"
+                  onClick={() => {
+                    void openPageWindow(pageContextMenu.pageId);
+                    closePageContextMenu();
+                  }}
+                >
+                  Open in new window
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="page-move-action"
+                  onClick={() => {
+                    setPageMoveQuery('');
+                    setPageMoveIndex(0);
+                    setPageContextMenuMode('move');
+                  }}
+                >
+                  Move to another...
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="page-move-action"
+                  disabled={!firstBlockId}
+                  onClick={() => {
+                    void pinFirstBlockForPage(pageContextMenu.pageId);
+                    closePageContextMenu();
+                  }}
+                >
+                  {firstBlockPinned ? 'Unpin' : 'Pin'}
+                </button>
+              </div>
+            ) : (
+              <>
+                <input
+                  className="page-move-search"
+                  value={pageMoveQuery}
+                  onChange={(event) => setPageMoveQuery(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === 'ArrowDown') {
                       event.preventDefault();
-                      focusMoveTarget(index + 1);
+                      if (targets.length) focusMoveTarget(pageMoveIndex + 1);
                       return;
                     }
                     if (event.key === 'ArrowUp') {
                       event.preventDefault();
-                      focusMoveTarget(index - 1);
+                      if (targets.length) focusMoveTarget(pageMoveIndex - 1);
                     }
                   }}
-                  onClick={() => {
-                    movePageToPath(pageContextMenu.pageId, target.notebookId, target.parentId);
-                    closePageContextMenu();
-                  }}
-                >
-                  <span className="page-move-label">{target.label}</span>
-                </button>
-              )) : <div className="page-move-empty">No match</div>}
-            </div>
+                  placeholder="Search page or notebook"
+                  autoFocus
+                />
+                <div className="page-move-menu">
+                  {targets.length ? targets.map((target, index) => (
+                    <button
+                      key={`${target.notebookId}:${target.parentId ?? 'root'}`}
+                      type="button"
+                      data-move-index={index}
+                      className={`page-move-item ${index === pageMoveIndex ? 'is-selected' : ''}`}
+                      onMouseEnter={() => setPageMoveIndex(index)}
+                      onFocus={() => setPageMoveIndex(index)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'ArrowDown') {
+                          event.preventDefault();
+                          focusMoveTarget(index + 1);
+                          return;
+                        }
+                        if (event.key === 'ArrowUp') {
+                          event.preventDefault();
+                          focusMoveTarget(index - 1);
+                        }
+                      }}
+                      onClick={() => {
+                        movePageToPath(pageContextMenu.pageId, target.notebookId, target.parentId);
+                        closePageContextMenu();
+                      }}
+                    >
+                      <span className="page-move-label">{target.label}</span>
+                    </button>
+                  )) : <div className="page-move-empty">No match</div>}
+                </div>
+              </>
+            )}
           </div>
         );
       })() : null}
