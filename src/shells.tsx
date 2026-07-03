@@ -34,6 +34,18 @@ type PinnedCardMenuState = {
   y: number;
 };
 
+const pinnedCardMenuPosition = (y: number, container: Element | null) => {
+  const padding = 12;
+  const menuHeight = 82;
+  const rect = container?.getBoundingClientRect();
+  const localY = rect ? y - rect.top : y;
+  const maxY = (rect?.height ?? window.innerHeight) - menuHeight - padding;
+  return {
+    x: padding,
+    y: Math.max(padding, Math.min(localY, Math.max(padding, maxY)))
+  };
+};
+
 export type PageThumbnailItem = {
   pageId: string;
   title: string;
@@ -292,7 +304,8 @@ function PinnedCards({
           onClick={() => onOpenPinnedWindow(block.id)}
           onContextMenu={(event) => {
             event.preventDefault();
-            setMenu({ blockId: block.id, x: event.clientX, y: event.clientY });
+            const container = event.currentTarget.closest('.sidebar, #typora-sidebar, .right-panel, .fish-desk-panel');
+            setMenu({ blockId: block.id, ...pinnedCardMenuPosition(event.clientY, container) });
           }}
         >
           <div dangerouslySetInnerHTML={{ __html: renderAnnotatedImagesInHtml(block.content.html) }} />
