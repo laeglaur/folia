@@ -59,11 +59,16 @@ type ToolbarActions = {
   applyInlineCode: () => void;
 };
 
+export type FloatingToolbarState = {
+  visible: boolean;
+  top: number;
+  left: number;
+};
+
 type ComposerCardProps = {
   activeEditor: EditorTarget;
   draftKey: string;
   draft: string;
-  showToolbar: boolean;
   showFooter: boolean;
   tableControls: TableControlsState;
   mathEditor: MathEditorState | null;
@@ -71,6 +76,7 @@ type ComposerCardProps = {
   onEditorRef: (editor: Editor | null) => void;
   onFocus: (editor: Editor) => void;
   onSelectionUpdate: (editor: Editor) => void;
+  onContextToolbar: (editor: Editor, x: number, y: number) => void;
   onRunTableCommand: (command: ToolbarCommand) => void;
   onMediaResizeStart: (request: MediaResizeRequest) => void;
   onImageAnnotate: (request: ImageAnnotationRequest) => void;
@@ -84,7 +90,6 @@ function ComposerCard({
   activeEditor,
   draftKey,
   draft,
-  showToolbar,
   showFooter,
   tableControls,
   mathEditor,
@@ -92,6 +97,7 @@ function ComposerCard({
   onEditorRef,
   onFocus,
   onSelectionUpdate,
+  onContextToolbar,
   onRunTableCommand,
   onMediaResizeStart,
   onImageAnnotate,
@@ -103,14 +109,6 @@ function ComposerCard({
   const annotateTarget: ImageAnnotationTarget = { kind: 'composer', pageId: draftKey };
   return (
     <div className="composer-card">
-      {showToolbar && activeEditor.kind === 'composer' && (
-        <Toolbar
-          runCommand={toolbarActions.runCommand}
-          insertTodo={toolbarActions.insertTodo}
-          applyHighlight={toolbarActions.applyHighlight}
-          applyInlineCode={toolbarActions.applyInlineCode}
-        />
-      )}
       <RichEditor
         key={draftKey}
         editorRef={onEditorRef}
@@ -119,6 +117,7 @@ function ComposerCard({
         placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
         onFocus={onFocus}
         onSelectionUpdate={onSelectionUpdate}
+        onContextToolbar={onContextToolbar}
         tableControls={activeEditor.kind === 'composer' ? tableControls : undefined}
         runTableCommand={onRunTableCommand}
         onMediaResizeStart={onMediaResizeStart}
@@ -159,7 +158,6 @@ type BlockItemProps = {
   block: Block;
   activeEditor: EditorTarget;
   draggingBlockId: string | null;
-  showToolbar: boolean;
   tableControls: TableControlsState;
   mathEditor: MathEditorState | null;
   toolbarActions: ToolbarActions;
@@ -169,6 +167,7 @@ type BlockItemProps = {
   onEditorRef: (blockId: string, editor: Editor | null) => void;
   onFocus: (blockId: string, editor: Editor) => void;
   onSelectionUpdate: (editor: Editor) => void;
+  onContextToolbar: (editor: Editor, x: number, y: number) => void;
   onRunTableCommand: (command: ToolbarCommand) => void;
   onMediaResizeStart: (request: MediaResizeRequest) => void;
   onImageAnnotate: (request: ImageAnnotationRequest) => void;
@@ -183,7 +182,6 @@ function BlockItem({
   block,
   activeEditor,
   draggingBlockId,
-  showToolbar,
   tableControls,
   mathEditor,
   toolbarActions,
@@ -193,6 +191,7 @@ function BlockItem({
   onEditorRef,
   onFocus,
   onSelectionUpdate,
+  onContextToolbar,
   onRunTableCommand,
   onMediaResizeStart,
   onImageAnnotate,
@@ -246,14 +245,6 @@ function BlockItem({
         >
           <time dateTime={block.createdAt}>{blockTimestampLabel(block.createdAt)}</time>
         </button>
-        {showToolbar && activeEditor.kind === 'block' && activeEditor.blockId === block.id && (
-          <Toolbar
-            runCommand={toolbarActions.runCommand}
-            insertTodo={toolbarActions.insertTodo}
-            applyHighlight={toolbarActions.applyHighlight}
-            applyInlineCode={toolbarActions.applyInlineCode}
-          />
-        )}
         {!block.collapsed ? (
           <RichEditor
             editorRef={(editor) => onEditorRef(block.id, editor)}
@@ -261,6 +252,7 @@ function BlockItem({
             html={htmlWithOutlineAnchors(block.content.html, block.id)}
             onFocus={(editor) => onFocus(block.id, editor)}
             onSelectionUpdate={onSelectionUpdate}
+            onContextToolbar={onContextToolbar}
             tableControls={activeEditor.kind === 'block' && activeEditor.blockId === block.id ? tableControls : undefined}
             runTableCommand={onRunTableCommand}
             onMediaResizeStart={onMediaResizeStart}
@@ -300,6 +292,7 @@ type WriteSurfaceProps = {
   composer: ComposerCardProps;
   activeEditor: EditorTarget;
   showToolbar: boolean;
+  floatingToolbar: FloatingToolbarState;
   tableControls: TableControlsState;
   mathEditor: MathEditorState | null;
   toolbarActions: ToolbarActions;
@@ -314,6 +307,7 @@ type WriteSurfaceProps = {
   onBlockEditorRef: (blockId: string, editor: Editor | null) => void;
   onBlockFocus: (blockId: string, editor: Editor) => void;
   onSelectionUpdate: (editor: Editor) => void;
+  onContextToolbar: (editor: Editor, x: number, y: number) => void;
   onRunTableCommand: (command: ToolbarCommand) => void;
   onMediaResizeStart: (request: MediaResizeRequest) => void;
   onImageAnnotate: (request: ImageAnnotationRequest) => void;
@@ -452,6 +446,7 @@ function WriteSurface({
   composer,
   activeEditor,
   showToolbar,
+  floatingToolbar,
   tableControls,
   mathEditor,
   toolbarActions,
@@ -466,6 +461,7 @@ function WriteSurface({
   onBlockEditorRef,
   onBlockFocus,
   onSelectionUpdate,
+  onContextToolbar,
   onRunTableCommand,
   onMediaResizeStart,
   onImageAnnotate,
@@ -572,7 +568,6 @@ function WriteSurface({
               block={block}
               activeEditor={activeEditor}
               draggingBlockId={draggingBlockId}
-              showToolbar={showToolbar}
               tableControls={tableControls}
               mathEditor={mathEditor}
               toolbarActions={toolbarActions}
@@ -582,6 +577,7 @@ function WriteSurface({
               onEditorRef={onBlockEditorRef}
               onFocus={onBlockFocus}
               onSelectionUpdate={onSelectionUpdate}
+              onContextToolbar={onContextToolbar}
               onRunTableCommand={onRunTableCommand}
               onMediaResizeStart={onMediaResizeStart}
               onImageAnnotate={onImageAnnotate}
@@ -601,6 +597,20 @@ function WriteSurface({
           {blocks.length ? divider() : null}
           {composerCard}
         </>
+      ) : null}
+      {floatingToolbar.visible ? (
+        <div
+          className="floating-format-toolbar"
+          style={{ top: floatingToolbar.top, left: floatingToolbar.left }}
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          <Toolbar
+            runCommand={toolbarActions.runCommand}
+            insertTodo={toolbarActions.insertTodo}
+            applyHighlight={toolbarActions.applyHighlight}
+            applyInlineCode={toolbarActions.applyInlineCode}
+          />
+        </div>
       ) : null}
     </section>
   );

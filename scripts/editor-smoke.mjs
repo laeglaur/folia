@@ -22,11 +22,8 @@ const chooseContentTheme = async (theme) => {
   await page.waitForFunction((expected) => document.documentElement.dataset.contentTheme === expected, theme);
 };
 const ensureToolbarVisible = async () => {
-  await page.locator('label.view-toggle', { hasText: 'Toolbar' }).locator('input').evaluate((input) => {
-    if (!(input instanceof HTMLInputElement)) return;
-    if (!input.checked) input.click();
-  });
-  await page.locator('.format-toolbar').waitFor({ state: 'visible' });
+  await page.locator('.composer').last().click({ button: 'right' });
+  await page.locator('.floating-format-toolbar .format-toolbar').waitFor({ state: 'visible' });
 };
 
 await page.goto(appUrl);
@@ -282,7 +279,7 @@ const strikeShortcutHtml = await strikeShortcutComposer.evaluate((node) => node.
 checks.strikeShortcut = strikeShortcutHtml.includes('<s>') && strikeShortcutHtml.includes('shortcut strike');
 
 await ensureToolbarVisible();
-checks.semanticToolbarButtons = await page.locator('.format-toolbar').evaluate((toolbar) => {
+checks.semanticToolbarButtons = await page.locator('.floating-format-toolbar .format-toolbar').evaluate((toolbar) => {
   const requiredTitles = [
     'Keyboard key',
     'Quote',
@@ -459,14 +456,16 @@ const bulletComposer = page.locator('.composer').last();
 await chooseContentTheme('typora-swiss');
 await bulletComposer.click();
 await ensureToolbarVisible();
-await page.locator('.format-toolbar .tool-button[title="Bullet list"]').click();
+await page.locator('.floating-format-toolbar .tool-button[title="Bullet list"]').click();
 await page.keyboard.type('parent');
 await page.keyboard.press('Enter');
 await page.keyboard.type('child');
-await page.locator('.format-toolbar .tool-button[title="Indent: Tab"]').click();
+await ensureToolbarVisible();
+await page.locator('.floating-format-toolbar .tool-button[title="Indent: Tab"]').click();
 listHtml = await bulletComposer.evaluate((node) => node.innerHTML);
 checks.toolbarIndentInSwiss = listHtml.includes('<ul') && listHtml.includes('<ul') && listHtml.includes('child');
-await page.locator('.format-toolbar .tool-button[title="Outdent: Shift Tab"]').click();
+await ensureToolbarVisible();
+await page.locator('.floating-format-toolbar .tool-button[title="Outdent: Shift Tab"]').click();
 checks.toolbarOutdentInSwiss = await bulletComposer.evaluate((node) => {
   const html = node.innerHTML;
   return html.includes('child') && (html.match(/<ul/g) ?? []).length === 1;

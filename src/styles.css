@@ -1204,6 +1204,25 @@ input, select { color: var(--ink); }
   backdrop-filter: var(--toolbar-backdrop-filter);
 }
 
+.floating-format-toolbar {
+  position: fixed;
+  z-index: 1200;
+  max-width: min(480px, calc(100vw - 20px));
+}
+
+.floating-format-toolbar .format-toolbar {
+  position: static;
+  max-width: min(480px, calc(100vw - 20px));
+  margin: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.floating-format-toolbar .format-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
 .tool-button { background: transparent; font-size: var(--tool-font-size); font-weight: var(--tool-font-weight); color: var(--muted); }
 .text-tool { width: var(--text-tool-width); }
 .highlight-tool { color: var(--highlight-tool-ink); }

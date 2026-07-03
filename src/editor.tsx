@@ -105,6 +105,7 @@ export type RichEditorProps = {
   onUpdate?: (html: string, plainText: string) => void;
   onBlur?: (html: string, plainText: string) => void;
   onSelectionUpdate?: (editor: Editor) => void;
+  onContextToolbar?: (editor: Editor, x: number, y: number) => void;
   onShiftEnter?: (editor: Editor) => boolean;
   onMoveBlock?: (direction: -1 | 1) => boolean;
   onDeleteBlock?: () => boolean;
@@ -2132,6 +2133,7 @@ function RichEditor({
   onUpdate,
   onBlur,
   onSelectionUpdate,
+  onContextToolbar,
   onShiftEnter,
   onMoveBlock,
   onDeleteBlock,
@@ -2165,6 +2167,16 @@ function RichEditor({
           if (!pageId) return false;
           event.preventDefault();
           dispatchPageLinkRequest(pageId);
+          return true;
+        },
+        contextmenu: (_view, event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          if (target?.closest('a, button, input, textarea, select, audio, video')) return false;
+          const activeEditor = editorHolderRef.current;
+          if (!activeEditor || !onContextToolbar) return false;
+          event.preventDefault();
+          activeEditor.commands.focus();
+          onContextToolbar(activeEditor, event.clientX, event.clientY);
           return true;
         }
       }

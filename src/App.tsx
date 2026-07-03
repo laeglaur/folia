@@ -130,7 +130,7 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import 'katex/dist/katex.min.css';
 import { CardWindowPage, NativeShell, TyporaShell, type PageThumbnailItem } from './shells';
-import { WorkspaceContent, type EditorTarget } from './workspace';
+import { WorkspaceContent, type EditorTarget, type FloatingToolbarState } from './workspace';
 import {
   buildPageCalendarEntries,
   calendarDateCandidatesForPages,
@@ -153,6 +153,7 @@ const fishIconUrl = '/app-assets/blue_red_fish.png';
 const fullExpansionImportPageLimit = 80;
 const searchParams = new URLSearchParams(window.location.search);
 const cardModeBlockId = searchParams.get('card');
+const pageWindowPageId = searchParams.get('page');
 if (cardModeBlockId) {
   document.documentElement.dataset.cardWindow = 'true';
 } else {
@@ -300,6 +301,7 @@ export function App() {
   const [activeEditor, setActiveEditor] = useState<EditorTarget>({ kind: 'composer' });
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [showToolbar, setShowToolbar] = useState(false);
+  const [floatingToolbar, setFloatingToolbar] = useState<FloatingToolbarState>({ visible: false, top: 0, left: 0 });
   const [tableControls, setTableControls] = useState<TableControlsState>({ visible: false, top: 0, left: 0 });
   const [mathEditor, setMathEditor] = useState<MathEditorState | null>(null);
   const [imageAnnotationRequest, setImageAnnotationRequest] = useState<ImageAnnotationRequest | null>(null);
@@ -606,17 +608,18 @@ export function App() {
         return;
       }
 
+      const requestedPage = pageWindowPageId ? bootstrap.pages.find((page) => page.id === pageWindowPageId) : null;
       const initialState: AppState = {
         ...fallbackState,
         notebooks: bootstrap.notebooks.length ? bootstrap.notebooks : fallbackState.notebooks,
         pages: bootstrap.pages.length ? bootstrap.pages : fallbackState.pages,
-        activeNotebookId: preferences?.activeNotebookId || bootstrap.activeNotebookId || fallbackState.activeNotebookId,
-        activePageId: preferences?.activePageId || bootstrap.activePageId || fallbackState.activePageId,
+        activeNotebookId: requestedPage?.notebookId || preferences?.activeNotebookId || bootstrap.activeNotebookId || fallbackState.activeNotebookId,
+        activePageId: requestedPage?.id || preferences?.activePageId || bootstrap.activePageId || fallbackState.activePageId,
         shell: preferences?.shell ?? fallbackState.shell,
         theme: preferences?.theme ?? fallbackState.theme,
         contentTheme: preferences?.contentTheme ?? fallbackState.contentTheme,
         openCardWindowBlockId: preferences?.openCardWindowBlockId ?? fallbackState.openCardWindowBlockId,
-        expandedPageIds: [...new Set([...(preferences?.expandedPageIds ?? fallbackState.expandedPageIds), preferences?.activePageId ?? bootstrap.activePageId].filter(Boolean))],
+        expandedPageIds: [...new Set([...(preferences?.expandedPageIds ?? fallbackState.expandedPageIds), requestedPage?.id, preferences?.activePageId ?? bootstrap.activePageId].filter((id): id is string => Boolean(id)))],
         showPageMetadata: preferences?.showPageMetadata ?? fallbackState.showPageMetadata
       };
       let activeDocument: PageDocumentPayload | null = null;
@@ -1203,9 +1206,75 @@ export function App() {
     });
   };
 
+  const toolbarPositionFromRect = (rect: DOMRect | { left: number; right: number; top: number; bottom: number }) => {
+    const estimatedWidth = 470;
+    const estimatedHeight = 42;
+    const centerX = (rect.left + rect.right) / 2;
+    const top = Math.max(10, Math.min(rect.top - estimatedHeight - 8, window.innerHeight - estimatedHeight - 10));
+    const left = Math.max(10, Math.min(centerX - estimatedWidth / 2, window.innerWidth - estimatedWidth - 10));
+    return { top, left };
+  };
+
+  const showFloatingToolbarForEditor = (editor: Editor | null, fallback?: { x: number; y: number }, force = false) => {
+    if ((!showToolbar && !force) || !editor) {
+      setFloatingToolbar((current) => current.visible ? { ...current, visible: false } : current);
+      return;
+    }
+    const editorRoot = editor.view.dom;
+    let rect: DOMRect | { left: number; right: number; top: number; bottom: number } | null = null;
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0 && editorRoot.contains(selection.anchorNode)) {
+      const rangeRect = selection.getRangeAt(0).getBoundingClientRect();
+      if (rangeRect.width || rangeRect.height) rect = rangeRect;
+    }
+    if (!rect) {
+      try {
+        const coords = editor.view.coordsAtPos(editor.state.selection.from);
+        rect = { left: coords.left, right: coords.right, top: coords.top, bottom: coords.bottom };
+      } catch {
+        rect = fallback ? { left: fallback.x, right: fallback.x, top: fallback.y, bottom: fallback.y } : null;
+      }
+    }
+    if (!rect && fallback) rect = { left: fallback.x, right: fallback.x, top: fallback.y, bottom: fallback.y };
+    if (!rect) {
+      setFloatingToolbar((current) => current.visible ? { ...current, visible: false } : current);
+      return;
+    }
+    setFloatingToolbar({ visible: true, ...toolbarPositionFromRect(rect) });
+  };
+
   const syncFloatingControls = (editor: Editor | null) => {
     syncTableControls(editor);
+    showFloatingToolbarForEditor(editor);
   };
+
+  const showContextToolbar = (editor: Editor, x: number, y: number) => {
+    syncTableControls(editor);
+    const safeX = Number.isFinite(x) ? x : window.innerWidth / 2;
+    const safeY = Number.isFinite(y) ? y : window.innerHeight / 2;
+    const top = Math.max(10, Math.min(safeY + 8, window.innerHeight - 52));
+    const left = Math.max(10, Math.min(safeX, window.innerWidth - 480));
+    setFloatingToolbar({ visible: true, top, left });
+  };
+
+  useEffect(() => {
+    if (!showToolbar) return;
+    showFloatingToolbarForEditor(getActiveTiptapEditor(), undefined, true);
+  }, [showToolbar, activeEditor]);
+
+  useEffect(() => {
+    const handleEditorContextMenu = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest('.ProseMirror')) return;
+      if (target.closest('a, button, input, textarea, select, audio, video')) return;
+      const editor = getActiveTiptapEditor();
+      if (!editor) return;
+      event.preventDefault();
+      showContextToolbar(editor, event.clientX, event.clientY);
+    };
+    window.addEventListener('contextmenu', handleEditorContextMenu, true);
+    return () => window.removeEventListener('contextmenu', handleEditorContextMenu, true);
+  }, [activeEditor, showToolbar]);
 
   const openMathEditor = (editor: Editor, requestedPos: number) => {
     const pos = findBlockMathPositionNear(editor, requestedPos);
@@ -1749,6 +1818,14 @@ export function App() {
       const blockElement = document.getElementById(blockId);
       blockElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
+  };
+
+  const openPinnedPage = (blockId: string) => {
+    const pinnedPayload = pinnedBlockPayloads.find((payload) => payload.block.id === blockId);
+    const block = pinnedPayload?.block ?? stateRef.current.blocks.find((candidate) => candidate.id === blockId);
+    const pageId = pinnedPayload?.page.id ?? block?.pageId;
+    if (!pageId) return;
+    jumpToBlock(pageId, blockId);
   };
 
   const moveCalendarMonth = (delta: number) => {
@@ -3172,6 +3249,39 @@ export function App() {
     }, 250);
   };
 
+  const openPageWindow = async (pageId: string) => {
+    const targetPage = stateRef.current.pages.find((page) => page.id === pageId);
+    if (!targetPage) return;
+    if (!isTauri()) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('page', pageId);
+      window.open(`${window.location.pathname}?${params.toString()}`, '_blank');
+      return;
+    }
+    const label = `page_${pageId.replace(/[^a-zA-Z0-9_:-]/g, '_')}`;
+    const existing = await WebviewWindow.getByLabel(label);
+    if (existing) {
+      await existing.setFocus();
+      return;
+    }
+    const params = new URLSearchParams({ page: pageId });
+    const pageWindow = new WebviewWindow(label, {
+      url: `${window.location.pathname}?${params.toString()}`,
+      title: targetPage.title || 'Folia page',
+      width: 980,
+      height: 760,
+      minWidth: 720,
+      minHeight: 520,
+      resizable: true,
+      visible: true,
+      focus: true,
+      center: true
+    });
+    void pageWindow.once('tauri://error', (event) => {
+      console.warn('Could not create page window.', event.payload);
+    });
+  };
+
   useEffect(() => {
     if (!isTauri() || cardModeBlockId) return;
     let disposed = false;
@@ -3398,7 +3508,6 @@ export function App() {
           activeEditor,
           draftKey: activePage.id,
           draft: activeDraft,
-          showToolbar,
           showFooter: showComposerFooter,
           tableControls,
           mathEditor,
@@ -3414,6 +3523,7 @@ export function App() {
             syncFloatingControls(editor);
           },
           onSelectionUpdate: syncFloatingControls,
+          onContextToolbar: showContextToolbar,
           onRunTableCommand: runEditorCommand,
           onMediaResizeStart: startMediaResize,
           onImageAnnotate: setImageAnnotationRequest,
@@ -3424,6 +3534,7 @@ export function App() {
         },
         activeEditor,
         showToolbar,
+        floatingToolbar,
         tableControls,
         mathEditor,
         toolbarActions: {
@@ -3446,6 +3557,7 @@ export function App() {
           syncFloatingControls(editor);
         },
         onSelectionUpdate: syncFloatingControls,
+        onContextToolbar: showContextToolbar,
         onRunTableCommand: runEditorCommand,
         onMediaResizeStart: startMediaResize,
         onImageAnnotate: setImageAnnotationRequest,
@@ -3569,7 +3681,11 @@ export function App() {
     markdownFolderInputRef,
     outlineOpen: outlineDrawerOpen,
     sidebarCollapsed,
-    onShowToolbarChange: setShowToolbar,
+    onShowToolbarChange: (show: boolean) => {
+      setShowToolbar(show);
+      if (!show) setFloatingToolbar((current) => ({ ...current, visible: false }));
+      else showFloatingToolbarForEditor(getActiveTiptapEditor(), undefined, true);
+    },
     onShowComposerFooterChange: setShowComposerFooter,
     onShowBlockBordersChange: setShowBlockBorders,
     onShowPageMetadataChange: (show: boolean) => setState((current) => applyShowPageMetadataToViewState(current, show)),
@@ -3620,6 +3736,7 @@ export function App() {
     roundPinnedCards,
     glowPinnedCards,
     onOpenPinnedWindow: (blockId: string) => void openPinnedWindow(blockId),
+    onOpenPinnedPage: openPinnedPage,
     onUnpinBlock: (blockId: string) => void unpinPinnedBlock(blockId),
     onCloseFloatingCard: () => setState((current) => applyOpenCardBlockToViewState(current, null)),
     onSelectPage: (pageId: string) => selectPage(pageId),
@@ -3862,6 +3979,17 @@ export function App() {
                 <span>{page?.title ?? 'Page'}</span>
               </div>
             </div>
+            <button
+              type="button"
+              role="menuitem"
+              className="page-move-action"
+              onClick={() => {
+                void openPageWindow(pageContextMenu.pageId);
+                closePageContextMenu();
+              }}
+            >
+              Open in New Window
+            </button>
             <input
               className="page-move-search"
               value={pageMoveQuery}
