@@ -1537,10 +1537,15 @@ export function App() {
     setEmojiContextMenu({ target, x: left, y: top });
   };
 
-  const openPageContextMenu = (pageId: string, anchorRect: DOMRect) => {
-    const width = 300;
+  const openPageContextMenu = (pageId: string, anchorElement: HTMLElement) => {
+    const width = 220;
     const height = 190;
-    const left = Math.max(12, Math.min(anchorRect.left + 24, window.innerWidth - width - 12));
+    const anchorRect = anchorElement.getBoundingClientRect();
+    const container = anchorElement.closest('.sidebar, #typora-sidebar, .right-panel, .fish-desk-panel');
+    const containerRect = container?.getBoundingClientRect();
+    const containerBorderLeft = container ? Number.parseFloat(window.getComputedStyle(container).borderLeftWidth) || 0 : 0;
+    const fixedLeft = (containerRect?.left ?? anchorRect.left) + containerBorderLeft + 12;
+    const left = Math.max(12, Math.min(fixedLeft, window.innerWidth - width - 12));
     const top = Math.max(12, Math.min(anchorRect.bottom + 4, window.innerHeight - height - 12));
     setPageMoveQuery('');
     setPageMoveIndex(0);
@@ -3440,7 +3445,7 @@ export function App() {
                   event.preventDefault();
                   selectPage(page.id);
                   const row = event.currentTarget.closest<HTMLElement>('.page-row-shell[data-page-id]');
-                  openPageContextMenu(page.id, (row ?? event.currentTarget).getBoundingClientRect());
+                  openPageContextMenu(page.id, row ?? event.currentTarget);
                 }}
                 type="button"
               >
@@ -3529,7 +3534,7 @@ export function App() {
                   event.preventDefault();
                   selectPage(page.id);
                   const row = event.currentTarget.closest<HTMLElement>('.file-node-row-shell[data-page-id]');
-                  openPageContextMenu(page.id, (row ?? event.currentTarget).getBoundingClientRect());
+                  openPageContextMenu(page.id, row ?? event.currentTarget);
                 }}
                 type="button"
               >
