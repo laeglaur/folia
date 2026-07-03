@@ -21,6 +21,13 @@ const chooseContentTheme = async (theme) => {
   }, theme);
   await page.waitForFunction((expected) => document.documentElement.dataset.contentTheme === expected, theme);
 };
+const ensureToolbarVisible = async () => {
+  await page.locator('label.view-toggle', { hasText: 'Toolbar' }).locator('input').evaluate((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    if (!input.checked) input.click();
+  });
+  await page.locator('.format-toolbar').waitFor({ state: 'visible' });
+};
 
 await page.goto(appUrl);
 await resetApp();
@@ -226,6 +233,34 @@ checks.bulkGreenPasteSanitizesWithoutHighlight = bulkGreenPasteHtml.includes('gr
   !/style=|font-family|PingFang/.test(bulkGreenPasteHtml);
 
 await resetApp();
+const escapedMathPasteComposer = page.locator('.composer').last();
+await escapedMathPasteComposer.click();
+await page.evaluate(async () => {
+  const text = [
+    'The Timekeeper server and client library comprise &lt;math alttext="{\\sim}800" class="ltx_Math" display="inline" id="S5.p1.1.m1" style="font-variant-caps: normal; color: rgb(0, 0, 0);"&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;&lt;/mi&gt;&lt;mo mathsize="0.900em"&gt;∼&lt;/mo&gt;&lt;mn mathsize="0.900em"&gt;800&lt;/mn&gt;&lt;/mrow&gt;&lt;/semantics&gt;&lt;/math&gt; lines of C++, with Python bindings for framework integration. ',
+    'The device emulator adds &lt;math alttext="{\\sim}6000" class="ltx_Math" display="inline" id="S5.p1.2.m2" style="font-variant-caps: normal; color: rgb(0, 0, 0);"&gt;&lt;semantics&gt;&lt;mrow&gt;&lt;mi&gt;&lt;/mi&gt;&lt;mo mathsize="0.900em"&gt;∼&lt;/mo&gt;&lt;mn mathsize="0.900em"&gt;6000&lt;/mn&gt;&lt;/mrow&gt;&lt;/semantics&gt;&lt;/math&gt; lines of C++.'
+  ].join('');
+  await navigator.clipboard.write([
+    new ClipboardItem({
+      'text/plain': new Blob([text], { type: 'text/plain' })
+    })
+  ]);
+});
+await page.keyboard.press(`${modKey}+V`);
+await page.waitForFunction(() => document.querySelector('.composer')?.innerHTML.includes('data-type="inline-math"'));
+const escapedMathPaste = await escapedMathPasteComposer.evaluate((node) => ({
+  html: node.innerHTML,
+  text: node.textContent ?? ''
+}));
+checks.escapedMathHtmlPasteIsDefuddled = escapedMathPaste.text.includes('800') &&
+  escapedMathPaste.text.includes('6000') &&
+  escapedMathPaste.html.includes('data-type="inline-math"') &&
+  escapedMathPaste.html.includes('data-latex="{\\sim}800"') &&
+  escapedMathPaste.html.includes('data-latex="{\\sim}6000"') &&
+  !escapedMathPaste.html.includes('&lt;math') &&
+  !/ltx_Math|font-variant-caps/.test(escapedMathPaste.html);
+
+await resetApp();
 const ansiPasteComposer = page.locator('.composer').last();
 await ansiPasteComposer.click();
 await ansiPasteComposer.evaluate((node) => {
@@ -260,11 +295,7 @@ await page.keyboard.press(`${modKey}+D`);
 const strikeShortcutHtml = await strikeShortcutComposer.evaluate((node) => node.innerHTML);
 checks.strikeShortcut = strikeShortcutHtml.includes('<s>') && strikeShortcutHtml.includes('shortcut strike');
 
-await page.locator('label.view-toggle', { hasText: 'Toolbar' }).locator('input').evaluate((input) => {
-  if (!(input instanceof HTMLInputElement)) return;
-  if (!input.checked) input.click();
-});
-await page.locator('.format-toolbar').waitFor({ state: 'visible' });
+await ensureToolbarVisible();
 checks.semanticToolbarButtons = await page.locator('.format-toolbar').evaluate((toolbar) => {
   const requiredTitles = [
     'Keyboard key',
@@ -410,7 +441,7 @@ await attachmentComposer.locator('img').scrollIntoViewIfNeeded();
 const imageBox = await attachmentComposer.locator('img').boundingBox();
 if (imageBox) {
   await page.mouse.move(imageBox.x + imageBox.width - 4, imageBox.y + imageBox.height - 4);
-  checks.attachmentResizeCornerCursor = await attachmentComposer.locator('img').evaluate((image) => image.style.cursor === 'nwse-resize');
+  checks.attachmentResizeCornerCursor = await attachmentComposer.locator('.annotated-image').evaluate((image) => getComputedStyle(image).cursor === 'nwse-resize');
   await page.mouse.down();
   await page.mouse.move(imageBox.x + imageBox.width - 170, imageBox.y + imageBox.height - 4, { steps: 5 });
   await page.mouse.up();
@@ -441,6 +472,7 @@ await resetApp();
 const bulletComposer = page.locator('.composer').last();
 await chooseContentTheme('typora-swiss');
 await bulletComposer.click();
+await ensureToolbarVisible();
 await page.locator('.format-toolbar .tool-button[title="Bullet list"]').click();
 await page.keyboard.type('parent');
 await page.keyboard.press('Enter');
@@ -545,7 +577,7 @@ checks.pageIconDelete = !stateAfterPageIconDelete.pages.some((storedPage) => sto
 
 await page.getByLabel('New page').click();
 await page.locator('.page-title').fill('Page click rename source');
-await page.getByRole('button', { name: /^Page click rename source$/ }).first().click();
+await page.getByRole('button', { name: /^Page click rename source$/ }).first().dblclick();
 const pageRenameInput = page.getByLabel('Rename page Page click rename source').first();
 await pageRenameInput.fill('Page click renamed');
 await pageRenameInput.press('Enter');
@@ -554,7 +586,7 @@ await page.waitForFunction(() => {
   return state.pages?.some((storedPage) => storedPage.title === 'Page click renamed');
 });
 const stateAfterPageRename = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
-checks.pageClickRename = stateAfterPageRename.pages.some((storedPage) => storedPage.title === 'Page click renamed') &&
+checks.pageDoubleClickRename = stateAfterPageRename.pages.some((storedPage) => storedPage.title === 'Page click renamed') &&
   stateAfterPageRename.operations.some((operation) => operation.kind === 'page.rename' && operation.payload?.title === 'Page click renamed');
 
 await page.getByLabel('New page').click();
@@ -603,7 +635,7 @@ await page.waitForFunction(() => {
 const stateAfterBlockPageDelete = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
 checks.pageDeleteRemovesBlocks = !stateAfterBlockPageDelete.blocks.some((block) => block.id === copiedBlock?.id);
 
-await page.getByRole('button', { name: /^Notebook$/ }).first().click();
+await page.getByRole('button', { name: /^Notebook$/ }).first().dblclick();
 const renameInput = page.getByLabel('Rename notebook Notebook').first();
 await renameInput.fill('Renamed notebook');
 await renameInput.press('Enter');

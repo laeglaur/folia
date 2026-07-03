@@ -899,6 +899,24 @@ const markdownishText = (value: string) =>
 const normalizeEscapedNbsp = (value: string) =>
   value.replace(/&(?:amp;)?nbsp;?/gi, ' ').replace(/\u00a0/g, ' ');
 
+const escapedHtmlPattern = /&lt;\/?(?:span|div|p|math|semantics|mrow|mi|mo|mn|msup|msub|msubsup|annotation|table|thead|tbody|tr|td|th|pre|code|ul|ol|li|blockquote|h[1-6]|a|img)\b/i;
+const rawHtmlPattern = /<\/?(?:span|div|p|math|semantics|mrow|mi|mo|mn|msup|msub|msubsup|annotation|table|thead|tbody|tr|td|th|pre|code|ul|ol|li|blockquote|h[1-6]|a|img)\b/i;
+
+const decodeHtmlEntities = (value: string) => {
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = value;
+  return textarea.value;
+};
+
+const textLooksLikeHtmlFragment = (value: string) =>
+  escapedHtmlPattern.test(value) || rawHtmlPattern.test(value);
+
+const htmlFragmentFromPastedText = (value: string) => {
+  const normalized = normalizeEscapedNbsp(value);
+  if (!textLooksLikeHtmlFragment(normalized)) return null;
+  return escapedHtmlPattern.test(normalized) ? decodeHtmlEntities(normalized) : normalized;
+};
+
 const stripEmptyCodeBlockArtifacts = (value: string) => {
   const normalized = normalizeEscapedNbsp(value).replace(/\r\n?/g, '\n');
   const lines = normalized.split('\n');
@@ -932,9 +950,42 @@ const stripEmptyCodeBlockArtifacts = (value: string) => {
 
 const normalizePastedText = (value: string) => stripEmptyCodeBlockArtifacts(value);
 
+const normalizeMarkdownMathForPaste = (value: string) => {
+  const withBlockMath = value.replace(/(^|\n)\$\$\n?([\s\S]*?)\n?\$\$(?=\n|$)/g, (match, prefix: string, latex: string) => {
+    const trimmed = latex.trim();
+    if (!trimmed) return match;
+    return `${prefix}<div class="md-math-block" data-type="block-math" data-latex="${escapeHtml(trimmed)}"></div>`;
+  });
+  return withBlockMath.replace(/(?<!\\)\$(?!\$|\d)([^$\n]+?)(?<!\\)\$(?!\$|\d)/g, (match, latex: string) => {
+    const trimmed = latex.trim();
+    if (!trimmed) return match;
+    return `<span class="md-math-inline" data-type="inline-math" data-latex="${escapeHtml(trimmed)}"></span>`;
+  });
+};
+
 const markdownToRichHtml = (value: string) => {
   const withHighlights = normalizePastedText(value).replace(/==([^=\n][\s\S]*?[^=\n])==/g, '<mark>$1</mark>');
-  return marked.parse(withHighlights, { async: false }) as string;
+  const withMath = normalizeMarkdownMathForPaste(withHighlights);
+  return marked.parse(withMath, { async: false }) as string;
+};
+
+const convertHtmlFragmentToMarkdown = async (html: string) => {
+  try {
+    const { createMarkdownContent } = await import('defuddle/full');
+    const markdown = createMarkdownContent(html, 'about:blank').trim();
+    if (markdown) return markdown;
+  } catch (error) {
+    console.warn('Defuddle markdown conversion failed; falling back to HTML paste cleanup.', error);
+  }
+  return '';
+};
+
+const richHtmlFromPastedTextHtmlFragment = async (text: string) => {
+  const html = htmlFragmentFromPastedText(text);
+  if (!html) return '';
+  const markdown = await convertHtmlFragmentToMarkdown(html);
+  if (markdown) return markdownToRichHtml(markdown);
+  return normalizePastedHtml(html);
 };
 
 const pastedGreenHighlightMaxChars = 240;
@@ -1535,6 +1586,22 @@ const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
   const html = clipboard.getData('text/html');
   const markdown = normalizePastedText(clipboard.getData('text/markdown') || clipboard.getData('text/x-markdown'));
   const text = normalizePastedText(clipboard.getData('text/plain'));
+
+  if (!html && !markdown && text && textLooksLikeHtmlFragment(text)) {
+    event.preventDefault();
+    void richHtmlFromPastedTextHtmlFragment(text).then((nextHtml) => {
+      if (!nextHtml) {
+        insertPlainTextPreservingBreaks(editor, text);
+        return;
+      }
+      if (insideListItem) {
+        insertPlainTextPreservingBreaks(editor, htmlToPlainText(nextHtml));
+        return;
+      }
+      editor.chain().focus().insertContent(nextHtml).run();
+    });
+    return true;
+  }
 
   // Keep code blocks plain-text only so pasted code cannot escape into neighboring nodes.
   if (insideCodeBlock) {
