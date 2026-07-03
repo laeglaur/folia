@@ -315,7 +315,7 @@ export function App() {
   const [showBlockBorders, setShowBlockBorders] = useState(true);
   const [roundPinnedCards, setRoundPinnedCards] = useState(cardModeBlockId ? cardModeRoundPinnedCards : true);
   const [glowPinnedCards, setGlowPinnedCards] = useState(cardModeBlockId ? cardModeGlowPinnedCards : true);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(Boolean(pageWindowPageId));
   const [copiedPageId, setCopiedPageId] = useState<string | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
@@ -1240,7 +1240,12 @@ export function App() {
       setFloatingToolbar((current) => current.visible ? { ...current, visible: false } : current);
       return;
     }
-    setFloatingToolbar({ visible: true, ...toolbarPositionFromRect(rect) });
+    const nextPosition = toolbarPositionFromRect(rect);
+    setFloatingToolbar((current) =>
+      current.visible && Math.abs(current.top - nextPosition.top) < 1 && Math.abs(current.left - nextPosition.left) < 1
+        ? current
+        : { visible: true, ...nextPosition }
+    );
   };
 
   const syncFloatingControls = (editor: Editor | null) => {
@@ -1250,11 +1255,16 @@ export function App() {
 
   const showContextToolbar = (editor: Editor, x: number, y: number) => {
     syncTableControls(editor);
+    if (!showToolbar) return;
     const safeX = Number.isFinite(x) ? x : window.innerWidth / 2;
     const safeY = Number.isFinite(y) ? y : window.innerHeight / 2;
     const top = Math.max(10, Math.min(safeY + 8, window.innerHeight - 52));
     const left = Math.max(10, Math.min(safeX, window.innerWidth - 480));
-    setFloatingToolbar({ visible: true, top, left });
+    setFloatingToolbar((current) =>
+      current.visible && Math.abs(current.top - top) < 1 && Math.abs(current.left - left) < 1
+        ? current
+        : { visible: true, top, left }
+    );
   };
 
   useEffect(() => {
@@ -1267,6 +1277,7 @@ export function App() {
       const target = event.target as HTMLElement | null;
       if (!target?.closest('.ProseMirror')) return;
       if (target.closest('a, button, input, textarea, select, audio, video')) return;
+      if (!showToolbar) return;
       const editor = getActiveTiptapEditor();
       if (!editor) return;
       event.preventDefault();

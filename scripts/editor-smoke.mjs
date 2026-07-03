@@ -22,6 +22,10 @@ const chooseContentTheme = async (theme) => {
   await page.waitForFunction((expected) => document.documentElement.dataset.contentTheme === expected, theme);
 };
 const ensureToolbarVisible = async () => {
+  await page.locator('label.view-toggle', { hasText: 'Toolbar' }).locator('input').evaluate((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    if (!input.checked) input.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+  });
   await page.locator('.composer').last().click({ button: 'right' });
   await page.locator('.floating-format-toolbar .format-toolbar').waitFor({ state: 'visible' });
 };
@@ -304,6 +308,13 @@ checks.semanticToolbarButtons = await page.locator('.floating-format-toolbar .fo
   return requiredTitles.every((title) => toolbar.querySelector(`button[title="${title}"]`)) &&
     removedTitles.every((title) => !toolbar.querySelector(`button[title="${title}"]`));
 });
+await page.locator('label.view-toggle', { hasText: 'Toolbar' }).locator('input').evaluate((input) => {
+  if (!(input instanceof HTMLInputElement)) return;
+  if (input.checked) input.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+});
+await page.locator('.composer').last().click({ button: 'right' });
+await page.waitForTimeout(100);
+checks.toolbarRightClickDisabledWhenToggleOff = await page.locator('.floating-format-toolbar .format-toolbar').count() === 0;
 
 await resetApp();
 const inputRulesComposer = page.locator('.composer').last();

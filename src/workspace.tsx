@@ -598,7 +598,7 @@ function WriteSurface({
           {composerCard}
         </>
       ) : null}
-      {floatingToolbar.visible ? (
+      {showToolbar && floatingToolbar.visible ? (
         <div
           className="floating-format-toolbar"
           style={{ top: floatingToolbar.top, left: floatingToolbar.left }}
