@@ -2712,7 +2712,7 @@ export function App() {
       void duplicatePageTree(copiedPageId ?? pageId);
       return true;
     }
-    if (!commandKey && (event.key === 'Delete' || event.key === 'Backspace')) {
+    if (commandKey && (event.key === 'Delete' || event.key === 'Backspace')) {
       event.preventDefault();
       deletePageTree(pageId);
       return true;
@@ -2763,7 +2763,7 @@ export function App() {
         void duplicatePageTree(copiedPageId ?? pageId);
         return;
       }
-      if (!commandKey && (event.key === 'Delete' || event.key === 'Backspace')) {
+      if (commandKey && (event.key === 'Delete' || event.key === 'Backspace')) {
         event.preventDefault();
         event.stopPropagation();
         setSelectedPageId(pageId);

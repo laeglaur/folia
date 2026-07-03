@@ -543,6 +543,10 @@ const childCopy = stateAfterPageCopy.pages.find((storedPage) => storedPage.title
 checks.pageTreeDuplicate = Boolean(parentCopy && childCopy);
 await page.getByRole('button', { name: /^Parent ops copy$/ }).first().focus();
 await page.keyboard.press('Delete');
+await page.waitForTimeout(80);
+const stateAfterBarePageDelete = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+checks.pageBareDeleteDoesNotDelete = stateAfterBarePageDelete.pages.some((storedPage) => storedPage.title === 'Parent ops copy');
+await page.keyboard.press(`${modKey}+Backspace`);
 await page.waitForFunction(() => {
   const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
   return !state.pages?.some((storedPage) => storedPage.title === 'Parent ops copy');
@@ -555,12 +559,16 @@ await page.locator('.page-title').fill('Delete from selected row');
 await page.getByRole('button', { name: /^Delete from selected row$/ }).first().click();
 await page.locator('.workspace').click({ position: { x: 8, y: 8 } });
 await page.keyboard.press('Backspace');
+await page.waitForTimeout(80);
+const stateAfterBareSelectedPageBackspace = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
+checks.pageBareBackspaceDoesNotDeleteSelectedPage = stateAfterBareSelectedPageBackspace.pages.some((storedPage) => storedPage.title === 'Delete from selected row');
+await page.keyboard.press(`${modKey}+Backspace`);
 await page.waitForFunction(() => {
   const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
   return !state.pages?.some((storedPage) => storedPage.title === 'Delete from selected row');
 });
 const stateAfterSelectedPageBackspace = await page.evaluate(() => JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}'));
-checks.pageBackspaceDeletesSelectedPage = !stateAfterSelectedPageBackspace.pages.some((storedPage) => storedPage.title === 'Delete from selected row');
+checks.pageCommandBackspaceDeletesSelectedPage = !stateAfterSelectedPageBackspace.pages.some((storedPage) => storedPage.title === 'Delete from selected row');
 await page.getByLabel('New page').click();
 await page.locator('.page-title').fill('Delete from icon');
 await page.getByLabel('Delete page Delete from icon').click();
@@ -623,7 +631,7 @@ const childPageCopy = stateAfterBlockPageCopy.pages.find((storedPage) => storedP
 const copiedBlock = stateAfterBlockPageCopy.blocks.find((block) => childPageCopy?.blockIds?.includes(block.id));
 checks.pageDuplicateCopiesBlocks = Boolean(copiedBlock?.content?.plainText?.includes('copy delete body'));
 await page.getByRole('button', { name: /^Child ops copy$/ }).first().focus();
-await page.keyboard.press('Delete');
+await page.keyboard.press(`${modKey}+Backspace`);
 await page.waitForFunction(() => {
   const state = JSON.parse(localStorage.getItem('block-first-notebook.state.v1') ?? '{}');
   return !state.pages?.some((storedPage) => storedPage.title === 'Child ops copy');
