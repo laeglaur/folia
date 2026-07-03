@@ -578,6 +578,51 @@
   backdrop-filter: var(--panel-backdrop-filter, blur(18px));
 }
 
+.typora-app-shell[data-shell="typora-garden"] .sidebar-tabs {
+  min-height: 0;
+  width: max-content;
+  margin: 6px 8px 0 auto;
+  padding: 0;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .sidebar-tab {
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: color-mix(in srgb, var(--typora-shell-ink) 54%, transparent);
+}
+
+.typora-app-shell[data-shell="typora-garden"] .sidebar-tab:hover {
+  border-color: color-mix(in srgb, var(--typora-shell-divider) 48%, transparent);
+  background: color-mix(in srgb, var(--typora-shell-ink) 6%, transparent);
+  color: var(--typora-shell-ink);
+}
+
+.typora-app-shell[data-shell="typora-garden"] .sidebar-tab.active,
+.typora-app-shell[data-shell="typora-garden"] .sidebar-tab-active {
+  border-color: color-mix(in srgb, var(--typora-shell-divider) 64%, transparent);
+  background: color-mix(in srgb, var(--typora-shell-panel) 82%, var(--typora-shell-ink) 18%);
+  color: var(--typora-shell-ink);
+  box-shadow: 0 1px 4px color-mix(in srgb, black 8%, transparent);
+}
+
+.typora-app-shell[data-shell="typora-garden"] .sidebar-tab svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
+}
+
+.typora-app-shell[data-shell="typora-garden"] #sidebar-content {
+  padding-top: 4px;
+}
+
 .typora-app-shell[data-shell="typora-garden"] .typora-workspace {
   height: calc(100vh - 44px);
   padding: 0 14px 0 0;
@@ -615,6 +660,8 @@
 
 .typora-app-shell[data-shell="typora-garden"] .file-node-actions .duplicate-page-button,
 .typora-app-shell[data-shell="typora-garden"] .file-node-actions .delete-page-button,
+.typora-app-shell[data-shell="typora-garden"] .file-node-actions .duplicate-notebook-button,
+.typora-app-shell[data-shell="typora-garden"] .file-node-actions .delete-notebook-button,
 .typora-app-shell[data-shell="typora-garden"] .page-row-actions .duplicate-page-button,
 .typora-app-shell[data-shell="typora-garden"] .page-row-actions .delete-page-button {
   display: none;

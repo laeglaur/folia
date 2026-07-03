@@ -10,7 +10,7 @@ import {
   type RefObject,
   type UIEvent
 } from 'react';
-import { Download, FilePlus, FileUp, History, NotebookTabs, PanelRight, Pin, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { Download, FilePlus, FileUp, Grid3X3, History, ListTree, NotebookTabs, PanelRight, Pin, Plus, Search, Trash2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { Block, ContentThemeId, Notebook, ShellId } from './types';
 import type { PageSearchResult, TrashItemPayload } from './state';
@@ -1058,18 +1058,22 @@ export function TyporaShell({
             type="button"
             role="tab"
             aria-selected={sidebarView === 'files'}
+            title="Files"
+            aria-label="Files"
             onClick={() => onSidebarViewChange('files')}
           >
-            Files
+            {isGardenTypora ? <ListTree size={14} aria-hidden="true" /> : 'Files'}
           </button>
           <button
             className={`sidebar-tab ${sidebarView === 'thumbnails' ? 'active sidebar-tab-active' : ''}`}
             type="button"
             role="tab"
             aria-selected={sidebarView === 'thumbnails'}
+            title="Thumbnails"
+            aria-label="Thumbnails"
             onClick={() => onSidebarViewChange('thumbnails')}
           >
-            Thumbnails
+            {isGardenTypora ? <Grid3X3 size={14} aria-hidden="true" /> : 'Thumbnails'}
           </button>
         </div>
         <div id="sidebar-content" className="sidebar-content">
