@@ -255,26 +255,30 @@ input, select { color: var(--ink); }
   position: fixed;
   z-index: 95;
   display: grid;
-  min-width: 168px;
+  width: 220px;
   max-height: min(72vh, 560px);
   overflow: auto;
-  padding: 6px;
-  gap: 4px;
+  padding: 5px;
+  gap: 2px;
   border: var(--overlay-border);
   border-radius: var(--overlay-radius);
   background: var(--overlay-background);
   color: var(--overlay-ink);
   box-shadow: var(--overlay-shadow);
+  font-family: var(--ui-font, ui-sans-serif, system-ui, sans-serif);
+  font-size: 12.5px;
+  line-height: 1.25;
 }
 
 .emoji-context-menu button {
   width: 100%;
-  min-height: 30px;
+  min-height: 32px;
   border-radius: 6px;
   background: transparent;
   color: inherit;
   text-align: left;
-  padding: 0 10px;
+  padding: 0 11px;
+  font: inherit;
 }
 
 .emoji-context-menu button:hover:not(:disabled) {
@@ -302,9 +306,7 @@ input, select { color: var(--ink); }
 }
 
 .page-context-menu {
-  width: 300px;
   display: grid;
-  padding: 8px;
 }
 
 .page-move-empty {
@@ -314,27 +316,24 @@ input, select { color: var(--ink); }
 
 .page-move-search {
   width: 100%;
-  min-height: 30px;
+  min-height: 32px;
   border: var(--input-border);
   border-radius: 6px;
   background: var(--input-background);
   color: inherit;
-  padding: 0 10px;
+  padding: 0 11px;
+  font: inherit;
 }
 
 .page-context-actions {
   display: grid;
-  gap: 3px;
-}
-
-.page-move-action {
-  font-size: 12px;
+  gap: 2px;
 }
 
 .page-move-menu {
   display: grid;
-  gap: 4px;
-  padding-top: 4px;
+  gap: 2px;
+  padding-top: 5px;
   border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   max-height: 140px;
   overflow: auto;
@@ -342,16 +341,16 @@ input, select { color: var(--ink); }
 
 .page-move-item {
   width: 100%;
-  min-height: 28px;
+  min-height: 32px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  padding: 0 10px;
+  padding: 0 11px;
   border-radius: 6px;
   background: transparent;
   color: inherit;
   text-align: left;
-  font-size: 12px;
+  font: inherit;
 }
 
 .page-move-item:hover,
