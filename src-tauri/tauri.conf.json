@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Notebook",
+  "productName": "folia",
   "version": "0.1.0",
   "identifier": "com.laeglaur.notebook",
   "build": {
@@ -13,7 +13,7 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "Notebook",
+        "title": "folia",
         "width": 1280,
         "height": 840,
         "minWidth": 360,
@@ -44,8 +44,8 @@
       },
       {
         "ext": ["notecard"],
-        "name": "Notebook Card Request",
-        "description": "Open a Notebook page as a desktop card",
+        "name": "folia Card Request",
+        "description": "Open a folia page as a desktop card",
         "role": "Editor",
         "mimeType": "application/json"
       }
