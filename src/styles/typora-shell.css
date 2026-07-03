@@ -580,8 +580,9 @@
 
 .typora-app-shell[data-shell="typora-garden"] .sidebar-tabs {
   min-height: 0;
-  width: max-content;
-  margin: 6px 8px 0 auto;
+  grid-template-columns: minmax(0, 1fr) 26px 26px;
+  align-items: center;
+  margin: 10px 10px 2px;
   padding: 0;
   gap: 4px;
   border: 0;
@@ -619,8 +620,67 @@
   stroke-width: 1.8;
 }
 
-.typora-app-shell[data-shell="typora-garden"] #sidebar-content {
-  padding-top: 4px;
+.typora-app-shell[data-shell="typora-garden"] .garden-sidebar-note,
+.typora-app-shell[data-shell="typora-garden"] .garden-sidebar-note-input {
+  min-width: 0;
+  width: 100%;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: color-mix(in srgb, var(--typora-shell-ink) 70%, transparent);
+  font: 12.5px/1.2 var(--ui-font, ui-sans-serif, system-ui, sans-serif);
+  letter-spacing: 0;
+  text-align: left;
+  padding: 0 7px;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .garden-sidebar-note {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .garden-sidebar-note-segment {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .garden-sidebar-note-segment.is-bold {
+  font-weight: 700;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .garden-sidebar-note-segment.is-italic {
+  font-style: italic;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .garden-sidebar-note-segment.is-underline {
+  text-decoration-line: underline;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .garden-sidebar-note-segment.is-strike {
+  text-decoration-line: line-through;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .garden-sidebar-note-emoji {
+  width: 1.35em;
+  height: 1.35em;
+  margin: 0 0.03em;
+  vertical-align: -0.22em;
+}
+
+.typora-app-shell[data-shell="typora-garden"] .garden-sidebar-note:hover,
+.typora-app-shell[data-shell="typora-garden"] .garden-sidebar-note-input:focus {
+  border-color: color-mix(in srgb, var(--typora-shell-divider) 48%, transparent);
+  background: color-mix(in srgb, var(--typora-shell-ink) 5%, transparent);
+  color: var(--typora-shell-ink);
+}
+
+.typora-app-shell[data-shell="typora-garden"] .garden-sidebar-note.is-empty {
+  color: color-mix(in srgb, var(--typora-shell-muted) 62%, transparent);
 }
 
 .typora-app-shell[data-shell="typora-garden"] .typora-workspace {

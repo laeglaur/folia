@@ -219,6 +219,12 @@ type PageFindMatch = {
 const pageFindHighlightName = 'notebook-page-find';
 const initialPageThumbnailLimit = 40;
 const pageThumbnailLimitStep = 30;
+const gardenSidebarNoteStorageKey = 'folia.gardenTypora.sidebarNote';
+
+const loadGardenSidebarNote = () => {
+  if (typeof window === 'undefined') return '';
+  return window.localStorage.getItem(gardenSidebarNoteStorageKey) ?? '';
+};
 
 const clearPageFindTextHighlight = () => {
   CSS.highlights?.delete(pageFindHighlightName);
@@ -326,6 +332,7 @@ export function App() {
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [trashBusy, setTrashBusy] = useState(false);
   const [temporaryMarkdownPages, setTemporaryMarkdownPages] = useState<TemporaryMarkdownPage[]>([]);
+  const [gardenSidebarNote, setGardenSidebarNote] = useState(loadGardenSidebarNote);
   const [deletedBlockSnapshot, setDeletedBlockSnapshot] = useState<DeletedBlockSnapshot | null>(null);
   const [pageDraftName, setPageDraftName] = useState('');
   const [outlineDrawerOpen, setOutlineDrawerOpen] = useState(true);
@@ -697,6 +704,10 @@ export function App() {
     if (disableBrowserPersistence) return;
     void saveState(state);
   }, [state]);
+
+  useEffect(() => {
+    window.localStorage.setItem(gardenSidebarNoteStorageKey, gardenSidebarNote);
+  }, [gardenSidebarNote]);
 
   useEffect(() => {
     if (!persistenceReadyRef.current || cardModeBlockId) return;
@@ -3899,6 +3910,8 @@ export function App() {
     onCloseFloatingCard: () => setState((current) => applyOpenCardBlockToViewState(current, null)),
     onSelectPage: (pageId: string) => selectPage(pageId),
     onSidebarViewChange: setTyporaSidebarView,
+    gardenSidebarNote,
+    onGardenSidebarNoteChange: setGardenSidebarNote,
     onLoadMorePageThumbnails: loadMorePageThumbnails,
     onRootPageDrop: (pageId: string) => {
       setSelectedPageId(pageId);

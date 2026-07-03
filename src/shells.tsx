@@ -18,10 +18,43 @@ import type { OutlineEntry } from './app-utils';
 import { blockTimestampLabel } from './app-utils';
 import { RichEditor, type ImageAnnotationRequest, type MediaResizeRequest } from './editor';
 import { EmojiImage } from './emoji-image';
+import { emojiAssetFor } from './emoji-assets';
 import { renderAnnotatedImagesInHtml } from './image-annotations';
 import { contentThemes } from './typora-theme-registry';
 
 const appLogoUrl = '/app-assets/notebook-logo.jpg';
+
+type GardenNoteSegment = {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strike?: boolean;
+};
+
+const gardenNoteTokenPattern = /(\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|\*[^*]+\*)/g;
+
+const parseGardenNoteSegments = (value: string): GardenNoteSegment[] => {
+  const segments: GardenNoteSegment[] = [];
+  let cursor = 0;
+  for (const match of value.matchAll(gardenNoteTokenPattern)) {
+    const index = match.index ?? 0;
+    if (index > cursor) segments.push({ text: value.slice(cursor, index) });
+    const token = match[0];
+    if (token.startsWith('**')) segments.push({ text: token.slice(2, -2), bold: true });
+    else if (token.startsWith('__')) segments.push({ text: token.slice(2, -2), underline: true });
+    else if (token.startsWith('~~')) segments.push({ text: token.slice(2, -2), strike: true });
+    else if (token.startsWith('*')) segments.push({ text: token.slice(1, -1), italic: true });
+    cursor = index + token.length;
+  }
+  if (cursor < value.length) segments.push({ text: value.slice(cursor) });
+  return segments;
+};
+
+const renderGardenNoteText = (text: string, keyPrefix: string) =>
+  Array.from(text).map((character, index) => emojiAssetFor(character)
+    ? <EmojiImage emoji={character} className="garden-sidebar-note-emoji" key={`${keyPrefix}-emoji-${index}`} decorative />
+    : <span key={`${keyPrefix}-text-${index}`}>{character}</span>);
 
 type ShellThemeOption = {
   id: ShellId;
@@ -745,6 +778,8 @@ type BaseShellProps = {
   onAddPage: () => void;
   onSelectPage: (pageId: string) => void;
   onSidebarViewChange: (view: 'files' | 'thumbnails') => void;
+  gardenSidebarNote: string;
+  onGardenSidebarNoteChange: (note: string) => void;
   onLoadMorePageThumbnails: () => void;
   controls: ShellControlsProps;
   outlineEntries: OutlineEntry[];
@@ -1011,6 +1046,82 @@ export function NativeShell({
   );
 }
 
+function GardenSidebarNote({
+  value,
+  onChange
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [editing, value]);
+
+  useEffect(() => {
+    if (!editing) return;
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, [editing]);
+
+  const commit = () => {
+    onChange(draft.trim().slice(0, 48));
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        className="garden-sidebar-note-input"
+        value={draft}
+        maxLength={48}
+        onBlur={commit}
+        onChange={(event) => setDraft(event.target.value.replace(/[\r\n]+/g, ' '))}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            commit();
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setDraft(value);
+            setEditing(false);
+          }
+        }}
+        aria-label="Garden sidebar note"
+      />
+    );
+  }
+
+  return (
+    <button
+      className={`garden-sidebar-note ${value.trim() ? '' : 'is-empty'}`}
+      type="button"
+      onDoubleClick={() => setEditing(true)}
+      title="Double click to edit"
+    >
+      {parseGardenNoteSegments(value.trim()).map((segment, index) => (
+        <span
+          className={[
+            'garden-sidebar-note-segment',
+            segment.bold ? 'is-bold' : '',
+            segment.italic ? 'is-italic' : '',
+            segment.underline ? 'is-underline' : '',
+            segment.strike ? 'is-strike' : ''
+          ].filter(Boolean).join(' ')}
+          key={`${segment.text}-${index}`}
+        >
+          {renderGardenNoteText(segment.text, `garden-note-${index}`)}
+        </span>
+      ))}
+    </button>
+  );
+}
+
 export function TyporaShell({
   shell,
   contentTheme,
@@ -1041,6 +1152,8 @@ export function TyporaShell({
   onAddPage,
   onSelectPage,
   onSidebarViewChange,
+  gardenSidebarNote,
+  onGardenSidebarNoteChange,
   onLoadMorePageThumbnails,
   controls,
   outlineEntries,
@@ -1053,6 +1166,7 @@ export function TyporaShell({
     <div className={`typora-app-shell typora-theme ${outlineOpen ? 'outline-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
       <aside id="typora-sidebar" className="typora-sidebar active-tab-files">
         <div className="sidebar-tabs" role="tablist" aria-label="Sidebar view">
+          {isGardenTypora ? <GardenSidebarNote value={gardenSidebarNote} onChange={onGardenSidebarNoteChange} /> : null}
           <button
             className={`sidebar-tab ${sidebarView === 'files' ? 'active sidebar-tab-active' : ''}`}
             type="button"
