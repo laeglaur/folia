@@ -205,6 +205,7 @@ type PageContextMenuState = {
   x: number;
   y: number;
   pageId: string;
+  pageIds: string[];
 };
 
 type PageContextMenuMode = 'actions' | 'move';
@@ -321,6 +322,7 @@ export function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(Boolean(pageWindowPageId));
   const [copiedPageId, setCopiedPageId] = useState<string | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+  const [selectedPageIds, setSelectedPageIds] = useState<string[]>([]);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [trashBusy, setTrashBusy] = useState(false);
   const [temporaryMarkdownPages, setTemporaryMarkdownPages] = useState<TemporaryMarkdownPage[]>([]);
@@ -341,6 +343,8 @@ export function App() {
   const markdownFolderInputRef = useRef<HTMLInputElement | null>(null);
   const pageFindInputRef = useRef<HTMLInputElement | null>(null);
   const pageFindPopoverRef = useRef<HTMLDivElement | null>(null);
+  const pageSelectionAnchorRef = useRef<string | null>(null);
+  const pendingPageEmojiIdsRef = useRef<string[] | null>(null);
   const stateRef = useRef(state);
   const activePageBlocksRef = useRef<Block[]>([]);
   const activePageDocumentRequestRef = useRef(0);
@@ -837,14 +841,62 @@ export function App() {
   }, [activePage?.id]);
 
   const outlineEntries = useMemo(() => extractOutlineEntries(activePage, orderedPageBlocks), [activePage, orderedPageBlocks]);
+  const normalizePageSelection = (pageIds: string[]) => {
+    const existing = new Set(stateRef.current.pages.map((page) => page.id));
+    return [...new Set(pageIds.filter((pageId) => existing.has(pageId)))];
+  };
+  const setPageSelection = (pageIds: string[], focusPageId = pageIds[pageIds.length - 1] ?? null, anchorPageId = focusPageId) => {
+    const nextSelection = normalizePageSelection(pageIds);
+    setSelectedPageIds(nextSelection);
+    setSelectedPageId(focusPageId && nextSelection.includes(focusPageId) ? focusPageId : nextSelection[0] ?? null);
+    pageSelectionAnchorRef.current = anchorPageId && nextSelection.includes(anchorPageId) ? anchorPageId : focusPageId && nextSelection.includes(focusPageId) ? focusPageId : nextSelection[0] ?? null;
+  };
+  const siblingPageRange = (anchorId: string, targetId: string) => {
+    const anchor = stateRef.current.pages.find((page) => page.id === anchorId);
+    const target = stateRef.current.pages.find((page) => page.id === targetId);
+    if (!anchor || !target || anchor.notebookId !== target.notebookId || (anchor.parentId ?? null) !== (target.parentId ?? null)) return [targetId];
+    const siblings = stateRef.current.pages.filter((page) => page.notebookId === target.notebookId && (page.parentId ?? null) === (target.parentId ?? null));
+    const anchorIndex = siblings.findIndex((page) => page.id === anchorId);
+    const targetIndex = siblings.findIndex((page) => page.id === targetId);
+    if (anchorIndex < 0 || targetIndex < 0) return [targetId];
+    const start = Math.min(anchorIndex, targetIndex);
+    const end = Math.max(anchorIndex, targetIndex);
+    return siblings.slice(start, end + 1).map((page) => page.id);
+  };
+  const handlePageTreeClick = (pageId: string, event: React.MouseEvent<HTMLElement>) => {
+    if (event.shiftKey) {
+      const anchorId = pageSelectionAnchorRef.current ?? selectedPageId ?? stateRef.current.activePageId;
+      setPageSelection(siblingPageRange(anchorId, pageId), pageId, anchorId);
+      selectPage(pageId);
+      return;
+    }
+    if (event.metaKey || event.ctrlKey) {
+      const currentSelection = selectedPageIds.length ? selectedPageIds : selectedPageId ? [selectedPageId] : [];
+      const alreadySelected = currentSelection.includes(pageId);
+      if (alreadySelected && currentSelection.length > 1) {
+        const nextSelection = currentSelection.filter((candidate) => candidate !== pageId);
+        setPageSelection(nextSelection, nextSelection[nextSelection.length - 1] ?? null);
+        return;
+      }
+      const nextSelection = alreadySelected ? currentSelection : [...currentSelection, pageId];
+      setPageSelection(nextSelection.length ? nextSelection : [pageId], pageId);
+      selectPage(pageId);
+      return;
+    }
+    setPageSelection([pageId], pageId);
+    selectPage(pageId);
+  };
+  const pageIdsForContextMenu = (pageId: string) => selectedPageIds.includes(pageId)
+    ? selectedPageIds
+    : [pageId];
   const pageMoveTargets = useMemo(() => {
     if (!pageContextMenu) return [];
     const needle = pageMoveQuery.trim().toLowerCase();
     const notebookById = new Map(state.notebooks.map((notebook) => [notebook.id, notebook]));
-    const excludedPageIds = new Set([
-      pageContextMenu.pageId,
-      ...descendantsOfPage(pageContextMenu.pageId, state.pages).map((page) => page.id)
-    ]);
+    const excludedPageIds = new Set(pageContextMenu.pageIds.flatMap((pageId) => [
+      pageId,
+      ...descendantsOfPage(pageId, state.pages).map((page) => page.id)
+    ]));
     const buildPagePath = (page: Page) => {
       const ancestors = ancestorsOfPage(page.id, state.pages);
       const pieces = [
@@ -878,7 +930,7 @@ export function App() {
       if (leftNotebook !== rightNotebook) return leftNotebook.localeCompare(rightNotebook);
       return left.label.localeCompare(right.label);
     }).slice(0, 12);
-  }, [pageContextMenu, pageMoveQuery, state.notebooks, state.pages]);
+  }, [pageContextMenu, pageContextMenu?.pageIds, pageMoveQuery, state.notebooks, state.pages]);
   useEffect(() => {
     setPageMoveIndex(0);
   }, [pageMoveQuery, pageContextMenu?.pageId]);
@@ -986,7 +1038,9 @@ export function App() {
   useEffect(() => {
     if (!activePage?.id) return;
     if (selectedPageId !== activePage.id) setSelectedPageId(activePage.id);
-  }, [activePage?.id, selectedPageId]);
+    setSelectedPageIds((current) => current.includes(activePage.id) ? current : [activePage.id]);
+    pageSelectionAnchorRef.current = activePage.id;
+  }, [activePage?.id]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -1537,7 +1591,7 @@ export function App() {
     setEmojiContextMenu({ target, x: left, y: top });
   };
 
-  const openPageContextMenu = (pageId: string, anchorElement: HTMLElement) => {
+  const openPageContextMenu = (pageId: string, pageIds: string[], anchorElement: HTMLElement) => {
     const width = 220;
     const height = 190;
     const anchorRect = anchorElement.getBoundingClientRect();
@@ -1550,7 +1604,7 @@ export function App() {
     setPageMoveQuery('');
     setPageMoveIndex(0);
     setPageContextMenuMode('actions');
-    setPageContextMenu({ pageId, x: left, y: top });
+    setPageContextMenu({ pageId, pageIds: normalizePageSelection(pageIds), x: left, y: top });
   };
 
   const saveImageAnnotations = (request: ImageAnnotationRequest, annotations: ImageAnnotationDocument) => {
@@ -2107,7 +2161,7 @@ export function App() {
     if (nextPage) persistPageDocumentSnapshot(nextPage, nextBlocks, operation);
   };
 
-  const pinFirstBlockForPage = async (pageId: string) => {
+  const pinFirstBlockForPage = async (pageId: string, pinned?: boolean) => {
     const page = stateRef.current.pages.find((candidate) => candidate.id === pageId);
     if (!page || !page.blockIds.length) return;
     try {
@@ -2120,9 +2174,11 @@ export function App() {
       if (!firstBlockId) return;
       const firstBlock = sourceBlocks.find((block) => block.id === firstBlockId) ?? sourceBlocks[0];
       if (!firstBlock) return;
+      const nextPinned = pinned ?? !firstBlock.pinned;
+      if (firstBlock.pinned === nextPinned) return;
       const updatedAt = new Date().toISOString();
       const nextBlocks = sourceBlocks.map((block) =>
-        block.id === firstBlock.id ? { ...block, pinned: !block.pinned, updatedAt } : block
+        block.id === firstBlock.id ? { ...block, pinned: nextPinned, updatedAt } : block
       );
       const nextBlock = nextBlocks.find((block) => block.id === firstBlock.id);
       const nextPage = { ...sourcePage, updatedAt };
@@ -2154,6 +2210,26 @@ export function App() {
       console.warn('Could not pin first page block.', error);
       if (isTauri()) setPinnedBlockPayloads(await listPinnedBlocks());
     }
+  };
+
+  const pinFirstBlocksForPages = async (pageIds: string[], pinned?: boolean) => {
+    for (const pageId of pageIds) {
+      await pinFirstBlockForPage(pageId, pinned);
+    }
+  };
+
+  const topLevelSelectedPageIds = (pageIds: string[]) => {
+    const selected = new Set(pageIds);
+    return pageIds.filter((pageId) => !ancestorsOfPage(pageId, stateRef.current.pages).some((ancestor) => selected.has(ancestor.id)));
+  };
+
+  const movePagesToPath = (pageIds: string[], notebookId: string, parentId: string | null) => {
+    const movablePageIds = topLevelSelectedPageIds(pageIds).filter((pageId) => {
+      if (pageId === parentId) return false;
+      if (!parentId) return true;
+      return !descendantsOfPage(pageId, stateRef.current.pages).some((page) => page.id === parentId);
+    });
+    movablePageIds.forEach((pageId) => movePageToPath(pageId, notebookId, parentId));
   };
 
   const setPageBlockOrder = (blockOrder: 'asc' | 'desc') => {
@@ -2269,8 +2345,10 @@ export function App() {
       .then(reconcileNotebookTree)
       .catch((error) => {
         console.warn('Could not persist page create.', error);
-      });
+    });
     setSelectedPageId(page.id);
+    setSelectedPageIds([page.id]);
+    pageSelectionAnchorRef.current = page.id;
     setState((current) => applyPageCreateToViewState(current, page, current.activeNotebookId, operation));
   };
 
@@ -2487,6 +2565,7 @@ export function App() {
       operation,
       isTauri()
     ));
+    setPageSelection([duplicatedRootId], duplicatedRootId);
     reconcileNotebookTree(persistedTree);
   };
 
@@ -2515,6 +2594,8 @@ export function App() {
         console.warn('Could not persist page tree delete.', error);
       });
     setPinnedBlockPayloads((current) => current.filter((payload) => !deletedPageIds.has(payload.page.id)));
+    setSelectedPageIds((current) => current.filter((pageId) => !deletedPageIds.has(pageId)));
+    if (selectedPageId && deletedPageIds.has(selectedPageId)) setSelectedPageId(null);
 
     setState((current) => applyPageTreeDeleteToViewState(current, pageId, fallbackPage, operation));
   };
@@ -3393,7 +3474,7 @@ export function App() {
     (childPages.get(parentId) ?? []).map((page) => {
       const hasChildren = Boolean(childPages.get(page.id)?.length);
       const expanded = state.expandedPageIds.includes(page.id);
-      const selected = selectedPageId === page.id;
+      const selected = selectedPageIds.includes(page.id);
       const active = page.id === activePage.id;
       const editing = editingPageId === page.id;
       const pageEmoji = page.metadata.emoji;
@@ -3439,13 +3520,15 @@ export function App() {
                   if (handlePageKeyboard(event, page)) return;
                 }}
                 onFocus={() => setSelectedPageId(page.id)}
-                onClick={() => selectPage(page.id)}
+                onClick={(event) => handlePageTreeClick(page.id, event)}
                 onDoubleClick={() => beginPageRename(page)}
                 onContextMenu={(event) => {
                   event.preventDefault();
+                  const pageIds = pageIdsForContextMenu(page.id);
                   selectPage(page.id);
+                  setPageSelection(pageIds, page.id);
                   const row = event.currentTarget.closest<HTMLElement>('.page-row-shell[data-page-id]');
-                  openPageContextMenu(page.id, row ?? event.currentTarget);
+                  openPageContextMenu(page.id, pageIds, row ?? event.currentTarget);
                 }}
                 type="button"
               >
@@ -3463,8 +3546,8 @@ export function App() {
               </button>
             )}
             <div className="row-actions page-row-actions">
-              <button className="mini-button row-action duplicate-page-button" type="button" draggable={false} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setSelectedPageId(page.id); void duplicatePageTree(page.id); }} aria-label={`Duplicate page ${page.title}`}><Copy size={13} /></button>
-              <button className="mini-button row-action delete-page-button" type="button" draggable={false} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setSelectedPageId(page.id); deletePageTree(page.id); }} aria-label={`Delete page ${page.title}`}><Trash2 size={13} /></button>
+              <button className="mini-button row-action duplicate-page-button" type="button" draggable={false} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setPageSelection([page.id], page.id); void duplicatePageTree(page.id); }} aria-label={`Duplicate page ${page.title}`}><Copy size={13} /></button>
+              <button className="mini-button row-action delete-page-button" type="button" draggable={false} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setPageSelection([page.id], page.id); deletePageTree(page.id); }} aria-label={`Delete page ${page.title}`}><Trash2 size={13} /></button>
             </div>
           </div>
           {hasChildren && expanded && <div className="page-tree-children">{renderPageTree(page.id, depth + 1)}</div>}
@@ -3476,7 +3559,7 @@ export function App() {
     (childPages.get(parentId) ?? []).map((page) => {
       const hasChildren = Boolean(childPages.get(page.id)?.length);
       const expanded = state.expandedPageIds.includes(page.id);
-      const selected = selectedPageId === page.id;
+      const selected = selectedPageIds.includes(page.id);
       const active = page.id === activePage.id;
       const editing = editingPageId === page.id;
       const pageEmoji = page.metadata.emoji;
@@ -3528,13 +3611,15 @@ export function App() {
                   if (handlePageKeyboard(event, page)) return;
                 }}
                 onFocus={() => setSelectedPageId(page.id)}
-                onClick={() => selectPage(page.id)}
+                onClick={(event) => handlePageTreeClick(page.id, event)}
                 onDoubleClick={() => beginPageRename(page)}
                 onContextMenu={(event) => {
                   event.preventDefault();
+                  const pageIds = pageIdsForContextMenu(page.id);
                   selectPage(page.id);
+                  setPageSelection(pageIds, page.id);
                   const row = event.currentTarget.closest<HTMLElement>('.file-node-row-shell[data-page-id]');
-                  openPageContextMenu(page.id, row ?? event.currentTarget);
+                  openPageContextMenu(page.id, pageIds, row ?? event.currentTarget);
                 }}
                 type="button"
               >
@@ -3552,8 +3637,8 @@ export function App() {
               </button>
             )}
             <div className="row-actions file-node-actions">
-              <button className="mini-button row-action duplicate-page-button" type="button" draggable={false} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setSelectedPageId(page.id); void duplicatePageTree(page.id); }} aria-label={`Duplicate page ${page.title}`}><Copy size={13} /></button>
-              <button className="mini-button row-action delete-page-button" type="button" draggable={false} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setSelectedPageId(page.id); deletePageTree(page.id); }} aria-label={`Delete page ${page.title}`}><Trash2 size={13} /></button>
+              <button className="mini-button row-action duplicate-page-button" type="button" draggable={false} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setPageSelection([page.id], page.id); void duplicatePageTree(page.id); }} aria-label={`Duplicate page ${page.title}`}><Copy size={13} /></button>
+              <button className="mini-button row-action delete-page-button" type="button" draggable={false} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setPageSelection([page.id], page.id); deletePageTree(page.id); }} aria-label={`Delete page ${page.title}`}><Trash2 size={13} /></button>
             </div>
           </div>
           {hasChildren && expanded && <div className="file-node-children">{renderTyporaFileTree(page.id, depth + 1)}</div>}
@@ -4009,12 +4094,15 @@ export function App() {
         </div>
       ) : null}
       {pageContextMenu ? (() => {
-        const page = state.pages.find((candidate) => candidate.id === pageContextMenu.pageId) ?? null;
-        const firstBlockId = page?.blockIds[0] ?? null;
-        const firstBlockPinned = firstBlockId
-          ? pinnedBlockPayloads.some((payload) => payload.block.id === firstBlockId)
-            || state.blocks.some((block) => block.id === firstBlockId && block.pinned)
-          : false;
+        const menuPageIds = pageContextMenu.pageIds.length ? pageContextMenu.pageIds : [pageContextMenu.pageId];
+        const multiPageMenu = menuPageIds.length > 1;
+        const firstBlockIds = menuPageIds
+          .map((pageId) => state.pages.find((candidate) => candidate.id === pageId)?.blockIds[0] ?? null)
+          .filter((blockId): blockId is string => Boolean(blockId));
+        const firstBlockPinned = firstBlockIds.length > 0 && firstBlockIds.every((blockId) =>
+          pinnedBlockPayloads.some((payload) => payload.block.id === blockId)
+          || state.blocks.some((block) => block.id === blockId && block.pinned)
+        );
         const notebookTargets: Array<{ notebookId: string; parentId: string | null; label: string }> = state.notebooks.map((notebook) => ({
           notebookId: notebook.id,
           parentId: null,
@@ -4046,6 +4134,7 @@ export function App() {
                   role="menuitem"
                   className="page-move-action"
                   onClick={() => {
+                    pendingPageEmojiIdsRef.current = menuPageIds;
                     setEmojiPickerRequest({ target: { kind: 'page', pageId: pageContextMenu.pageId } });
                     closePageContextMenu();
                   }}
@@ -4057,11 +4146,11 @@ export function App() {
                   role="menuitem"
                   className="page-move-action"
                   onClick={() => {
-                    void openPageWindow(pageContextMenu.pageId);
+                    void Promise.all(menuPageIds.map((pageId) => openPageWindow(pageId)));
                     closePageContextMenu();
                   }}
                 >
-                  Open in Window
+                  {multiPageMenu ? 'Open Windows' : 'Open in Window'}
                 </button>
                 <button
                   type="button"
@@ -4079,13 +4168,13 @@ export function App() {
                   type="button"
                   role="menuitem"
                   className="page-move-action"
-                  disabled={!firstBlockId}
+                  disabled={!firstBlockIds.length}
                   onClick={() => {
-                    void pinFirstBlockForPage(pageContextMenu.pageId);
+                    void pinFirstBlocksForPages(menuPageIds, !firstBlockPinned);
                     closePageContextMenu();
                   }}
                 >
-                  {firstBlockPinned ? 'Unpin First Block' : 'Pin First Block'}
+                  {firstBlockPinned ? (multiPageMenu ? 'Unpin First Blocks' : 'Unpin First Block') : (multiPageMenu ? 'Pin First Blocks' : 'Pin First Block')}
                 </button>
               </div>
             ) : (
@@ -4129,7 +4218,7 @@ export function App() {
                         }
                       }}
                       onClick={() => {
-                        movePageToPath(pageContextMenu.pageId, target.notebookId, target.parentId);
+                        movePagesToPath(menuPageIds, target.notebookId, target.parentId);
                         closePageContextMenu();
                       }}
                     >
@@ -4147,14 +4236,25 @@ export function App() {
         request={emojiPickerRequest}
         notebooks={state.notebooks}
         pages={state.pages}
-        onClose={() => setEmojiPickerRequest(null)}
+        onClose={() => {
+          pendingPageEmojiIdsRef.current = null;
+          setEmojiPickerRequest(null);
+        }}
         onChoose={(target, emoji) => {
           if (target.kind === 'notebook') setNotebookEmoji(target.notebookId, emoji);
-          else setPageEmoji(target.pageId, emoji);
+          else {
+            const targetPageIds = pendingPageEmojiIdsRef.current ?? [target.pageId];
+            pendingPageEmojiIdsRef.current = null;
+            targetPageIds.forEach((pageId) => setPageEmoji(pageId, emoji));
+          }
         }}
         onClear={(target) => {
           if (target.kind === 'notebook') setNotebookEmoji(target.notebookId, null);
-          else setPageEmoji(target.pageId, null);
+          else {
+            const targetPageIds = pendingPageEmojiIdsRef.current ?? [target.pageId];
+            pendingPageEmojiIdsRef.current = null;
+            targetPageIds.forEach((pageId) => setPageEmoji(pageId, null));
+          }
         }}
       />
     </>
