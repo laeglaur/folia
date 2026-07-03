@@ -3455,6 +3455,47 @@ export function App() {
     const openBlock = async (blockId: string) => {
       if (!blockId || openedBlockIds.has(blockId)) return;
       openedBlockIds.add(blockId);
+      try {
+        const document = await loadBlockDocument(blockId);
+        if (document) {
+          setState((current) => {
+            if (current.activePageId === document.page.id) {
+              const currentPage = current.pages.find((page) => page.id === document.page.id) ?? document.page;
+              const currentBlocks = blocksForCurrentPage(currentPage, current, activePageBlocksRef.current);
+              const blocksById = new Map(document.content.blocks.map((block) => [block.id, block]));
+              currentBlocks.forEach((block) => {
+                blocksById.set(block.id, block);
+              });
+              const blockIds = [...new Set([
+                ...currentPage.blockIds,
+                ...document.content.blocks.map((block) => block.id)
+              ])];
+              const nextBlocks = blockIds.map((id) => blocksById.get(id)).filter(Boolean) as Block[];
+              const nextPage = { ...document.page, blockIds, updatedAt: document.page.updatedAt };
+              const existingTimer = pageDocumentSaveTimersRef.current[nextPage.id];
+              if (existingTimer) {
+                window.clearTimeout(existingTimer);
+                delete pageDocumentSaveTimersRef.current[nextPage.id];
+              }
+              void persistPageDocument({ page: nextPage, blocks: nextBlocks, operation: null }).catch((error) => {
+                console.warn('Could not persist synced external card document.', error);
+              });
+              return applyPageDocumentToViewState(current, nextPage, nextBlocks, null, isTauri());
+            }
+            const pageIds = document.content.blocks.map((block) => block.id);
+            const nextPage = { ...document.page, blockIds: pageIds };
+            return {
+              ...current,
+              pages: current.pages.some((page) => page.id === document.page.id)
+                ? current.pages.map((page) => (page.id === document.page.id ? nextPage : page))
+                : [...current.pages, nextPage]
+            };
+          });
+        }
+        setPinnedBlockPayloads(await listPinnedBlocks());
+      } catch (error) {
+        console.warn('Could not sync external card block before opening.', error);
+      }
       await openPinnedWindow(blockId);
     };
     void invoke<string[]>('drain_pending_card_opens')
