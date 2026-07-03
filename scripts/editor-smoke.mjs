@@ -262,21 +262,6 @@ checks.escapedMathHtmlPasteIsDefuddled = escapedMathPaste.text.includes('800') &
   !/ltx_Math|font-variant-caps/.test(escapedMathPaste.html);
 
 await resetApp();
-const ansiPasteComposer = page.locator('.composer').last();
-await ansiPasteComposer.click();
-await ansiPasteComposer.evaluate((node) => {
-  const clipboardData = new DataTransfer();
-  clipboardData.setData('text/plain', '\u001b[32mansi green\u001b[0m');
-  node.dispatchEvent(new ClipboardEvent('paste', {
-    clipboardData,
-    bubbles: true,
-    cancelable: true
-  }));
-});
-const ansiPasteHtml = await ansiPasteComposer.evaluate((node) => node.innerHTML);
-checks.ansiGreenPasteBecomesHighlight = ansiPasteHtml.includes('<mark>ansi green</mark>');
-
-await resetApp();
 const markComposer = page.locator('.composer').last();
 await markComposer.click();
 await page.keyboard.type('styled marks');

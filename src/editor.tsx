@@ -1137,34 +1137,6 @@ const unwrapElement = (element: HTMLElement) => {
   parent.replaceChild(fragment, element);
 };
 
-const ansiRegex = /\x1b\[[0-9;]*m/g;
-const hasAnsi = (value: string) => {
-  ansiRegex.lastIndex = 0;
-  return ansiRegex.test(value);
-};
-
-const ansiToRichHtml = (value: string) => {
-  let green = false;
-  let cursor = 0;
-  const chunks: string[] = [];
-  const pushText = (text: string) => {
-    if (!text) return;
-    const escaped = escapeHtml(text).replace(/\n/g, '<br>');
-    chunks.push(green ? `<mark>${escaped}</mark>` : escaped);
-  };
-
-  ansiRegex.lastIndex = 0;
-  for (const match of value.matchAll(ansiRegex)) {
-    pushText(value.slice(cursor, match.index));
-    const codes = match[0].slice(2, -1).split(';').filter(Boolean).map(Number);
-    if (codes.length === 0 || codes.includes(0) || codes.includes(39)) green = false;
-    if (codes.includes(32) || codes.includes(92)) green = true;
-    cursor = (match.index ?? 0) + match[0].length;
-  }
-  pushText(value.slice(cursor));
-  return `<p>${chunks.join('')}</p>`;
-};
-
 const markdownImportFileRegex = /\.(md|markdown|txt)$/i;
 const mediaImportFileRegex = /\.(png|jpe?g|gif|webp|avif|svg|mp4|mov|webm|m4v|mp3|wav|m4a|aac|ogg|flac)$/i;
 const videoImportFileRegex = /\.(mp4|mov|webm|m4v)$/i;
@@ -1575,9 +1547,7 @@ const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
 
   const nextHtml = markdown
     ? markdownToRichHtml(markdown)
-    : hasAnsi(text)
-      ? ansiToRichHtml(text)
-      : markdownishText(text)
+    : markdownishText(text)
         ? markdownToRichHtml(text)
         : '';
 
