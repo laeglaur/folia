@@ -1215,31 +1215,29 @@ export function App() {
     return { top, left };
   };
 
-  const showFloatingToolbarForEditor = (editor: Editor | null, fallback?: { x: number; y: number }, force = false) => {
-    if ((!showToolbar && !force) || !editor) {
-      setFloatingToolbar((current) => current.visible ? { ...current, visible: false } : current);
-      return;
-    }
+  const selectedTextRectForEditor = (editor: Editor | null) => {
+    if (!editor) return null;
     const editorRoot = editor.view.dom;
-    let rect: DOMRect | { left: number; right: number; top: number; bottom: number } | null = null;
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0 && editorRoot.contains(selection.anchorNode)) {
       const rangeRect = selection.getRangeAt(0).getBoundingClientRect();
-      if (rangeRect.width || rangeRect.height) rect = rangeRect;
+      if ((rangeRect.width || rangeRect.height) && !selection.isCollapsed && selection.toString().trim()) return rangeRect;
     }
-    if (!rect) {
-      try {
-        const coords = editor.view.coordsAtPos(editor.state.selection.from);
-        rect = { left: coords.left, right: coords.right, top: coords.top, bottom: coords.bottom };
-      } catch {
-        rect = fallback ? { left: fallback.x, right: fallback.x, top: fallback.y, bottom: fallback.y } : null;
-      }
-    }
-    if (!rect && fallback) rect = { left: fallback.x, right: fallback.x, top: fallback.y, bottom: fallback.y };
-    if (!rect) {
-      setFloatingToolbar((current) => current.visible ? { ...current, visible: false } : current);
-      return;
-    }
+    if (editor.state.selection.empty) return null;
+    const from = editor.view.coordsAtPos(editor.state.selection.from);
+    const to = editor.view.coordsAtPos(editor.state.selection.to);
+    return {
+      left: Math.min(from.left, to.left),
+      right: Math.max(from.right, to.right),
+      top: Math.min(from.top, to.top),
+      bottom: Math.max(from.bottom, to.bottom)
+    };
+  };
+
+  const showFloatingToolbarForEditor = (editor: Editor | null) => {
+    if (!showToolbar) return;
+    const rect = selectedTextRectForEditor(editor);
+    if (!rect) return;
     const nextPosition = toolbarPositionFromRect(rect);
     setFloatingToolbar((current) =>
       current.visible && Math.abs(current.top - nextPosition.top) < 1 && Math.abs(current.left - nextPosition.left) < 1
@@ -1250,12 +1248,16 @@ export function App() {
 
   const syncFloatingControls = (editor: Editor | null) => {
     syncTableControls(editor);
-    showFloatingToolbarForEditor(editor);
+    if (editor?.state.selection.empty) setFloatingToolbar((current) => current.visible ? { ...current, visible: false } : current);
   };
 
   const showContextToolbar = (editor: Editor, x: number, y: number) => {
     syncTableControls(editor);
     if (!showToolbar) return;
+    if (!selectedTextRectForEditor(editor)) {
+      setFloatingToolbar((current) => current.visible ? { ...current, visible: false } : current);
+      return;
+    }
     const safeX = Number.isFinite(x) ? x : window.innerWidth / 2;
     const safeY = Number.isFinite(y) ? y : window.innerHeight / 2;
     const top = Math.max(10, Math.min(safeY + 8, window.innerHeight - 52));
@@ -1268,8 +1270,7 @@ export function App() {
   };
 
   useEffect(() => {
-    if (!showToolbar) return;
-    showFloatingToolbarForEditor(getActiveTiptapEditor(), undefined, true);
+    if (!showToolbar) setFloatingToolbar((current) => current.visible ? { ...current, visible: false } : current);
   }, [showToolbar, activeEditor]);
 
   useEffect(() => {
@@ -3695,7 +3696,7 @@ export function App() {
     onShowToolbarChange: (show: boolean) => {
       setShowToolbar(show);
       if (!show) setFloatingToolbar((current) => ({ ...current, visible: false }));
-      else showFloatingToolbarForEditor(getActiveTiptapEditor(), undefined, true);
+      else showFloatingToolbarForEditor(getActiveTiptapEditor());
     },
     onShowComposerFooterChange: setShowComposerFooter,
     onShowBlockBordersChange: setShowBlockBorders,
