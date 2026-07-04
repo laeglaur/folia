@@ -106,11 +106,11 @@ const normalizeTheme = (theme?: string): ThemeId => {
   return 'garden';
 };
 
-const shellIds = new Set<ShellId>(['native-garden', 'native-ledger', 'typora-base', 'typora-garden']);
+const shellIds = new Set<ShellId>(['native-garden', 'typora-base', 'typora-garden']);
 
 const shellFromLegacyState = (theme: ThemeId, contentTheme: ContentThemeId): ShellId => {
   if (contentTheme.startsWith('typora-') && contentTheme !== 'typora-base') return 'typora-base';
-  return theme === 'ledger' ? 'native-ledger' : 'native-garden';
+  return 'native-garden';
 };
 
 const normalizeShell = (shell: string | undefined, theme: ThemeId, contentTheme: ContentThemeId): ShellId => {
@@ -205,7 +205,7 @@ const normalizeState = (state: AppState): AppState => {
   const theme = normalizeTheme(state.theme);
   const contentTheme = normalizeContentTheme(state.contentTheme);
   const shell = normalizeShell(state.shell, theme, contentTheme);
-  const nativeTheme = shell === 'native-ledger' ? 'ledger' : 'garden';
+  const nativeTheme = 'garden';
   const cleanNotebookMetadata = (metadata: Partial<NotebookMetadata> & { iconId?: string; iconPack?: unknown } = {}) => {
     const { iconId: _iconId, iconPack: _iconPack, ...rest } = metadata;
     return {
@@ -769,10 +769,11 @@ export const loadDatabaseBootstrap = async (): Promise<DatabaseBootstrapPayload 
 export const loadWorkspacePreferences = async (): Promise<WorkspacePreferencesPayload | null> => {
   if (!isTauri()) return null;
   const preferences = await invoke<WorkspacePreferencesPayload>('load_workspace_preferences');
+  const shell = shellIds.has(preferences.shell as ShellId) ? preferences.shell as ShellId : 'native-garden';
   return {
     ...preferences,
-    shell: shellIds.has(preferences.shell as ShellId) ? preferences.shell : 'native-garden',
-    theme: preferences.theme === 'ledger' ? 'ledger' : 'garden',
+    shell,
+    theme: 'garden',
     contentTheme: contentThemeIds.has(preferences.contentTheme) ? preferences.contentTheme : 'notebook',
     openCardWindowBlockId: preferences.openCardWindowBlockId ?? null,
     expandedPageIds: preferences.expandedPageIds ?? [],

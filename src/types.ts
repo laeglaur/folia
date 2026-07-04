@@ -1,5 +1,5 @@
 export type ThemeId = 'garden' | 'ledger';
-export type ShellId = 'native-garden' | 'native-ledger' | 'typora-base' | 'typora-garden';
+export type ShellId = 'native-garden' | 'typora-base' | 'typora-garden';
 export type ContentThemeId =
   | 'notebook'
   | 'typora-base'

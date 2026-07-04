@@ -4,10 +4,12 @@ import {
   useState,
   type CSSProperties,
   type ChangeEvent,
+  type Dispatch,
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
   type RefObject,
+  type SetStateAction,
   type UIEvent
 } from 'react';
 import { Download, FilePlus, FileUp, Grid3X3, History, ListTree, NotebookTabs, PanelRight, Pin, Plus, Search, Trash2, Upload } from 'lucide-react';
@@ -59,6 +61,12 @@ const renderGardenNoteText = (text: string, keyPrefix: string) =>
 type ShellThemeOption = {
   id: ShellId;
   label: string;
+};
+
+type NativeBrandSettings = {
+  eyebrow: string;
+  title: string;
+  logoUrl: string;
 };
 
 type PinnedCardMenuState = {
@@ -782,6 +790,8 @@ type BaseShellProps = {
   onSidebarViewChange: (view: 'files' | 'thumbnails') => void;
   gardenSidebarNote: string;
   onGardenSidebarNoteChange: (note: string) => void;
+  nativeBrand: NativeBrandSettings;
+  onNativeBrandChange: Dispatch<SetStateAction<NativeBrandSettings>>;
   onLoadMorePageThumbnails: () => void;
   controls: ShellControlsProps;
   outlineEntries: OutlineEntry[];
@@ -925,6 +935,162 @@ function SearchBox({
   );
 }
 
+function EditableBrandText({
+  value,
+  className,
+  maxLength,
+  ariaLabel,
+  onChange
+}: {
+  value: string;
+  className: string;
+  maxLength: number;
+  ariaLabel: string;
+  onChange: (value: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [editing, value]);
+
+  useEffect(() => {
+    if (!editing) return;
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, [editing]);
+
+  const commit = () => {
+    const nextValue = draft.replace(/[\r\n]+/g, ' ').trim().slice(0, maxLength);
+    onChange(nextValue || value);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        className={`${className} native-brand-input`}
+        value={draft}
+        maxLength={maxLength}
+        onBlur={commit}
+        onChange={(event) => setDraft(event.target.value.replace(/[\r\n]+/g, ' '))}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            commit();
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setDraft(value);
+            setEditing(false);
+          }
+        }}
+        aria-label={ariaLabel}
+      />
+    );
+  }
+
+  return (
+    <button className={`${className} native-brand-text`} type="button" onDoubleClick={() => setEditing(true)} title="Double click to edit">
+      {renderGardenNoteText(value, ariaLabel)}
+    </button>
+  );
+}
+
+function NativeBrandBlock({
+  brand,
+  sidebarView,
+  onSidebarViewChange,
+  onChange
+}: {
+  brand: NativeBrandSettings;
+  sidebarView: 'files' | 'thumbnails';
+  onSidebarViewChange: (view: 'files' | 'thumbnails') => void;
+  onChange: Dispatch<SetStateAction<NativeBrandSettings>>;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const setField = (field: keyof NativeBrandSettings, value: string) => {
+    onChange((current) => ({ ...current, [field]: value }));
+  };
+
+  const chooseLogo = (file: File | null) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setField('logoUrl', reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="brand-block native-brand-block">
+      <EditableBrandText
+        value={brand.eyebrow}
+        className="eyebrow"
+        maxLength={32}
+        ariaLabel="Native brand eyebrow"
+        onChange={(value) => setField('eyebrow', value)}
+      />
+      <button
+        className="brand-mark native-brand-mark-button"
+        type="button"
+        title="Click to change logo"
+        onClick={() => inputRef.current?.click()}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setField('logoUrl', appLogoUrl);
+        }}
+      >
+        <img src={brand.logoUrl || appLogoUrl} alt="" aria-hidden="true" />
+      </button>
+      <input
+        ref={inputRef}
+        hidden
+        accept="image/*"
+        type="file"
+        onChange={(event) => {
+          chooseLogo(event.target.files?.[0] ?? null);
+          event.currentTarget.value = '';
+        }}
+      />
+      <EditableBrandText
+        value={brand.title}
+        className="brand-title"
+        maxLength={32}
+        ariaLabel="Native brand title"
+        onChange={(value) => setField('title', value)}
+      />
+      <div className="native-sidebar-tabs" role="tablist" aria-label="Sidebar view">
+        <button
+          className={`native-sidebar-tab ${sidebarView === 'files' ? 'is-active' : ''}`}
+          type="button"
+          role="tab"
+          aria-selected={sidebarView === 'files'}
+          title="Files"
+          aria-label="Files"
+          onClick={() => onSidebarViewChange('files')}
+        >
+          <ListTree size={14} aria-hidden="true" />
+        </button>
+        <button
+          className={`native-sidebar-tab ${sidebarView === 'thumbnails' ? 'is-active' : ''}`}
+          type="button"
+          role="tab"
+          aria-selected={sidebarView === 'thumbnails'}
+          title="Thumbnails"
+          aria-label="Thumbnails"
+          onClick={() => onSidebarViewChange('thumbnails')}
+        >
+          <Grid3X3 size={14} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const typoraOutlineSearch = (
   query: string,
   onQueryChange: (query: string) => void,
@@ -949,7 +1115,7 @@ export function NativeShell({
   shell,
   contentTheme,
   sidebarCollapsed,
-  sidebarView: _sidebarView,
+  sidebarView,
   activeNotebook,
   notebooks,
   notebookActions,
@@ -959,8 +1125,8 @@ export function NativeShell({
   searchLoading,
   onSearchResultSelect,
   pageTree,
-  pageThumbnails: _pageThumbnails,
-  hasMorePageThumbnails: _hasMorePageThumbnails,
+  pageThumbnails,
+  hasMorePageThumbnails,
   workspaceContent,
   pinnedBlocks,
   openCardBlock,
@@ -972,9 +1138,11 @@ export function NativeShell({
   onCloseFloatingCard,
   onRootPageDrop,
   onAddPage,
-  onSelectPage: _onSelectPage,
-  onSidebarViewChange: _onSidebarViewChange,
-  onLoadMorePageThumbnails: _onLoadMorePageThumbnails,
+  onSelectPage,
+  onSidebarViewChange,
+  onLoadMorePageThumbnails,
+  nativeBrand,
+  onNativeBrandChange,
   controls,
   outlineEntries,
   onJumpToOutlineEntry,
@@ -983,12 +1151,7 @@ export function NativeShell({
   return (
     <div className={`app-shell typora-theme ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
       <aside className="sidebar">
-        <div className="brand-block">
-          <p className="eyebrow">{shell === 'native-ledger' ? 'ledger notes' : 'garden notes'}</p>
-          <div className="brand-mark"><img src={appLogoUrl} alt="" aria-hidden="true" /></div>
-          <h1>Notebook</h1>
-          <p className="profile-id">block-first</p>
-        </div>
+        <NativeBrandBlock brand={nativeBrand} sidebarView={sidebarView} onSidebarViewChange={onSidebarViewChange} onChange={onNativeBrandChange} />
 
         <section className="sidebar-section">
           <div className="section-row">
@@ -998,24 +1161,28 @@ export function NativeShell({
           <NotebookList notebooks={notebooks} activeNotebook={activeNotebook} canDeleteNotebook={notebooks.length > 1} variant="native" actions={notebookActions} />
         </section>
 
-        <section className="sidebar-section pages-section">
+        <section className={`sidebar-section pages-section ${sidebarView === 'thumbnails' ? 'is-thumbnail-view' : 'is-file-view'}`}>
           <div className="section-row">
-            <div className="section-label">Pages</div>
+            <div className="section-label">{sidebarView === 'thumbnails' ? 'Thumbnails' : 'Pages'}</div>
             <button className="mini-button" type="button" onClick={onAddPage} aria-label="New page"><FilePlus size={14} /></button>
           </div>
-          <div
-            className="page-tree"
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              const target = event.target as HTMLElement | null;
-              if (target?.closest('.page-row-shell')) return;
-              const draggedId = event.dataTransfer.getData('application/page-id');
-              if (draggedId) onRootPageDrop(draggedId);
-            }}
-          >
-            {pageTree}
-          </div>
+          {sidebarView === 'files' ? (
+            <div
+              className="page-tree"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const target = event.target as HTMLElement | null;
+                if (target?.closest('.page-row-shell')) return;
+                const draggedId = event.dataTransfer.getData('application/page-id');
+                if (draggedId) onRootPageDrop(draggedId);
+              }}
+            >
+              {pageTree}
+            </div>
+          ) : (
+            <PageThumbnails pages={pageThumbnails} hasMorePages={hasMorePageThumbnails} onSelectPage={onSelectPage} onLoadMore={onLoadMorePageThumbnails} />
+          )}
         </section>
 
         <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} onOpenPinnedPage={onOpenPinnedPage} onUnpinBlock={onUnpinBlock} />

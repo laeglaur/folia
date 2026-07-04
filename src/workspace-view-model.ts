@@ -72,7 +72,7 @@ export const mergeNotebookTree = (state: AppState, tree: NotebookTreePayload): A
 export const applyShellToViewState = (current: AppState, shell: ShellId): AppState => ({
   ...current,
   shell,
-  theme: shell === 'native-ledger' ? 'ledger' : shell === 'native-garden' ? 'garden' : current.theme
+  theme: shell === 'native-garden' ? 'garden' : current.theme
 });
 
 export const applyContentThemeToViewState = (current: AppState, contentTheme: ContentThemeId): AppState => ({

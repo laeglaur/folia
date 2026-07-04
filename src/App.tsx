@@ -144,12 +144,17 @@ import { inferNotebookMetadataFieldsForPages, metadataFieldTypeFor, metadataSele
 
 const shellThemes: Array<{ id: ShellId; label: string }> = [
   { id: 'native-garden', label: 'Native Garden' },
-  { id: 'native-ledger', label: 'Native Ledger' },
   { id: 'typora-base', label: 'Typora Base' },
   { id: 'typora-garden', label: 'Garden Typora' }
 ];
 
 const fishIconUrl = '/app-assets/blue_red_fish.png';
+const defaultNativeBrand = {
+  eyebrow: 'garden notes',
+  title: 'Notebook',
+  logoUrl: '/app-assets/notebook-logo.jpg'
+};
+const nativeBrandStorageKey = 'folia.nativeGarden.brand';
 const fullExpansionImportPageLimit = 80;
 const searchParams = new URLSearchParams(window.location.search);
 const cardModeBlockId = searchParams.get('card');
@@ -232,6 +237,24 @@ const gardenSidebarNoteStorageKey = 'folia.gardenTypora.sidebarNote';
 const loadGardenSidebarNote = () => {
   if (typeof window === 'undefined') return '';
   return window.localStorage.getItem(gardenSidebarNoteStorageKey) ?? '';
+};
+
+type NativeBrandSettings = typeof defaultNativeBrand;
+
+const loadNativeBrandSettings = (): NativeBrandSettings => {
+  if (typeof window === 'undefined') return defaultNativeBrand;
+  const stored = window.localStorage.getItem(nativeBrandStorageKey);
+  if (!stored) return defaultNativeBrand;
+  try {
+    const parsed = JSON.parse(stored) as Partial<NativeBrandSettings>;
+    return {
+      eyebrow: typeof parsed.eyebrow === 'string' && parsed.eyebrow.trim() ? parsed.eyebrow : defaultNativeBrand.eyebrow,
+      title: typeof parsed.title === 'string' && parsed.title.trim() ? parsed.title : defaultNativeBrand.title,
+      logoUrl: typeof parsed.logoUrl === 'string' && parsed.logoUrl.trim() ? parsed.logoUrl : defaultNativeBrand.logoUrl
+    };
+  } catch {
+    return defaultNativeBrand;
+  }
 };
 
 const clearPageFindTextHighlight = () => {
@@ -326,6 +349,7 @@ export function App() {
   const [emojiContextMenu, setEmojiContextMenu] = useState<EmojiContextMenuState | null>(null);
   const [pageContextMenu, setPageContextMenu] = useState<PageContextMenuState | null>(null);
   const [pageContextMenuMode, setPageContextMenuMode] = useState<PageContextMenuMode>('actions');
+  const [nativeSidebarView, setNativeSidebarView] = useState<'files' | 'thumbnails'>('files');
   const [typoraSidebarView, setTyporaSidebarView] = useState<'files' | 'thumbnails'>('files');
   const [pageMoveQuery, setPageMoveQuery] = useState('');
   const [pageMoveIndex, setPageMoveIndex] = useState(0);
@@ -341,6 +365,7 @@ export function App() {
   const [trashBusy, setTrashBusy] = useState(false);
   const [temporaryMarkdownPages, setTemporaryMarkdownPages] = useState<TemporaryMarkdownPage[]>([]);
   const [gardenSidebarNote, setGardenSidebarNote] = useState(loadGardenSidebarNote);
+  const [nativeBrand, setNativeBrand] = useState<NativeBrandSettings>(loadNativeBrandSettings);
   const [deletedBlockSnapshot, setDeletedBlockSnapshot] = useState<DeletedBlockSnapshot | null>(null);
   const [pageDraftName, setPageDraftName] = useState('');
   const [outlineDrawerOpen, setOutlineDrawerOpen] = useState(true);
@@ -663,7 +688,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const nativeTheme = state.shell === 'native-ledger' ? 'ledger' : 'garden';
+    const nativeTheme = 'garden';
     const isTyporaShell = state.shell.startsWith('typora-');
     const effectiveContentTheme = isTyporaShell ? state.contentTheme : 'notebook';
     document.documentElement.dataset.theme = nativeTheme;
@@ -721,6 +746,10 @@ export function App() {
   useEffect(() => {
     window.localStorage.setItem(gardenSidebarNoteStorageKey, gardenSidebarNote);
   }, [gardenSidebarNote]);
+
+  useEffect(() => {
+    window.localStorage.setItem(nativeBrandStorageKey, JSON.stringify(nativeBrand));
+  }, [nativeBrand]);
 
   useEffect(() => {
     if (!persistenceReadyRef.current || cardModeBlockId) return;
@@ -1335,17 +1364,15 @@ export function App() {
     if (editor?.state.selection.empty) setFloatingToolbar((current) => current.visible ? { ...current, visible: false } : current);
   };
 
-  const showContextToolbar = (editor: Editor, x: number, y: number) => {
+  const showContextToolbar = (editor: Editor, _x: number, _y: number) => {
     syncTableControls(editor);
     if (!showToolbar) return;
-    if (!selectedTextRectForEditor(editor)) {
+    const rect = selectedTextRectForEditor(editor);
+    if (!rect) {
       setFloatingToolbar((current) => current.visible ? { ...current, visible: false } : current);
       return;
     }
-    const safeX = Number.isFinite(x) ? x : window.innerWidth / 2;
-    const safeY = Number.isFinite(y) ? y : window.innerHeight / 2;
-    const top = Math.max(10, Math.min(safeY + 8, window.innerHeight - 52));
-    const left = Math.max(10, Math.min(safeX, window.innerWidth - 480));
+    const { top, left } = toolbarPositionFromRect(rect);
     setFloatingToolbar((current) =>
       current.visible && Math.abs(current.top - top) < 1 && Math.abs(current.left - left) < 1
         ? current
@@ -4003,7 +4030,7 @@ export function App() {
     contentTheme: effectiveContentTheme,
     sidebarCollapsed,
     outlineOpen: outlineDrawerOpen,
-    sidebarView: typoraSidebarView,
+    sidebarView: isTyporaShell ? typoraSidebarView : nativeSidebarView,
     activeNotebook,
     notebooks: state.notebooks,
     notebookActions,
@@ -4026,9 +4053,11 @@ export function App() {
     onUnpinBlock: (blockId: string) => void unpinPinnedBlock(blockId),
     onCloseFloatingCard: () => setState((current) => applyOpenCardBlockToViewState(current, null)),
     onSelectPage: (pageId: string) => selectPage(pageId),
-    onSidebarViewChange: setTyporaSidebarView,
+    onSidebarViewChange: isTyporaShell ? setTyporaSidebarView : setNativeSidebarView,
     gardenSidebarNote,
     onGardenSidebarNoteChange: setGardenSidebarNote,
+    nativeBrand,
+    onNativeBrandChange: setNativeBrand,
     onLoadMorePageThumbnails: loadMorePageThumbnails,
     onRootPageDrop: (pageId: string) => {
       setSelectedPageId(pageId);

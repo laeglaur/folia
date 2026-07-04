@@ -1,6 +1,5 @@
 @import "./styles/theme-contract.css";
 @import "./styles/themes/garden.css";
-@import "./styles/themes/ledger.css";
 
 @font-face {
   font-family: "Notebook Segoe Emoji";
@@ -143,6 +142,16 @@ input, select { color: var(--ink); }
   letter-spacing: var(--brand-title-letter-spacing);
 }
 
+.brand-title {
+  display: var(--brand-title-display);
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--brand-title-size);
+  line-height: var(--brand-title-line-height);
+  font-weight: var(--brand-title-weight);
+  letter-spacing: var(--brand-title-letter-spacing);
+}
+
 .profile-id {
   display: var(--profile-display);
   margin: 0;
@@ -152,6 +161,83 @@ input, select { color: var(--ink); }
   padding: var(--profile-padding);
   font-size: var(--profile-font-size);
   line-height: var(--profile-line-height);
+}
+
+.native-brand-block {
+  justify-items: center;
+  padding-bottom: 10px;
+}
+
+.native-brand-text,
+.native-brand-input {
+  display: block;
+  justify-self: center;
+  max-width: 100%;
+  min-width: 0;
+  border: 0;
+  text-align: center;
+}
+
+.native-brand-text {
+  width: fit-content;
+  background: transparent;
+  padding: 0;
+  cursor: text;
+}
+
+.native-brand-text.eyebrow {
+  color: var(--accent);
+}
+
+.native-brand-input {
+  width: min(172px, 100%);
+  outline: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+}
+
+.native-brand-input.eyebrow,
+.native-brand-input.brand-title {
+  padding: 1px 6px;
+  border-radius: 7px;
+}
+
+.native-brand-mark-button {
+  padding: 0;
+  overflow: hidden;
+}
+
+.native-sidebar-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  margin: -1px auto 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.native-sidebar-tab {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 17px;
+  min-height: 17px;
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in srgb, var(--muted) 56%, transparent);
+}
+
+.native-sidebar-tab svg {
+  width: 10px;
+  height: 10px;
+}
+
+.native-sidebar-tab:hover,
+.native-sidebar-tab.is-active {
+  background: transparent;
+  color: color-mix(in srgb, var(--accent) 70%, var(--muted));
 }
 
 .sidebar-section { margin-top: var(--nav-section-gap); }
@@ -3298,19 +3384,26 @@ body.notebook-table-column-resizing * {
 
 .muted { color: var(--muted); }
 
-.app-shell[data-shell="native-garden"],
-.app-shell[data-shell="native-ledger"] {
+.app-shell[data-shell="native-garden"] {
   --native-shell-panel-top: var(--layout-sidebar-top);
 }
 
-.app-shell[data-shell="native-garden"] .right-panel,
-.app-shell[data-shell="native-ledger"] .right-panel {
+.app-shell[data-shell="native-garden"] .right-panel {
   top: var(--native-shell-panel-top);
 }
 
-.app-shell[data-shell="native-garden"] .page-surface,
-.app-shell[data-shell="native-ledger"] .page-surface {
+.app-shell[data-shell="native-garden"] .page-surface {
   margin-top: 0;
+}
+
+.app-shell[data-shell="native-garden"] .pages-section.is-thumbnail-view {
+  min-height: 0;
+}
+
+.app-shell[data-shell="native-garden"] .pages-section.is-thumbnail-view .typora-page-thumbnails {
+  margin-top: 7px;
+  padding-right: 2px;
+  max-height: none;
 }
 
 @media (max-width: 760px) {
@@ -3321,16 +3414,6 @@ body.notebook-table-column-resizing * {
 @media (max-width: 960px) {
   .app-shell[data-shell="native-garden"] { grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr); }
   .app-shell[data-shell="native-garden"] .right-panel { display: none; }
-}
-
-@media (max-width: 760px) {
-  .app-shell[data-shell="native-ledger"] { grid-template-columns: minmax(0, 1fr) var(--layout-right-panel-width); }
-  .app-shell[data-shell="native-ledger"] .sidebar { display: none; }
-}
-
-@media (max-width: 960px) {
-  .app-shell[data-shell="native-ledger"] { grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr); }
-  .app-shell[data-shell="native-ledger"] .right-panel { display: none; }
 }
 
 @media (max-width: 760px) {
