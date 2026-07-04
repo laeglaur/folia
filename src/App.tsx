@@ -125,7 +125,7 @@ import {
   mergePageDocument
 } from './workspace-view-model';
 import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { emit, listen } from '@tauri-apps/api/event';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import 'katex/dist/katex.min.css';
@@ -174,6 +174,14 @@ type OpenedMarkdownFilePayload = {
   path: string;
   filename: string;
   markdown: string;
+};
+
+type CardBlockUpdatedPayload = {
+  blockId: string;
+  pageId: string;
+  html: string;
+  plainText: string;
+  updatedAt: string;
 };
 
 type TemporaryMarkdownPage = {
@@ -2131,6 +2139,7 @@ export function App() {
     const nextBlocks = document.content.blocks.map((block) =>
       block.id === blockId ? { ...block, content: { html: cleanHtml, plainText }, updatedAt } : block
     );
+    const nextBlock = nextBlocks.find((block) => block.id === blockId) ?? null;
     const nextPage = { ...document.page, blockIds: nextBlocks.map((block) => block.id), updatedAt };
     const nextDocument = { ...document, page: nextPage, content: { ...document.content, blocks: nextBlocks } };
     const operation = createOperation({
@@ -2142,9 +2151,20 @@ export function App() {
     setCardDocument(nextDocument);
     setPinnedBlockPayloads((current) => current.map((payload) =>
       payload.block.id === blockId
-        ? { ...payload, page: nextPage, block: nextBlocks.find((block) => block.id === blockId) ?? payload.block }
+        ? { ...payload, page: nextPage, block: nextBlock ?? payload.block }
         : payload
     ));
+    if (isTauri() && nextBlock) {
+      void emit<CardBlockUpdatedPayload>('notebook://card-block-updated', {
+        blockId,
+        pageId: nextPage.id,
+        html: cleanHtml,
+        plainText,
+        updatedAt
+      }).catch((error) => {
+        console.warn('Could not broadcast card block update.', error);
+      });
+    }
     schedulePageDocumentSave(nextPage, nextBlocks, operation, 350);
   };
 
@@ -3450,8 +3470,16 @@ export function App() {
   useEffect(() => {
     if (!isTauri() || cardModeBlockId) return;
     let disposed = false;
-    let unlisten: (() => void) | null = null;
+    let unlistenOpen: (() => void) | null = null;
+    let unlistenUpdate: (() => void) | null = null;
     const openedBlockIds = new Set<string>();
+    const refreshPinnedBlocks = () => {
+      window.setTimeout(() => {
+        void listPinnedBlocks().then(setPinnedBlockPayloads).catch((error) => {
+          console.warn('Could not refresh pinned cards after card update.', error);
+        });
+      }, 500);
+    };
     const openBlock = async (blockId: string) => {
       if (!blockId || openedBlockIds.has(blockId)) return;
       openedBlockIds.add(blockId);
@@ -3513,12 +3541,49 @@ export function App() {
       if (disposed) {
         cleanup();
       } else {
-        unlisten = cleanup;
+        unlistenOpen = cleanup;
+      }
+    });
+    void listen<CardBlockUpdatedPayload>('notebook://card-block-updated', (event) => {
+      const update = event.payload;
+      setPinnedBlockPayloads((current) => current.map((payload) =>
+        payload.block.id === update.blockId
+          ? {
+              ...payload,
+              page: { ...payload.page, updatedAt: update.updatedAt },
+              block: {
+                ...payload.block,
+                content: { html: update.html, plainText: update.plainText },
+                updatedAt: update.updatedAt
+              }
+            }
+          : payload
+      ));
+      setState((current) => {
+        if (current.activePageId !== update.pageId) return current;
+        const page = current.pages.find((candidate) => candidate.id === update.pageId);
+        if (!page || !page.blockIds.includes(update.blockId)) return current;
+        const blocks = blocksForCurrentPage(page, current, activePageBlocksRef.current);
+        const nextBlocks = blocks.map((block) =>
+          block.id === update.blockId
+            ? { ...block, content: { html: update.html, plainText: update.plainText }, updatedAt: update.updatedAt }
+            : block
+        );
+        const nextPage = { ...page, updatedAt: update.updatedAt };
+        return applyPageDocumentToViewState(current, nextPage, nextBlocks, null, isTauri());
+      });
+      refreshPinnedBlocks();
+    }).then((cleanup) => {
+      if (disposed) {
+        cleanup();
+      } else {
+        unlistenUpdate = cleanup;
       }
     });
     return () => {
       disposed = true;
-      unlisten?.();
+      unlistenOpen?.();
+      unlistenUpdate?.();
     };
   }, [roundPinnedCards, glowPinnedCards]);
 
