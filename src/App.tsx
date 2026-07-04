@@ -1039,9 +1039,7 @@ export function App() {
   const cardModeBlock = cardDocument?.content.blocks.find((block) => block.id === cardModeBlockId)
     ?? (isTauri() ? null : legacyCardModeBlockFromState(state, cardModeBlockId))
     ?? null;
-  const visibleBlocks = query.trim()
-    ? orderedPageBlocks.filter((block) => block.content.plainText.toLowerCase().includes(query.trim().toLowerCase()))
-    : orderedPageBlocks;
+  const visibleBlocks = orderedPageBlocks;
   const showBlockDividers = state.shell.startsWith('typora-');
   const metadataFields = useMemo<PageMetadataField[]>(() => {
     if (!state.showPageMetadata) return [];
