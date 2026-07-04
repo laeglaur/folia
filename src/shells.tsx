@@ -109,11 +109,7 @@ type NotebookActions = {
 type ToolControlsProps = {
   compact?: boolean;
   showToolbar: boolean;
-  showComposerFooter: boolean;
-  showBlockBorders: boolean;
   showPageMetadata: boolean;
-  roundPinnedCards: boolean;
-  glowPinnedCards: boolean;
   newestFirst: boolean;
   shell: ShellId;
   contentTheme: ContentThemeId;
@@ -123,11 +119,7 @@ type ToolControlsProps = {
   outlineOpen: boolean;
   sidebarCollapsed: boolean;
   onShowToolbarChange: (show: boolean) => void;
-  onShowComposerFooterChange: (show: boolean) => void;
-  onShowBlockBordersChange: (show: boolean) => void;
   onShowPageMetadataChange: (show: boolean) => void;
-  onRoundPinnedCardsChange: (round: boolean) => void;
-  onGlowPinnedCardsChange: (glow: boolean) => void;
   onNewestFirstChange: (newestFirst: boolean) => void;
   onShellChange: (shell: ShellId) => void;
   onContentThemeChange: (contentTheme: ContentThemeId) => void;
@@ -147,11 +139,7 @@ type ToolControlsProps = {
 function ToolControls({
   compact = false,
   showToolbar,
-  showComposerFooter,
-  showBlockBorders,
   showPageMetadata,
-  roundPinnedCards,
-  glowPinnedCards,
   newestFirst,
   shell,
   contentTheme,
@@ -161,11 +149,7 @@ function ToolControls({
   outlineOpen,
   sidebarCollapsed,
   onShowToolbarChange,
-  onShowComposerFooterChange,
-  onShowBlockBordersChange,
   onShowPageMetadataChange,
-  onRoundPinnedCardsChange,
-  onGlowPinnedCardsChange,
   onNewestFirstChange,
   onShellChange,
   onContentThemeChange,
@@ -184,11 +168,7 @@ function ToolControls({
   return (
     <div className={compact ? 'typora-tool-controls' : 'topbar-actions'}>
       <label className="view-toggle"><input type="checkbox" checked={showToolbar} onChange={(event) => onShowToolbarChange(event.target.checked)} /> Toolbar</label>
-      <label className="view-toggle"><input type="checkbox" checked={showComposerFooter} onChange={(event) => onShowComposerFooterChange(event.target.checked)} /> Add</label>
-      <label className="view-toggle"><input type="checkbox" checked={showBlockBorders} onChange={(event) => onShowBlockBordersChange(event.target.checked)} /> Block borders</label>
       <label className="view-toggle"><input type="checkbox" checked={showPageMetadata} onChange={(event) => onShowPageMetadataChange(event.target.checked)} /> Metadata</label>
-      <label className="view-toggle"><input type="checkbox" checked={roundPinnedCards} onChange={(event) => onRoundPinnedCardsChange(event.target.checked)} /> Round pinned cards</label>
-      <label className="view-toggle"><input type="checkbox" checked={glowPinnedCards} onChange={(event) => onGlowPinnedCardsChange(event.target.checked)} /> Glow pinned cards</label>
       <label className="view-toggle">
         <input
           type="checkbox"

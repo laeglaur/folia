@@ -353,10 +353,10 @@ export function App() {
   const [typoraSidebarView, setTyporaSidebarView] = useState<'files' | 'thumbnails'>('files');
   const [pageMoveQuery, setPageMoveQuery] = useState('');
   const [pageMoveIndex, setPageMoveIndex] = useState(0);
-  const [showComposerFooter, setShowComposerFooter] = useState(false);
-  const [showBlockBorders, setShowBlockBorders] = useState(true);
-  const [roundPinnedCards, setRoundPinnedCards] = useState(cardModeBlockId ? cardModeRoundPinnedCards : true);
-  const [glowPinnedCards, setGlowPinnedCards] = useState(cardModeBlockId ? cardModeGlowPinnedCards : true);
+  const showComposerFooter = false;
+  const showBlockBorders = true;
+  const roundPinnedCards = cardModeBlockId ? cardModeRoundPinnedCards : true;
+  const glowPinnedCards = cardModeBlockId ? cardModeGlowPinnedCards : true;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(Boolean(pageWindowPageId));
   const [copiedPageId, setCopiedPageId] = useState<string | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
@@ -3980,11 +3980,7 @@ export function App() {
 
   const shellControls = {
     showToolbar,
-    showComposerFooter,
-    showBlockBorders,
     showPageMetadata: state.showPageMetadata,
-    roundPinnedCards,
-    glowPinnedCards,
     newestFirst: pageBlockOrder === 'desc',
     shell: state.shell,
     contentTheme: effectiveContentTheme,
@@ -3998,11 +3994,7 @@ export function App() {
       if (!show) setFloatingToolbar((current) => ({ ...current, visible: false }));
       else showFloatingToolbarForEditor(getActiveTiptapEditor());
     },
-    onShowComposerFooterChange: setShowComposerFooter,
-    onShowBlockBordersChange: setShowBlockBorders,
     onShowPageMetadataChange: (show: boolean) => setState((current) => applyShowPageMetadataToViewState(current, show)),
-    onRoundPinnedCardsChange: setRoundPinnedCards,
-    onGlowPinnedCardsChange: setGlowPinnedCards,
     onNewestFirstChange: (newestFirst: boolean) => setPageBlockOrder(newestFirst ? 'desc' : 'asc'),
     onShellChange: setShell,
     onContentThemeChange: setContentTheme,
