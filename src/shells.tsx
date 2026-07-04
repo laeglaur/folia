@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -25,6 +26,77 @@ import { renderAnnotatedImagesInHtml } from './image-annotations';
 import { contentThemes } from './typora-theme-registry';
 
 const appLogoUrl = '/app-assets/notebook-logo.jpg';
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const readCssPx = (value: string) => {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const textInkRect = (element: HTMLElement) => {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let textNode = walker.nextNode();
+  while (textNode && !textNode.textContent?.trim()) textNode = walker.nextNode();
+  if (!textNode) return element.getBoundingClientRect();
+
+  const range = document.createRange();
+  range.selectNodeContents(textNode);
+  const rect = range.getBoundingClientRect();
+  return rect.width || rect.height ? rect : element.getBoundingClientRect();
+};
+
+const alignBlockFoldToDate = (root: HTMLElement) => {
+  const date = root.querySelector<HTMLElement>('.block-created-at:not(.is-pinned), .block-created-at');
+  const foldButton = root.querySelector<HTMLElement>('.block-rail .fold-button');
+  if (!date || !foldButton) return;
+
+  const dateRect = textInkRect(date);
+  const foldRect = foldButton.getBoundingClientRect();
+  if (!dateRect.height || !foldRect.height) return;
+
+  const dateCenter = dateRect.top + dateRect.height / 2;
+  const foldCenter = foldRect.top + foldRect.height / 2;
+  const currentOffset = readCssPx(getComputedStyle(root).getPropertyValue('--block-fold-offset-y'));
+  const nextOffset = clamp(Math.round((currentOffset - (foldCenter - dateCenter)) * 2) / 2, -5, 5);
+  if (Math.abs(nextOffset - currentOffset) > 0.1) {
+    root.style.setProperty('--block-fold-offset-y', `${nextOffset}px`);
+  }
+};
+
+const useBlockFoldAlignment = (shell: ShellId, contentTheme: ContentThemeId) => {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    root.style.setProperty('--block-fold-offset-y', '0px');
+    let frame = 0;
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => alignBlockFoldToDate(root));
+    };
+
+    schedule();
+    const workspace = root.querySelector('.typora-workspace') ?? root;
+    const mutationObserver = new MutationObserver(schedule);
+    mutationObserver.observe(workspace, { childList: true, subtree: true, characterData: true });
+
+    const resizeObserver = new ResizeObserver(schedule);
+    resizeObserver.observe(root);
+
+    document.fonts?.ready.then(schedule).catch(() => undefined);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      mutationObserver.disconnect();
+      resizeObserver.disconnect();
+    };
+  }, [shell, contentTheme]);
+
+  return rootRef;
+};
 
 type GardenNoteSegment = {
   text: string;
@@ -1314,9 +1386,10 @@ export function TyporaShell({
   fishIconUrl
 }: BaseShellProps) {
   const isGardenTypora = shell === 'typora-garden';
+  const shellRef = useBlockFoldAlignment(shell, contentTheme);
 
   return (
-    <div className={`typora-app-shell typora-theme ${outlineOpen ? 'outline-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
+    <div ref={shellRef} className={`typora-app-shell typora-theme ${outlineOpen ? 'outline-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
       <aside id="typora-sidebar" className="typora-sidebar active-tab-files">
         <div className="sidebar-tabs" role="tablist" aria-label="Sidebar view">
           {isGardenTypora ? <GardenSidebarNote value={gardenSidebarNote} onChange={onGardenSidebarNoteChange} /> : null}

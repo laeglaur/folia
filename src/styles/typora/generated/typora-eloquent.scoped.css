@@ -22,6 +22,8 @@
 
 .typora-theme[data-content-theme="typora-eloquent"] {
     --primary-color: #404040;
+    --text-color: #404040;
+    --bg-color: #ffffff;
     --monospace-font: "IBM Plex", monospace;
 }
 

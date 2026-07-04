@@ -1391,6 +1391,7 @@ button.delete-notebook-button {
 .block-list { display: grid; gap: var(--block-list-gap); }
 
 .block {
+  --block-timeline-accent: var(--accent, var(--theme-accent));
   display: grid;
   grid-template-columns: var(--block-grid-columns);
   gap: var(--block-gap);
@@ -1417,37 +1418,78 @@ button.delete-notebook-button {
 
 .block.is-dragging { opacity: var(--block-drag-opacity); transform: var(--block-drag-transform); }
 
-.block-rail { display: flex; flex-direction: column; align-items: center; gap: var(--block-rail-gap); }
+.block-rail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--block-rail-gap);
+  padding-top: 0;
+}
+.block-rail::before {
+  content: "";
+  position: absolute;
+  top: calc(19px + var(--block-fold-offset-y, 0px));
+  bottom: 0;
+  left: 50%;
+  z-index: 0;
+  width: 1px;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, var(--block-timeline-accent) 62%, transparent);
+  opacity: 0.55;
+  pointer-events: none;
+}
 .block-rail { cursor: grab; }
 .block-rail:active { cursor: grabbing; }
 .block-rail .fold-button {
-  background: transparent;
+  position: relative;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  min-height: 14px;
+  margin-top: 4px;
+  translate: 0 var(--block-fold-offset-y, 0px);
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--block-timeline-accent) 78%, transparent);
+  border-radius: 50%;
+  background: var(--block-surface-background, var(--page-background, var(--surface, var(--theme-surface-solid, transparent))));
   box-shadow: none;
-  color: var(--block-fold-ink);
+  color: var(--block-timeline-accent);
+  line-height: 1;
+}
+.block-rail .fold-button svg {
+  display: block;
+  width: 9px;
+  height: 9px;
+  translate: 0 0.5px;
+  transform-origin: center;
 }
 .block:not(.is-collapsed) .block-rail .fold-button svg {
   transform: rotate(90deg);
 }
 .block-created-at {
   display: inline-flex;
+  align-items: center;
   width: fit-content;
-  margin: 0 0 4px;
-  padding: 2px 0;
+  min-height: 18px;
+  margin: 0 0 9px;
+  padding: 0;
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: var(--text-color, var(--ink));
-  font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
-  font-size: 10.5px;
-  line-height: 1.2;
+  color: color-mix(in srgb, var(--text-color, var(--ink)) 56%, transparent);
+  font-family: inherit;
+  font-size: 0.72em;
+  line-height: 18px;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
   cursor: pointer;
   box-shadow: none;
 }
 
 .block-created-at:hover,
 .block-created-at:focus-visible {
-  color: var(--text-color, var(--ink));
+  color: color-mix(in srgb, var(--text-color, var(--ink)) 78%, transparent);
   outline: 0;
 }
 
@@ -3380,7 +3422,7 @@ body.notebook-table-column-resizing * {
 }
 
 .typora-theme .block-created-at {
-  color: var(--text-color, var(--theme-ink));
+  color: color-mix(in srgb, var(--text-color, var(--theme-ink)) 56%, transparent);
 }
 
 .typora-theme .floating-card-head,
@@ -3390,10 +3432,10 @@ body.notebook-table-column-resizing * {
 }
 
 .typora-theme .block-created-at:not(.is-pinned) {
-  padding: 2px 0;
+  padding: 0;
   border: 0;
   background: transparent;
-  color: var(--text-color, var(--theme-ink));
+  color: color-mix(in srgb, var(--text-color, var(--theme-ink)) 56%, transparent);
   box-shadow: none;
 }
 

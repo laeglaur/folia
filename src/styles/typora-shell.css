@@ -539,6 +539,22 @@
   border-bottom-color: var(--typora-shell-divider);
 }
 
+.typora-app-shell .outline-drawer-head .mini-button {
+  width: 24px;
+  height: 24px;
+  border: 0 !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  color: inherit;
+}
+
+.typora-app-shell .outline-drawer-head .mini-button:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent) !important;
+}
+
 .typora-app-shell .outline-drawer .outline-content.md-toc-content {
   margin: 0;
   padding: 0;

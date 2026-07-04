@@ -780,7 +780,7 @@ body[data-content-theme="typora-everforest-dark"] {
 }
 
 .typora-theme[data-content-theme^="typora-"] .block-created-at {
-  color: var(--text-color, var(--typora-fallback-text, var(--theme-ink)));
+  color: color-mix(in srgb, var(--text-color, var(--typora-fallback-text, var(--theme-ink))) 56%, transparent);
 }
 
 .typora-theme[data-content-theme^="typora-"] .floating-card-head,
@@ -790,10 +790,10 @@ body[data-content-theme="typora-everforest-dark"] {
 }
 
 .typora-theme[data-content-theme^="typora-"] .block-created-at:not(.is-pinned) {
-  padding: 2px 0;
+  padding: 0;
   border: 0 !important;
   background: transparent !important;
-  color: var(--text-color, var(--typora-fallback-text, var(--theme-ink))) !important;
+  color: color-mix(in srgb, var(--text-color, var(--typora-fallback-text, var(--theme-ink))) 56%, transparent) !important;
   box-shadow: none !important;
 }
 

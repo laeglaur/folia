@@ -179,8 +179,8 @@ html {
 body {
     font-family: 'HKGrotesk', sans-serif;
     font-weight: 300;
-    font-size: 1.275em;
-    letter-spacing: 0px; 
+    font-size: 1em;
+    letter-spacing: 0px;
     color: #333333;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: subpixel-antialiased;
@@ -617,4 +617,3 @@ header, .context-menu, .megamenu-content, footer{
     font-family: 'OfficeCodePro', monospace;
     font-size: 1.000em;
 }
-

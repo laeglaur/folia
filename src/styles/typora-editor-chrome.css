@@ -172,10 +172,11 @@
 }
 
 .typora-app-shell .block {
+  --block-timeline-accent: var(--accent, var(--theme-accent, var(--text-color, var(--typora-shell-ink))));
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
-  gap: 7px;
-  padding: 8px 10px 8px 6px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px 8px;
   border: var(--composer-card-border, var(--block-surface-border, var(--typora-editor-block-border)));
   border-radius: var(--composer-card-radius, var(--block-radius, 4px));
   background: var(--composer-card-background, var(--block-surface-background, transparent));
@@ -184,7 +185,7 @@
 }
 
 .typora-app-shell .typora-write.show-block-borders .block {
-  padding: 8px 10px 8px 6px;
+  padding: 10px 8px;
   border: var(--composer-card-border, var(--block-surface-border, var(--typora-editor-block-border)));
   border-radius: var(--composer-card-radius, var(--block-radius, 4px));
   background: var(--composer-card-background, var(--block-surface-background, transparent));
@@ -227,12 +228,13 @@
 }
 
 .typora-app-shell .block-divider.uses-default-divider {
-  height: 18px;
-  margin: 18px 0;
+  height: 0;
+  margin: var(--hr-margin, 18px 0);
   border: 0;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--typora-editor-block-divider-color) 12%, transparent);
-  box-shadow: var(--typora-editor-block-divider-shadow);
+  border-top: 1px dashed var(--typora-editor-block-divider-color);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .typora-app-shell .block-body {
@@ -241,24 +243,27 @@
 
 .typora-app-shell .block-created-at {
   display: inline-flex;
+  align-items: center;
   width: fit-content;
-  margin: 0 0 7px;
-  padding: 2px 0;
+  min-height: 18px;
+  margin: 0 0 9px;
+  padding: 0;
   border: 0;
   border-radius: 3px;
   background: transparent;
-  color: var(--text-color, var(--typora-shell-ink));
-  font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
-  font-size: 11px;
-  line-height: 1.25;
+  color: color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 56%, transparent);
+  font-family: inherit;
+  font-size: 0.72em;
+  line-height: 18px;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
   cursor: pointer;
   box-shadow: none;
 }
 
 .typora-app-shell .block-created-at:hover,
 .typora-app-shell .block-created-at:focus-visible {
-  color: var(--text-color, var(--typora-shell-ink));
+  color: color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 78%, transparent);
   outline: 0;
 }
 
@@ -267,13 +272,28 @@
 }
 
 .typora-app-shell .block-rail {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   padding-top: 0;
-  color: color-mix(in srgb, var(--typora-shell-muted) 76%, transparent);
-  font-family: var(--font-ui, var(--font-sans-serif, ui-sans-serif, system-ui, sans-serif));
+  color: var(--block-timeline-accent);
+  font-family: inherit;
+}
+
+.typora-app-shell .block-rail::before {
+  content: "";
+  position: absolute;
+  top: calc(19px + var(--block-fold-offset-y, 0px));
+  bottom: 0;
+  left: 50%;
+  z-index: 0;
+  width: 1px;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, var(--block-timeline-accent) 62%, transparent);
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .typora-app-shell .block-rail {
@@ -285,34 +305,37 @@
 }
 
 .typora-app-shell .block-rail .fold-button {
+  position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  background: transparent;
+  width: 14px;
+  height: 14px;
+  min-height: 14px;
+  margin-top: 4px;
+  translate: 0 var(--block-fold-offset-y, 0px);
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--block-timeline-accent) 78%, transparent);
+  border-radius: 50%;
+  background: var(--composer-card-background, var(--block-surface-background, var(--bg-color, var(--typora-shell-panel))));
   color: inherit;
+  line-height: 1;
   box-shadow: none;
+  opacity: 0.9;
 }
 
-.typora-app-shell .block-rail .fold-button {
-  width: 18px;
-  height: 18px;
-  border: 0;
-  border-radius: 0;
-  opacity: 0.72;
-}
-
-.typora-app-shell .block-rail .fold-button:hover {
-  border-color: color-mix(in srgb, var(--typora-shell-divider) 76%, transparent);
-  background: var(--typora-editor-control-hover-bg);
-  color: var(--typora-shell-ink);
+.typora-app-shell .block-rail .fold-button svg {
+  display: block;
+  width: 9px;
+  height: 9px;
+  translate: 0 0.5px;
+  transform-origin: center;
 }
 
 .typora-app-shell .block-rail .fold-button:hover {
-  border-color: transparent;
-  background: transparent;
+  border-color: var(--block-timeline-accent);
+  background: color-mix(in srgb, var(--block-timeline-accent) 8%, var(--composer-card-background, var(--block-surface-background, var(--bg-color, var(--typora-shell-panel)))));
+  color: var(--block-timeline-accent);
   opacity: 1;
 }
 
@@ -568,8 +591,378 @@
   box-shadow: none;
 }
 
+.typora-app-shell[data-shell="typora-base"] {
+  --typora-base-highlight-accent: var(--mark-bg-color, var(--mark-bg, var(--ravel-highlight-color, var(--highlight-color, var(--primary-color, var(--accent, var(--theme-accent, var(--typora-shell-divider))))))));
+  --typora-base-quote-accent: var(--quote-border-color, var(--ravel-blockquote-border-color, var(--folio-quote-border, var(--blockquote-color, var(--primary-color, var(--typora-base-highlight-accent))))));
+  --typora-base-tab-accent: var(--typora-base-quote-accent);
+}
+
+.typora-app-shell[data-shell="typora-base"] .block {
+  --block-timeline-accent: var(--typora-base-tab-accent);
+}
+
+.typora-app-shell[data-shell="typora-base"] .sidebar-tabs {
+  align-items: end;
+  border-bottom: 1px solid var(--typora-shell-divider);
+  background: transparent;
+}
+
+.typora-app-shell[data-shell="typora-base"] .sidebar-tab {
+  position: relative;
+  min-height: 38px;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+}
+
+.typora-app-shell[data-shell="typora-base"] .sidebar-tab:hover {
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+
+.typora-app-shell[data-shell="typora-base"] .sidebar-tab.active,
+.typora-app-shell[data-shell="typora-base"] .sidebar-tab-active,
+.typora-app-shell[data-shell="typora-base"] .sidebar-tab.active:hover {
+  border-bottom-color: var(--typora-base-tab-accent);
+  background: transparent;
+  color: var(--typora-shell-ink);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-ravel-light"] {
+  --typora-base-tab-accent: var(--ravel-accent-color, var(--ravel-highlight-color));
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-proof"] {
+  --typora-base-tab-accent: #6d8a72;
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-bit-clean-light"] {
+  --typora-base-tab-accent: var(--accent-blue);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-flexoki-light"] {
+  --typora-base-tab-accent: var(--flexoki-cyan);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-inkwell"] {
+  --typora-base-tab-accent: var(--blockquote-border, #94a3b8);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-everforest-light"],
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-everforest-dark"],
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-mdmdt-light"] {
+  --typora-base-tab-accent: var(--color-1);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-gruvbox-dark"] {
+  --typora-base-tab-accent: var(--yellow);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-zeus"] {
+  --typora-base-tab-accent: #2196f3;
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-alise"] {
+  --typora-base-tab-accent: #16b0ff;
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-minimalism"] {
+  --typora-base-tab-accent: #dd4c4f;
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-salamander"] {
+  --typora-base-tab-accent: var(--sal-bq-border);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-torillic"] {
+  --typora-base-tab-accent: var(--green);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-blackout"] {
+  --typora-base-tab-accent: var(--other-main-color);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-konayuki"] {
+  --typora-base-tab-accent: var(--sidebar-accent);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-swiss"] {
+  --typora-base-tab-accent: var(--accent);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-chocolate-box"] {
+  --typora-base-tab-accent: var(--accent-color);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-bonne-nouvelle"] {
+  --typora-base-tab-accent: var(--primary-color, var(--active-file-border-color, #6dc1e7));
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-law"] {
+  --typora-base-tab-accent: #a00;
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-eloquent"] {
+  --typora-base-tab-accent: var(--primary-color, #404040);
+}
+
+.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-latex"] {
+  --typora-base-tab-accent: var(--typora-base-quote-accent);
+}
+
+.typora-app-shell[data-shell="typora-base"] .page-title-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-folio"] .page-surface.typora-write,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-paperglow"] .page-surface.typora-write,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-torillic"] .page-surface.typora-write,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-law"] .page-surface.typora-write,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-eloquent"] .page-surface.typora-write {
+  width: min(var(--layout-page-width), calc(100% - 28px));
+  margin: 0 auto 80px;
+  padding: clamp(34px, 5.4vw, 92px) clamp(28px, 4.8vw, 76px) clamp(42px, 5.8vw, 98px);
+  border-radius: 0 !important;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-folio"] .page-surface.typora-write {
+  background: var(--folio-paper, #fffdfa) !important;
+  border: 1px solid var(--folio-border, rgba(116, 93, 74, 0.16)) !important;
+  box-shadow: 0 14px 42px var(--folio-shadow, rgba(74, 59, 47, 0.12)) !important;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-paperglow"] .page-surface.typora-write {
+  background: var(--card-bg, var(--bg-color, #fcfaf6)) !important;
+  border: 1px solid var(--card-border-color, rgba(96, 78, 63, 0.1)) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--card-shadow, 0 10px 22px rgba(70, 52, 38, 0.05)) !important;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-torillic"] .page-surface.typora-write {
+  background: var(--offwhite, var(--bg-color, #f7f0dd)) !important;
+  background-image: url("/typora-assets/typora-torillic/assets/paper-texture.png") !important;
+  border: 1px solid color-mix(in srgb, var(--yellow, var(--text-color, #000)) 30%, rgba(0, 0, 0, 0.08)) !important;
+  box-shadow:
+    inset 0 0 0.1cm 0.04cm rgba(0, 0, 0, 0.1),
+    0.42cm 0.42cm 0.55cm 0.12cm rgba(0, 0, 0, 0.42) !important;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-law"] {
+  --typora-shell-bg: #f1f4f5;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-law"] .page-surface.typora-write {
+  background: #fff !important;
+  border: 1px solid color-mix(in srgb, var(--text-color, #222) 12%, transparent) !important;
+  box-shadow: 0 12px 30px rgba(40, 46, 52, 0.08) !important;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-eloquent"] {
+  --typora-shell-bg: #f0f0ee;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-eloquent"] .page-surface.typora-write {
+  background: #fff !important;
+  color: #404040;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-eloquent"] .typora-block-doc {
+  color: #404040;
+}
+
+.typora-app-shell[data-shell="typora-base"] .page-title-row:not(.has-page-emoji) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.typora-app-shell[data-shell="typora-base"] .page-title-row:focus-within {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .page-title {
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+  text-shadow: none;
+  filter: none;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .page-title:focus {
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .page-title-emoji,
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .page-title-emoji *,
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .block-rail .fold-button,
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .block-rail .fold-button *,
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .page-metadata-add,
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .page-metadata-add * {
+  box-shadow: none;
+  text-shadow: none;
+  filter: none;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .page-title-emoji {
+  display: inline-block;
+  width: clamp(28px, calc(var(--title-size) * 0.8), 42px);
+  height: clamp(28px, calc(var(--title-size) * 0.8), 42px);
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  background-image: none;
+  object-fit: contain;
+  opacity: 1;
+  visibility: visible;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .page-metadata-add {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  background-image: none;
+}
+
+.typora-app-shell[data-shell="typora-base"] .block-list {
+  gap: 0;
+}
+
+.typora-app-shell[data-shell="typora-base"] .block,
+.typora-app-shell[data-shell="typora-base"] .block:hover,
+.typora-app-shell[data-shell="typora-base"] .block:focus-within,
+.typora-app-shell[data-shell="typora-base"] .typora-write.show-block-borders .block,
+.typora-app-shell[data-shell="typora-base"] .typora-write.show-block-borders .block:hover,
+.typora-app-shell[data-shell="typora-base"] .typora-write.show-block-borders .block:focus-within,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-torillic"] .typora-write .block,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-torillic"] .typora-write .block:hover,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-torillic"] .typora-write .block:focus-within,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-torillic"] .typora-write.show-block-borders .block,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-torillic"] .typora-write.show-block-borders .block:hover,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-torillic"] .typora-write.show-block-borders .block:focus-within {
+  padding: 12px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+}
+
+.typora-app-shell[data-shell="typora-base"] .typora-write hr.block-divider {
+  display: block;
+  width: 100%;
+  margin: 0;
+  box-shadow: none;
+}
+
+.typora-app-shell[data-shell="typora-base"] .typora-write hr.block-divider.uses-default-divider {
+  height: 0;
+  margin: 0;
+  border: 0;
+  border-top: 1px dashed var(--typora-editor-block-divider-color);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.typora-app-shell[data-shell="typora-base"] .composer-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.typora-app-shell[data-shell="typora-base"] .composer {
+  padding: 8px 0;
+}
+
+.typora-app-shell[data-shell="typora-base"] .composer-footer {
+  border-top: 0;
+  padding: 6px 0 0;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .page-metadata-add {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .page-metadata-add:hover,
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .page-metadata-add:focus-visible {
+  background: color-mix(in srgb, var(--typora-shell-ink) 7%, transparent);
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .block-rail {
+  position: relative;
+  align-items: center;
+  color: var(--block-timeline-accent);
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .block-rail::before {
+  top: calc(18px + var(--block-fold-offset-y, 0px));
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, var(--block-timeline-accent) 62%, transparent);
+  opacity: 0.55;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .block-rail .fold-button {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin-top: 3px;
+  translate: 0 var(--block-fold-offset-y, 0px);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  background-image: none;
+  color: var(--block-timeline-accent);
+  box-shadow: none;
+  filter: none;
+  opacity: 0.9;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .block-rail .fold-button:hover {
+  background: transparent;
+  color: var(--block-timeline-accent);
+  opacity: 1;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-base"] .typora-write .block-rail .fold-button svg {
+  display: block;
+  width: 10px;
+  height: 10px;
+  translate: 0 0.5px;
+  transform-origin: center;
+}
+
 .typora-app-shell[data-shell="typora-garden"] .block-list {
   gap: var(--block-list-gap, 9px);
+}
+
+.typora-app-shell[data-shell="typora-garden"] .block-divider.uses-default-divider {
+  height: 18px;
+  margin: 18px 0;
+  border: 0;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--typora-editor-block-divider-color) 12%, transparent);
+  box-shadow: var(--typora-editor-block-divider-shadow);
 }
 
 .typora-app-shell[data-shell="typora-garden"] .block,
