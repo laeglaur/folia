@@ -30,6 +30,34 @@
   --theme-body-background: var(--bg-color, var(--bg, var(--theme-bg)));
   --typora-shell-bg: color-mix(in srgb, var(--bg-color, var(--bg, var(--theme-bg))) 80%, var(--text-color, var(--theme-ink, #000)) 20%);
   --typora-shell-panel: var(--side-bar-bg-color, var(--bg-color, var(--bg, var(--theme-surface-solid))));
+  --theme-bg: var(--bg-color, var(--bg, var(--typora-fallback-bg)));
+  --theme-surface-solid: var(--side-bar-bg-color, var(--bg-color, var(--bg, var(--typora-fallback-panel))));
+  --theme-surface: color-mix(in srgb, var(--typora-shell-panel) 88%, transparent);
+  --theme-surface-tint: color-mix(in srgb, var(--typora-shell-panel) 86%, var(--text-color, var(--theme-ink, #000)) 14%);
+  --theme-ink: var(--text-color, #202124);
+  --theme-muted: var(--control-text-color, color-mix(in srgb, var(--theme-ink) 68%, var(--typora-shell-bg)));
+  --theme-line: var(--border, var(--border-color, var(--panel-border-color, color-mix(in srgb, var(--theme-ink) 22%, transparent))));
+  --theme-line-soft: color-mix(in srgb, var(--theme-line) 52%, transparent);
+  --theme-accent: var(--primary-color, var(--accent, #4a89dc));
+  --theme-accent-2: var(--accent-2, var(--theme-accent));
+  --theme-chip: color-mix(in srgb, var(--typora-shell-panel) 88%, var(--theme-ink) 12%);
+  --theme-chip-primary: var(--item-hover-bg-color, color-mix(in srgb, var(--theme-accent) 16%, var(--typora-shell-panel)));
+  --theme-highlight: var(--mark-bg-color, var(--mark-bg, var(--typora-fallback-mark-bg)));
+  --theme-highlight-ink: var(--mark-text-color, var(--highlight-text-color, var(--typora-fallback-mark-text)));
+  --theme-panel-background: var(--overlay-background);
+  --theme-nav-active-background: var(--overlay-selected-background);
+  --theme-nav-active-ink: var(--overlay-selected-ink);
+  --theme-shadow: var(--overlay-shadow);
+  --theme-surface-shadow: var(--overlay-shadow);
+  --panel-border: var(--overlay-border);
+  --page-border: var(--block-surface-border);
+  --page-background: var(--block-surface-background);
+  --page-backdrop-filter: none;
+  --title-font: var(--font-body, var(--font-sans-serif, var(--ui-font)));
+  --title-weight: 650;
+  --control-background: color-mix(in srgb, var(--typora-shell-panel) 76%, transparent);
+  --control-hover-background: var(--overlay-hover-background);
+  --control-hover-ink: var(--theme-ink);
   --overlay-border: 1px solid color-mix(in srgb, var(--text-color, var(--theme-ink)) 18%, transparent);
   --overlay-background: color-mix(in srgb, var(--side-bar-bg-color, var(--bg-color, var(--theme-surface-solid))) 86%, var(--bg-color, var(--theme-surface-solid)));
   --overlay-shadow: 0 16px 38px color-mix(in srgb, var(--text-color, #000) 14%, transparent);
@@ -252,6 +280,9 @@ body[data-content-theme="typora-everforest-dark"] {
 
 .typora-theme[data-content-theme="typora-paperglow"] {
   --typora-shell-bg: var(--window-bg-color, color-mix(in srgb, var(--card-bg, var(--bg-color)) 88%, var(--text-color, #000) 12%));
+  --typora-shell-panel: var(--side-bar-bg-color, var(--card-bg, var(--bg-color)));
+  --overlay-background: var(--card-bg, var(--bg-color));
+  --overlay-shadow: var(--card-shadow, 0 16px 34px rgba(70, 52, 38, 0.12));
   --block-surface-border: 1px solid var(--card-border-color, rgba(96, 78, 63, 0.1));
   --block-surface-background: var(--card-bg, var(--bg-color, var(--theme-surface-solid)));
   --block-surface-shadow: var(--card-shadow, 0 10px 22px rgba(70, 52, 38, 0.05));
@@ -263,11 +294,23 @@ body[data-content-theme="typora-everforest-dark"] {
 .typora-theme[data-content-theme="typora-zeus"],
 .typora-theme[data-content-theme="typora-bonne-nouvelle"] {
   --typora-shell-bg: var(--bg-color, var(--bg, #202020));
+  --overlay-shadow:
+    0 0 0 1px color-mix(in srgb, var(--primary-color, var(--text-color)) 12%, transparent),
+    0 14px 34px rgba(0, 0, 0, 0.42);
   --block-surface-border: 1px solid color-mix(in srgb, var(--text-color, var(--typora-fallback-text)) 20%, transparent);
   --block-surface-background: var(--bg-color, var(--bg, #202020));
   --block-surface-shadow:
+    0 0 0 1px color-mix(in srgb, var(--primary-color, var(--text-color, var(--typora-fallback-text))) 10%, transparent),
     0 1px 0 color-mix(in srgb, var(--text-color, var(--typora-fallback-text)) 8%, transparent) inset,
-    0 10px 14px rgba(0, 0, 0, 0.38);
+    0 12px 24px rgba(0, 0, 0, 0.42);
+}
+
+.typora-theme[data-content-theme="typora-mdmdt-light"] {
+  --typora-shell-bg: var(--bg-color);
+  --typora-shell-panel: var(--side-bar-bg-color, var(--bg-color));
+  --overlay-background: var(--side-bar-bg-color, var(--bg-color));
+  --overlay-shadow: 0 16px 34px rgba(30, 40, 60, 0.12);
+  --block-surface-background: var(--bg-color);
 }
 
 .typora-theme[data-content-theme="typora-konayuki"].typora-app-shell #typora-sidebar .file-node-content {
@@ -655,6 +698,36 @@ body[data-content-theme="typora-everforest-dark"] {
   background: transparent;
 }
 
+.typora-theme[data-content-theme="typora-paperglow"] .page-surface.typora-write,
+.typora-theme[data-content-theme="typora-mdmdt-light"] .page-surface.typora-write {
+  height: auto;
+  min-height: 0;
+}
+
+.typora-app-shell.typora-theme[data-content-theme="typora-paperglow"] #typora-sidebar,
+.typora-app-shell.typora-theme[data-content-theme="typora-mdmdt-light"] #typora-sidebar {
+  height: auto;
+  max-height: calc(100vh - var(--layout-sidebar-max-offset, 36px));
+}
+
+.typora-app-shell.typora-theme[data-content-theme="typora-paperglow"] .outline-drawer,
+.typora-app-shell.typora-theme[data-content-theme="typora-mdmdt-light"] .outline-drawer {
+  height: auto;
+  max-height: calc(100vh - var(--layout-sidebar-max-offset, 36px));
+}
+
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell .sidebar-tabs,
+.typora-theme[data-content-theme="typora-everforest-dark"].typora-app-shell .sidebar-tabs {
+  border-top: 0 !important;
+}
+
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell .sidebar-tabs,
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell .sidebar-tabs *,
+.typora-theme[data-content-theme="typora-everforest-dark"].typora-app-shell .sidebar-tabs,
+.typora-theme[data-content-theme="typora-everforest-dark"].typora-app-shell .sidebar-tabs * {
+  border-top-color: transparent;
+}
+
 .typora-theme[data-shell="typora-garden"][data-content-theme^="typora-"] {
   --block-surface-border: 1px dashed color-mix(in srgb, var(--text-color, var(--theme-ink)) 24%, transparent);
   --composer-card-border: var(--block-surface-border);
@@ -705,6 +778,41 @@ body[data-content-theme="typora-everforest-dark"] {
 .typora-theme[data-content-theme^="typora-"] .right-panel .outline-entry span:first-child {
   color: var(--accent);
   font-size: 0.86em;
+}
+
+.app-shell.typora-theme[data-shell^="native-"][data-content-theme^="typora-"] {
+  --theme-body-background: var(--typora-shell-bg);
+  --page-background: var(--block-surface-background);
+  --page-border: var(--block-surface-border);
+  --theme-panel-background: var(--overlay-background);
+  --theme-surface-solid: var(--typora-shell-panel);
+  --theme-surface: var(--overlay-background);
+  --theme-ink: var(--text-color, var(--typora-fallback-text));
+  --theme-muted: var(--control-text-color, var(--typora-fallback-muted));
+  --theme-line: var(--border, var(--border-color, var(--typora-fallback-line)));
+  --theme-nav-active-background: var(--overlay-selected-background);
+  --theme-nav-active-ink: var(--overlay-selected-ink);
+  --theme-shadow: var(--overlay-shadow);
+  color: var(--theme-ink);
+}
+
+.app-shell.typora-theme[data-shell^="native-"][data-content-theme^="typora-"] .sidebar,
+.app-shell.typora-theme[data-shell^="native-"][data-content-theme^="typora-"] .right-panel {
+  border: var(--overlay-border);
+  background: var(--overlay-background);
+  color: var(--theme-muted);
+  box-shadow: var(--overlay-shadow);
+}
+
+.app-shell.typora-theme[data-shell^="native-"][data-content-theme^="typora-"] .page-title,
+.app-shell.typora-theme[data-shell^="native-"][data-content-theme^="typora-"] .brand-block h1 {
+  color: var(--text-color, var(--theme-ink));
+}
+
+.app-shell.typora-theme[data-shell^="native-"][data-content-theme^="typora-"] .page-surface {
+  border: var(--block-surface-border);
+  background: var(--block-surface-background);
+  box-shadow: var(--block-surface-shadow);
 }
 
 .typora-theme[data-content-theme^="typora-"] .desktop-card,
