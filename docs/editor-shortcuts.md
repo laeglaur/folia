@@ -13,7 +13,7 @@
 | --- | --- |
 | `Tab` | 缩进列表项；也支持图片、视频、音频等媒体缩进 |
 | `Shift+Tab` | 反缩进列表项；也支持媒体反缩进 |
-| `Shift+Enter` | 在 composer 里提交为 block；在已有 block 里大概率退回默认换行 |
+| `Shift+Enter` | 在 composer 里提交为 block；在已有 block 或卡片里保存并退出编辑 |
 | `Cmd/Ctrl+B` | 加粗 |
 | `Cmd/Ctrl+I` | 斜体 |
 | `Cmd/Ctrl+U` | 下划线 |
