@@ -1153,39 +1153,43 @@ export function NativeShell({
       <aside className="sidebar">
         <NativeBrandBlock brand={nativeBrand} sidebarView={sidebarView} onSidebarViewChange={onSidebarViewChange} onChange={onNativeBrandChange} />
 
-        <section className="sidebar-section">
-          <div className="section-row">
-            <div className="section-label">Notebooks</div>
-            <button className="mini-button" type="button" onClick={notebookActions.addNotebook} aria-label="New notebook"><Plus size={14} /></button>
-          </div>
-          <NotebookList notebooks={notebooks} activeNotebook={activeNotebook} canDeleteNotebook={notebooks.length > 1} variant="native" actions={notebookActions} />
-        </section>
+        {sidebarView === 'files' ? (
+          <>
+            <section className="sidebar-section">
+              <div className="section-row">
+                <div className="section-label">Notebooks</div>
+                <button className="mini-button" type="button" onClick={notebookActions.addNotebook} aria-label="New notebook"><Plus size={14} /></button>
+              </div>
+              <NotebookList notebooks={notebooks} activeNotebook={activeNotebook} canDeleteNotebook={notebooks.length > 1} variant="native" actions={notebookActions} />
+            </section>
 
-        <section className={`sidebar-section pages-section ${sidebarView === 'thumbnails' ? 'is-thumbnail-view' : 'is-file-view'}`}>
-          <div className="section-row">
-            <div className="section-label">{sidebarView === 'thumbnails' ? 'Thumbnails' : 'Pages'}</div>
-            <button className="mini-button" type="button" onClick={onAddPage} aria-label="New page"><FilePlus size={14} /></button>
-          </div>
-          {sidebarView === 'files' ? (
-            <div
-              className="page-tree"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                const target = event.target as HTMLElement | null;
-                if (target?.closest('.page-row-shell')) return;
-                const draggedId = event.dataTransfer.getData('application/page-id');
-                if (draggedId) onRootPageDrop(draggedId);
-              }}
-            >
-              {pageTree}
-            </div>
-          ) : (
+            <section className="sidebar-section pages-section is-file-view">
+              <div className="section-row">
+                <div className="section-label">Pages</div>
+                <button className="mini-button" type="button" onClick={onAddPage} aria-label="New page"><FilePlus size={14} /></button>
+              </div>
+              <div
+                className="page-tree"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const target = event.target as HTMLElement | null;
+                  if (target?.closest('.page-row-shell')) return;
+                  const draggedId = event.dataTransfer.getData('application/page-id');
+                  if (draggedId) onRootPageDrop(draggedId);
+                }}
+              >
+                {pageTree}
+              </div>
+            </section>
+
+            <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} onOpenPinnedPage={onOpenPinnedPage} onUnpinBlock={onUnpinBlock} />
+          </>
+        ) : (
+          <section className="sidebar-section pages-section is-thumbnail-view">
             <PageThumbnails pages={pageThumbnails} hasMorePages={hasMorePageThumbnails} onSelectPage={onSelectPage} onLoadMore={onLoadMorePageThumbnails} />
-          )}
-        </section>
-
-        <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} onOpenPinnedPage={onOpenPinnedPage} onUnpinBlock={onUnpinBlock} />
+          </section>
+        )}
       </aside>
 
       <main className="workspace">
