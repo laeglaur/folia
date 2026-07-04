@@ -2476,6 +2476,8 @@ body.notebook-table-column-resizing * {
 }
 
 .panel-card {
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--panel-card-radius);
   background: var(--panel-card-background);
@@ -2484,8 +2486,9 @@ body.notebook-table-column-resizing * {
 }
 
 .panel-title { display: flex; align-items: center; gap: var(--panel-title-gap); color: var(--ink); font-size: var(--panel-title-font-size); margin-bottom: var(--panel-title-margin-bottom); }
-.outline-list { display: grid; gap: var(--outline-list-gap); }
+.outline-list { display: grid; gap: var(--outline-list-gap); min-width: 0; }
 .outline-entry {
+  min-width: 0;
   display: grid;
   grid-template-columns: var(--outline-grid);
   gap: var(--outline-gap);
@@ -2506,6 +2509,14 @@ body.notebook-table-column-resizing * {
   color: var(--accent);
   font-variant-numeric: tabular-nums;
   font-size: 0.86em;
+}
+.outline-entry .outline-label {
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .outline-entry.outline-kind-list span:first-child {
   font-size: 1em;

@@ -644,8 +644,8 @@ export function NativeOutline({
           style={{ '--level': entry.level } as CSSProperties}
           type="button"
         >
-          <span>{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
-          <span>{entry.text}</span>
+          <span className="outline-expander" aria-hidden="true">{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
+          <span className="outline-label">{entry.text}</span>
         </button>
       ))}
     </div>
