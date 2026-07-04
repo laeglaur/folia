@@ -964,7 +964,7 @@ function EditableBrandText({
 
   const commit = () => {
     const nextValue = draft.replace(/[\r\n]+/g, ' ').trim().slice(0, maxLength);
-    onChange(nextValue || value);
+    onChange(nextValue);
     setEditing(false);
   };
 
@@ -994,8 +994,8 @@ function EditableBrandText({
   }
 
   return (
-    <button className={`${className} native-brand-text`} type="button" onDoubleClick={() => setEditing(true)} title="Double click to edit">
-      {renderGardenNoteText(value, ariaLabel)}
+    <button className={`${className} native-brand-text ${value ? '' : 'is-empty'}`} type="button" onDoubleClick={() => setEditing(true)} title="Double click to edit">
+      {value ? renderGardenNoteText(value, ariaLabel) : <span className="native-brand-empty-text" aria-hidden="true">&nbsp;</span>}
     </button>
   );
 }

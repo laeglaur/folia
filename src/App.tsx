@@ -248,8 +248,8 @@ const loadNativeBrandSettings = (): NativeBrandSettings => {
   try {
     const parsed = JSON.parse(stored) as Partial<NativeBrandSettings>;
     return {
-      eyebrow: typeof parsed.eyebrow === 'string' && parsed.eyebrow.trim() ? parsed.eyebrow : defaultNativeBrand.eyebrow,
-      title: typeof parsed.title === 'string' && parsed.title.trim() ? parsed.title : defaultNativeBrand.title,
+      eyebrow: typeof parsed.eyebrow === 'string' ? parsed.eyebrow : defaultNativeBrand.eyebrow,
+      title: typeof parsed.title === 'string' ? parsed.title : defaultNativeBrand.title,
       logoUrl: typeof parsed.logoUrl === 'string' && parsed.logoUrl.trim() ? parsed.logoUrl : defaultNativeBrand.logoUrl
     };
   } catch {

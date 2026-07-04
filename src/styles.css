@@ -189,6 +189,15 @@ input, select { color: var(--ink); }
   color: var(--accent);
 }
 
+.native-brand-text.is-empty {
+  min-width: 28px;
+  min-height: 1em;
+}
+
+.native-brand-empty-text {
+  opacity: 0;
+}
+
 .native-brand-input {
   width: min(172px, 100%);
   outline: none;
