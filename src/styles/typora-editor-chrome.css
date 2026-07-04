@@ -591,14 +591,71 @@
   box-shadow: none;
 }
 
-.typora-app-shell[data-shell="typora-base"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"]) {
   --typora-base-highlight-accent: var(--mark-bg-color, var(--mark-bg, var(--ravel-highlight-color, var(--highlight-color, var(--primary-color, var(--accent, var(--theme-accent, var(--typora-shell-divider))))))));
   --typora-base-quote-accent: var(--quote-border-color, var(--ravel-blockquote-border-color, var(--folio-quote-border, var(--blockquote-color, var(--primary-color, var(--typora-base-highlight-accent))))));
   --typora-base-tab-accent: var(--typora-base-quote-accent);
 }
 
-.typora-app-shell[data-shell="typora-base"] .block {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"]) .block {
   --block-timeline-accent: var(--typora-base-tab-accent);
+}
+
+.typora-app-shell[data-shell="typora-garden"] {
+  --typora-garden-accent: var(--typora-base-tab-accent, var(--accent, var(--theme-accent, var(--typora-shell-divider))));
+  --typora-editor-toolbar-border: color-mix(in srgb, var(--typora-garden-accent) 28%, var(--typora-shell-divider));
+  --typora-editor-block-divider-color: var(--typora-garden-accent);
+}
+
+.typora-app-shell[data-shell="typora-garden"] .block {
+  --block-timeline-accent: var(--typora-garden-accent);
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-garden"] .typora-write .page-metadata {
+  gap: 7px;
+  margin: -6px 0 18px;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-garden"] .typora-write .page-metadata-field,
+.typora-app-shell.typora-theme[data-shell="typora-garden"] .typora-write .page-metadata-add {
+  min-height: 29px;
+  border-color: color-mix(in srgb, var(--typora-garden-accent) 24%, var(--typora-shell-divider));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--typora-shell-panel) 82%, var(--typora-garden-accent) 8%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 42%, transparent),
+    0 1px 3px color-mix(in srgb, var(--typora-garden-accent) 10%, transparent);
+}
+
+.typora-app-shell[data-shell="typora-garden"] .page-metadata-field {
+  padding: 3px 9px;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-garden"] .typora-write .page-metadata-field-long {
+  align-items: start;
+  border-radius: 14px;
+  gap: 6px;
+  padding: 9px 11px;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-garden"] .typora-write .page-metadata-field-label {
+  color: color-mix(in srgb, var(--typora-garden-accent) 58%, var(--text-color, var(--typora-shell-ink)));
+  opacity: 1;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-garden"] .typora-write .page-metadata input,
+.typora-app-shell.typora-theme[data-shell="typora-garden"] .typora-write .page-metadata select {
+  border-radius: 999px;
+}
+
+.typora-app-shell.typora-theme[data-shell="typora-garden"] .typora-write .page-metadata-field-long textarea {
+  display: block;
+  width: 100%;
+  border-radius: 0;
+  line-height: 1.5;
+  padding: 0;
+  text-align: left;
+  vertical-align: top;
 }
 
 .typora-app-shell[data-shell="typora-base"] .sidebar-tabs {
@@ -626,85 +683,85 @@
   color: var(--typora-shell-ink);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-ravel-light"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-ravel-light"] {
   --typora-base-tab-accent: var(--ravel-accent-color, var(--ravel-highlight-color));
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-proof"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-proof"] {
   --typora-base-tab-accent: #6d8a72;
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-bit-clean-light"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-bit-clean-light"] {
   --typora-base-tab-accent: var(--accent-blue);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-flexoki-light"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-flexoki-light"] {
   --typora-base-tab-accent: var(--flexoki-cyan);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-inkwell"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-inkwell"] {
   --typora-base-tab-accent: var(--blockquote-border, #94a3b8);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-everforest-light"],
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-everforest-dark"],
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-mdmdt-light"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-everforest-light"],
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-everforest-dark"],
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-mdmdt-light"] {
   --typora-base-tab-accent: var(--color-1);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-gruvbox-dark"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-gruvbox-dark"] {
   --typora-base-tab-accent: var(--yellow);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-zeus"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-zeus"] {
   --typora-base-tab-accent: #2196f3;
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-alise"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-alise"] {
   --typora-base-tab-accent: #16b0ff;
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-minimalism"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-minimalism"] {
   --typora-base-tab-accent: #dd4c4f;
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-salamander"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-salamander"] {
   --typora-base-tab-accent: var(--sal-bq-border);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-torillic"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-torillic"] {
   --typora-base-tab-accent: var(--green);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-blackout"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-blackout"] {
   --typora-base-tab-accent: var(--other-main-color);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-konayuki"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-konayuki"] {
   --typora-base-tab-accent: var(--sidebar-accent);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-swiss"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-swiss"] {
   --typora-base-tab-accent: var(--accent);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-chocolate-box"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-chocolate-box"] {
   --typora-base-tab-accent: var(--accent-color);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-bonne-nouvelle"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-bonne-nouvelle"] {
   --typora-base-tab-accent: var(--primary-color, var(--active-file-border-color, #6dc1e7));
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-law"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-law"] {
   --typora-base-tab-accent: #a00;
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-eloquent"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-eloquent"] {
   --typora-base-tab-accent: var(--primary-color, #404040);
 }
 
-.typora-app-shell[data-shell="typora-base"][data-content-theme="typora-latex"] {
+.typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"])[data-content-theme="typora-latex"] {
   --typora-base-tab-accent: var(--typora-base-quote-accent);
 }
 
@@ -961,8 +1018,10 @@
   margin: 18px 0;
   border: 0;
   border-radius: 5px;
-  background: color-mix(in srgb, var(--typora-editor-block-divider-color) 12%, transparent);
-  box-shadow: var(--typora-editor-block-divider-shadow);
+  background: color-mix(in srgb, var(--typora-garden-accent) 13%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--typora-garden-accent) 20%, transparent),
+    0 1px 4px color-mix(in srgb, var(--typora-garden-accent) 10%, transparent);
 }
 
 .typora-app-shell[data-shell="typora-garden"] .block,
@@ -974,7 +1033,9 @@
   border: var(--block-surface-border);
   background: var(--block-surface-background);
   background-image: var(--block-surface-background-image, none);
-  box-shadow: var(--block-surface-shadow);
+  box-shadow:
+    var(--block-surface-shadow),
+    0 0 0 1px color-mix(in srgb, var(--typora-garden-accent) 7%, transparent);
 }
 
 .typora-app-shell[data-shell="typora-garden"] .block-divider {
@@ -984,6 +1045,154 @@
 .typora-app-shell[data-shell="typora-garden"] .composer-card + .block-divider + .block-list,
 .typora-app-shell[data-shell="typora-garden"] .composer-card + .block-list {
   margin-top: var(--block-list-gap, 9px);
+}
+
+.typora-app-shell.typora-theme {
+  --typora-chrome-accent: var(--app-shell-accent, var(--typora-garden-accent, var(--typora-base-tab-accent, var(--accent, var(--theme-accent)))));
+}
+
+.typora-app-shell.typora-theme :is(.view-toggle input, .collection-chip input[type="checkbox"]) {
+  accent-color: var(--typora-chrome-accent);
+}
+
+.typora-app-shell.typora-theme .calendar-workspace.typora-content-surface {
+  width: min(1080px, calc(100% - 28px));
+  min-width: min(920px, 100%);
+  max-width: 1080px;
+  margin-inline: auto;
+  box-sizing: border-box;
+  background: var(--bg-color, var(--theme-page-background, var(--page-background, var(--typora-shell-panel))));
+  color: var(--text-color, var(--typora-shell-ink));
+}
+
+.typora-app-shell.typora-theme .calendar-view {
+  width: 100%;
+  min-width: 0;
+  color: var(--text-color, var(--typora-shell-ink));
+}
+
+.typora-app-shell.typora-theme .calendar-header .mini-button {
+  border: 1px solid color-mix(in srgb, var(--typora-chrome-accent) 34%, var(--typora-shell-divider));
+  background: color-mix(in srgb, var(--typora-chrome-accent) 10%, var(--bg-color, var(--typora-shell-panel)));
+  color: var(--typora-chrome-accent);
+  box-shadow: none;
+}
+
+.typora-app-shell.typora-theme .calendar-header .mini-button:hover {
+  border-color: color-mix(in srgb, var(--typora-chrome-accent) 58%, var(--typora-shell-divider));
+  background: color-mix(in srgb, var(--typora-chrome-accent) 18%, var(--bg-color, var(--typora-shell-panel)));
+  color: var(--typora-chrome-accent);
+}
+
+.typora-app-shell.typora-theme .calendar-title,
+.typora-app-shell.typora-theme .calendar-workspace-header h2 {
+  color: var(--text-color, var(--typora-shell-ink));
+}
+
+.typora-app-shell.typora-theme .calendar-weekdays,
+.typora-app-shell.typora-theme .calendar-day-number,
+.typora-app-shell.typora-theme .calendar-more,
+.typora-app-shell.typora-theme .page-calendar-entry-fields span,
+.typora-app-shell.typora-theme .calendar-range-entry em {
+  color: color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 62%, transparent);
+}
+
+.typora-app-shell.typora-theme .calendar-day {
+  border-color: color-mix(in srgb, var(--text-color, var(--typora-shell-ink)) 14%, transparent);
+  background: color-mix(in srgb, var(--bg-color, var(--theme-page-background, var(--typora-shell-panel))) 88%, var(--typora-shell-panel) 12%);
+  color: var(--text-color, var(--typora-shell-ink));
+}
+
+.typora-app-shell.typora-theme .calendar-day.is-today {
+  border-color: color-mix(in srgb, var(--typora-chrome-accent) 72%, var(--typora-shell-divider));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--typora-chrome-accent) 30%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--typora-chrome-accent) 9%, transparent);
+}
+
+.typora-app-shell.typora-theme .calendar-day-add:hover,
+.typora-app-shell.typora-theme .calendar-day-add:focus-visible {
+  background: color-mix(in srgb, var(--typora-chrome-accent) 14%, transparent);
+  color: var(--typora-chrome-accent);
+}
+
+.typora-app-shell.typora-theme .calendar-entry {
+  background: color-mix(in srgb, var(--typora-chrome-accent) 18%, var(--bg-color, var(--theme-page-background, var(--typora-shell-panel))));
+  color: var(--text-color, var(--typora-shell-ink));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--typora-chrome-accent) 18%, transparent);
+}
+
+.typora-app-shell.typora-theme .calendar-entry span:first-child {
+  color: color-mix(in srgb, var(--typora-chrome-accent) 82%, var(--text-color, var(--typora-shell-ink)));
+}
+
+.typora-app-shell.typora-theme .collection-calendar-entry {
+  --calendar-entry-accent: var(--typora-chrome-accent);
+  border-left: 0;
+  background: color-mix(in srgb, var(--calendar-entry-accent) 24%, var(--bg-color, var(--theme-page-background, var(--typora-shell-panel))));
+  color: var(--text-color, var(--typora-shell-ink));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--calendar-entry-accent) 23%, transparent),
+    0 1px 3px color-mix(in srgb, var(--calendar-entry-accent) 14%, transparent);
+}
+
+.typora-app-shell.typora-theme .collection-calendar-entry.collection-color-1 { --calendar-entry-accent: #c49102; }
+.typora-app-shell.typora-theme .collection-calendar-entry.collection-color-2 { --calendar-entry-accent: #1b89b2; }
+.typora-app-shell.typora-theme .collection-calendar-entry.collection-color-3 { --calendar-entry-accent: #8d3fb1; }
+.typora-app-shell.typora-theme .collection-calendar-entry.collection-color-4 { --calendar-entry-accent: #219653; }
+.typora-app-shell.typora-theme .collection-calendar-entry.collection-color-5 { --calendar-entry-accent: #c46616; }
+.typora-app-shell.typora-theme .collection-calendar-entry.collection-color-6 { --calendar-entry-accent: #b43737; }
+
+.typora-app-shell.typora-theme .calendar-range-entry > span,
+.typora-app-shell.typora-theme .collection-calendar-entry span:first-child {
+  color: color-mix(in srgb, var(--calendar-entry-accent, var(--typora-chrome-accent)) 82%, var(--text-color, var(--typora-shell-ink)));
+}
+
+.typora-app-shell.typora-theme .page-calendar-controls,
+.typora-app-shell.typora-theme .collection-chip {
+  border-color: color-mix(in srgb, var(--typora-chrome-accent) 18%, var(--typora-shell-divider));
+  background: color-mix(in srgb, var(--bg-color, var(--theme-page-background, var(--typora-shell-panel))) 82%, var(--typora-chrome-accent) 6%);
+  color: var(--text-color, var(--typora-shell-ink));
+}
+
+.typora-app-shell.typora-theme .collection-chip.active {
+  border-color: color-mix(in srgb, var(--typora-chrome-accent) 55%, var(--typora-shell-divider));
+  background: color-mix(in srgb, var(--typora-chrome-accent) 16%, var(--bg-color, var(--theme-page-background, var(--typora-shell-panel))));
+}
+
+.typora-app-shell.typora-theme .import-notice,
+.typora-app-shell.typora-theme .temporary-markdown-badge {
+  border-color: color-mix(in srgb, var(--typora-chrome-accent) 32%, var(--typora-shell-divider));
+  background: color-mix(in srgb, var(--typora-chrome-accent) 10%, var(--bg-color, var(--theme-page-background, var(--typora-shell-panel))));
+  color: var(--text-color, var(--typora-shell-ink));
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--typora-chrome-accent) 10%, transparent);
+}
+
+.typora-app-shell.typora-theme .import-notice.success {
+  border-color: color-mix(in srgb, var(--typora-chrome-accent) 48%, var(--typora-shell-divider));
+  background: color-mix(in srgb, var(--typora-chrome-accent) 14%, var(--bg-color, var(--theme-page-background, var(--typora-shell-panel))));
+}
+
+body[data-shell^="typora-"] :is(.page-find-popover, .emoji-context-menu, .emoji-picker-dialog, .image-annotation-dialog, .page-metadata-type-menu) {
+  border-color: color-mix(in srgb, var(--app-shell-accent, var(--accent)) 28%, var(--line, var(--typora-shell-divider)));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--app-shell-accent, var(--accent)) 8%, transparent),
+    var(--overlay-shadow, 0 18px 42px color-mix(in srgb, #000 18%, transparent));
+}
+
+body[data-shell^="typora-"] :is(.page-find-popover input, .emoji-picker-search, .page-move-search):focus-within,
+body[data-shell^="typora-"] .page-find-popover input:focus {
+  border-color: color-mix(in srgb, var(--app-shell-accent, var(--accent)) 62%, var(--line));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-shell-accent, var(--accent)) 14%, transparent);
+}
+
+body[data-shell^="typora-"] :is(.emoji-choice:hover, .emoji-picker-back:hover, .image-annotation-toolbar button.is-active, .page-move-item.is-selected, .search-result-item.is-selected) {
+  background: color-mix(in srgb, var(--app-shell-accent, var(--accent)) 14%, transparent);
+  color: var(--overlay-ink, var(--ink));
+}
+
+body[data-shell^="typora-"] :is(.primary-button, .temporary-markdown-save) {
+  background: var(--app-shell-accent, var(--accent));
 }
 
 @media (max-width: 900px) {

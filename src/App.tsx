@@ -698,14 +698,45 @@ export function App() {
     document.body.dataset.shell = state.shell;
     document.body.dataset.contentTheme = effectiveContentTheme;
 
+    const clearShellAccent = () => {
+      document.documentElement.style.removeProperty('--app-shell-accent');
+      document.body.style.removeProperty('--app-shell-accent');
+    };
+    const setShellAccent = (root: HTMLElement | null) => {
+      if (!root) {
+        clearShellAccent();
+        return;
+      }
+      const probe = document.createElement('span');
+      probe.style.position = 'absolute';
+      probe.style.pointerEvents = 'none';
+      probe.style.visibility = 'hidden';
+      probe.style.color = 'var(--typora-garden-accent, var(--typora-base-tab-accent, var(--accent, var(--theme-accent))))';
+      root.appendChild(probe);
+      const resolvedAccent = getComputedStyle(probe).color.trim();
+      probe.remove();
+      if (resolvedAccent) {
+        document.documentElement.style.setProperty('--app-shell-accent', resolvedAccent);
+        document.body.style.setProperty('--app-shell-accent', resolvedAccent);
+      } else {
+        clearShellAccent();
+      }
+    };
+
     if (cardModeBlockId) {
       document.body.style.background = '';
       document.documentElement.style.background = '';
+      clearShellAccent();
       return;
     }
 
+    const themeRoot = isTyporaShell && effectiveContentTheme.startsWith('typora-')
+      ? document.querySelector<HTMLElement>(`.typora-theme[data-content-theme="${effectiveContentTheme}"]`)
+      : null;
+    if (isTyporaShell) setShellAccent(themeRoot);
+    else clearShellAccent();
+
     if (isTyporaShell && effectiveContentTheme.startsWith('typora-')) {
-      const themeRoot = document.querySelector<HTMLElement>(`.typora-theme[data-content-theme="${effectiveContentTheme}"]`);
       const resolvedBackground = themeRoot
         ? getComputedStyle(themeRoot).getPropertyValue('--typora-shell-bg').trim() || getComputedStyle(themeRoot).getPropertyValue('--theme-body-background').trim()
         : '';

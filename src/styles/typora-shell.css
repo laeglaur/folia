@@ -568,10 +568,11 @@
   --typora-shell-sidebar-width: 252px;
   --typora-shell-outline-width: 252px;
   --typora-shell-workspace-padding: 22px 28px 80px;
-  --typora-garden-card-border: var(--panel-border, 1px solid color-mix(in srgb, var(--typora-shell-divider) 80%, transparent));
+  --typora-garden-accent: var(--typora-base-tab-accent, var(--accent, var(--theme-accent, var(--typora-shell-divider))));
+  --typora-garden-card-border: var(--panel-border, 1px solid color-mix(in srgb, var(--typora-garden-accent) 18%, var(--typora-shell-divider)));
   --typora-garden-card-radius: var(--shape-panel-radius, 18px);
   --typora-garden-card-bg: color-mix(in srgb, var(--typora-shell-panel) 94%, var(--typora-shell-bg) 6%);
-  --typora-garden-card-shadow: var(--floating-layer-shadow, var(--overlay-shadow, 0 14px 32px color-mix(in srgb, black 12%, transparent)));
+  --typora-garden-card-shadow: var(--floating-layer-shadow, var(--overlay-shadow, 0 14px 32px color-mix(in srgb, var(--typora-garden-accent) 11%, transparent)));
   grid-template-columns: var(--typora-shell-sidebar-width) minmax(0, 1fr) 0;
   gap: var(--layout-shell-gap, 22px);
   padding: var(--layout-shell-padding, 22px);
@@ -631,10 +632,10 @@
 
 .typora-app-shell[data-shell="typora-garden"] .sidebar-tab.active,
 .typora-app-shell[data-shell="typora-garden"] .sidebar-tab-active {
-  border-color: color-mix(in srgb, var(--typora-shell-divider) 64%, transparent);
-  background: color-mix(in srgb, var(--typora-shell-panel) 82%, var(--typora-shell-ink) 18%);
+  border-color: color-mix(in srgb, var(--typora-garden-accent) 46%, transparent);
+  background: color-mix(in srgb, var(--typora-shell-panel) 82%, var(--typora-garden-accent) 18%);
   color: var(--typora-shell-ink);
-  box-shadow: 0 1px 4px color-mix(in srgb, black 8%, transparent);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--typora-garden-accent) 12%, transparent);
 }
 
 .typora-app-shell[data-shell="typora-garden"] .sidebar-tab svg {
@@ -706,6 +707,13 @@
   color: color-mix(in srgb, var(--typora-shell-muted) 62%, transparent);
 }
 
+.typora-app-shell[data-shell="typora-garden"] #typora-sidebar .file-node-content,
+.typora-app-shell[data-shell="typora-garden"] #typora-sidebar .notebook-button,
+.typora-app-shell[data-shell="typora-garden"] #typora-sidebar .page-button,
+.typora-app-shell[data-shell="typora-garden"] .outline-drawer .outline-item {
+  border-radius: 10px;
+}
+
 .typora-app-shell[data-shell="typora-garden"] .typora-workspace {
   height: calc(100vh - 44px);
   padding: 0 14px 0 0;
@@ -730,11 +738,14 @@
 }
 
 .typora-app-shell[data-shell="typora-garden"] .outline-drawer-body {
+  display: grid;
+  gap: 10px;
   max-height: min(58vh, 620px);
 }
 
 .typora-app-shell[data-shell="typora-garden"] .typora-outline-search {
   display: block;
+  margin: 0;
 }
 
 .typora-app-shell[data-shell="typora-garden"] .typora-outline-search .typora-search-box {
