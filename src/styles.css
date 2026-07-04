@@ -657,6 +657,13 @@ input, select { color: var(--ink); }
   color: var(--control-hover-ink);
 }
 
+button.duplicate-page-button,
+button.delete-page-button,
+button.duplicate-notebook-button,
+button.delete-notebook-button {
+  display: none;
+}
+
 .sidebar-note {
   position: relative;
   margin: var(--note-margin);

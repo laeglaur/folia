@@ -1467,8 +1467,9 @@ hr {
     box-shadow: inset 0 0 0 1px var(--focus-ring-color);
 }
 
-#typora-sidebar .active,
 #typora-sidebar .file-node.active > .file-node-content,
+#typora-sidebar .file-node-content.active,
+#typora-sidebar .file-list-item.active,
 #typora-sidebar .outline-item.active {
     background-color: var(--active-file-bg-color);
     color: var(--active-file-text-color);

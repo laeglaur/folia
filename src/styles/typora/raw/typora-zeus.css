@@ -712,7 +712,15 @@ input[type="password"], textarea, select {
 input:focus, textarea:focus, select:focus {
     border-color: var(--primary-color) !important;
 }
-button, .btn {
+.md-notification button,
+.modal-dialog button,
+.modal-dialog .btn,
+.dialog button,
+.dialog .btn,
+.ty-preferences button,
+.ty-preferences .btn,
+.window-content button,
+.window-content .btn {
     background-color: #333 !important;
     border: 1px solid #555 !important;
     color: #ccc !important;

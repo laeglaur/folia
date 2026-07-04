@@ -1415,8 +1415,9 @@
     box-shadow: inset 0 0 0 1px var(--focus-ring-color);
 }
 
-.typora-theme[data-content-theme="typora-latex"].typora-app-shell #typora-sidebar .active,
 .typora-theme[data-content-theme="typora-latex"].typora-app-shell #typora-sidebar .file-node.active > .file-node-content,
+.typora-theme[data-content-theme="typora-latex"].typora-app-shell #typora-sidebar .file-node-content.active,
+.typora-theme[data-content-theme="typora-latex"].typora-app-shell #typora-sidebar .file-list-item.active,
 .typora-theme[data-content-theme="typora-latex"].typora-app-shell #typora-sidebar .outline-item.active {
     background-color: var(--active-file-bg-color);
     color: var(--active-file-text-color);

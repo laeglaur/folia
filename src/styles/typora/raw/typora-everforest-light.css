@@ -498,9 +498,12 @@ input[type="checkbox"] {
 
 /* ==================== Sidebar / Outline / Tabs ==================== */
 #typora-sidebar,
-#typora-sidebar *,
 .sidebar,
-.sidebar * {
+.sidebar-content,
+.sidebar-tabs,
+.sidebar-footer,
+.outline-panel,
+.outline-content {
   -webkit-font-smoothing: antialiased;
 }
 
@@ -622,10 +625,9 @@ input[type="checkbox"] {
   --side-bar-bg-color: var(--bg);
 }
 
-/* 统一侧边栏及其子元素背景，避免切换时出现白色闪屏 */
+/* 统一侧边栏容器背景，避免切换时出现白色闪屏。不要覆盖所有子元素，否则会破坏 Folia 的 shell 控件层次。 */
 #typora-sidebar,
-.sidebar,
-.sidebar * {
+.sidebar {
   background: var(--side-bar-bg-color) !important;
 }
 
@@ -656,7 +658,11 @@ input[type="checkbox"] {
 /* 避免背景在切换动画中过渡为默认色造成闪屏 */
 #typora-sidebar,
 .sidebar,
-.sidebar * {
+.sidebar-content,
+.sidebar-tabs,
+.sidebar-footer,
+.outline-panel,
+.outline-content {
   transition: background-color 0s, color 0s !important;
 }
 
@@ -704,7 +710,7 @@ input[type="checkbox"] {
    ========================= */
 :root {
   color-scheme: light;
-  --window-bg: var(--bg);
+  --window-bg: color-mix(in srgb, var(--bg) 94%, white 6%);
 }
 
 /* 覆盖所有关键容器，确保在打开/关闭侧边栏、切换面板、Megamenu 动画时不出现白底 */
@@ -745,7 +751,11 @@ html,
 body,
 #typora-sidebar,
 .sidebar,
-.sidebar *,
+.sidebar-content,
+.sidebar-tabs,
+.sidebar-footer,
+.outline-panel,
+.outline-content,
 #megamenu-menu,
 #megamenu-content,
 #megamenu-menu-sidebar,
@@ -893,13 +903,7 @@ body,
 }
 
 /* ==== UI Elements Outside Writing Area (Light Theme) ==== */
-/* Fix for settings dialog and other UI components */
-:not(#write *):not(.CodeMirror):not(.CodeMirror *) {
-  background-color: var(--bg-color) !important;
-  color: var(--text-color) !important;
-}
-
-/* Specific fixes for common UI elements */
+/* Specific fixes for Typora-native dialogs. Keep Folia shell controls styled by the app shell. */
 .dialog,
 .modal,
 .popup,
@@ -909,10 +913,7 @@ body,
 .preference-panel,
 .settings-panel,
 input:not(#write *),
-select:not(#write *),
-button:not(#write *),
-label:not(#write *),
-span:not(#write *):not(.CodeMirror *) {
+select:not(#write *) {
   background-color: var(--bg-color) !important;
   color: var(--text-color) !important;
 }
@@ -924,8 +925,7 @@ span:not(#write *):not(.CodeMirror *) {
 .preference-panel,
 .settings-panel,
 input:not(#write *),
-select:not(#write *),
-button:not(#write *) {
+select:not(#write *) {
   border-color: var(--border) !important;
 }
 
@@ -941,9 +941,17 @@ select:not(#write *) {
   border: 1px solid var(--border) !important;
 }
 
-/* Fix for buttons */
-button:not(#write *),
-.btn:not(#write *) {
+/* Fix for Typora-native buttons */
+.dialog button,
+.dialog .btn,
+.modal button,
+.modal .btn,
+.preference-panel button,
+.preference-panel .btn,
+.settings-panel button,
+.settings-panel .btn,
+#megamenu-content button,
+#megamenu-content .btn {
   background-color: var(--primary-color) !important;
   color: var(--primary-btn-text-color) !important;
   border: 1px solid var(--primary-btn-border-color) !important;

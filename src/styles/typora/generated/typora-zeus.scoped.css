@@ -690,8 +690,15 @@
 .typora-theme[data-content-theme="typora-zeus"] .typora-write select:focus {
     border-color: var(--primary-color) !important;
 }
-.typora-theme[data-content-theme="typora-zeus"] .typora-write button,
-.typora-theme[data-content-theme="typora-zeus"] .typora-write .btn {
+.typora-theme[data-content-theme="typora-zeus"] .typora-write .md-notification button,
+.typora-theme[data-content-theme="typora-zeus"] .typora-write .modal-dialog button,
+.typora-theme[data-content-theme="typora-zeus"] .typora-write .modal-dialog .btn,
+.typora-theme[data-content-theme="typora-zeus"] .typora-write .dialog button,
+.typora-theme[data-content-theme="typora-zeus"] .typora-write .dialog .btn,
+.typora-theme[data-content-theme="typora-zeus"] .typora-write .ty-preferences button,
+.typora-theme[data-content-theme="typora-zeus"] .typora-write .ty-preferences .btn,
+.typora-theme[data-content-theme="typora-zeus"] .typora-write .window-content button,
+.typora-theme[data-content-theme="typora-zeus"] .typora-write .window-content .btn {
     background-color: #333 !important;
     border: 1px solid #555 !important;
     color: #ccc !important;

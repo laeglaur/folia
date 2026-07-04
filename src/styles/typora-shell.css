@@ -427,6 +427,13 @@
   height: 20px;
 }
 
+.typora-app-shell button.duplicate-page-button,
+.typora-app-shell button.delete-page-button,
+.typora-app-shell button.duplicate-notebook-button,
+.typora-app-shell button.delete-notebook-button {
+  display: none;
+}
+
 .typora-app-shell .typora-calendar-tab {
   display: grid;
   gap: 8px;
@@ -716,15 +723,6 @@
 
 .typora-app-shell[data-shell="typora-garden"] .typora-outline-search .typora-search-box {
   width: 100%;
-}
-
-.typora-app-shell[data-shell="typora-garden"] .file-node-actions .duplicate-page-button,
-.typora-app-shell[data-shell="typora-garden"] .file-node-actions .delete-page-button,
-.typora-app-shell[data-shell="typora-garden"] .file-node-actions .duplicate-notebook-button,
-.typora-app-shell[data-shell="typora-garden"] .file-node-actions .delete-notebook-button,
-.typora-app-shell[data-shell="typora-garden"] .page-row-actions .duplicate-page-button,
-.typora-app-shell[data-shell="typora-garden"] .page-row-actions .delete-page-button {
-  display: none;
 }
 
 @media (max-width: 1340px) {

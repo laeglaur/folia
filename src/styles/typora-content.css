@@ -159,8 +159,11 @@ body[data-content-theme="typora-everforest-dark"] {
 
 .typora-theme[data-content-theme="typora-everforest-light"] {
   --theme-body-background: var(--bg);
-  --typora-shell-bg: color-mix(in srgb, var(--bg) 80%, var(--text-color) 20%);
+  --typora-shell-bg: color-mix(in srgb, var(--bg) 94%, white 6%);
   --typora-shell-panel: var(--bg-panel);
+  --overlay-background: color-mix(in srgb, var(--bg-panel) 88%, var(--bg) 12%);
+  --overlay-hover-background: var(--bg-soft);
+  --overlay-selected-background: var(--bg-muted);
   --block-surface-border: 1px solid color-mix(in srgb, var(--border, var(--text-color)) 82%, transparent);
   --block-surface-background: var(--bg);
   --block-surface-shadow:

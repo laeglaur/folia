@@ -438,7 +438,12 @@
 
 /* ==================== Sidebar / Outline / Tabs ==================== */
 .typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell #typora-sidebar,
-.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell #typora-sidebar * {
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell .sidebar-content,
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell .sidebar-tabs,
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell .outline-content {
+  -webkit-font-smoothing: antialiased;
+}
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write .outline-panel {
   -webkit-font-smoothing: antialiased;
 }
 
@@ -560,9 +565,8 @@
   --side-bar-bg-color: var(--bg);
 }
 
-/* 统一侧边栏及其子元素背景，避免切换时出现白色闪屏 */
-.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell #typora-sidebar,
-.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell #typora-sidebar * {
+/* 统一侧边栏容器背景，避免切换时出现白色闪屏。不要覆盖所有子元素，否则会破坏 Folia 的 shell 控件层次。 */
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell #typora-sidebar {
   background: var(--side-bar-bg-color) !important;
 }
 
@@ -592,7 +596,12 @@
 
 /* 避免背景在切换动画中过渡为默认色造成闪屏 */
 .typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell #typora-sidebar,
-.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell #typora-sidebar * {
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell .sidebar-content,
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell .sidebar-tabs,
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell .outline-content {
+  transition: background-color 0s, color 0s !important;
+}
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write .outline-panel {
   transition: background-color 0s, color 0s !important;
 }
 
@@ -639,11 +648,11 @@
    （全局防白闪）
    ========================= */
 .typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell :root {
-  --window-bg: var(--bg);
+  --window-bg: color-mix(in srgb, var(--bg) 94%, white 6%);
 }
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write {
   color-scheme: light;
-  --window-bg: var(--bg);
+  --window-bg: color-mix(in srgb, var(--bg) 94%, white 6%);
 }
 
 /* 覆盖所有关键容器，确保在打开/关闭侧边栏、切换面板、Megamenu 动画时不出现白底 */
@@ -678,10 +687,13 @@
 
 /* 移除可能导致闪烁的背景过渡 */
 .typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell #typora-sidebar,
-.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell #typora-sidebar * {
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell .sidebar-content,
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell .sidebar-tabs,
+.typora-theme[data-content-theme="typora-everforest-light"].typora-app-shell .outline-content {
   transition: background-color 0s !important;
 }
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write,
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write .outline-panel,
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write #megamenu-menu,
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write #megamenu-content,
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write #megamenu-menu-sidebar {
@@ -818,9 +830,7 @@
 }
 
 /* ==== UI Elements Outside Writing Area (Light Theme) ==== */
-/* Fix for settings dialog and other UI components */
-
-/* Specific fixes for common UI elements */
+/* Specific fixes for Typora-native dialogs. Keep Folia shell controls styled by the app shell. */
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write .dialog,
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write .modal,
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write .popup,
@@ -830,9 +840,7 @@
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write .preference-panel,
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write .settings-panel,
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write input:not(.typora-write *),
-.typora-theme[data-content-theme="typora-everforest-light"] .typora-write select:not(.typora-write *),
-.typora-theme[data-content-theme="typora-everforest-light"] .typora-write button:not(.typora-write *),
-.typora-theme[data-content-theme="typora-everforest-light"] .typora-write label:not(.typora-write *) {
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write select:not(.typora-write *) {
   background-color: var(--bg-color) !important;
   color: var(--text-color) !important;
 }
@@ -844,8 +852,7 @@
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write .preference-panel,
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write .settings-panel,
 .typora-theme[data-content-theme="typora-everforest-light"] .typora-write input:not(.typora-write *),
-.typora-theme[data-content-theme="typora-everforest-light"] .typora-write select:not(.typora-write *),
-.typora-theme[data-content-theme="typora-everforest-light"] .typora-write button:not(.typora-write *) {
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write select:not(.typora-write *) {
   border-color: var(--border) !important;
 }
 
@@ -861,9 +868,17 @@
   border: 1px solid var(--border) !important;
 }
 
-/* Fix for buttons */
-.typora-theme[data-content-theme="typora-everforest-light"] .typora-write button:not(.typora-write *),
-.typora-theme[data-content-theme="typora-everforest-light"] .typora-write .btn:not(.typora-write *) {
+/* Fix for Typora-native buttons */
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write .dialog button,
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write .dialog .btn,
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write .modal button,
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write .modal .btn,
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write .preference-panel button,
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write .preference-panel .btn,
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write .settings-panel button,
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write .settings-panel .btn,
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write #megamenu-content button,
+.typora-theme[data-content-theme="typora-everforest-light"] .typora-write #megamenu-content .btn {
   background-color: var(--primary-color) !important;
   color: var(--primary-btn-text-color) !important;
   border: 1px solid var(--primary-btn-border-color) !important;
