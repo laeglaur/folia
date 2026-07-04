@@ -664,12 +664,14 @@ export function App() {
 
   useEffect(() => {
     const nativeTheme = state.shell === 'native-ledger' ? 'ledger' : 'garden';
+    const isTyporaShell = state.shell.startsWith('typora-');
+    const effectiveContentTheme = isTyporaShell ? state.contentTheme : 'notebook';
     document.documentElement.dataset.theme = nativeTheme;
     document.documentElement.dataset.shell = state.shell;
-    document.documentElement.dataset.contentTheme = state.contentTheme;
+    document.documentElement.dataset.contentTheme = effectiveContentTheme;
     document.body.dataset.theme = nativeTheme;
     document.body.dataset.shell = state.shell;
-    document.body.dataset.contentTheme = state.contentTheme;
+    document.body.dataset.contentTheme = effectiveContentTheme;
 
     if (cardModeBlockId) {
       document.body.style.background = '';
@@ -677,14 +679,17 @@ export function App() {
       return;
     }
 
-    if (state.contentTheme.startsWith('typora-')) {
-      const themeRoot = document.querySelector<HTMLElement>(`.typora-theme[data-content-theme="${state.contentTheme}"]`);
+    if (isTyporaShell && effectiveContentTheme.startsWith('typora-')) {
+      const themeRoot = document.querySelector<HTMLElement>(`.typora-theme[data-content-theme="${effectiveContentTheme}"]`);
       const resolvedBackground = themeRoot
         ? getComputedStyle(themeRoot).getPropertyValue('--typora-shell-bg').trim() || getComputedStyle(themeRoot).getPropertyValue('--theme-body-background').trim()
         : '';
       if (resolvedBackground) {
         document.body.style.background = resolvedBackground;
         document.documentElement.style.background = resolvedBackground;
+      } else {
+        document.body.style.background = '';
+        document.documentElement.style.background = '';
       }
     } else {
       document.body.style.background = '';
@@ -3763,6 +3768,9 @@ export function App() {
       );
     });
 
+  const isTyporaShell = state.shell.startsWith('typora-');
+  const effectiveContentTheme: ContentThemeId = isTyporaShell ? state.contentTheme : 'notebook';
+
   const renderWorkspaceContent = () => (
     <WorkspaceContent
       importNotice={importNotice}
@@ -3776,7 +3784,7 @@ export function App() {
         blockOrder: pageBlockOrder,
         blocks: visibleBlocks,
         draggingBlockId,
-        contentTheme: state.contentTheme,
+        contentTheme: effectiveContentTheme,
         showBlockDividers,
         showBlockBorders,
         composer: {
@@ -3912,7 +3920,7 @@ export function App() {
       <CardWindowPage
         block={cardModeBlock}
         shell={state.shell}
-        contentTheme={state.contentTheme}
+        contentTheme={state.shell.startsWith('typora-') ? state.contentTheme : 'notebook'}
         roundPinnedCards={roundPinnedCards}
         glowPinnedCards={glowPinnedCards}
         editorRef={(editor) => { blockEditorRefs.current[cardModeBlock.id] = editor; }}
@@ -3935,7 +3943,11 @@ export function App() {
 
   if (cardModeBlockId) {
     return (
-      <main className={`card-window-page typora-theme ${roundPinnedCards ? 'is-rounded' : 'is-square'}`} data-content-theme={state.contentTheme} data-shell={state.shell}>
+      <main
+        className={`card-window-page typora-theme ${roundPinnedCards ? 'is-rounded' : 'is-square'}`}
+        data-content-theme={state.shell.startsWith('typora-') ? state.contentTheme : 'notebook'}
+        data-shell={state.shell}
+      >
         <div className="floating-card-body card-mode" />
       </main>
     );
@@ -3950,7 +3962,7 @@ export function App() {
     glowPinnedCards,
     newestFirst: pageBlockOrder === 'desc',
     shell: state.shell,
-    contentTheme: state.contentTheme,
+    contentTheme: effectiveContentTheme,
     shellThemes,
     markdownInputRef,
     markdownFolderInputRef,
@@ -3982,14 +3994,13 @@ export function App() {
     trashBusy
   };
 
-  const isTyporaShell = state.shell.startsWith('typora-');
   const pageTree = isTyporaShell ? null : renderPageTree(null);
   const typoraFileTree = isTyporaShell ? renderTyporaFileTree(null) : null;
   const workspaceContent = renderWorkspaceContent();
 
   const sharedShellProps = {
     shell: state.shell,
-    contentTheme: state.contentTheme,
+    contentTheme: effectiveContentTheme,
     sidebarCollapsed,
     outlineOpen: outlineDrawerOpen,
     sidebarView: typoraSidebarView,

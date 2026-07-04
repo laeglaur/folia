@@ -203,14 +203,16 @@ function ToolControls({
       >
         {shellThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
       </select>
-      <select
-        className="theme-select content-theme-select"
-        value={contentTheme}
-        onChange={(event) => onContentThemeChange(event.target.value as ContentThemeId)}
-        aria-label="Content theme"
-      >
-        {contentThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
-      </select>
+      {shell.startsWith('typora-') ? (
+        <select
+          className="theme-select content-theme-select"
+          value={contentTheme}
+          onChange={(event) => onContentThemeChange(event.target.value as ContentThemeId)}
+          aria-label="Content theme"
+        >
+          {contentThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
+        </select>
+      ) : null}
       <input
         ref={markdownInputRef}
         hidden
