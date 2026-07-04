@@ -197,6 +197,8 @@ pnpm test:persistence
 
 `pnpm test:editor` 需要先启动 `http://127.0.0.1:5173/` 的开发服务器。
 
+录制截图或短视频时，可以用 [docs/demo-database.md](docs/demo-database.md) 里的脚本切换到干净的演示数据库。
+
 ## 发布
 
 推荐流程：

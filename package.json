@@ -16,6 +16,7 @@
     "test:persistence": "rm -rf dist-test && tsc -p tsconfig.persistence.json && printf '{\"type\":\"commonjs\"}' > dist-test/package.json && node scripts/persistence-queue-smoke.mjs && rm -rf dist-test",
     "build:typora-css": "node scripts/typora-css-prefixer.mjs && node scripts/generate-typora-mark-bridge.mjs",
     "audit:typora-themes": "node scripts/audit-typora-themes.mjs",
+    "folia-db": "node scripts/switch-folia-database.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"

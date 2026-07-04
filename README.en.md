@@ -197,6 +197,8 @@ pnpm test:persistence
 
 `pnpm test:editor` expects the dev server at `http://127.0.0.1:5173/`.
 
+For screenshots or short videos, use the helper in [docs/demo-database.md](docs/demo-database.md) to switch to a clean demo database.
+
 ## Release
 
 Recommended flow:
