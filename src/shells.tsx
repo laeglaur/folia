@@ -624,6 +624,12 @@ function NotebookList({
         <button
           className={`file-node-content notebook-node ${emoji ? 'has-node-icon' : ''} ${isActive ? 'is-active' : ''}`}
           type="button"
+          onMouseDown={(event) => {
+            if (event.detail >= 2) {
+              event.preventDefault();
+              beginRename(notebook);
+            }
+          }}
           onClick={() => actions.selectNotebook(notebook)}
           onDoubleClick={() => beginRename(notebook)}
           onContextMenu={(event) => {
@@ -647,6 +653,12 @@ function NotebookList({
       <button
         className={`notebook-button ${emoji ? 'has-node-icon' : ''} ${isActive ? 'active' : ''}`}
         type="button"
+        onMouseDown={(event) => {
+          if (event.detail >= 2) {
+            event.preventDefault();
+            beginRename(notebook);
+          }
+        }}
         onClick={() => actions.selectNotebook(notebook)}
         onDoubleClick={() => beginRename(notebook)}
         onContextMenu={(event) => {
@@ -797,7 +809,15 @@ function FloatingCardWindow({
   const previewLabel = preview ? `${preview.slice(0, 72)}${preview.length > 72 ? '...' : ''}` : '';
   return (
     <div className={`floating-card-window ${roundPinnedCards ? 'is-rounded' : 'is-square'} ${glowPinnedCards ? 'has-glow' : ''} ${collapsed ? 'is-collapsed' : ''}`}>
-      <div className="floating-card-head" onDoubleClick={() => setCollapsed((value) => !value)}>
+      <div
+        className="floating-card-head"
+        onMouseDown={(event) => {
+          if (event.detail >= 2) {
+            event.preventDefault();
+          }
+        }}
+        onDoubleClick={() => setCollapsed((value) => !value)}
+      >
         <button className="floating-card-title" type="button" aria-expanded={!collapsed} tabIndex={-1}>
           {dateLabel}
         </button>
@@ -1167,6 +1187,7 @@ export function NativeShell({
   shell,
   contentTheme,
   sidebarCollapsed,
+  outlineOpen,
   sidebarView,
   activeNotebook,
   notebooks,
@@ -1201,7 +1222,7 @@ export function NativeShell({
   fishIconUrl
 }: BaseShellProps) {
   return (
-    <div className={`app-shell typora-theme ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
+    <div className={`app-shell typora-theme ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${outlineOpen ? 'outline-open' : 'outline-collapsed'}`} data-content-theme={contentTheme} data-shell={shell}>
       <aside className="sidebar">
         <NativeBrandBlock brand={nativeBrand} sidebarView={sidebarView} onSidebarViewChange={onSidebarViewChange} onChange={onNativeBrandChange} />
 
@@ -1505,14 +1526,45 @@ export function CardWindowPage({
   onDrag: (event: MouseEvent<HTMLElement>) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const pendingUpdateRef = useRef<{ html: string; plainText: string } | null>(null);
+  const updateTimerRef = useRef<number | null>(null);
   const preview = block.content.plainText.replace(/\s+/g, ' ').trim();
   const dateLabel = blockTimestampLabel(block.createdAt);
   const previewLabel = preview ? `${preview.slice(0, 96)}${preview.length > 96 ? '...' : ''}` : '';
+  const clearPendingUpdate = () => {
+    if (updateTimerRef.current) {
+      window.clearTimeout(updateTimerRef.current);
+      updateTimerRef.current = null;
+    }
+    pendingUpdateRef.current = null;
+  };
+  const scheduleUpdate = (html: string, plainText: string) => {
+    pendingUpdateRef.current = { html, plainText };
+    if (updateTimerRef.current) window.clearTimeout(updateTimerRef.current);
+    updateTimerRef.current = window.setTimeout(() => {
+      updateTimerRef.current = null;
+      const pending = pendingUpdateRef.current;
+      if (!pending) return;
+      pendingUpdateRef.current = null;
+      onUpdate(pending.html, pending.plainText);
+    }, 550);
+  };
+
+  useEffect(() => () => {
+    if (updateTimerRef.current) window.clearTimeout(updateTimerRef.current);
+    const pending = pendingUpdateRef.current;
+    if (pending) onUpdate(pending.html, pending.plainText);
+  }, []);
 
   return (
     <main className={`card-window-page typora-theme ${roundPinnedCards ? 'is-rounded' : 'is-square'} ${glowPinnedCards ? 'has-glow' : ''} ${collapsed ? 'is-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
       <header className="card-window-grip" aria-label="Pinned card controls" onDoubleClick={() => setCollapsed((value) => !value)} onMouseDown={(event) => {
         const target = event.target as HTMLElement | null;
+        if (event.detail >= 2) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
         if (target?.closest('button, a, input, textarea, select')) return;
         event.stopPropagation();
         onDrag(event);
@@ -1539,10 +1591,16 @@ export function CardWindowPage({
           html={block.content.html}
           onFocus={onFocus}
           onSelectionUpdate={onSelectionUpdate}
-          onUpdate={onUpdate}
-          onBlur={onBlur}
+          onUpdate={scheduleUpdate}
+          onBlur={(html, plainText) => {
+            clearPendingUpdate();
+            onBlur(html, plainText);
+          }}
           onShiftEnter={(editor) => {
-            onBlur(editor.getHTML(), editor.getText());
+            const html = editor.getHTML();
+            const plainText = editor.getText();
+            clearPendingUpdate();
+            onBlur(html, plainText);
             editor.commands.blur();
             return true;
           }}

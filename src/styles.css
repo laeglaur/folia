@@ -56,6 +56,18 @@ input, select { color: var(--ink); }
   display: none;
 }
 
+.app-shell.outline-collapsed {
+  grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr);
+}
+
+.app-shell.outline-collapsed .right-panel {
+  display: none;
+}
+
+.app-shell.sidebar-collapsed.outline-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .app-shell::before {
   position: fixed;
   left: 0;

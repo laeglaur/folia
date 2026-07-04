@@ -2822,7 +2822,13 @@ export function App() {
     const handleWindowKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
       const commandKey = event.metaKey || event.ctrlKey;
-      if (!event.defaultPrevented && commandKey && !event.shiftKey && key === 'z' && deletedBlockSnapshotRef.current) {
+      const target = event.target as HTMLElement | null;
+      if (!event.defaultPrevented && commandKey && !event.shiftKey && key === 'z') {
+        const snapshot = deletedBlockSnapshotRef.current;
+        const activePageId = stateRef.current.activePageId;
+        const targetPage = snapshot ? stateRef.current.pages.find((page) => page.id === snapshot.pageId) : null;
+        const blockStillDeleted = Boolean(snapshot && targetPage && !targetPage.blockIds.includes(snapshot.block.id));
+        if (!snapshot || snapshot.pageId !== activePageId || !blockStillDeleted || target?.closest('input, textarea, select, [contenteditable="true"], .ProseMirror')) return;
         event.preventDefault();
         event.stopPropagation();
         void restoreLatestDeletedBlockFromTrash()
@@ -2837,7 +2843,6 @@ export function App() {
       }
 
       if (event.defaultPrevented || !selectedPageId) return;
-      const target = event.target as HTMLElement | null;
       if (target?.closest('input, textarea, select, [contenteditable="true"], .ProseMirror')) return;
       const targetPageRow = target?.closest<HTMLElement>('.page-row-shell[data-page-id], .file-node-row-shell[data-page-id]');
       if (target?.closest('button, a') && !targetPageRow) return;
