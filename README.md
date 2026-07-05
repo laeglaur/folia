@@ -8,6 +8,12 @@
 
 folia 是一个本地优先的块状笔记应用，基于 Tauri、React 和 TipTap 构建。它适合快速记录、Markdown 写作、桌面便签卡片、图片标注，以及使用 Typora 风格主题阅读正文。
 
+### 介绍视频
+
+[![观看 folia 介绍视频](docs/assets/demo-cover.png)](https://www.bilibili.com/video/BV1sZMA6zELk/)
+
+点击封面观看：[Bilibili: folia 介绍视频](https://www.bilibili.com/video/BV1sZMA6zELk/)
+
 ### 功能概览
 
 - 块状笔记：先在顶部输入框记录，再保存成独立 block。
@@ -202,6 +208,12 @@ pnpm test:persistence
 ## English
 
 folia is a local-first, block-based notebook built with Tauri, React, and TipTap. It is designed for quick capture, Markdown-friendly writing, pinned desktop cards, image annotation, and Typora-style reading themes.
+
+### Demo Video
+
+[![Watch the folia demo video](docs/assets/demo-cover.png)](https://www.bilibili.com/video/BV1sZMA6zELk/)
+
+Click the cover to watch: [Bilibili: folia demo video](https://www.bilibili.com/video/BV1sZMA6zELk/)
 
 ### Features
 
