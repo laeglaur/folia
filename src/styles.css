@@ -1893,6 +1893,7 @@ button.delete-notebook-button {
 .composer pre.md-fences {
   position: relative;
   padding-top: 28px;
+  tab-size: 4;
   white-space: pre !important;
 }
 

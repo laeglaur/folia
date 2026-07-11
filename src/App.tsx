@@ -60,6 +60,7 @@ import {
   importAttachmentFile,
   inferAttachmentKind,
   runListIndentCommand,
+  syncDomSelectionToEditor,
   type MathEditorState,
   type ImageAnnotationRequest,
   type MediaNodeType,
@@ -1801,6 +1802,7 @@ export function App() {
   const runEditorCommand = (command: ToolbarCommand) => {
     const editor = getActiveTiptapEditor();
     if (!editor) return;
+    syncDomSelectionToEditor(editor);
     const chain = editor.chain().focus();
     if (command === 'bold') chain.toggleBold().run();
     if (command === 'italic') chain.toggleItalic().run();
@@ -1848,11 +1850,17 @@ export function App() {
   };
 
   const applyHighlight = () => {
-    getActiveTiptapEditor()?.chain().focus().toggleHighlight().run();
+    const editor = getActiveTiptapEditor();
+    if (!editor) return;
+    syncDomSelectionToEditor(editor);
+    editor.chain().focus().toggleHighlight().run();
   };
 
   const applyInlineCode = () => {
-    getActiveTiptapEditor()?.chain().focus().toggleCode().run();
+    const editor = getActiveTiptapEditor();
+    if (!editor) return;
+    syncDomSelectionToEditor(editor);
+    editor.chain().focus().toggleCode().run();
   };
 
   const blockIndex = (blockId: string) => activePage.blockIds.indexOf(blockId);

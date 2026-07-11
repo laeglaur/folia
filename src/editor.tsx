@@ -19,7 +19,7 @@ import TaskList from '@tiptap/extension-task-list';
 import { ListItem, ListKeymap } from '@tiptap/extension-list';
 import { Extension, InputRule, Mark, Node, markInputRule, mergeAttributes } from '@tiptap/core';
 import { common, createLowlight } from 'lowlight';
-import { Plugin } from 'prosemirror-state';
+import { Plugin, TextSelection } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 import { marked } from 'marked';
 import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
@@ -120,6 +120,40 @@ export type RichEditorProps = {
 };
 
 const lowlight = createLowlight(common);
+const codeIndent = '    ';
+
+const codeLanguageAliases: Record<string, string> = {
+  cplusplus: 'cpp',
+  'c++': 'cpp',
+  'c#': 'csharp',
+  cs: 'csharp',
+  golang: 'go',
+  html: 'xml',
+  js: 'javascript',
+  jsx: 'javascript',
+  md: 'markdown',
+  py: 'python',
+  rb: 'ruby',
+  rs: 'rust',
+  sh: 'bash',
+  shell: 'bash',
+  ts: 'typescript',
+  tsx: 'typescript',
+  yml: 'yaml'
+};
+
+const normalizeCodeLanguage = (value: unknown) => {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase().replace(/^language-/, '');
+  if (!normalized || normalized === 'auto' || normalized === 'plain' || normalized === 'text' || normalized === 'plaintext') return null;
+  return codeLanguageAliases[normalized] ?? normalized;
+};
+
+const registeredCodeLanguage = (value: unknown) => {
+  const language = normalizeCodeLanguage(value);
+  if (!language) return null;
+  return lowlight.listLanguages().includes(language) || lowlight.registered?.(language) ? language : null;
+};
 
 const blockTextPreview = (text: string, max = 56) => {
   const compact = text.replace(/\s+/g, ' ').trim();
@@ -149,7 +183,7 @@ const dispatchPageLinkRequest = (pageId: string) => {
 const tableColumnResizeHandleWidth = 6;
 const tableCellMinWidth = 25;
 
-const syncDomSelectionToEditor = (editor: Editor) => {
+export const syncDomSelectionToEditor = (editor: Editor) => {
   const selection = window.getSelection();
   if (!selection?.anchorNode || !editor.view.dom.contains(selection.anchorNode)) return;
 
@@ -168,8 +202,149 @@ const syncDomSelectionToEditor = (editor: Editor) => {
   }
 };
 
+const domNodeElement = (node: globalThis.Node | null) =>
+  node instanceof Element ? node : node?.parentElement ?? null;
+
+const domSelectionInsideCodeBlock = (editor: Editor) => {
+  const selection = window.getSelection();
+  if (!selection?.anchorNode) return false;
+  const anchor = domNodeElement(selection.anchorNode);
+  const focus = domNodeElement(selection.focusNode);
+  const anchorCodeBlock = anchor?.closest('pre.notebook-code-block');
+  const focusCodeBlock = focus?.closest('pre.notebook-code-block');
+  return Boolean(
+    anchorCodeBlock &&
+    anchorCodeBlock === focusCodeBlock &&
+    editor.view.dom.contains(anchorCodeBlock)
+  );
+};
+
+const moveSelectionInsideDomCodeBlock = (editor: Editor) => {
+  const selection = window.getSelection();
+  const anchor = domNodeElement(selection?.anchorNode ?? null);
+  const codeBlock = anchor?.closest('pre.notebook-code-block');
+  if (!codeBlock || !editor.view.dom.contains(codeBlock)) return false;
+
+  try {
+    const domPos = editor.view.posAtDOM(codeBlock, 0);
+    let target: number | null = null;
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name !== 'codeBlock') return;
+      const from = pos;
+      const to = pos + node.nodeSize;
+      if (domPos < from || domPos > to) return;
+      target = pos + 1 + node.content.size;
+      return false;
+    });
+    if (target === null) return false;
+    const resolved = editor.state.doc.resolve(Math.max(0, Math.min(target, editor.state.doc.content.size)));
+    const transaction = editor.state.tr.setSelection(TextSelection.near(resolved, -1));
+    editor.view.dispatch(transaction.scrollIntoView());
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const codeBlockSelectionInfo = (editor: Editor) => {
+  syncDomSelectionToEditor(editor);
+  const { state } = editor;
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth);
+    if (node.type.name !== 'codeBlock') continue;
+    return {
+      node,
+      start: $from.start(depth),
+      end: $from.end(depth)
+    };
+  }
+  return null;
+};
+
+const selectedCodeLineRange = (text: string, from: number, to: number) => {
+  const lineStart = text.lastIndexOf('\n', Math.max(0, from - 1)) + 1;
+  const selectedEnd = to > from && text[to - 1] === '\n' ? to - 1 : to;
+  const nextLineBreak = text.indexOf('\n', Math.max(0, selectedEnd));
+  const lineEnd = nextLineBreak === -1 ? text.length : nextLineBreak;
+  return { lineStart, lineEnd };
+};
+
+const codeLineOffsets = (text: string) => {
+  const offsets = [0];
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '\n') offsets.push(index + 1);
+  }
+  return offsets;
+};
+
+const runCodeBlockIndentCommand = (editor: Editor, direction: 'in' | 'out') => {
+  const info = codeBlockSelectionInfo(editor);
+  if (!info) return false;
+
+  const { from, to } = editor.state.selection;
+  const relativeFrom = Math.max(0, from - info.start);
+  const relativeTo = Math.max(relativeFrom, to - info.start);
+  const text = info.node.textContent;
+
+  if (direction === 'in' && from === to) {
+    const transaction = editor.state.tr.insertText(codeIndent, from, to);
+    transaction.setSelection(TextSelection.create(transaction.doc, from + codeIndent.length));
+    editor.view.dispatch(transaction.scrollIntoView());
+    return true;
+  }
+
+  const { lineStart, lineEnd } = selectedCodeLineRange(text, relativeFrom, relativeTo);
+  const selectedText = text.slice(lineStart, lineEnd);
+  const offsets = codeLineOffsets(selectedText);
+  const absoluteLineStart = info.start + lineStart;
+  const absoluteLineEnd = info.start + lineEnd;
+
+  if (direction === 'in') {
+    const nextText = selectedText.replace(/^/gm, codeIndent);
+    const addedBefore = (offset: number) =>
+      offsets.filter((lineOffset) => lineStart + lineOffset <= offset).length * codeIndent.length;
+    const transaction = editor.state.tr.insertText(nextText, absoluteLineStart, absoluteLineEnd);
+    transaction.setSelection(TextSelection.create(
+      transaction.doc,
+      from + addedBefore(relativeFrom),
+      to + addedBefore(relativeTo)
+    ));
+    editor.view.dispatch(transaction.scrollIntoView());
+    return true;
+  }
+
+  const removals = offsets.map((offset) => {
+    const line = selectedText.slice(offset);
+    const match = line.match(/^(\t| {1,4})/);
+    return { offset, length: match?.[0].length ?? 0 };
+  });
+  if (!removals.some((removal) => removal.length > 0)) return true;
+
+  const removedBefore = (offset: number) =>
+    removals.reduce((total, removal) => {
+      const absoluteOffset = lineStart + removal.offset;
+      if (offset <= absoluteOffset) return total;
+      return total + Math.min(removal.length, offset - absoluteOffset);
+    }, 0);
+  const nextText = selectedText
+    .split('\n')
+    .map((line) => line.replace(/^(\t| {1,4})/, ''))
+    .join('\n');
+  const transaction = editor.state.tr.insertText(nextText, absoluteLineStart, absoluteLineEnd);
+  transaction.setSelection(TextSelection.create(
+    transaction.doc,
+    Math.max(info.start, from - removedBefore(relativeFrom)),
+    Math.max(info.start, to - removedBefore(relativeTo))
+  ));
+  editor.view.dispatch(transaction.scrollIntoView());
+  return true;
+};
+
 export const runListIndentCommand = (editor: Editor, direction: 'in' | 'out') => {
   syncDomSelectionToEditor(editor);
+  if (runCodeBlockIndentCommand(editor, direction)) return true;
+
   const command = direction === 'in' ? 'sinkListItem' : 'liftListItem';
   if (editor.commands[command]('taskItem') || editor.commands[command]('listItem')) return true;
 
@@ -753,9 +928,34 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
 }
 
 const NotebookCodeBlock = CodeBlockLowlight.extend({
+  content: 'inline*',
+
+  marks: '_',
+
+  code: false,
+
   addAttributes() {
     return {
       ...this.parent?.(),
+      language: {
+        default: this.options.defaultLanguage,
+        parseHTML: (element) => {
+          const firstChild = element.firstElementChild;
+          const classNames = [
+            ...Array.from(firstChild?.classList ?? []),
+            ...Array.from(element.classList ?? [])
+          ];
+          const classLanguage = classNames
+            .map((className) => className.match(/^(?:language-|lang-)(.+)$/i)?.[1])
+            .map((language) => registeredCodeLanguage(language))
+            .find(Boolean);
+          return classLanguage
+            ?? registeredCodeLanguage(firstChild?.getAttribute('data-language'))
+            ?? registeredCodeLanguage(element.getAttribute('data-language'))
+            ?? null;
+        },
+        rendered: false
+      },
       codeCollapsed: {
         default: false,
         parseHTML: (element) => element.getAttribute('data-code-collapsed') === 'true',
@@ -768,6 +968,10 @@ const NotebookCodeBlock = CodeBlockLowlight.extend({
 
   addNodeView() {
     return ReactNodeViewRenderer(CodeBlockView);
+  },
+
+  addProseMirrorPlugins() {
+    return [];
   }
 });
 
@@ -1011,10 +1215,34 @@ const isPastedCopyControl = (element: Element) => {
     testId.includes('copy');
 };
 
-const replaceWithNormalizedPre = (element: HTMLElement, text: string) => {
+const languageFromClassName = (className: string) => {
+  const match = className.match(/(?:^|\s)(?:language-|lang-)([a-z0-9_+#.-]+)(?=\s|$)/i);
+  return registeredCodeLanguage(match?.[1]);
+};
+
+const pastedCodeLanguage = (element: Element | null) => {
+  let current: Element | null = element;
+  while (current && current !== current.ownerDocument.body) {
+    const className = typeof current.className === 'string' ? current.className : '';
+    const language = languageFromClassName(className)
+      ?? registeredCodeLanguage(current.getAttribute('data-language'))
+      ?? registeredCodeLanguage(current.getAttribute('data-lang'));
+    if (language) return language;
+    current = current.parentElement;
+  }
+  return null;
+};
+
+const applyCodeLanguageClass = (code: HTMLElement, language: string | null) => {
+  if (!language) return;
+  code.classList.add(`language-${language}`);
+};
+
+const replaceWithNormalizedPre = (element: HTMLElement, text: string, language = pastedCodeLanguage(element)) => {
   const doc = element.ownerDocument;
   const pre = doc.createElement('pre');
   const code = doc.createElement('code');
+  applyCodeLanguageClass(code, language);
   code.textContent = text;
   pre.appendChild(code);
   element.replaceWith(pre);
@@ -1045,13 +1273,14 @@ const findPastedCodeContainer = (pre: HTMLElement) => {
 };
 
 const normalizePastedCodeBlocks = (doc: Document) => {
-  doc.querySelectorAll('.code-block-summary, .code-fold-button').forEach((element) => element.remove());
+  doc.querySelectorAll('.code-block-summary, .code-fold-button, .code-language-select').forEach((element) => element.remove());
   doc.querySelectorAll('button, [role="button"], [aria-label], [data-testid*="copy" i]').forEach((element) => {
     if (isPastedCopyControl(element)) element.remove();
   });
 
   doc.querySelectorAll<HTMLElement>('pre').forEach((pre) => {
     const codeElements = Array.from(pre.querySelectorAll<HTMLElement>('code'));
+    const language = pastedCodeLanguage(codeElements[0] ?? pre);
     const text = codeLikeText(
       codeElements.length
         ? codeElements.map((code) => code.innerText || code.textContent || '').join('\n')
@@ -1063,6 +1292,7 @@ const normalizePastedCodeBlocks = (doc: Document) => {
     }
 
     const code = doc.createElement('code');
+    applyCodeLanguageClass(code, language);
     code.textContent = text;
     pre.replaceChildren(code);
   });
@@ -1446,6 +1676,85 @@ const htmlToPlainText = (html: string) => {
   return normalizePastedText(container.innerText.replace(/\r\n?/g, '\n'));
 };
 
+const codeRichPasteBlockTags = new Set([
+  'address',
+  'article',
+  'aside',
+  'blockquote',
+  'div',
+  'figcaption',
+  'figure',
+  'footer',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'header',
+  'li',
+  'p',
+  'section',
+  'tr'
+]);
+
+const codeRichPasteInlineTags = new Set([
+  'a',
+  'b',
+  'code',
+  'del',
+  'em',
+  'i',
+  'kbd',
+  'mark',
+  's',
+  'span',
+  'strong',
+  'sub',
+  'sup',
+  'u'
+]);
+
+const codeRichPasteAttributes = (element: HTMLElement) => {
+  const tag = element.tagName.toLowerCase();
+  if (tag === 'a') {
+    const href = element.getAttribute('href');
+    const title = element.getAttribute('title');
+    return [
+      href ? ` href="${escapeHtml(href)}"` : '',
+      title ? ` title="${escapeHtml(title)}"` : ''
+    ].join('');
+  }
+  if (tag === 'span' && element.getAttribute('data-type') === 'inline-math') {
+    const latex = element.getAttribute('data-latex');
+    return ` data-type="inline-math"${latex ? ` data-latex="${escapeHtml(latex)}"` : ''}`;
+  }
+  return '';
+};
+
+const richInlineHtmlForCodeBlock = (html: string) => {
+  const doc = new DOMParser().parseFromString(normalizePastedHtml(html), 'text/html');
+  normalizePastedCodeBlocks(doc);
+
+  const walk = (node: globalThis.Node): string => {
+    if (node.nodeType === window.Node.TEXT_NODE) return escapeHtml(normalizeEscapedNbsp(node.nodeValue ?? ''));
+    if (!(node instanceof HTMLElement)) return Array.from(node.childNodes).map(walk).join('');
+
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'br') return '<br>';
+    if (tag === 'pre' || tag === 'textarea') {
+      return escapeHtml(normalizeEscapedNbsp(node.textContent ?? '')).replace(/\n/g, '<br>');
+    }
+
+    const body = Array.from(node.childNodes).map(walk).join('');
+    if (codeRichPasteBlockTags.has(tag)) return body ? `${body}<br>` : '<br>';
+    if (!codeRichPasteInlineTags.has(tag)) return body;
+    return `<${tag}${codeRichPasteAttributes(node)}>${body}</${tag}>`;
+  };
+
+  return Array.from(doc.body.childNodes).map(walk).join('').replace(/(?:<br>)+$/g, '');
+};
+
 const insertPlainTextPreservingBreaks = (editor: Editor, text: string) => {
   const normalized = text.replace(/\r\n?/g, '\n');
   if (!normalized) return false;
@@ -1471,7 +1780,9 @@ const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
   if (!clipboard) return false;
   syncDomSelectionToEditor(editor);
 
-  const insideCodeBlock = isSelectionInsideCodeBlock(editor);
+  const insideDomCodeBlock = domSelectionInsideCodeBlock(editor);
+  if (insideDomCodeBlock && !isSelectionInsideCodeBlock(editor)) moveSelectionInsideDomCodeBlock(editor);
+  const insideCodeBlock = isSelectionInsideCodeBlock(editor) || insideDomCodeBlock;
   const insideListItem = isSelectionInsideListItem(editor);
 
   if (clipboard.files.length) {
@@ -1486,6 +1797,28 @@ const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
   const markdown = normalizePastedText(clipboard.getData('text/markdown') || clipboard.getData('text/x-markdown'));
   const text = normalizePastedText(clipboard.getData('text/plain'));
 
+  if (insideCodeBlock) {
+    const pastedTextHtml = !html && text ? htmlFragmentFromPastedText(text) : null;
+    const richSourceHtml = html
+      || pastedTextHtml
+      || (markdown ? markdownToRichHtml(markdown) : '')
+      || (markdownishText(text) ? markdownToRichHtml(text) : '');
+    if (richSourceHtml) {
+      const inlineHtml = richInlineHtmlForCodeBlock(richSourceHtml);
+      if (inlineHtml) {
+        event.preventDefault();
+        editor.chain().focus().insertContent(inlineHtml).run();
+        return true;
+      }
+    }
+
+    const nextText = text || markdown || (html ? htmlToPlainText(html) : '');
+    if (!nextText) return false;
+    event.preventDefault();
+    insertPlainTextIntoCodeBlock(editor, nextText);
+    return true;
+  }
+
   if (!html && !markdown && text && textLooksLikeHtmlFragment(text)) {
     event.preventDefault();
     void richHtmlFromPastedTextHtmlFragment(text).then((nextHtml) => {
@@ -1499,15 +1832,6 @@ const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
       }
       editor.chain().focus().insertContent(nextHtml).run();
     });
-    return true;
-  }
-
-  // Keep code blocks plain-text only so pasted code cannot escape into neighboring nodes.
-  if (insideCodeBlock) {
-    const nextText = text || markdown || (html ? htmlToPlainText(html) : '');
-    if (!nextText) return false;
-    event.preventDefault();
-    insertPlainTextIntoCodeBlock(editor, nextText);
     return true;
   }
 
@@ -1552,7 +1876,12 @@ const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
         ? markdownToRichHtml(text)
         : '';
 
-  if (!nextHtml) return false;
+  if (!nextHtml) {
+    if (!text) return false;
+    event.preventDefault();
+    insertPlainTextPreservingBreaks(editor, text);
+    return true;
+  }
   event.preventDefault();
   editor.chain().focus().insertContent(nextHtml).run();
   return true;
@@ -1582,7 +1911,7 @@ const handleRichCopy = (editor: Editor | null, event: ClipboardEvent) => {
   } else if (selection && hasDomSelection) {
     container.appendChild(selection.getRangeAt(0).cloneContents());
   }
-  container.querySelectorAll('.code-block-summary, .code-fold-button').forEach((element) => element.remove());
+  container.querySelectorAll('.code-block-summary, .code-fold-button, .code-language-select').forEach((element) => element.remove());
   const listItems = Array.from(container.children).filter((child): child is HTMLLIElement => child instanceof HTMLLIElement);
   if (listItems.length && listItems.length === container.children.length) {
     const anchorNode = selection?.anchorNode ?? null;
@@ -2006,9 +2335,50 @@ const NotebookShortcuts = Extension.create<{
     };
 
     return {
-      'Mod-h': () => this.editor.commands.toggleHighlight(),
-      'Mod-d': () => this.editor.commands.toggleStrike(),
-      'Mod-D': () => this.editor.commands.toggleStrike(),
+      'Mod-b': () => {
+        syncDomSelectionToEditor(this.editor);
+        return this.editor.commands.toggleBold();
+      },
+      'Mod-B': () => {
+        syncDomSelectionToEditor(this.editor);
+        return this.editor.commands.toggleBold();
+      },
+      'Mod-i': () => {
+        syncDomSelectionToEditor(this.editor);
+        return this.editor.commands.toggleItalic();
+      },
+      'Mod-I': () => {
+        syncDomSelectionToEditor(this.editor);
+        return this.editor.commands.toggleItalic();
+      },
+      'Mod-u': () => {
+        syncDomSelectionToEditor(this.editor);
+        return this.editor.commands.toggleUnderline();
+      },
+      'Mod-U': () => {
+        syncDomSelectionToEditor(this.editor);
+        return this.editor.commands.toggleUnderline();
+      },
+      'Mod-h': () => {
+        syncDomSelectionToEditor(this.editor);
+        return this.editor.commands.toggleHighlight();
+      },
+      'Mod-d': () => {
+        syncDomSelectionToEditor(this.editor);
+        return this.editor.commands.toggleStrike();
+      },
+      'Mod-D': () => {
+        syncDomSelectionToEditor(this.editor);
+        return this.editor.commands.toggleStrike();
+      },
+      'Mod-e': () => {
+        syncDomSelectionToEditor(this.editor);
+        return this.editor.commands.toggleCode();
+      },
+      'Mod-E': () => {
+        syncDomSelectionToEditor(this.editor);
+        return this.editor.commands.toggleCode();
+      },
       Space: () => {
         syncDomSelectionToEditor(this.editor);
         const { state } = this.editor;
@@ -2022,6 +2392,9 @@ const NotebookShortcuts = Extension.create<{
       },
       Enter: () => {
         syncDomSelectionToEditor(this.editor);
+        if (isSelectionInsideCodeBlock(this.editor)) {
+          return insertPlainTextIntoCodeBlock(this.editor, '\n');
+        }
         const { state } = this.editor;
         const { $from } = state.selection;
         const text = $from.parent.textContent.trim();

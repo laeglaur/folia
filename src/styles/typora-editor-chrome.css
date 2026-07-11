@@ -366,6 +366,7 @@
   position: relative;
   min-height: 44px;
   padding-top: max(34px, var(--code-block-padding-top, 0px)) !important;
+  tab-size: 4;
   white-space: pre !important;
 }
 
