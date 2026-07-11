@@ -718,22 +718,7 @@ export function NativeOutline({
   entries: OutlineEntry[];
   onJump: (entry: OutlineEntry) => void;
 }) {
-  return (
-    <div className="outline-list typora-toc md-toc md-toc-content">
-      {entries.map((entry) => (
-        <button
-          className={`outline-entry md-toc-item outline-kind-${entry.kind}`}
-          key={entry.id}
-          onClick={() => onJump(entry)}
-          style={{ '--level': entry.level } as CSSProperties}
-          type="button"
-        >
-          <span className="outline-expander" aria-hidden="true">{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
-          <span className="outline-label">{entry.text}</span>
-        </button>
-      ))}
-    </div>
-  );
+  return <CollapsibleOutline entries={entries} onJump={onJump} variant="native" />;
 }
 
 export function TyporaOutline({
@@ -743,22 +728,79 @@ export function TyporaOutline({
   entries: OutlineEntry[];
   onJump: (entry: OutlineEntry) => void;
 }) {
-  return (
-    <div id="outline-content" className="outline-content typora-toc md-toc md-toc-content">
-      {entries.map((entry) => (
-        <button
-          className={`outline-item md-toc-item outline-kind-${entry.kind} ${entry.blockId === null ? 'outline-item-active active' : ''}`}
-          key={entry.id}
-          onClick={() => onJump(entry)}
-          style={{ '--level': entry.level } as CSSProperties}
-          type="button"
+  return <CollapsibleOutline entries={entries} onJump={onJump} variant="typora" />;
+}
+
+function CollapsibleOutline({
+  entries,
+  onJump,
+  variant
+}: {
+  entries: OutlineEntry[];
+  onJump: (entry: OutlineEntry) => void;
+  variant: 'native' | 'typora';
+}) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+
+  const toggleEntry = (entryId: string) => {
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(entryId)) next.delete(entryId);
+      else next.add(entryId);
+      return next;
+    });
+  };
+
+  let hiddenBelowLevel: number | null = null;
+  const rows = entries.map((entry, index) => {
+    if (hiddenBelowLevel !== null && entry.level > hiddenBelowLevel) return null;
+    if (hiddenBelowLevel !== null && entry.level <= hiddenBelowLevel) hiddenBelowLevel = null;
+    const hasChildren = (entries[index + 1]?.level ?? 0) > entry.level;
+    const isCollapsed = hasChildren && collapsed.has(entry.id);
+    if (isCollapsed) hiddenBelowLevel = entry.level;
+    const className = variant === 'typora'
+      ? `outline-item md-toc-item outline-kind-${entry.kind} ${entry.blockId === null ? 'outline-item-active active' : ''} ${hasChildren ? 'is-collapsible' : ''} ${isCollapsed ? 'is-collapsed' : ''}`
+      : `outline-entry md-toc-item outline-kind-${entry.kind} ${hasChildren ? 'is-collapsible' : ''} ${isCollapsed ? 'is-collapsed' : ''}`;
+    const marker = entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•';
+    return (
+      <button
+        className={className}
+        key={entry.id}
+        onClick={() => onJump(entry)}
+        style={{ '--level': entry.level } as CSSProperties}
+        type="button"
+      >
+        <span
+          className="outline-expander"
+          aria-label={hasChildren ? (isCollapsed ? 'Expand outline entry' : 'Collapse outline entry') : undefined}
+          aria-hidden={hasChildren ? undefined : 'true'}
+          role={hasChildren ? 'button' : undefined}
+          tabIndex={hasChildren ? 0 : undefined}
+          onClick={(event) => {
+            if (!hasChildren) return;
+            event.preventDefault();
+            event.stopPropagation();
+            toggleEntry(entry.id);
+          }}
+          onKeyDown={(event) => {
+            if (!hasChildren || (event.key !== 'Enter' && event.key !== ' ')) return;
+            event.preventDefault();
+            event.stopPropagation();
+            toggleEntry(entry.id);
+          }}
         >
-          <span className="outline-expander" aria-hidden="true">{entry.kind === 'page' ? 'P' : entry.kind === 'block' ? 'B' : entry.kind === 'heading' ? `H${Math.max(1, entry.level - 1)}` : '•'}</span>
-          <span className="outline-label">{entry.text}</span>
-        </button>
-      ))}
-    </div>
-  );
+          {hasChildren ? (isCollapsed ? '▸' : '▾') : marker}
+        </span>
+        <span className="outline-label">{entry.text}</span>
+      </button>
+    );
+  });
+
+  const wrapperProps = variant === 'typora'
+    ? { id: 'outline-content', className: 'outline-content typora-toc md-toc md-toc-content' }
+    : { className: 'outline-list typora-toc md-toc md-toc-content' };
+
+  return <div {...wrapperProps}>{rows}</div>;
 }
 
 export function OutlineDrawer({

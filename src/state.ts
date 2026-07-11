@@ -1579,6 +1579,21 @@ export const htmlToMarkdown = (html: string) => {
   container.innerHTML = html;
 
   const escapeMarkdown = (value: string) => value.replace(/\u00a0/g, ' ');
+  const codeLanguageFor = (element: HTMLElement) => {
+    const candidates = [
+      element.querySelector('code'),
+      element,
+      element.firstElementChild
+    ].filter(Boolean) as HTMLElement[];
+    for (const candidate of candidates) {
+      const className = typeof candidate.className === 'string' ? candidate.className : '';
+      const language = className.match(/(?:^|\s)(?:language-|lang-)([a-z0-9_+#.-]+)(?=\s|$)/i)?.[1]
+        ?? candidate.getAttribute('data-language')
+        ?? candidate.getAttribute('data-lang');
+      if (language) return language.trim().toLowerCase();
+    }
+    return '';
+  };
 
   const textForChildren = (node: Node, depth = 0): string =>
     Array.from(node.childNodes).map((child) => nodeToMarkdown(child, depth)).join('');
@@ -1627,7 +1642,10 @@ export const htmlToMarkdown = (html: string) => {
     if (tag === 's' || tag === 'del') return `~~${textForChildren(node, depth)}~~`;
     if (tag === 'mark') return `==${textForChildren(node, depth)}==`;
     if (tag === 'code' && node.parentElement?.tagName.toLowerCase() !== 'pre') return `\`${node.textContent ?? ''}\``;
-    if (tag === 'pre') return `\n\`\`\`\n${node.textContent?.replace(/\n$/, '') ?? ''}\n\`\`\`\n`;
+    if (tag === 'pre') {
+      const codeText = node.querySelector('code')?.textContent ?? node.textContent ?? '';
+      return `\n\`\`\`${codeLanguageFor(node)}\n${codeText.replace(/\n$/, '')}\n\`\`\`\n`;
+    }
     if (/^h[1-6]$/.test(tag)) return `${'#'.repeat(Number(tag.slice(1)))} ${textForChildren(node, depth).trim()}\n\n`;
     if (tag === 'p') return `${textForChildren(node, depth).trim()}\n\n`;
     if (tag === 'blockquote') {

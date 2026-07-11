@@ -3432,6 +3432,9 @@ fn handle_external_card_request(app: &AppHandle, path: &PathBuf) -> Result<(), S
         }
     }
     let _ = app.emit("notebook://open-card-block", block_id);
+    if let Some(main_window) = app.get_webview_window("main") {
+        let _ = main_window.hide();
+    }
     Ok(())
 }
 

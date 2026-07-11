@@ -1965,6 +1965,59 @@ button.delete-notebook-button {
   font-size: 0.9em;
 }
 
+.block-content pre .hljs-keyword,
+.block-content pre .hljs-selector-tag,
+.block-content pre .hljs-literal,
+.composer pre .hljs-keyword,
+.composer pre .hljs-selector-tag,
+.composer pre .hljs-literal {
+  color: color-mix(in srgb, #b4235a 84%, var(--code-ink));
+}
+
+.block-content pre .hljs-string,
+.block-content pre .hljs-doctag,
+.block-content pre .hljs-regexp,
+.composer pre .hljs-string,
+.composer pre .hljs-doctag,
+.composer pre .hljs-regexp {
+  color: color-mix(in srgb, #257a52 86%, var(--code-ink));
+}
+
+.block-content pre .hljs-number,
+.block-content pre .hljs-built_in,
+.block-content pre .hljs-type,
+.block-content pre .hljs-attribute,
+.composer pre .hljs-number,
+.composer pre .hljs-built_in,
+.composer pre .hljs-type,
+.composer pre .hljs-attribute {
+  color: color-mix(in srgb, #1f65a6 84%, var(--code-ink));
+}
+
+.block-content pre .hljs-title,
+.block-content pre .hljs-section,
+.block-content pre .hljs-name,
+.composer pre .hljs-title,
+.composer pre .hljs-section,
+.composer pre .hljs-name {
+  color: color-mix(in srgb, #7b4ab8 82%, var(--code-ink));
+}
+
+.block-content pre .hljs-comment,
+.block-content pre .hljs-quote,
+.composer pre .hljs-comment,
+.composer pre .hljs-quote {
+  color: color-mix(in srgb, var(--muted) 78%, transparent);
+  font-style: italic;
+}
+
+.block-content pre .hljs-variable,
+.block-content pre .hljs-template-variable,
+.composer pre .hljs-variable,
+.composer pre .hljs-template-variable {
+  color: color-mix(in srgb, #9a5a24 78%, var(--code-ink));
+}
+
 .block-content blockquote,
 .composer blockquote,
 .floating-card-body blockquote,
@@ -2565,6 +2618,22 @@ body.notebook-table-column-resizing * {
   font-variant-numeric: tabular-nums;
   font-size: 0.86em;
 }
+.outline-entry.is-collapsible .outline-expander,
+.outline-item.is-collapsible .outline-expander {
+  cursor: default;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  color: var(--accent);
+}
+
+.outline-entry.is-collapsible .outline-expander:hover,
+.outline-item.is-collapsible .outline-expander:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 .outline-entry .outline-label {
   min-width: 0;
   display: -webkit-box;
