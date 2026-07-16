@@ -624,10 +624,18 @@ function NotebookList({
         <button
           className={`file-node-content notebook-node ${emoji ? 'has-node-icon' : ''} ${isActive ? 'is-active' : ''}`}
           type="button"
+          data-notebook-id={notebook.id}
           onMouseDown={(event) => {
+            event.currentTarget.focus({ preventScroll: true });
             if (event.detail >= 2) {
               event.preventDefault();
               beginRename(notebook);
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey && (event.key === 'Backspace' || event.key === 'Delete')) {
+              event.preventDefault();
+              actions.deleteNotebook(notebook.id);
             }
           }}
           onClick={() => actions.selectNotebook(notebook)}
@@ -653,10 +661,18 @@ function NotebookList({
       <button
         className={`notebook-button ${emoji ? 'has-node-icon' : ''} ${isActive ? 'active' : ''}`}
         type="button"
+        data-notebook-id={notebook.id}
         onMouseDown={(event) => {
+          event.currentTarget.focus({ preventScroll: true });
           if (event.detail >= 2) {
             event.preventDefault();
             beginRename(notebook);
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey && (event.key === 'Backspace' || event.key === 'Delete')) {
+            event.preventDefault();
+            actions.deleteNotebook(notebook.id);
           }
         }}
         onClick={() => actions.selectNotebook(notebook)}
@@ -679,7 +695,7 @@ function NotebookList({
         {notebooks.map((notebook) => (
           <div className="file-library-node" data-is-directory="true" key={notebook.id}>
             <span className="file-node-background" aria-hidden="true" />
-            <div className={`file-node-row-shell ${notebook.id === activeNotebook.id ? 'active' : ''}`}>
+            <div className={`file-node-row-shell ${notebook.id === activeNotebook.id ? 'active' : ''}`} data-notebook-id={notebook.id}>
               {renderNotebookLabel(notebook)}
               <div className="row-actions file-node-actions">
                 <button className="mini-button row-action duplicate-notebook-button" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); actions.duplicateNotebook(notebook.id); }} aria-label={`Duplicate notebook ${notebook.name}`}><FilePlus size={13} /></button>
@@ -697,7 +713,7 @@ function NotebookList({
   return (
     <div className="notebook-list">
       {notebooks.map((notebook) => (
-        <div className={`notebook-row-shell ${notebook.id === activeNotebook.id ? 'active' : ''}`} key={notebook.id}>
+        <div className={`notebook-row-shell ${notebook.id === activeNotebook.id ? 'active' : ''}`} data-notebook-id={notebook.id} key={notebook.id}>
           {renderNotebookLabel(notebook)}
           <div className="row-actions notebook-row-actions">
             <button className="mini-button row-action duplicate-notebook-button" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); actions.duplicateNotebook(notebook.id); }} aria-label={`Duplicate notebook ${notebook.name}`}><FilePlus size={13} /></button>
@@ -1542,6 +1558,7 @@ export function CardWindowPage({
   contentTheme,
   roundPinnedCards,
   glowPinnedCards,
+  autoFocus,
   editorRef,
   onFocus,
   onSelectionUpdate,
@@ -1557,6 +1574,7 @@ export function CardWindowPage({
   contentTheme: ContentThemeId;
   roundPinnedCards: boolean;
   glowPinnedCards: boolean;
+  autoFocus?: boolean;
   editorRef: (editor: Editor | null) => void;
   onFocus: (editor: Editor) => void;
   onSelectionUpdate: (editor: Editor) => void;
@@ -1631,6 +1649,7 @@ export function CardWindowPage({
           editorRef={editorRef}
           className="card-mode-editor"
           html={block.content.html}
+          autoFocus={autoFocus}
           onFocus={onFocus}
           onSelectionUpdate={onSelectionUpdate}
           onUpdate={scheduleUpdate}

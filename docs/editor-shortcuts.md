@@ -26,7 +26,7 @@
 | `Cmd/Ctrl+Shift+7` | 有序列表 |
 | `Cmd/Ctrl+Shift+8` | 无序列表 |
 | `Cmd/Ctrl+ArrowUp/ArrowDown` | 移动当前 block 上下位置 |
-| `Cmd/Ctrl+Backspace` | 删除当前 block |
+| `Option/Alt+Backspace` | 删除当前 block |
 
 `Cmd+[` / `Cmd+]` 当前不是编辑区缩进键。它们是全局快捷键：非编辑区里切换 Sidebar / Outline。编辑区缩进是 `Tab` 和 `Shift+Tab`。
 

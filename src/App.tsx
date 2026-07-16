@@ -159,6 +159,7 @@ const nativeBrandStorageKey = 'folia.nativeGarden.brand';
 const fullExpansionImportPageLimit = 80;
 const searchParams = new URLSearchParams(window.location.search);
 const cardModeBlockId = searchParams.get('card');
+const newCardMode = searchParams.get('newCard') === '1';
 const pageWindowPageId = searchParams.get('page');
 if (cardModeBlockId) {
   document.documentElement.dataset.cardWindow = 'true';
@@ -360,6 +361,7 @@ export function App() {
   const glowPinnedCards = cardModeBlockId ? cardModeGlowPinnedCards : true;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(Boolean(pageWindowPageId));
   const [copiedPageId, setCopiedPageId] = useState<string | null>(null);
+  const [selectedNotebookId, setSelectedNotebookId] = useState<string | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedPageIds, setSelectedPageIds] = useState<string[]>([]);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
@@ -390,6 +392,7 @@ export function App() {
   const activePageBlocksRef = useRef<Block[]>([]);
   const activePageDocumentRequestRef = useRef(0);
   const cardDocumentRequestRef = useRef(0);
+  const pendingCardEditRef = useRef<{ blockId: string; html: string; plainText: string; updatedAt: string } | null>(null);
   const pageDocumentSaveTimersRef = useRef<Record<string, number>>({});
   const workspacePreferencesSaveTimerRef = useRef<number | null>(null);
   const lastSavedWorkspacePreferencesRef = useRef('');
@@ -932,6 +935,7 @@ export function App() {
   };
   const setPageSelection = (pageIds: string[], focusPageId = pageIds[pageIds.length - 1] ?? null, anchorPageId = focusPageId) => {
     const nextSelection = normalizePageSelection(pageIds);
+    setSelectedNotebookId(null);
     setSelectedPageIds(nextSelection);
     setSelectedPageId(focusPageId && nextSelection.includes(focusPageId) ? focusPageId : nextSelection[0] ?? null);
     pageSelectionAnchorRef.current = anchorPageId && nextSelection.includes(anchorPageId) ? anchorPageId : focusPageId && nextSelection.includes(focusPageId) ? focusPageId : nextSelection[0] ?? null;
@@ -1068,7 +1072,25 @@ export function App() {
     [pinnedBlockPayloads, state.blocks]
   );
   const openCardBlock = isTauri() ? null : legacyOpenCardBlockFromState(state);
-  const cardModeBlock = cardDocument?.content.blocks.find((block) => block.id === cardModeBlockId)
+  const persistedCardModeBlock = cardDocument?.content.blocks.find((block) => block.id === cardModeBlockId) ?? null;
+  const provisionalCardModeBlock = useMemo<Block | null>(() => {
+    if (!cardModeBlockId || !newCardMode || persistedCardModeBlock) return null;
+    const pending = pendingCardEditRef.current?.blockId === cardModeBlockId ? pendingCardEditRef.current : null;
+    const timestamp = pending?.updatedAt ?? new Date().toISOString();
+    return {
+      id: cardModeBlockId,
+      pageId: cardDocument?.page.id ?? '',
+      content: pending
+        ? { html: pending.html, plainText: pending.plainText }
+        : { html: '<p></p>', plainText: '' },
+      collapsed: false,
+      pinned: true,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+  }, [cardDocument?.page.id, cardModeBlockId, newCardMode, persistedCardModeBlock]);
+  const cardModeBlock = persistedCardModeBlock
+    ?? provisionalCardModeBlock
     ?? (isTauri() ? null : legacyCardModeBlockFromState(state, cardModeBlockId))
     ?? null;
   const visibleBlocks = orderedPageBlocks;
@@ -1197,7 +1219,48 @@ export function App() {
     cardDocumentRequestRef.current = requestId;
     loadBlockDocument(cardModeBlockId).then((document) => {
       if (cancelled || cardDocumentRequestRef.current !== requestId || !document) return;
-      setCardDocument(document);
+      const pendingEdit = pendingCardEditRef.current?.blockId === cardModeBlockId ? pendingCardEditRef.current : null;
+      if (!pendingEdit) {
+        setCardDocument(document);
+        return;
+      }
+      const cleanHtml = stripOutlineAnchors(pendingEdit.html);
+      const updatedAt = pendingEdit.updatedAt;
+      let nextBlock: Block | null = null;
+      const nextBlocks = document.content.blocks.map((block) => {
+        if (block.id !== cardModeBlockId) return block;
+        nextBlock = { ...block, content: { html: cleanHtml, plainText: pendingEdit.plainText }, updatedAt };
+        return nextBlock;
+      });
+      if (!nextBlock) {
+        setCardDocument(document);
+        return;
+      }
+      pendingCardEditRef.current = null;
+      const nextPage = { ...document.page, blockIds: nextBlocks.map((block) => block.id), updatedAt };
+      const nextDocument = { ...document, page: nextPage, content: { ...document.content, blocks: nextBlocks } };
+      const operation = createOperation({
+        entity: 'block',
+        entityId: cardModeBlockId,
+        kind: 'block.update_content',
+        payload: { html: cleanHtml, plainText: pendingEdit.plainText }
+      });
+      setCardDocument(nextDocument);
+      setPinnedBlockPayloads((current) => current.map((payload) =>
+        payload.block.id === cardModeBlockId
+          ? { ...payload, page: nextPage, block: nextBlock ?? payload.block }
+          : payload
+      ));
+      void emit<CardBlockUpdatedPayload>('notebook://card-block-updated', {
+        blockId: cardModeBlockId,
+        pageId: nextPage.id,
+        html: cleanHtml,
+        plainText: pendingEdit.plainText,
+        updatedAt
+      }).catch((error) => {
+        console.warn('Could not broadcast card block update.', error);
+      });
+      schedulePageDocumentSave(nextPage, nextBlocks, operation, 0);
     }).catch((error) => {
       console.warn('Could not load pinned card block document.', error);
     });
@@ -2202,6 +2265,10 @@ export function App() {
     const updatedAt = new Date().toISOString();
     const document = cardDocument;
     if (!document) {
+      if (cardModeBlockId === blockId && newCardMode) {
+        pendingCardEditRef.current = { blockId, html: cleanHtml, plainText, updatedAt };
+        return;
+      }
       updateBlock(blockId, cleanHtml, plainText);
       return;
     }
@@ -2544,6 +2611,7 @@ export function App() {
 
   const selectPage = (pageId: string) => {
     saveCurrentComposerDraft();
+    setSelectedNotebookId(null);
     setSelectedPageId(pageId);
     setWorkspaceView('write');
     setState((current) => applyActivePageToViewState(current, pageId));
@@ -2793,14 +2861,19 @@ export function App() {
         console.warn('Could not persist notebook delete.', error);
       });
     setPinnedBlockPayloads((current) => current.filter((payload) => payload.page.notebookId !== notebookId));
+    if (selectedNotebookId === notebookId) setSelectedNotebookId(null);
 
     setState((current) => applyNotebookDeleteToViewState(current, notebookId, operation));
   };
+
+  const isOptionBackspaceDelete = (event: Pick<KeyboardEvent | React.KeyboardEvent, 'altKey' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'>) =>
+    event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey && (event.key === 'Backspace' || event.key === 'Delete');
 
   const handlePageKeyboard = (event: React.KeyboardEvent<HTMLButtonElement>, page: Page) => {
     const key = event.key.toLowerCase();
     const commandKey = event.metaKey || event.ctrlKey;
     const pageId = page.id;
+    setSelectedNotebookId(null);
     if (commandKey && key === 'c') {
       event.preventDefault();
       setSelectedPageId(pageId);
@@ -2812,7 +2885,7 @@ export function App() {
       void duplicatePageTree(copiedPageId ?? pageId);
       return true;
     }
-    if (commandKey && (event.key === 'Delete' || event.key === 'Backspace')) {
+    if (isOptionBackspaceDelete(event)) {
       event.preventDefault();
       deletePageTree(pageId);
       return true;
@@ -2850,9 +2923,20 @@ export function App() {
         return;
       }
 
-      if (event.defaultPrevented || !selectedPageId) return;
+      if (event.defaultPrevented) return;
       if (target?.closest('input, textarea, select, [contenteditable="true"], .ProseMirror')) return;
+      const targetNotebookRow = target?.closest<HTMLElement>('[data-notebook-id]');
       const targetPageRow = target?.closest<HTMLElement>('.page-row-shell[data-page-id], .file-node-row-shell[data-page-id]');
+      if (isOptionBackspaceDelete(event)) {
+        const notebookId = targetNotebookRow?.dataset.notebookId ?? (targetPageRow ? null : selectedNotebookId);
+        if (notebookId) {
+          event.preventDefault();
+          event.stopPropagation();
+          deleteNotebook(notebookId);
+          return;
+        }
+      }
+      if (!selectedPageId) return;
       if (target?.closest('button, a') && !targetPageRow) return;
       const pageId = targetPageRow?.dataset.pageId ?? selectedPageId;
       if (commandKey && key === 'c') {
@@ -2868,7 +2952,7 @@ export function App() {
         void duplicatePageTree(copiedPageId ?? pageId);
         return;
       }
-      if (commandKey && (event.key === 'Delete' || event.key === 'Backspace')) {
+      if (isOptionBackspaceDelete(event)) {
         event.preventDefault();
         event.stopPropagation();
         setSelectedPageId(pageId);
@@ -2885,7 +2969,7 @@ export function App() {
 
     window.addEventListener('keydown', handleWindowKeyDown, true);
     return () => window.removeEventListener('keydown', handleWindowKeyDown, true);
-  }, [copiedPageId, selectedPageId, state.pages]);
+  }, [copiedPageId, selectedNotebookId, selectedPageId, state.pages]);
 
   const renamePage = (title: string) => {
     if (activePage.title === title) return;
@@ -3703,6 +3787,7 @@ export function App() {
                 className={`page-button ${pageEmoji ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
                 draggable
                 onDragStart={(event) => {
+                  setSelectedNotebookId(null);
                   setSelectedPageId(page.id);
                   event.dataTransfer.effectAllowed = 'move';
                   event.dataTransfer.setData('application/page-id', page.id);
@@ -3710,7 +3795,10 @@ export function App() {
                 onKeyDown={(event) => {
                   if (handlePageKeyboard(event, page)) return;
                 }}
-                onFocus={() => setSelectedPageId(page.id)}
+                onFocus={() => {
+                  setSelectedNotebookId(null);
+                  setSelectedPageId(page.id);
+                }}
                 onClick={(event) => handlePageTreeClick(page.id, event)}
                 onDoubleClick={() => beginPageRename(page)}
                 onContextMenu={(event) => {
@@ -3794,6 +3882,7 @@ export function App() {
                 className={`file-node-content ${pageEmoji ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
                 draggable
                 onDragStart={(event) => {
+                  setSelectedNotebookId(null);
                   setSelectedPageId(page.id);
                   event.dataTransfer.effectAllowed = 'move';
                   event.dataTransfer.setData('application/page-id', page.id);
@@ -3801,7 +3890,10 @@ export function App() {
                 onKeyDown={(event) => {
                   if (handlePageKeyboard(event, page)) return;
                 }}
-                onFocus={() => setSelectedPageId(page.id)}
+                onFocus={() => {
+                  setSelectedNotebookId(null);
+                  setSelectedPageId(page.id);
+                }}
                 onClick={(event) => handlePageTreeClick(page.id, event)}
                 onDoubleClick={() => beginPageRename(page)}
                 onContextMenu={(event) => {
@@ -3948,6 +4040,7 @@ export function App() {
 
   const selectNotebook = (notebook: Notebook) => {
     saveCurrentComposerDraft();
+    setSelectedNotebookId(notebook.id);
     setWorkspaceView(notebook.metadata.calendarView?.enabled ? 'calendar' : 'write');
     setState((current) => applyActiveNotebookToViewState(current, notebook.id, notebook.pageIds[0] ?? null));
   };
@@ -3957,6 +4050,7 @@ export function App() {
     if (!page) return;
     saveCurrentComposerDraft();
     setQuery('');
+    setSelectedNotebookId(null);
     setSelectedPageId(pageId);
     setWorkspaceView('write');
     setState((current) => applyPageNavigationToViewState(current, pageId));
@@ -3992,6 +4086,7 @@ export function App() {
         contentTheme={state.shell.startsWith('typora-') ? state.contentTheme : 'notebook'}
         roundPinnedCards={roundPinnedCards}
         glowPinnedCards={glowPinnedCards}
+        autoFocus={Boolean(cardModeBlockId)}
         editorRef={(editor) => { blockEditorRefs.current[cardModeBlock.id] = editor; }}
         onFocus={(editor) => {
           activateEditor({ kind: 'block', blockId: cardModeBlock.id });

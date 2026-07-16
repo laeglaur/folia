@@ -116,7 +116,7 @@ macOS 使用 `Cmd`，Windows/Linux 使用 `Ctrl`。
 | `Shift+Tab` | 反缩进列表项或选中的图片 |
 | `Cmd/Ctrl+ArrowUp` | 当前 block 上移 |
 | `Cmd/Ctrl+ArrowDown` | 当前 block 下移 |
-| `Cmd/Ctrl+Backspace` | 删除当前 block |
+| `Option/Alt+Backspace` | 删除当前 block |
 | 编辑区右键 | 在开启 toolbar 后呼出浮动工具栏 |
 
 ### 页面树
@@ -125,7 +125,7 @@ macOS 使用 `Cmd`，Windows/Linux 使用 `Ctrl`。
 | --- | --- |
 | `Cmd/Ctrl+C` | 复制选中的 page |
 | `Cmd/Ctrl+V` | 复制出一个新 page |
-| `Cmd/Ctrl+Backspace` 或 `Cmd/Ctrl+Delete` | 删除选中的 page |
+| `Option/Alt+Backspace` | 删除选中的 notebook 或 page |
 | `Tab` | 把选中 page 缩进到上一个兄弟 page 下 |
 | `Shift+Tab` | 把选中 page 提升到父级同层 |
 | `Shift+click` | 连续选择同层 page |

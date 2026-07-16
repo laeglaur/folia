@@ -116,7 +116,7 @@ Common gotchas:
 | `Shift+Tab` | Outdent list item or selected image |
 | `Cmd/Ctrl+ArrowUp` | Move current block up |
 | `Cmd/Ctrl+ArrowDown` | Move current block down |
-| `Cmd/Ctrl+Backspace` | Delete current block |
+| `Option/Alt+Backspace` | Delete current block |
 | `Right click` in editor | Show the floating toolbar when toolbar mode is enabled |
 
 ### Page Tree
@@ -125,7 +125,7 @@ Common gotchas:
 | --- | --- |
 | `Cmd/Ctrl+C` | Copy selected page |
 | `Cmd/Ctrl+V` | Duplicate copied page |
-| `Cmd/Ctrl+Backspace` or `Cmd/Ctrl+Delete` | Delete selected page |
+| `Option/Alt+Backspace` | Delete selected notebook or page |
 | `Tab` | Nest selected page under the previous sibling |
 | `Shift+Tab` | Promote selected page to its parent level |
 | `Shift+click` | Select a continuous range of sibling pages |

@@ -6,10 +6,13 @@ use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager, RunEvent};
+use std::thread;
+use std::time::Duration;
+use tauri::{AppHandle, Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 
 const DATABASE_FILE: &str = "notebook.sqlite3";
 const ATTACHMENTS_DIR: &str = "attachments";
+const EXTERNAL_CARD_REQUESTS_DIR: &str = "external-card-requests";
 const PAGE_REVISION_LIMIT: i64 = 20;
 
 #[derive(Debug, Serialize)]
@@ -574,6 +577,12 @@ fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .path()
         .app_data_dir()
         .map_err(|error| error.to_string())?;
+    fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    Ok(dir)
+}
+
+fn external_card_requests_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app_data_dir(app)?.join(EXTERNAL_CARD_REQUESTS_DIR);
     fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
     Ok(dir)
 }
@@ -3426,6 +3435,7 @@ fn handle_external_card_request(app: &AppHandle, path: &PathBuf) -> Result<(), S
         serde_json::from_str(&request_text).map_err(|error| error.to_string())?;
     let mut connection = open_database(app)?;
     let block_id = create_external_card_block_in_database(&mut connection, &request.page_id)?;
+    open_card_window_for_block(app, &block_id)?;
     if let Ok(mut pending) = app.state::<PendingCardOpens>().0.lock() {
         if !pending.contains(&block_id) {
             pending.push(block_id.clone());
@@ -3436,6 +3446,74 @@ fn handle_external_card_request(app: &AppHandle, path: &PathBuf) -> Result<(), S
         let _ = main_window.hide();
     }
     Ok(())
+}
+
+fn open_card_window_for_block(app: &AppHandle, block_id: &str) -> Result<(), String> {
+    let label = format!(
+        "card_{}",
+        block_id
+            .chars()
+            .map(|character| {
+                if character.is_ascii_alphanumeric()
+                    || character == '_'
+                    || character == ':'
+                    || character == '-'
+                {
+                    character
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>()
+    );
+    if let Some(window) = app.get_webview_window(&label) {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+        return Ok(());
+    }
+
+    let url = WebviewUrl::App(format!("index.html?card={block_id}&newCard=1").into());
+    WebviewWindowBuilder::new(app, label, url)
+        .title("Notebook card")
+        .inner_size(340.0, 220.0)
+        .min_inner_size(240.0, 140.0)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .always_on_top(true)
+        .visible_on_all_workspaces(true)
+        .skip_taskbar(true)
+        .resizable(true)
+        .visible(true)
+        .focused(true)
+        .build()
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn drain_external_card_request_dir(app: &AppHandle) {
+    let Ok(request_dir) = external_card_requests_dir(app) else {
+        return;
+    };
+    let Ok(entries) = fs::read_dir(&request_dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("notecard") {
+            continue;
+        }
+        let _ = handle_external_card_request(app, &path);
+        let _ = fs::remove_file(path);
+    }
+}
+
+fn start_external_card_request_watcher(app: AppHandle) {
+    thread::spawn(move || loop {
+        drain_external_card_request_dir(&app);
+        thread::sleep(Duration::from_millis(250));
+    });
 }
 
 #[tauri::command]
@@ -3492,6 +3570,10 @@ pub fn run() {
             create_external_card,
             cleanup_orphan_attachments
         ])
+        .setup(|app| {
+            start_external_card_request_watcher(app.handle().clone());
+            Ok(())
+        })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
@@ -3506,6 +3588,7 @@ pub fn run() {
                     };
                     if path.extension().and_then(|value| value.to_str()) == Some("notecard") {
                         let _ = handle_external_card_request(app, &path);
+                        let _ = fs::remove_file(path);
                         continue;
                     }
                     if !is_markdown_path(&path) {

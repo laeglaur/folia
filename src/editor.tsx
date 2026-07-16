@@ -17,7 +17,7 @@ import { TableRow } from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { ListItem, ListKeymap } from '@tiptap/extension-list';
-import { Extension, InputRule, Mark, Node, markInputRule, mergeAttributes } from '@tiptap/core';
+import { Extension, InputRule, Mark, Node, mergeAttributes } from '@tiptap/core';
 import { common, createLowlight } from 'lowlight';
 import { Plugin, TextSelection } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
@@ -101,6 +101,7 @@ export type RichEditorProps = {
   className: string;
   html?: string;
   placeholder?: string;
+  autoFocus?: boolean;
   onFocus: (editor: Editor) => void;
   onUpdate?: (html: string, plainText: string) => void;
   onBlur?: (html: string, plainText: string) => void;
@@ -2189,6 +2190,36 @@ const attachmentInputRegex = /^\s*\/at\s$/;
 const dateInputRegex = /^\s*\/date\s$/;
 const emojiTextRegex = /\p{Extended_Pictographic}(?:\ufe0f|\u200d\p{Extended_Pictographic}(?:\ufe0f)?)*|[\u2600-\u27bf]\ufe0f?/gu;
 
+const inlineMarkShortcutInputRule = ({
+  find,
+  markName,
+  textGroup = 2,
+  getAttributes
+}: {
+  find: RegExp;
+  markName: string;
+  textGroup?: number;
+  getAttributes?: (match: RegExpMatchArray) => Record<string, unknown> | null;
+}) => new InputRule({
+  find,
+  handler: ({ state, range, match }) => {
+    const markType = state.schema.marks[markName];
+    const text = match[textGroup];
+    if (!markType || !text) return null;
+    const attributes = getAttributes?.(match) ?? {};
+    if (attributes === null) return null;
+    const prefix = match[1] ?? '';
+    const insertText = `${prefix}${text}`;
+    const textFrom = range.from + prefix.length;
+    const textTo = textFrom + text.length;
+    const textNode = state.schema.text(insertText);
+    state.tr
+      .replaceWith(range.from, range.to, textNode)
+      .addMark(textFrom, textTo, markType.create(attributes))
+      .removeStoredMark(markType);
+  }
+});
+
 const LocalEmojiDecorations = Extension.create({
   name: 'localEmojiDecorations',
 
@@ -2225,9 +2256,42 @@ const BracketTodoInput = Extension.create({
 
   addInputRules() {
     return [
-      markInputRule({
-        find: /(?<!~)~([^~\n]+)~(?!~)$/,
-        type: this.editor.schema.marks.underline
+      inlineMarkShortcutInputRule({
+        find: /(^|\s)\*\*([^*\n]+)\*\*$/,
+        markName: 'bold'
+      }),
+      inlineMarkShortcutInputRule({
+        find: /(^|\s)__([^_\n]+)__$/,
+        markName: 'bold'
+      }),
+      inlineMarkShortcutInputRule({
+        find: /(^|\s)==([^=\n]+)==$/,
+        markName: 'highlight'
+      }),
+      inlineMarkShortcutInputRule({
+        find: /(^|\s)~~([^~\n]+)~~$/,
+        markName: 'strike'
+      }),
+      inlineMarkShortcutInputRule({
+        find: /(^|\s)~([^~\n]+)~$/,
+        markName: 'underline'
+      }),
+      inlineMarkShortcutInputRule({
+        find: /(^|\s)\*([^*\n]+)\*$/,
+        markName: 'italic'
+      }),
+      inlineMarkShortcutInputRule({
+        find: /(^|\s)_([^_\n]+)_$/,
+        markName: 'italic'
+      }),
+      inlineMarkShortcutInputRule({
+        find: /(^|\s)`([^`\n]+)`$/,
+        markName: 'code'
+      }),
+      inlineMarkShortcutInputRule({
+        find: /(^|\s)\[([^\]\n]+)\]\(([^)\s]+)\)$/,
+        markName: 'link',
+        getAttributes: (match) => ({ href: match[3] })
       }),
       new InputRule({
         find: inlineMathInputRegex,
@@ -2410,7 +2474,8 @@ const NotebookShortcuts = Extension.create<{
       'Shift-Enter': () => this.options.onShiftEnter?.(this.editor) ?? false,
       'Mod-ArrowUp': () => this.options.onMoveBlock?.(-1) ?? false,
       'Mod-ArrowDown': () => this.options.onMoveBlock?.(1) ?? false,
-      'Mod-Backspace': () => this.options.onDeleteBlock?.() ?? false,
+      'Alt-Backspace': () => this.options.onDeleteBlock?.() ?? false,
+      'Alt-Delete': () => this.options.onDeleteBlock?.() ?? false,
       Tab: () => runListIndentCommand(this.editor, 'in'),
       'Shift-Tab': () => runListIndentCommand(this.editor, 'out')
     };
@@ -2502,6 +2567,7 @@ function RichEditor({
   className,
   html,
   placeholder,
+  autoFocus,
   onFocus,
   onUpdate,
   onBlur,
@@ -2579,6 +2645,14 @@ function RichEditor({
     editorRef(editor);
     return () => editorRef(null);
   }, [editor, editorRef]);
+
+  useEffect(() => {
+    if (!editor || !autoFocus) return;
+    const focusFrame = window.requestAnimationFrame(() => {
+      editor.commands.focus('end');
+    });
+    return () => window.cancelAnimationFrame(focusFrame);
+  }, [autoFocus, editor]);
 
   useEffect(() => {
     if (!editor) return;

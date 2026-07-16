@@ -135,7 +135,7 @@ macOS 使用 `Cmd`，Windows/Linux 使用 `Ctrl`。
 | `Shift+Tab` | 反缩进列表项或选中的图片 |
 | `Cmd/Ctrl+ArrowUp` | 当前 block 上移 |
 | `Cmd/Ctrl+ArrowDown` | 当前 block 下移 |
-| `Cmd/Ctrl+Backspace` | 删除当前 block 或选中的 page |
+| `Option/Alt+Backspace` | 删除当前 block、选中的 notebook 或 page |
 
 ### 安装
 
@@ -335,7 +335,7 @@ Common gotchas:
 | `Shift+Tab` | Outdent list item or selected image |
 | `Cmd/Ctrl+ArrowUp` | Move current block up |
 | `Cmd/Ctrl+ArrowDown` | Move current block down |
-| `Cmd/Ctrl+Backspace` | Delete current block or selected page |
+| `Option/Alt+Backspace` | Delete current block, selected notebook, or selected page |
 
 ### Install
 
