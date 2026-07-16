@@ -1479,12 +1479,20 @@ button.delete-notebook-button {
 .block:not(.is-collapsed) .block-rail .fold-button svg {
   transform: rotate(90deg);
 }
+.block-meta-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin: 0 0 9px;
+}
+
 .block-created-at {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  min-height: 18px;
-  margin: 0 0 9px;
+  min-height: 20px;
+  margin: 0;
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -1497,6 +1505,33 @@ button.delete-notebook-button {
   letter-spacing: 0;
   cursor: pointer;
   box-shadow: none;
+}
+
+.block-widget-button {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: color-mix(in srgb, var(--text-color, var(--ink)) 46%, transparent);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.block:hover .block-widget-button,
+.block:focus-within .block-widget-button,
+.block-widget-button:focus-visible {
+  opacity: 1;
+}
+
+.block-widget-button:hover,
+.block-widget-button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  outline: 0;
 }
 
 .block-created-at:hover,

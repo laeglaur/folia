@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState, type CSSProperties, type MouseEvent } from 'react';
-import { ChevronRight, Plus } from 'lucide-react';
+import { ChevronRight, MonitorUp, Plus } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { Block, ContentThemeId, MetadataFieldType, NotebookCalendarDateSource, NotebookCalendarViewConfig, Page, PageMetadataField } from './types';
 import type { PageCalendarEntry, PageCalendarFieldCandidate } from './page-calendar';
@@ -164,6 +164,7 @@ type BlockItemProps = {
   onDraggingBlockIdChange: (blockId: string | null) => void;
   onReorderBlock: (sourceId: string, targetId: string) => void;
   onToggleBlock: (blockId: string, key: 'collapsed' | 'pinned') => void;
+  onShowBlockInMacWidget: (blockId: string) => void;
   onEditorRef: (blockId: string, editor: Editor | null) => void;
   onFocus: (blockId: string, editor: Editor) => void;
   onSelectionUpdate: (editor: Editor) => void;
@@ -188,6 +189,7 @@ function BlockItem({
   onDraggingBlockIdChange,
   onReorderBlock,
   onToggleBlock,
+  onShowBlockInMacWidget,
   onEditorRef,
   onFocus,
   onSelectionUpdate,
@@ -236,15 +238,26 @@ function BlockItem({
         </button>
       </div>
       <div className="block-body">
-        <button
-          className={`block-created-at ${block.pinned ? 'is-pinned' : ''}`}
-          type="button"
-          onClick={() => onToggleBlock(block.id, 'pinned')}
-          aria-pressed={block.pinned}
-          aria-label={block.pinned ? 'Unpin block' : 'Pin block'}
-        >
-          <time dateTime={block.createdAt}>{blockTimestampLabel(block.createdAt)}</time>
-        </button>
+        <div className="block-meta-actions">
+          <button
+            className={`block-created-at ${block.pinned ? 'is-pinned' : ''}`}
+            type="button"
+            onClick={() => onToggleBlock(block.id, 'pinned')}
+            aria-pressed={block.pinned}
+            aria-label={block.pinned ? 'Unpin block' : 'Pin block'}
+          >
+            <time dateTime={block.createdAt}>{blockTimestampLabel(block.createdAt)}</time>
+          </button>
+          <button
+            className="block-widget-button"
+            type="button"
+            onClick={() => onShowBlockInMacWidget(block.id)}
+            aria-label="Show block in macOS desktop widget"
+            title="Show in macOS widget"
+          >
+            <MonitorUp size={13} />
+          </button>
+        </div>
         {!block.collapsed ? (
           <RichEditor
             editorRef={(editor) => onEditorRef(block.id, editor)}
@@ -304,6 +317,7 @@ type WriteSurfaceProps = {
   onDraggingBlockIdChange: (blockId: string | null) => void;
   onReorderBlock: (sourceId: string, targetId: string) => void;
   onToggleBlock: (blockId: string, key: 'collapsed' | 'pinned') => void;
+  onShowBlockInMacWidget: (blockId: string) => void;
   onBlockEditorRef: (blockId: string, editor: Editor | null) => void;
   onBlockFocus: (blockId: string, editor: Editor) => void;
   onSelectionUpdate: (editor: Editor) => void;
@@ -458,6 +472,7 @@ function WriteSurface({
   onDraggingBlockIdChange,
   onReorderBlock,
   onToggleBlock,
+  onShowBlockInMacWidget,
   onBlockEditorRef,
   onBlockFocus,
   onSelectionUpdate,
@@ -574,6 +589,7 @@ function WriteSurface({
               onDraggingBlockIdChange={onDraggingBlockIdChange}
               onReorderBlock={onReorderBlock}
               onToggleBlock={onToggleBlock}
+              onShowBlockInMacWidget={onShowBlockInMacWidget}
               onEditorRef={onBlockEditorRef}
               onFocus={onBlockFocus}
               onSelectionUpdate={onSelectionUpdate}

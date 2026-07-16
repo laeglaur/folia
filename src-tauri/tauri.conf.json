@@ -7,7 +7,8 @@
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://127.0.0.1:5173",
     "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../dist"
+    "frontendDist": "../dist",
+    "beforeBundleCommand": "./src-tauri/macos-widget/build-widget.sh"
   },
   "app": {
     "macOSPrivateApi": true,
@@ -33,17 +34,25 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "app"
+    ],
     "fileAssociations": [
       {
-        "ext": ["md", "markdown", "txt"],
+        "ext": [
+          "md",
+          "markdown",
+          "txt"
+        ],
         "name": "Markdown Document",
         "description": "Markdown and plain text documents",
         "role": "Editor",
         "mimeType": "text/markdown"
       },
       {
-        "ext": ["notecard"],
+        "ext": [
+          "notecard"
+        ],
         "name": "folia Card Request",
         "description": "Open a folia page as a desktop card",
         "role": "Editor",

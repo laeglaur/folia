@@ -92,8 +92,11 @@ importers:
       react-dom:
         specifier: latest
         version: 19.2.7(react@19.2.7)
+      tauri-plugin-widgets-api:
+        specifier: ^0.3.0
+        version: 0.3.0
       typescript:
-        specifier: latest
+        specifier: 6.0.3
         version: 6.0.3
       vite:
         specifier: 8.0.16
@@ -583,6 +586,9 @@ packages:
   boolbase@1.0.0:
     resolution: {integrity: sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww==}
 
+  citty@0.2.2:
+    resolution: {integrity: sha512-+6vJA3L98yv+IdfKGZHBNiGW5KHn22e/JwID0Strsz8h4S/csAu/OuICwxrg44k5MRiZHWIo8XXuJgQTriRP4w==}
+
   commander@12.1.0:
     resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
     engines: {node: '>=18'}
@@ -883,6 +889,10 @@ packages:
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
+
+  tauri-plugin-widgets-api@0.3.0:
+    resolution: {integrity: sha512-q6sqOdAGOd4UyU4Ezl5BBgpKGlHXika9lp4dxuRth60+FCypKi51Y8z9k/Mg3kY4cIK0YmDa0aNe0Dng0CGhPQ==}
+    hasBin: true
 
   temml@0.13.3:
     resolution: {integrity: sha512-GLNEdf5qBWux3adbOxFus4jlds8nCdEIkkKq99m/4GGTfqnsjlVlK/i371Ux7yYSg/WNmOyAkNT/GJlZoJ0v+w==}
@@ -1361,6 +1371,8 @@ snapshots:
   boolbase@1.0.0:
     optional: true
 
+  citty@0.2.2: {}
+
   commander@12.1.0: {}
 
   commander@8.3.0: {}
@@ -1679,6 +1691,11 @@ snapshots:
   scheduler@0.27.0: {}
 
   source-map-js@1.2.1: {}
+
+  tauri-plugin-widgets-api@0.3.0:
+    dependencies:
+      '@tauri-apps/api': 2.11.0
+      citty: 0.2.2
 
   temml@0.13.3:
     optional: true

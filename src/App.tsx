@@ -129,6 +129,7 @@ import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { reloadTimelines, setItems, setWidgetConfig, type WidgetConfig, type WidgetElement } from 'tauri-plugin-widgets-api';
 import 'katex/dist/katex.min.css';
 import { CardWindowPage, NativeShell, TyporaShell, type PageThumbnailItem } from './shells';
 import { WorkspaceContent, type EditorTarget, type FloatingToolbarState } from './workspace';
@@ -150,6 +151,8 @@ const shellThemes: Array<{ id: ShellId; label: string }> = [
 ];
 
 const fishIconUrl = '/app-assets/blue_red_fish.png';
+const foliaWidgetGroup = 'group.com.laeglaur.notebook';
+const foliaWidgetKind = 'FoliaBlockWidget';
 const defaultNativeBrand = {
   eyebrow: 'garden notes',
   title: 'Notebook',
@@ -309,6 +312,76 @@ const isEditorContentEmpty = (html: string, plainText = '') => {
   return !container.querySelector('img, video, audio, iframe, table, pre, [data-type="block-math"], [data-type="inline-math"]');
 };
 
+const compactWidgetText = (value: string, max = 360) => {
+  const compact = value.replace(/\s+/g, ' ').trim();
+  return compact.length > max ? `${compact.slice(0, max - 1)}...` : compact;
+};
+
+const widgetBlockTitle = (block: Block, page?: Page | null) => {
+  const firstLine = block.content.plainText.split('\n').map((line) => line.trim()).find(Boolean);
+  return compactWidgetText(firstLine || page?.title || 'folia block', 72);
+};
+
+const widgetCard = (
+  block: Block,
+  page: Page | null,
+  options: { lineLimit: number; titleStyle: 'headline' | 'title3'; showPage: boolean; padding: number }
+): WidgetElement => {
+  const title = widgetBlockTitle(block, page);
+  const body = compactWidgetText(block.content.plainText || 'Empty block', options.lineLimit * 84);
+  const children: WidgetElement[] = [
+    {
+      type: 'text',
+      content: title,
+      textStyle: options.titleStyle,
+      fontWeight: 'semibold',
+      color: 'label',
+      lineLimit: 2
+    }
+  ];
+  if (options.showPage && page?.title) {
+    children.push({
+      type: 'text',
+      content: page.title,
+      textStyle: 'caption',
+      color: 'secondaryLabel',
+      lineLimit: 1
+    });
+  }
+  children.push({
+    type: 'text',
+    content: body,
+    textStyle: 'body',
+    color: 'label',
+    lineLimit: options.lineLimit
+  });
+  children.push({ type: 'spacer' });
+  children.push({
+    type: 'text',
+    content: page ? `${page.title} · ${pageTimestampLabel(block.updatedAt || block.createdAt)}` : pageTimestampLabel(block.updatedAt || block.createdAt),
+    textStyle: 'caption2',
+    color: 'secondaryLabel',
+    lineLimit: 1
+  });
+
+  return {
+    type: 'vstack',
+    spacing: 7,
+    alignment: 'leading',
+    padding: options.padding,
+    background: { light: '#fbfaf7', dark: '#1f211d' },
+    cornerRadius: 18,
+    children
+  };
+};
+
+const blockWidgetConfig = (block: Block, page: Page | null): WidgetConfig => ({
+  version: 1,
+  small: widgetCard(block, page, { lineLimit: 4, titleStyle: 'headline', showPage: false, padding: 14 }),
+  medium: widgetCard(block, page, { lineLimit: 5, titleStyle: 'title3', showPage: true, padding: 16 }),
+  large: widgetCard(block, page, { lineLimit: 12, titleStyle: 'title3', showPage: true, padding: 18 })
+});
+
 const mapWithConcurrency = async <Item, Result>(
   items: Item[],
   limit: number,
@@ -364,6 +437,7 @@ export function App() {
   const [selectedNotebookId, setSelectedNotebookId] = useState<string | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedPageIds, setSelectedPageIds] = useState<string[]>([]);
+  const [desktopWidgetBlockId, setDesktopWidgetBlockId] = useState<string | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [trashBusy, setTrashBusy] = useState(false);
   const [temporaryMarkdownPages, setTemporaryMarkdownPages] = useState<TemporaryMarkdownPage[]>([]);
@@ -2057,6 +2131,43 @@ export function App() {
     jumpToBlock(pageId, blockId);
   };
 
+  const findBlockForWidget = (blockId: string) => {
+    const currentBlock = activePageBlocksRef.current.find((block) => block.id === blockId);
+    const pinnedPayload = pinnedBlockPayloads.find((payload) => payload.block.id === blockId);
+    const block = currentBlock ?? pinnedPayload?.block ?? stateRef.current.blocks.find((candidate) => candidate.id === blockId) ?? null;
+    const page = block
+      ? stateRef.current.pages.find((candidate) => candidate.id === block.pageId) ?? pinnedPayload?.page ?? null
+      : null;
+    return { block, page };
+  };
+
+  const publishBlockToMacWidget = async (block: Block, page: Page | null) => {
+    if (!isTauri()) {
+      setImportNotice({ kind: 'warning', message: 'macOS desktop widgets are only available in the desktop app.' });
+      return;
+    }
+    await setItems('selectedBlockId', block.id, foliaWidgetGroup);
+    await setItems('selectedPageId', page?.id ?? block.pageId, foliaWidgetGroup);
+    await setWidgetConfig(blockWidgetConfig(block, page), foliaWidgetGroup);
+    await reloadTimelines(foliaWidgetKind);
+  };
+
+  const showBlockInMacWidget = async (blockId: string) => {
+    const { block, page } = findBlockForWidget(blockId);
+    if (!block) return;
+    try {
+      await publishBlockToMacWidget(block, page);
+      setDesktopWidgetBlockId(block.id);
+      setImportNotice({ kind: 'success', message: 'Updated the folia Block desktop widget.' });
+    } catch (error) {
+      setImportNotice({
+        kind: 'error',
+        message: 'Could not update the macOS desktop widget.',
+        details: [error instanceof Error ? error.message : String(error)]
+      });
+    }
+  };
+
   const moveCalendarMonth = (delta: number) => {
     setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
   };
@@ -2240,6 +2351,7 @@ export function App() {
     const targetBlock = activePageBlocks.find((block) => block.id === blockId);
     const targetPage = state.pages.find((page) => page.id === targetBlock?.pageId);
     const nextPage = targetPage ? { ...targetPage, updatedAt } : null;
+    const nextWidgetBlock = targetBlock ? { ...targetBlock, content: { html: cleanHtml, plainText }, updatedAt } : null;
     const nextBlocks = activePageBlocks.map((block) =>
       block.id === blockId ? { ...block, content: { html: cleanHtml, plainText }, updatedAt } : block
     );
@@ -2250,6 +2362,11 @@ export function App() {
       payload: { html: cleanHtml, plainText }
     });
     if (nextPage) applyPageDocumentToView(nextPage, nextBlocks, operation);
+    if (desktopWidgetBlockId === blockId && nextWidgetBlock) {
+      void publishBlockToMacWidget(nextWidgetBlock, nextPage).catch((error) => {
+        console.warn('Could not refresh macOS desktop widget.', error);
+      });
+    }
     if (targetBlock?.pinned) {
       setPinnedBlockPayloads((current) => current.map((payload) =>
         payload.block.id === blockId
@@ -2290,6 +2407,11 @@ export function App() {
         ? { ...payload, page: nextPage, block: nextBlock ?? payload.block }
         : payload
     ));
+    if (desktopWidgetBlockId === blockId && nextBlock) {
+      void publishBlockToMacWidget(nextBlock, nextPage).catch((error) => {
+        console.warn('Could not refresh macOS desktop widget.', error);
+      });
+    }
     if (isTauri() && nextBlock) {
       void emit<CardBlockUpdatedPayload>('notebook://card-block-updated', {
         blockId,
@@ -3995,6 +4117,7 @@ export function App() {
         onDraggingBlockIdChange: setDraggingBlockId,
         onReorderBlock: reorderBlock,
         onToggleBlock: toggleBlock,
+        onShowBlockInMacWidget: (blockId) => void showBlockInMacWidget(blockId),
         onBlockEditorRef: (blockId, editor) => { blockEditorRefs.current[blockId] = editor; },
         onBlockFocus: (blockId, editor) => {
           activateEditor({ kind: 'block', blockId });

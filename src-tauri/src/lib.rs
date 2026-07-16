@@ -3531,6 +3531,7 @@ pub fn run() {
         .manage(PendingMarkdownOpens::default())
         .manage(PendingCardOpens::default())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_widgets::init())
         .invoke_handler(tauri::generate_handler![
             load_normalized_state,
             load_workspace_preferences,
