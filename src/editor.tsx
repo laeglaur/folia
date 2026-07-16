@@ -609,6 +609,144 @@ const KeyboardKey = Mark.create({
   }
 });
 
+const unsafeCssColorPattern = /(?:url|expression|var|calc|attr|@import|javascript:|[;{}<>\\])/i;
+
+const sanitizeCssColor = (value: string | null | undefined) => {
+  const trimmed = (value ?? '').replace(/\u00a0/g, ' ').trim();
+  if (!trimmed || trimmed.length > 96 || unsafeCssColorPattern.test(trimmed)) return null;
+  if (typeof CSS !== 'undefined' && typeof CSS.supports === 'function') {
+    return CSS.supports('color', trimmed) ? trimmed : null;
+  }
+  return /^#[0-9a-f]{3,8}$/i.test(trimmed) ||
+    /^rgba?\([\d\s.,%]+\)$/i.test(trimmed) ||
+    /^hsla?\([\d\s.,%degturnrad]+\)$/i.test(trimmed) ||
+    /^[a-z]+$/i.test(trimmed)
+    ? trimmed
+    : null;
+};
+
+const pastedInlineColors = (element: HTMLElement) => {
+  const tag = element.tagName.toLowerCase();
+  const color = sanitizeCssColor(element.style.color || (tag === 'font' ? element.getAttribute('color') : null));
+  const backgroundColor = sanitizeCssColor(
+    element.style.backgroundColor ||
+    element.style.getPropertyValue('background-color')
+  );
+  return { color, backgroundColor };
+};
+
+const pastedInlineStyle = (element: HTMLElement) => {
+  const { color, backgroundColor } = pastedInlineColors(element);
+  return [
+    color ? `color: ${color}` : '',
+    backgroundColor ? `background-color: ${backgroundColor}` : ''
+  ].filter(Boolean).join('; ');
+};
+
+type SafeInlineColors = {
+  color?: string;
+  backgroundColor?: string;
+};
+
+const cssDeclarationColors = (cssText: string) => {
+  const colors: SafeInlineColors = {};
+  for (const declaration of cssText.split(';')) {
+    const separator = declaration.indexOf(':');
+    if (separator < 0) continue;
+    const property = declaration.slice(0, separator).trim().toLowerCase();
+    const value = sanitizeCssColor(declaration.slice(separator + 1));
+    if (!value) continue;
+    if (property === 'color') colors.color = value;
+    if (property === 'background' || property === 'background-color') colors.backgroundColor = value;
+  }
+  return colors;
+};
+
+const pastedStyleClassSelectorPattern = /\.([_a-zA-Z][\w-]*)/g;
+
+const pastedClassColors = (doc: Document) => {
+  const colorsByClass = new Map<string, SafeInlineColors>();
+  doc.querySelectorAll('style').forEach((styleElement) => {
+    const cssText = styleElement.textContent ?? '';
+    for (const rule of cssText.matchAll(/([^{}]+)\{([^{}]+)\}/g)) {
+      const colors = cssDeclarationColors(rule[2] ?? '');
+      if (!colors.color && !colors.backgroundColor) continue;
+      const selectors = (rule[1] ?? '').split(',');
+      selectors.forEach((selector) => {
+        for (const classMatch of selector.matchAll(pastedStyleClassSelectorPattern)) {
+          const className = classMatch[1];
+          if (!className) continue;
+          const existing = colorsByClass.get(className) ?? {};
+          colorsByClass.set(className, { ...existing, ...colors });
+        }
+      });
+    }
+  });
+  return colorsByClass;
+};
+
+const applyPastedClassColors = (doc: Document) => {
+  const colorsByClass = pastedClassColors(doc);
+  if (!colorsByClass.size) return;
+  doc.querySelectorAll<HTMLElement>('[class]').forEach((element) => {
+    for (const className of Array.from(element.classList)) {
+      const colors = colorsByClass.get(className);
+      if (!colors) continue;
+      if (colors.color && !sanitizeCssColor(element.style.color)) element.style.color = colors.color;
+      if (colors.backgroundColor && !sanitizeCssColor(element.style.backgroundColor)) {
+        element.style.backgroundColor = colors.backgroundColor;
+      }
+    }
+  });
+};
+
+const escapeCodeBlockText = (value: string) =>
+  escapeHtml(normalizeEscapedNbsp(value).replace(/\t/g, '    '))
+    .replace(/ /g, '&nbsp;')
+    .replace(/\n/g, '<br>');
+
+const PastedTextStyle = Mark.create({
+  name: 'pastedTextStyle',
+
+  addAttributes() {
+    return {
+      color: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          sanitizeCssColor(element.style.color || element.getAttribute('color')),
+        renderHTML: () => ({})
+      },
+      backgroundColor: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          sanitizeCssColor(element.style.backgroundColor || element.style.getPropertyValue('background-color')),
+        renderHTML: () => ({})
+      }
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'span',
+        getAttrs: (element) => pastedInlineStyle(element as HTMLElement) ? null : false
+      },
+      {
+        tag: 'font[color]',
+        getAttrs: (element) => pastedInlineStyle(element as HTMLElement) ? null : false
+      }
+    ];
+  },
+
+  renderHTML({ mark, HTMLAttributes }) {
+    const style = [
+      mark.attrs.color ? `color: ${mark.attrs.color}` : '',
+      mark.attrs.backgroundColor ? `background-color: ${mark.attrs.backgroundColor}` : ''
+    ].filter(Boolean).join('; ');
+    return ['span', mergeAttributes(HTMLAttributes, style ? { style } : {}), 0];
+  }
+});
+
 const MdAlert = Node.create({
   name: 'mdAlert',
   group: 'block',
@@ -1282,6 +1420,8 @@ const normalizePastedCodeBlocks = (doc: Document) => {
   doc.querySelectorAll<HTMLElement>('pre').forEach((pre) => {
     const codeElements = Array.from(pre.querySelectorAll<HTMLElement>('code'));
     const language = pastedCodeLanguage(codeElements[0] ?? pre);
+    const hasStyledCode = Array.from(pre.querySelectorAll<HTMLElement>('span, font'))
+      .some((element) => Boolean(pastedInlineStyle(element)));
     const text = codeLikeText(
       codeElements.length
         ? codeElements.map((code) => code.innerText || code.textContent || '').join('\n')
@@ -1294,7 +1434,15 @@ const normalizePastedCodeBlocks = (doc: Document) => {
 
     const code = doc.createElement('code');
     applyCodeLanguageClass(code, language);
-    code.textContent = text;
+    if (hasStyledCode) {
+      const sources = codeElements.length ? codeElements : [pre];
+      sources.forEach((source, index) => {
+        if (index > 0) code.appendChild(doc.createTextNode('\n'));
+        while (source.firstChild) code.appendChild(source.firstChild);
+      });
+    } else {
+      code.textContent = text;
+    }
     pre.replaceChildren(code);
   });
 
@@ -1328,7 +1476,9 @@ const normalizePastedCodeBlocks = (doc: Document) => {
 
 const normalizePastedHtml = (html: string) => {
   const doc = new DOMParser().parseFromString(html, 'text/html');
+  applyPastedClassColors(doc);
   normalizePastedCodeBlocks(doc);
+  doc.querySelectorAll('style, meta').forEach((element) => element.remove());
   doc.querySelectorAll<HTMLElement>('p, div, span').forEach((element) => {
     const text = normalizeEscapedNbsp(element.textContent ?? '').replace(/\s+/g, ' ').trim();
     if (text.toLowerCase() !== 'empty code block') return;
@@ -1351,8 +1501,19 @@ const normalizePastedHtml = (html: string) => {
     if (nextValue !== node.nodeValue) node.nodeValue = nextValue;
   });
   const inlineElements = Array.from(doc.querySelectorAll<HTMLElement>('span, font'));
-  const sourceStyleElements = inlineElements.filter((element) => !isSemanticPastedSpan(element));
-  sourceStyleElements.forEach((htmlElement) => unwrapElement(htmlElement));
+  inlineElements.forEach((element) => {
+    if (isSemanticPastedSpan(element)) return;
+    const safeStyle = pastedInlineStyle(element);
+    if (!safeStyle) {
+      unwrapElement(element);
+      return;
+    }
+
+    const styledSpan = doc.createElement('span');
+    styledSpan.setAttribute('style', safeStyle);
+    while (element.firstChild) styledSpan.appendChild(element.firstChild);
+    element.replaceWith(styledSpan);
+  });
 
   return doc.body.innerHTML || html;
 };
@@ -1730,6 +1891,10 @@ const codeRichPasteAttributes = (element: HTMLElement) => {
     const latex = element.getAttribute('data-latex');
     return ` data-type="inline-math"${latex ? ` data-latex="${escapeHtml(latex)}"` : ''}`;
   }
+  if (tag === 'span') {
+    const safeStyle = pastedInlineStyle(element);
+    return safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
+  }
   return '';
 };
 
@@ -1738,17 +1903,22 @@ const richInlineHtmlForCodeBlock = (html: string) => {
   normalizePastedCodeBlocks(doc);
 
   const walk = (node: globalThis.Node): string => {
-    if (node.nodeType === window.Node.TEXT_NODE) return escapeHtml(normalizeEscapedNbsp(node.nodeValue ?? ''));
+    if (node.nodeType === window.Node.TEXT_NODE) return escapeCodeBlockText(node.nodeValue ?? '');
     if (!(node instanceof HTMLElement)) return Array.from(node.childNodes).map(walk).join('');
 
     const tag = node.tagName.toLowerCase();
     if (tag === 'br') return '<br>';
-    if (tag === 'pre' || tag === 'textarea') {
-      return escapeHtml(normalizeEscapedNbsp(node.textContent ?? '')).replace(/\n/g, '<br>');
+    if (tag === 'pre') {
+      const body = Array.from(node.childNodes).map(walk).join('');
+      return body || escapeCodeBlockText(node.textContent ?? '');
+    }
+    if (tag === 'textarea') {
+      return escapeCodeBlockText(node.textContent ?? '');
     }
 
     const body = Array.from(node.childNodes).map(walk).join('');
     if (codeRichPasteBlockTags.has(tag)) return body ? `${body}<br>` : '<br>';
+    if (tag === 'code') return body;
     if (!codeRichPasteInlineTags.has(tag)) return body;
     return `<${tag}${codeRichPasteAttributes(node)}>${body}</${tag}>`;
   };
@@ -2505,6 +2675,7 @@ const createEditorExtensions = (
   TyporaAliases,
   Highlight,
   Underline,
+  PastedTextStyle,
   KeyboardKey,
   Link.configure({
     autolink: true,
