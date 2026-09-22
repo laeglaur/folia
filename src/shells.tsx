@@ -1564,6 +1564,7 @@ export function CardWindowPage({
   onSelectionUpdate,
   onUpdate,
   onBlur,
+  useIdeographicSpace,
   onMediaResizeStart,
   onImageAnnotate,
   onClose,
@@ -1580,6 +1581,7 @@ export function CardWindowPage({
   onSelectionUpdate: (editor: Editor) => void;
   onUpdate: (html: string, plainText: string) => void;
   onBlur: (html: string, plainText: string) => void;
+  useIdeographicSpace: boolean;
   onMediaResizeStart: (request: MediaResizeRequest) => void;
   onImageAnnotate: (request: ImageAnnotationRequest) => void;
   onClose: () => void;
@@ -1650,6 +1652,7 @@ export function CardWindowPage({
           className="card-mode-editor"
           html={block.content.html}
           autoFocus={autoFocus}
+          useIdeographicSpace={useIdeographicSpace}
           onFocus={onFocus}
           onSelectionUpdate={onSelectionUpdate}
           onUpdate={scheduleUpdate}

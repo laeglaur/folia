@@ -3,6 +3,7 @@
    native Garden/Ledger surfaces or raw #write padding. */
 
 .typora-app-shell {
+  --block-timeline-accent: var(--accent, var(--theme-accent, var(--text-color, var(--typora-shell-ink))));
   --typora-editor-page-padding: 8px 0 88px;
   --typora-editor-control-bg: color-mix(in srgb, var(--typora-shell-panel) 78%, transparent);
   --typora-editor-control-hover-bg: color-mix(in srgb, var(--typora-shell-ink) 9%, transparent);
@@ -14,6 +15,46 @@
     inset 0 0 0 1px color-mix(in srgb, var(--typora-editor-block-divider-color) 58%, transparent),
     inset 0 1px 0 color-mix(in srgb, var(--typora-shell-panel) 72%, transparent),
     0 1px 0 color-mix(in srgb, var(--typora-shell-ink) 10%, transparent);
+}
+
+.typora-app-shell #sidebar-content,
+.typora-app-shell .typora-page-thumbnails,
+.typora-app-shell .typora-workspace,
+.typora-app-shell .outline-drawer-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--block-timeline-accent) transparent;
+}
+
+.typora-app-shell #sidebar-content::-webkit-scrollbar,
+.typora-app-shell .typora-page-thumbnails::-webkit-scrollbar,
+.typora-app-shell .typora-workspace::-webkit-scrollbar,
+.typora-app-shell .outline-drawer-body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.typora-app-shell #sidebar-content::-webkit-scrollbar-track,
+.typora-app-shell .typora-page-thumbnails::-webkit-scrollbar-track,
+.typora-app-shell .typora-workspace::-webkit-scrollbar-track,
+.typora-app-shell .outline-drawer-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.typora-app-shell #sidebar-content::-webkit-scrollbar-thumb,
+.typora-app-shell .typora-page-thumbnails::-webkit-scrollbar-thumb,
+.typora-app-shell .typora-workspace::-webkit-scrollbar-thumb,
+.typora-app-shell .outline-drawer-body::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: var(--block-timeline-accent);
+  background-clip: padding-box;
+}
+
+.typora-app-shell #sidebar-content::-webkit-scrollbar-thumb:hover,
+.typora-app-shell .typora-page-thumbnails::-webkit-scrollbar-thumb:hover,
+.typora-app-shell .typora-workspace::-webkit-scrollbar-thumb:hover,
+.typora-app-shell .outline-drawer-body::-webkit-scrollbar-thumb:hover {
+  border-width: 1px;
 }
 
 .typora-app-shell .page-surface.typora-write {
@@ -596,6 +637,7 @@
   --typora-base-highlight-accent: var(--mark-bg-color, var(--mark-bg, var(--ravel-highlight-color, var(--highlight-color, var(--primary-color, var(--accent, var(--theme-accent, var(--typora-shell-divider))))))));
   --typora-base-quote-accent: var(--quote-border-color, var(--ravel-blockquote-border-color, var(--folio-quote-border, var(--blockquote-color, var(--primary-color, var(--typora-base-highlight-accent))))));
   --typora-base-tab-accent: var(--typora-base-quote-accent);
+  --block-timeline-accent: var(--typora-base-tab-accent);
 }
 
 .typora-app-shell:is([data-shell="typora-base"], [data-shell="typora-garden"]) .block {
@@ -606,6 +648,7 @@
   --typora-garden-accent: var(--typora-base-tab-accent, var(--accent, var(--theme-accent, var(--typora-shell-divider))));
   --typora-editor-toolbar-border: color-mix(in srgb, var(--typora-garden-accent) 28%, var(--typora-shell-divider));
   --typora-editor-block-divider-color: var(--typora-garden-accent);
+  --block-timeline-accent: var(--typora-garden-accent);
 }
 
 .typora-app-shell[data-shell="typora-garden"] .block {

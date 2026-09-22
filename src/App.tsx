@@ -129,7 +129,7 @@ import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { reloadTimelines, setItems, setWidgetConfig, type WidgetConfig, type WidgetElement } from 'tauri-plugin-widgets-api';
+import { reloadTimelines, setItems } from 'tauri-plugin-widgets-api';
 import 'katex/dist/katex.min.css';
 import { CardWindowPage, NativeShell, TyporaShell, type PageThumbnailItem } from './shells';
 import { WorkspaceContent, type EditorTarget, type FloatingToolbarState } from './workspace';
@@ -152,7 +152,8 @@ const shellThemes: Array<{ id: ShellId; label: string }> = [
 
 const fishIconUrl = '/app-assets/blue_red_fish.png';
 const foliaWidgetGroup = 'group.com.laeglaur.notebook';
-const foliaWidgetKind = 'FoliaBlockWidget';
+const foliaWidgetKind = 'FoliaBlockWidgetV3';
+const foliaWidgetBlocksKey = 'foliaWidgetBlocks';
 const defaultNativeBrand = {
   eyebrow: 'garden notes',
   title: 'Notebook',
@@ -184,6 +185,13 @@ type OpenedMarkdownFilePayload = {
   path: string;
   filename: string;
   markdown: string;
+};
+
+type InputSourcePayload = {
+  id: string | null;
+  localizedName: string | null;
+  language: string | null;
+  usesIdeographicSpace: boolean;
 };
 
 type CardBlockUpdatedPayload = {
@@ -312,75 +320,254 @@ const isEditorContentEmpty = (html: string, plainText = '') => {
   return !container.querySelector('img, video, audio, iframe, table, pre, [data-type="block-math"], [data-type="inline-math"]');
 };
 
-const compactWidgetText = (value: string, max = 360) => {
-  const compact = value.replace(/\s+/g, ' ').trim();
+type FoliaWidgetRun = {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  code?: boolean;
+  highlight?: boolean;
+  color?: string;
+  backgroundColor?: string;
+};
+
+type FoliaWidgetLine = {
+  kind: 'text' | 'heading' | 'task' | 'bullet' | 'numbered' | 'quote' | 'code';
+  text: string;
+  runs?: FoliaWidgetRun[];
+  indent?: number;
+  checked?: boolean;
+  ordinal?: number;
+};
+
+type FoliaWidgetBlockSnapshot = {
+  id: string;
+  pageId: string;
+  pageTitle: string;
+  preview: string;
+  createdAt: string;
+  updatedAt: string;
+  lines: FoliaWidgetLine[];
+};
+
+const normalizeWidgetText = (value: string) => value
+  .replace(/\u00a0/g, ' ')
+  .replace(/\r\n?/g, '\n')
+  .replace(/\t/g, '    ')
+  .split('\n')
+  .map((line) => line.replace(/[ ]+$/g, ''))
+  .join('\n')
+  .trim();
+
+const compactWidgetPreview = (value: string, max = 72) => {
+  const compact = normalizeWidgetText(value).replace(/\s+/g, ' ').trim();
   return compact.length > max ? `${compact.slice(0, max - 1)}...` : compact;
 };
 
-const widgetBlockTitle = (block: Block, page?: Page | null) => {
-  const firstLine = block.content.plainText.split('\n').map((line) => line.trim()).find(Boolean);
-  return compactWidgetText(firstLine || page?.title || 'folia block', 72);
+const widgetColorToHex = (value: string | null | undefined) => {
+  const raw = (value ?? '').trim().toLowerCase();
+  if (!raw || raw === 'inherit' || raw === 'initial' || raw === 'unset' || raw === 'transparent') return undefined;
+  const hex = raw.match(/^#([0-9a-f]{3,8})$/i);
+  if (hex) {
+    const digits = hex[1];
+    if (digits.length === 3 || digits.length === 4) {
+      return `#${digits.slice(0, 3).split('').map((part) => part + part).join('')}`;
+    }
+    return `#${digits.slice(0, 6)}`;
+  }
+  const rgb = raw.match(/^rgba?\(\s*([0-9.]+)(?:\s*,\s*|\s+)([0-9.]+)(?:\s*,\s*|\s+)([0-9.]+)(?:\s*(?:\/|,)\s*([0-9.]+%?))?\s*\)$/);
+  if (!rgb) return undefined;
+  const alpha = rgb[4]?.endsWith('%') ? Number(rgb[4].slice(0, -1)) / 100 : rgb[4] ? Number(rgb[4]) : 1;
+  if (!Number.isFinite(alpha) || alpha <= 0.05) return undefined;
+  const toHex = (component: string) => Math.max(0, Math.min(255, Math.round(Number(component))))
+    .toString(16)
+    .padStart(2, '0');
+  return `#${toHex(rgb[1])}${toHex(rgb[2])}${toHex(rgb[3])}`;
 };
 
-const widgetCard = (
-  block: Block,
-  page: Page | null,
-  options: { lineLimit: number; titleStyle: 'headline' | 'title3'; showPage: boolean; padding: number }
-): WidgetElement => {
-  const title = widgetBlockTitle(block, page);
-  const body = compactWidgetText(block.content.plainText || 'Empty block', options.lineLimit * 84);
-  const children: WidgetElement[] = [
-    {
-      type: 'text',
-      content: title,
-      textStyle: options.titleStyle,
-      fontWeight: 'semibold',
-      color: 'label',
-      lineLimit: 2
-    }
-  ];
-  if (options.showPage && page?.title) {
-    children.push({
-      type: 'text',
-      content: page.title,
-      textStyle: 'caption',
-      color: 'secondaryLabel',
-      lineLimit: 1
-    });
-  }
-  children.push({
-    type: 'text',
-    content: body,
-    textStyle: 'body',
-    color: 'label',
-    lineLimit: options.lineLimit
-  });
-  children.push({ type: 'spacer' });
-  children.push({
-    type: 'text',
-    content: page ? `${page.title} · ${pageTimestampLabel(block.updatedAt || block.createdAt)}` : pageTimestampLabel(block.updatedAt || block.createdAt),
-    textStyle: 'caption2',
-    color: 'secondaryLabel',
-    lineLimit: 1
-  });
-
+const widgetStyleFromElement = (element: Element, inherited: Omit<FoliaWidgetRun, 'text'>): Omit<FoliaWidgetRun, 'text'> => {
+  const tag = element.tagName.toLowerCase();
+  const style = element instanceof HTMLElement ? element.style : null;
+  const color = widgetColorToHex(style?.color);
+  const backgroundColor = widgetColorToHex(style?.backgroundColor);
   return {
-    type: 'vstack',
-    spacing: 7,
-    alignment: 'leading',
-    padding: options.padding,
-    background: { light: '#fbfaf7', dark: '#1f211d' },
-    cornerRadius: 18,
-    children
+    ...inherited,
+    bold: inherited.bold || tag === 'strong' || tag === 'b' || Number(style?.fontWeight) >= 600 || style?.fontWeight === 'bold',
+    italic: inherited.italic || tag === 'em' || tag === 'i' || style?.fontStyle === 'italic',
+    code: inherited.code || tag === 'code',
+    highlight: inherited.highlight || tag === 'mark' || Boolean(backgroundColor),
+    color: color ?? inherited.color,
+    backgroundColor: backgroundColor ?? inherited.backgroundColor
   };
 };
 
-const blockWidgetConfig = (block: Block, page: Page | null): WidgetConfig => ({
-  version: 1,
-  small: widgetCard(block, page, { lineLimit: 4, titleStyle: 'headline', showPage: false, padding: 14 }),
-  medium: widgetCard(block, page, { lineLimit: 5, titleStyle: 'title3', showPage: true, padding: 16 }),
-  large: widgetCard(block, page, { lineLimit: 12, titleStyle: 'title3', showPage: true, padding: 18 })
-});
+const normalizeWidgetInlineText = (value: string, preserveWhitespace: boolean) => {
+  const normalized = value.replace(/\u00a0/g, ' ').replace(/\r\n?/g, '\n').replace(/\t/g, '    ');
+  return preserveWhitespace ? normalized : normalized.replace(/[ \f\v]+/g, ' ');
+};
+
+const mergeWidgetRuns = (runs: FoliaWidgetRun[]) => {
+  const merged: FoliaWidgetRun[] = [];
+  runs.forEach((run) => {
+    if (!run.text) return;
+    const last = merged[merged.length - 1];
+    const sameStyle = last
+      && Boolean(last.bold) === Boolean(run.bold)
+      && Boolean(last.italic) === Boolean(run.italic)
+      && Boolean(last.code) === Boolean(run.code)
+      && Boolean(last.highlight) === Boolean(run.highlight)
+      && (last.color ?? '') === (run.color ?? '')
+      && (last.backgroundColor ?? '') === (run.backgroundColor ?? '');
+    if (sameStyle) {
+      last.text += run.text;
+    } else {
+      merged.push({ ...run });
+    }
+  });
+  return merged;
+};
+
+const trimWidgetRuns = (runs: FoliaWidgetRun[]) => {
+  const trimmed = mergeWidgetRuns(runs).filter((run) => run.text);
+  while (trimmed.length && !trimmed[0].text.trim()) trimmed.shift();
+  while (trimmed.length && !trimmed[trimmed.length - 1].text.trim()) trimmed.pop();
+  if (trimmed.length) trimmed[0] = { ...trimmed[0], text: trimmed[0].text.replace(/^\s+/g, '') };
+  if (trimmed.length) {
+    const lastIndex = trimmed.length - 1;
+    trimmed[lastIndex] = { ...trimmed[lastIndex], text: trimmed[lastIndex].text.replace(/\s+$/g, '') };
+  }
+  return mergeWidgetRuns(trimmed).filter((run) => run.text);
+};
+
+const splitWidgetRunsByLine = (runs: FoliaWidgetRun[]) => {
+  const lines: FoliaWidgetRun[][] = [[]];
+  runs.forEach((run) => {
+    run.text.split('\n').forEach((part, index) => {
+      if (index > 0) lines.push([]);
+      if (part) lines[lines.length - 1].push({ ...run, text: part });
+    });
+  });
+  return lines.map(trimWidgetRuns).filter((line) => line.length);
+};
+
+const widgetRunsFromNode = (
+  node: Node,
+  inherited: Omit<FoliaWidgetRun, 'text'> = {},
+  preserveWhitespace = false
+): FoliaWidgetRun[] => {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = normalizeWidgetInlineText(node.textContent ?? '', preserveWhitespace);
+    return text ? [{ ...inherited, text }] : [];
+  }
+  if (node instanceof HTMLBRElement) return [{ ...inherited, text: '\n' }];
+  if (!(node instanceof Element)) return [];
+  const nextStyle = widgetStyleFromElement(node, inherited);
+  return Array.from(node.childNodes).flatMap((child) => widgetRunsFromNode(child, nextStyle, preserveWhitespace || nextStyle.code));
+};
+
+const widgetRunsFromElement = (element: Element, preserveWhitespace = false) =>
+  trimWidgetRuns(widgetRunsFromNode(element, {}, preserveWhitespace));
+
+const pushWidgetLine = (
+  lines: FoliaWidgetLine[],
+  kind: FoliaWidgetLine['kind'],
+  runs: FoliaWidgetRun[],
+  options: Omit<FoliaWidgetLine, 'kind' | 'text' | 'runs'> = {}
+) => {
+  splitWidgetRunsByLine(runs).forEach((lineRuns) => {
+    const text = normalizeWidgetText(lineRuns.map((run) => run.text).join(''));
+    if (!text) return;
+    lines.push({ kind, text, runs: lineRuns, ...options });
+  });
+};
+
+const listItemContentClone = (item: Element) => {
+  const clone = item.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll('ul, ol').forEach((node) => node.remove());
+  clone.querySelectorAll('label, input').forEach((node) => node.remove());
+  return clone;
+};
+
+const parseWidgetList = (list: Element, indent: number, lines: FoliaWidgetLine[]) => {
+  Array.from(list.children).filter((child) => child.tagName.toLowerCase() === 'li').forEach((item, index) => {
+    const checked = item.getAttribute('data-checked');
+    const isTask = checked === 'true' || checked === 'false' || item.getAttribute('data-type') === 'taskItem';
+    const kind = isTask ? 'task' : list.tagName.toLowerCase() === 'ol' ? 'numbered' : 'bullet';
+    const clone = listItemContentClone(item);
+    pushWidgetLine(
+      lines,
+      kind,
+      widgetRunsFromElement(clone),
+      {
+        indent,
+        checked: isTask ? checked === 'true' : undefined,
+        ordinal: list.tagName.toLowerCase() === 'ol' ? index + 1 : undefined
+      }
+    );
+    Array.from(item.children).forEach((child) => {
+      const tag = child.tagName.toLowerCase();
+      if (tag === 'ul' || tag === 'ol') parseWidgetList(child, indent + 1, lines);
+      child.querySelectorAll(':scope > ul, :scope > ol').forEach((nested) => parseWidgetList(nested, indent + 1, lines));
+    });
+  });
+};
+
+const blockWidgetLines = (block: Block) => {
+  const container = document.createElement('div');
+  container.innerHTML = block.content.html || '';
+  const lines: FoliaWidgetLine[] = [];
+
+  const visit = (element: Element, indent = 0) => {
+    const tag = element.tagName.toLowerCase();
+    if (tag === 'ul' || tag === 'ol') {
+      parseWidgetList(element, indent, lines);
+      return;
+    }
+    if (tag === 'pre' || tag === 'code') {
+      const text = (element.textContent ?? '').replace(/\t/g, '    ').replace(/\r\n?/g, '\n').trimEnd();
+      text.split('\n').forEach((line) => {
+        const trimmed = line.replace(/[ ]+$/g, '');
+        if (trimmed.trim()) lines.push({ kind: 'code', text: trimmed, runs: [{ text: trimmed, code: true }], indent });
+      });
+      return;
+    }
+    if (/^h[1-6]$/.test(tag)) {
+      pushWidgetLine(lines, 'heading', widgetRunsFromElement(element), { indent });
+      return;
+    }
+    if (tag === 'blockquote') {
+      pushWidgetLine(lines, 'quote', widgetRunsFromElement(element), { indent });
+      return;
+    }
+    if (tag === 'p' || tag === 'div') {
+      pushWidgetLine(lines, 'text', widgetRunsFromElement(element), { indent });
+      return;
+    }
+    Array.from(element.children).forEach((child) => visit(child, indent));
+  };
+
+  Array.from(container.children).forEach((child) => visit(child));
+  if (!lines.length && block.content.plainText.trim()) {
+    block.content.plainText.replace(/\r\n?/g, '\n').split('\n').forEach((line) => {
+      const text = line.replace(/\t/g, '    ').replace(/[ ]+$/g, '');
+      if (text.trim()) lines.push({ kind: 'text', text });
+    });
+  }
+  return lines.slice(0, 48);
+};
+
+const foliaWidgetSnapshot = (block: Block, page: Page | null): FoliaWidgetBlockSnapshot => {
+  const lines = blockWidgetLines(block);
+  const previewSource = lines.find((line) => line.text.trim())?.text || block.content.plainText || page?.title || 'folia block';
+  return {
+    id: block.id,
+    pageId: page?.id ?? block.pageId,
+    pageTitle: page?.title || 'Untitled',
+    preview: compactWidgetPreview(previewSource),
+    createdAt: block.createdAt,
+    updatedAt: block.updatedAt || block.createdAt,
+    lines
+  };
+};
 
 const mapWithConcurrency = async <Item, Result>(
   items: Item[],
@@ -449,6 +636,7 @@ export function App() {
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('write');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [importNotice, setImportNotice] = useState<ImportNotice>({ kind: 'idle', message: '' });
+  const [useIdeographicSpace, setUseIdeographicSpace] = useState(false);
   const composerEditorRef = useRef<Editor | null>(null);
   const blockEditorRefs = useRef<Record<string, Editor | null>>({});
   const pageNameInputRef = useRef<HTMLInputElement | null>(null);
@@ -469,6 +657,7 @@ export function App() {
   const pendingCardEditRef = useRef<{ blockId: string; html: string; plainText: string; updatedAt: string } | null>(null);
   const pageDocumentSaveTimersRef = useRef<Record<string, number>>({});
   const workspacePreferencesSaveTimerRef = useRef<number | null>(null);
+  const widgetIndexSaveTimerRef = useRef<number | null>(null);
   const lastSavedWorkspacePreferencesRef = useRef('');
   const deletedBlockSnapshotRef = useRef<DeletedBlockSnapshot | null>(null);
   const temporaryMarkdownPagesRef = useRef<TemporaryMarkdownPage[]>([]);
@@ -506,6 +695,31 @@ export function App() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [pageContextMenu]);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    let cancelled = false;
+    const refreshInputSource = () => {
+      void invoke<InputSourcePayload>('current_input_source')
+        .then((payload) => {
+          if (!cancelled) setUseIdeographicSpace(Boolean(payload.usesIdeographicSpace));
+        })
+        .catch((error) => {
+          console.warn('Could not read current input source.', error);
+          if (!cancelled) setUseIdeographicSpace(false);
+        });
+    };
+    refreshInputSource();
+    const interval = window.setInterval(refreshInputSource, 1000);
+    window.addEventListener('focus', refreshInputSource);
+    document.addEventListener('visibilitychange', refreshInputSource);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshInputSource);
+      document.removeEventListener('visibilitychange', refreshInputSource);
+    };
+  }, []);
 
   useEffect(() => {
     if (cardModeBlockId) return;
@@ -591,6 +805,8 @@ export function App() {
     pageDocumentSaveTimersRef.current = {};
     if (workspacePreferencesSaveTimerRef.current) window.clearTimeout(workspacePreferencesSaveTimerRef.current);
     workspacePreferencesSaveTimerRef.current = null;
+    if (widgetIndexSaveTimerRef.current) window.clearTimeout(widgetIndexSaveTimerRef.current);
+    widgetIndexSaveTimerRef.current = null;
   }, []);
 
   const schedulePageDocumentSave = (page: Page, blocks: Block[], operation: OperationLogEntry | null, delay = 0) => {
@@ -2141,22 +2357,46 @@ export function App() {
     return { block, page };
   };
 
-  const publishBlockToMacWidget = async (block: Block, page: Page | null) => {
+  const publishFoliaWidgetBlocks = async (preferredBlockId?: string | null) => {
     if (!isTauri()) {
       setImportNotice({ kind: 'warning', message: 'macOS desktop widgets are only available in the desktop app.' });
       return;
     }
-    await setItems('selectedBlockId', block.id, foliaWidgetGroup);
-    await setItems('selectedPageId', page?.id ?? block.pageId, foliaWidgetGroup);
-    await setWidgetConfig(blockWidgetConfig(block, page), foliaWidgetGroup);
+    const current = stateRef.current;
+    const pageById = new Map(current.pages.map((page) => [page.id, page]));
+    const activeIds = new Set(activePageBlocksRef.current.map((block) => block.id));
+    const blocks = current.blocks
+      .filter((block) => !isEditorContentEmpty(block.content.html, block.content.plainText))
+      .sort((left, right) => {
+        const activeDelta = Number(activeIds.has(right.id)) - Number(activeIds.has(left.id));
+        if (activeDelta) return activeDelta;
+        return (right.updatedAt || right.createdAt).localeCompare(left.updatedAt || left.createdAt);
+      })
+      .slice(0, 160);
+    const selectedBlockId =
+      preferredBlockId
+      ?? desktopWidgetBlockId
+      ?? activePageBlocksRef.current.find((block) => !isEditorContentEmpty(block.content.html, block.content.plainText))?.id
+      ?? blocks[0]?.id
+      ?? null;
+    const payload = {
+      version: 1,
+      selectedBlockId,
+      blocks: blocks.map((block) => foliaWidgetSnapshot(block, pageById.get(block.pageId) ?? null))
+    };
+    await setItems(foliaWidgetBlocksKey, JSON.stringify(payload), foliaWidgetGroup);
+    await setItems('__widget_config__', '', foliaWidgetGroup);
+    if (selectedBlockId) {
+      await setItems('selectedBlockId', selectedBlockId, foliaWidgetGroup);
+    }
     await reloadTimelines(foliaWidgetKind);
   };
 
   const showBlockInMacWidget = async (blockId: string) => {
-    const { block, page } = findBlockForWidget(blockId);
+    const { block } = findBlockForWidget(blockId);
     if (!block) return;
     try {
-      await publishBlockToMacWidget(block, page);
+      await publishFoliaWidgetBlocks(block.id);
       setDesktopWidgetBlockId(block.id);
       setImportNotice({ kind: 'success', message: 'Updated the folia Block desktop widget.' });
     } catch (error) {
@@ -2167,6 +2407,21 @@ export function App() {
       });
     }
   };
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    if (widgetIndexSaveTimerRef.current) window.clearTimeout(widgetIndexSaveTimerRef.current);
+    widgetIndexSaveTimerRef.current = window.setTimeout(() => {
+      widgetIndexSaveTimerRef.current = null;
+      void publishFoliaWidgetBlocks().catch((error) => {
+        console.warn('Could not refresh macOS desktop widget index.', error);
+      });
+    }, 500);
+    return () => {
+      if (widgetIndexSaveTimerRef.current) window.clearTimeout(widgetIndexSaveTimerRef.current);
+      widgetIndexSaveTimerRef.current = null;
+    };
+  }, [state.blocks, state.pages, desktopWidgetBlockId]);
 
   const moveCalendarMonth = (delta: number) => {
     setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
@@ -2351,7 +2606,6 @@ export function App() {
     const targetBlock = activePageBlocks.find((block) => block.id === blockId);
     const targetPage = state.pages.find((page) => page.id === targetBlock?.pageId);
     const nextPage = targetPage ? { ...targetPage, updatedAt } : null;
-    const nextWidgetBlock = targetBlock ? { ...targetBlock, content: { html: cleanHtml, plainText }, updatedAt } : null;
     const nextBlocks = activePageBlocks.map((block) =>
       block.id === blockId ? { ...block, content: { html: cleanHtml, plainText }, updatedAt } : block
     );
@@ -2362,11 +2616,6 @@ export function App() {
       payload: { html: cleanHtml, plainText }
     });
     if (nextPage) applyPageDocumentToView(nextPage, nextBlocks, operation);
-    if (desktopWidgetBlockId === blockId && nextWidgetBlock) {
-      void publishBlockToMacWidget(nextWidgetBlock, nextPage).catch((error) => {
-        console.warn('Could not refresh macOS desktop widget.', error);
-      });
-    }
     if (targetBlock?.pinned) {
       setPinnedBlockPayloads((current) => current.map((payload) =>
         payload.block.id === blockId
@@ -2407,11 +2656,6 @@ export function App() {
         ? { ...payload, page: nextPage, block: nextBlock ?? payload.block }
         : payload
     ));
-    if (desktopWidgetBlockId === blockId && nextBlock) {
-      void publishBlockToMacWidget(nextBlock, nextPage).catch((error) => {
-        console.warn('Could not refresh macOS desktop widget.', error);
-      });
-    }
     if (isTauri() && nextBlock) {
       void emit<CardBlockUpdatedPayload>('notebook://card-block-updated', {
         blockId,
@@ -4070,11 +4314,13 @@ export function App() {
         contentTheme: effectiveContentTheme,
         showBlockDividers,
         showBlockBorders,
+        useIdeographicSpace,
         composer: {
           activeEditor,
           draftKey: activePage.id,
           draft: activeDraft,
           showFooter: showComposerFooter,
+          useIdeographicSpace,
           tableControls,
           mathEditor,
           toolbarActions: {
@@ -4218,6 +4464,7 @@ export function App() {
         onSelectionUpdate={syncFloatingControls}
         onUpdate={(html, plainText) => updateCardBlock(cardModeBlock.id, html, plainText)}
         onBlur={(html, plainText) => updateCardBlock(cardModeBlock.id, html, plainText)}
+        useIdeographicSpace={useIdeographicSpace}
         onMediaResizeStart={startMediaResize}
         onImageAnnotate={setImageAnnotationRequest}
         onClose={closeCardWindow}

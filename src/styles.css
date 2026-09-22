@@ -11,6 +11,63 @@
 
 html { scroll-behavior: smooth; }
 
+.typora-workspace,
+.right-panel,
+.sidebar,
+.floating-card-body,
+.search-results,
+.emoji-context-menu,
+.page-move-menu {
+  scrollbar-width: thin;
+  scrollbar-color: var(--block-timeline-accent, var(--accent, var(--theme-accent))) transparent;
+}
+
+.typora-workspace::-webkit-scrollbar,
+.right-panel::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar,
+.floating-card-body::-webkit-scrollbar,
+.search-results::-webkit-scrollbar,
+.emoji-context-menu::-webkit-scrollbar,
+.page-move-menu::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.typora-workspace::-webkit-scrollbar-track,
+.right-panel::-webkit-scrollbar-track,
+.sidebar::-webkit-scrollbar-track,
+.floating-card-body::-webkit-scrollbar-track,
+.search-results::-webkit-scrollbar-track,
+.emoji-context-menu::-webkit-scrollbar-track,
+.page-move-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.typora-workspace::-webkit-scrollbar-thumb,
+.right-panel::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb,
+.floating-card-body::-webkit-scrollbar-thumb,
+.search-results::-webkit-scrollbar-thumb,
+.emoji-context-menu::-webkit-scrollbar-thumb,
+.page-move-menu::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: var(--block-timeline-accent, var(--accent, var(--theme-accent)));
+  background-clip: padding-box;
+}
+
+.typora-workspace::-webkit-scrollbar-thumb:hover,
+.right-panel::-webkit-scrollbar-thumb:hover,
+.sidebar::-webkit-scrollbar-thumb:hover,
+.floating-card-body::-webkit-scrollbar-thumb:hover,
+.search-results::-webkit-scrollbar-thumb:hover,
+.emoji-context-menu::-webkit-scrollbar-thumb:hover,
+.page-move-menu::-webkit-scrollbar-thumb:hover {
+  border-width: 1px;
+  background: var(--block-timeline-accent, var(--accent, var(--theme-accent)));
+  background-clip: padding-box;
+}
+
 body {
   margin: 0;
   min-width: 240px;
@@ -26,6 +83,10 @@ input,
 select,
 textarea {
   font-family: var(--ui-font, ui-sans-serif, system-ui, sans-serif), "Notebook Segoe Emoji", "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+.app-shell {
+  --block-timeline-accent: var(--accent, var(--theme-accent));
 }
 
 html[data-card-window="true"],
@@ -95,10 +156,7 @@ input, select { color: var(--ink); }
   max-height: calc(100vh - var(--layout-sidebar-max-offset));
   overflow: auto;
   padding: var(--layout-sidebar-padding);
-  scrollbar-width: none;
 }
-
-.sidebar::-webkit-scrollbar { width: 0; height: 0; }
 
 .right-panel {
   position: sticky;
@@ -1705,13 +1763,23 @@ button.delete-notebook-button {
   min-height: var(--block-preview-min-height);
 }
 
+.block-body {
+  min-width: 0;
+  padding-right: 18px;
+}
+
 .block:focus-within .block-content.editable {
   min-height: var(--block-focus-min-height);
   padding-bottom: var(--block-focus-padding-bottom);
 }
 
 .block-content p,
-.composer p { margin: 0 0 10px; }
+.composer p {
+  margin: 0 0 10px;
+  text-align: justify;
+  text-align-last: auto;
+  text-justify: inter-ideograph;
+}
 
 .block-content h1,
 .composer h1,
@@ -1848,7 +1916,7 @@ button.delete-notebook-button {
 .composer li[data-checked]:has(> div > ul)::before,
 .composer li[data-checked]:has(> div > ol)::before {
   position: absolute;
-  left: var(--list-fold-left);
+  left: calc(var(--list-fold-left) - 8px);
   top: var(--list-fold-top);
   color: color-mix(in srgb, var(--accent) 70%, var(--muted));
   content: ">";

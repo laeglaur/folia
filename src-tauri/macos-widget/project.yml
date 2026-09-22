@@ -19,6 +19,8 @@ targets:
       path: Info.plist
       properties:
         CFBundleDisplayName: TauriWidgetExtension
+        CFBundleShortVersionString: "1.2"
+        CFBundleVersion: "3"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
@@ -27,8 +29,8 @@ targets:
         PRODUCT_NAME: TauriWidgetExtension
         SWIFT_VERSION: "5.9"
         CODE_SIGN_ENTITLEMENTS: TauriWidgetExtension.entitlements
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "1.2"
+        CURRENT_PROJECT_VERSION: "3"
         SKIP_INSTALL: YES
     dependencies:
       - package: TauriWidgets

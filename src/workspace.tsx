@@ -70,6 +70,7 @@ type ComposerCardProps = {
   draftKey: string;
   draft: string;
   showFooter: boolean;
+  useIdeographicSpace: boolean;
   tableControls: TableControlsState;
   mathEditor: MathEditorState | null;
   toolbarActions: ToolbarActions;
@@ -91,6 +92,7 @@ function ComposerCard({
   draftKey,
   draft,
   showFooter,
+  useIdeographicSpace,
   tableControls,
   mathEditor,
   toolbarActions,
@@ -115,6 +117,7 @@ function ComposerCard({
         html={draft}
         className="composer"
         placeholder="写点什么。按 Shift Enter 变成 block，Tab 缩进。"
+        useIdeographicSpace={useIdeographicSpace}
         onFocus={onFocus}
         onSelectionUpdate={onSelectionUpdate}
         onContextToolbar={onContextToolbar}
@@ -158,6 +161,7 @@ type BlockItemProps = {
   block: Block;
   activeEditor: EditorTarget;
   draggingBlockId: string | null;
+  useIdeographicSpace: boolean;
   tableControls: TableControlsState;
   mathEditor: MathEditorState | null;
   toolbarActions: ToolbarActions;
@@ -183,6 +187,7 @@ function BlockItem({
   block,
   activeEditor,
   draggingBlockId,
+  useIdeographicSpace,
   tableControls,
   mathEditor,
   toolbarActions,
@@ -263,6 +268,7 @@ function BlockItem({
             editorRef={(editor) => onEditorRef(block.id, editor)}
             className="block-content editable"
             html={htmlWithOutlineAnchors(block.content.html, block.id)}
+            useIdeographicSpace={useIdeographicSpace}
             onFocus={(editor) => onFocus(block.id, editor)}
             onSelectionUpdate={onSelectionUpdate}
             onContextToolbar={onContextToolbar}
@@ -302,6 +308,7 @@ type WriteSurfaceProps = {
   contentTheme: ContentThemeId;
   showBlockDividers: boolean;
   showBlockBorders: boolean;
+  useIdeographicSpace: boolean;
   composer: ComposerCardProps;
   activeEditor: EditorTarget;
   showToolbar: boolean;
@@ -457,6 +464,7 @@ function WriteSurface({
   contentTheme,
   showBlockDividers,
   showBlockBorders,
+  useIdeographicSpace,
   composer,
   activeEditor,
   showToolbar,
@@ -583,6 +591,7 @@ function WriteSurface({
               block={block}
               activeEditor={activeEditor}
               draggingBlockId={draggingBlockId}
+              useIdeographicSpace={useIdeographicSpace}
               tableControls={tableControls}
               mathEditor={mathEditor}
               toolbarActions={toolbarActions}

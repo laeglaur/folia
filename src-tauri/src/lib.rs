@@ -15,6 +15,26 @@ const ATTACHMENTS_DIR: &str = "attachments";
 const EXTERNAL_CARD_REQUESTS_DIR: &str = "external-card-requests";
 const PAGE_REVISION_LIMIT: i64 = 20;
 
+#[cfg(target_os = "macos")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct InputSourcePayload {
+    id: Option<String>,
+    localized_name: Option<String>,
+    language: Option<String>,
+    uses_ideographic_space: bool,
+}
+
+#[cfg(not(target_os = "macos"))]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct InputSourcePayload {
+    id: Option<String>,
+    localized_name: Option<String>,
+    language: Option<String>,
+    uses_ideographic_space: bool,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ImportedAsset {
@@ -2762,6 +2782,116 @@ fn load_workspace_preferences(app: AppHandle) -> Result<WorkspacePreferencesPayl
     read_workspace_preferences(&connection)
 }
 
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn current_input_source() -> InputSourcePayload {
+    use std::ffi::c_void;
+
+    type CFTypeRef = *const c_void;
+    type CFArrayRef = *const c_void;
+    type CFStringRef = *const c_void;
+    type TISInputSourceRef = *const c_void;
+
+    #[link(name = "Carbon", kind = "framework")]
+    extern "C" {
+        static kTISPropertyInputSourceID: CFStringRef;
+        static kTISPropertyLocalizedName: CFStringRef;
+        static kTISPropertyInputSourceLanguages: CFStringRef;
+        fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
+        fn TISGetInputSourceProperty(input_source: TISInputSourceRef, property_key: CFStringRef) -> CFTypeRef;
+    }
+
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
+        fn CFRelease(cf: CFTypeRef);
+        fn CFStringGetLength(the_string: CFStringRef) -> isize;
+        fn CFStringGetMaximumSizeForEncoding(length: isize, encoding: u32) -> isize;
+        fn CFStringGetCString(the_string: CFStringRef, buffer: *mut i8, buffer_size: isize, encoding: u32) -> bool;
+        fn CFArrayGetCount(the_array: CFArrayRef) -> isize;
+        fn CFArrayGetValueAtIndex(the_array: CFArrayRef, index: isize) -> *const c_void;
+    }
+
+    const UTF8_ENCODING: u32 = 0x0800_0100;
+
+    unsafe fn cf_string_to_string(value: CFStringRef) -> Option<String> {
+        if value.is_null() {
+            return None;
+        }
+        let length = CFStringGetLength(value);
+        let max_size = CFStringGetMaximumSizeForEncoding(length, UTF8_ENCODING) + 1;
+        if max_size <= 0 {
+            return None;
+        }
+        let mut buffer = vec![0i8; max_size as usize];
+        if !CFStringGetCString(value, buffer.as_mut_ptr(), max_size, UTF8_ENCODING) {
+            return None;
+        }
+        let bytes = buffer
+            .iter()
+            .take_while(|byte| **byte != 0)
+            .map(|byte| *byte as u8)
+            .collect::<Vec<_>>();
+        String::from_utf8(bytes).ok()
+    }
+
+    let source = unsafe { TISCopyCurrentKeyboardInputSource() };
+    if source.is_null() {
+        return InputSourcePayload {
+            id: None,
+            localized_name: None,
+            language: None,
+            uses_ideographic_space: false,
+        };
+    }
+
+    let id = unsafe {
+        cf_string_to_string(TISGetInputSourceProperty(source, kTISPropertyInputSourceID) as CFStringRef)
+    };
+    let localized_name = unsafe {
+        cf_string_to_string(TISGetInputSourceProperty(source, kTISPropertyLocalizedName) as CFStringRef)
+    };
+    let language = unsafe {
+        let languages = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages) as CFArrayRef;
+        if languages.is_null() || CFArrayGetCount(languages) <= 0 {
+            None
+        } else {
+            cf_string_to_string(CFArrayGetValueAtIndex(languages, 0) as CFStringRef)
+        }
+    };
+    unsafe { CFRelease(source as CFTypeRef) };
+
+    let haystack = [id.as_deref(), localized_name.as_deref(), language.as_deref()]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+    let uses_ideographic_space = [
+        "zh", "hans", "hant", "pinyin", "shuangpin", "wubi", "cangjie", "stroke",
+        "japanese", "hiragana", "katakana", "kotoeri", "korean", "hangul",
+    ]
+    .iter()
+    .any(|needle| haystack.contains(needle));
+
+    InputSourcePayload {
+        id,
+        localized_name,
+        language,
+        uses_ideographic_space,
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+fn current_input_source() -> InputSourcePayload {
+    InputSourcePayload {
+        id: None,
+        localized_name: None,
+        language: None,
+        uses_ideographic_space: false,
+    }
+}
+
 #[tauri::command]
 fn save_workspace_preferences(
     app: AppHandle,
@@ -3534,6 +3664,7 @@ pub fn run() {
         .plugin(tauri_plugin_widgets::init())
         .invoke_handler(tauri::generate_handler![
             load_normalized_state,
+            current_input_source,
             load_workspace_preferences,
             save_workspace_preferences,
             list_notebook_tree,

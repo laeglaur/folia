@@ -145,7 +145,9 @@ if [ -n "$APP_VERSION" ]; then
     rm -rf "$DMG_STAGE"
 
     echo "[widget] DMG ready: $DMG_PATH"
-    open "$DMG_PATH"
+    if [ "${WIDGET_OPEN_DMG:-0}" = "1" ]; then
+        open "$DMG_PATH"
+    fi
 else
     echo "[widget] Skipping DMG rebuild (version not found)"
 fi

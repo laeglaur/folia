@@ -117,6 +117,7 @@ export type RichEditorProps = {
   mathEditor?: MathEditorState | null;
   onMathChange?: (latex: string) => void;
   onMathClose?: () => void;
+  useIdeographicSpace?: boolean;
   editorRef: (editor: Editor | null) => void;
 };
 
@@ -349,7 +350,98 @@ export const runListIndentCommand = (editor: Editor, direction: 'in' | 'out') =>
   const command = direction === 'in' ? 'sinkListItem' : 'liftListItem';
   if (editor.commands[command]('taskItem') || editor.commands[command]('listItem')) return true;
 
+  if (runTextBlockIndentCommand(editor, direction)) return true;
+
   return runMediaIndentCommand(editor, direction);
+};
+
+const blockIndentNodeNames = ['paragraph', 'heading', 'blockquote'];
+const blockIndentNodeNameSet = new Set(blockIndentNodeNames);
+const blockIndentExcludedAncestorNames = new Set(['codeBlock', 'listItem', 'taskItem', 'table', 'tableRow', 'tableCell', 'tableHeader']);
+const maxBlockIndent = 8;
+
+const clampBlockIndent = (value: number) => Math.max(0, Math.min(maxBlockIndent, value));
+
+const parseBlockIndent = (element: HTMLElement) => {
+  const raw = element.getAttribute('data-indent');
+  if (raw) {
+    const numeric = Number.parseInt(raw, 10);
+    if (Number.isFinite(numeric)) return clampBlockIndent(numeric);
+  }
+
+  const marginLeft = element.style.marginLeft;
+  if (!marginLeft) return 0;
+  const numeric = Number.parseFloat(marginLeft);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  if (marginLeft.endsWith('em')) return clampBlockIndent(Math.round(numeric / 2));
+  if (marginLeft.endsWith('px')) return clampBlockIndent(Math.round(numeric / 32));
+  return 0;
+};
+
+const blockIndentAttributes = () => ({
+  blockIndent: {
+    default: 0,
+    parseHTML: (element: HTMLElement) => parseBlockIndent(element),
+    renderHTML: (attributes: Record<string, unknown>) => {
+      const indent = typeof attributes.blockIndent === 'number' ? clampBlockIndent(attributes.blockIndent) : 0;
+      return indent > 0
+        ? {
+            'data-indent': String(indent),
+            style: `margin-left: ${indent * 2}em;`
+          }
+        : {};
+    }
+  }
+});
+
+const hasExcludedBlockIndentAncestor = (resolvedPos: ReturnType<Editor['state']['doc']['resolve']>, depth: number) => {
+  for (let currentDepth = depth - 1; currentDepth >= 0; currentDepth -= 1) {
+    if (blockIndentExcludedAncestorNames.has(resolvedPos.node(currentDepth).type.name)) return true;
+  }
+  return false;
+};
+
+const runTextBlockIndentCommand = (editor: Editor, direction: 'in' | 'out') => {
+  const { state } = editor;
+  const { selection } = state;
+  const targets = new Map<number, NonNullable<ReturnType<Editor['state']['doc']['nodeAt']>>>();
+
+  if (selection.empty) {
+    const { $from } = selection;
+    for (let depth = $from.depth; depth > 0; depth -= 1) {
+      const node = $from.node(depth);
+      if (!blockIndentNodeNameSet.has(node.type.name)) continue;
+      if (hasExcludedBlockIndentAncestor($from, depth)) return false;
+      targets.set($from.before(depth), node);
+      break;
+    }
+  } else {
+    state.doc.nodesBetween(selection.from, selection.to, (node, pos, parent) => {
+      if (blockIndentExcludedAncestorNames.has(node.type.name)) return false;
+      if (!blockIndentNodeNameSet.has(node.type.name)) return true;
+      if (parent && blockIndentExcludedAncestorNames.has(parent.type.name)) return false;
+      targets.set(pos, node);
+      return false;
+    });
+  }
+
+  if (!targets.size) return false;
+
+  let transaction = state.tr;
+  let changed = false;
+  targets.forEach((node, pos) => {
+    const currentIndent = clampBlockIndent(Number(node.attrs.blockIndent ?? 0));
+    const nextIndent = clampBlockIndent(currentIndent + (direction === 'in' ? 1 : -1));
+    if (nextIndent === currentIndent) return;
+    changed = true;
+    transaction = transaction.setNodeMarkup(pos, undefined, {
+      ...node.attrs,
+      blockIndent: nextIndent
+    });
+  });
+
+  if (changed) editor.view.dispatch(transaction.scrollIntoView());
+  return true;
 };
 
 const mediaNodeNames = ['image', 'video', 'audio', 'mediaEmbed'];
@@ -1832,6 +1924,28 @@ const isSelectionInsideCodeBlock = (editor: Editor) => selectionHasAncestorNode(
 
 const isSelectionInsideListItem = (editor: Editor) => selectionHasAncestorNode(editor, ['listItem', 'taskItem']);
 
+const hasIdeographicTextBeforeCursor = (state: Editor['state']) => {
+  const { $from } = state.selection;
+  const textBeforeCursor = $from.parent.textContent.slice(0, $from.parentOffset).trimEnd();
+  const characters = Array.from(textBeforeCursor);
+  const lastCharacter = characters[characters.length - 1] ?? '';
+  return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/.test(lastCharacter);
+};
+
+const shouldInsertIdeographicSpace = (state: Editor['state'], editor: Editor | undefined, useIdeographicSpace: boolean) => {
+  if (!useIdeographicSpace) return false;
+  const { selection } = state;
+  if (!selection.empty) return false;
+
+  const { $from } = selection;
+  if (editor && (editor.isActive('code') || isSelectionInsideCodeBlock(editor))) return false;
+  for (let depth = $from.depth; depth >= 0; depth -= 1) {
+    if (['codeBlock', 'listItem', 'taskItem'].includes($from.node(depth).type.name)) return false;
+  }
+  if ($from.parent.type.name !== 'paragraph') return false;
+  return hasIdeographicTextBeforeCursor(state);
+};
+
 const htmlToPlainText = (html: string) => {
   const container = document.createElement('div');
   container.innerHTML = html;
@@ -2421,6 +2535,46 @@ const LocalEmojiDecorations = Extension.create({
   }
 });
 
+const IdeographicSpaceInput = Extension.create<{
+  shouldUseIdeographicSpace: () => boolean;
+}>({
+  name: 'ideographicSpaceInput',
+
+  addOptions() {
+    return {
+      shouldUseIdeographicSpace: () => false
+    };
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          handleTextInput: (view, from, to, text) => {
+            if (text !== ' ') return false;
+            if (!shouldInsertIdeographicSpace(view.state, this.editor, this.options.shouldUseIdeographicSpace())) return false;
+            view.dispatch(view.state.tr.insertText('\u3000', from, to).scrollIntoView());
+            return true;
+          }
+        }
+      })
+    ];
+  }
+});
+
+const BlockIndent = Extension.create({
+  name: 'blockIndent',
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: blockIndentNodeNames,
+        attributes: blockIndentAttributes()
+      }
+    ];
+  }
+});
+
 const BracketTodoInput = Extension.create({
   name: 'bracketTodoInput',
 
@@ -2544,6 +2698,7 @@ const NotebookShortcuts = Extension.create<{
   onShiftEnter?: (editor: Editor) => boolean;
   onMoveBlock?: (direction: -1 | 1) => boolean;
   onDeleteBlock?: () => boolean;
+  shouldUseIdeographicSpace: () => boolean;
 }>({
   name: 'notebookShortcuts',
   priority: 1000,
@@ -2621,8 +2776,10 @@ const NotebookShortcuts = Extension.create<{
         const text = $from.parent.textContent.trim();
         if (replaceCurrentParagraph(this.editor, 'blockquote')) return true;
         if (replaceCurrentParagraph(this.editor, 'blockMath')) return true;
-        if (!['>', '/quote'].includes(text)) return false;
-        return this.editor.chain().deleteRange({ from: $from.start(), to: $from.end() }).toggleBlockquote().run();
+        if (['>', '/quote'].includes(text)) {
+          return this.editor.chain().deleteRange({ from: $from.start(), to: $from.end() }).toggleBlockquote().run();
+        }
+        return false;
       },
       Enter: () => {
         syncDomSelectionToEditor(this.editor);
@@ -2656,7 +2813,8 @@ const createEditorExtensions = (
   placeholder?: string,
   onShiftEnter?: (editor: Editor) => boolean,
   onMoveBlock?: (direction: -1 | 1) => boolean,
-  onDeleteBlock?: () => boolean
+  onDeleteBlock?: () => boolean,
+  shouldUseIdeographicSpace: () => boolean = () => false
 ) => [
   StarterKit.configure({
     heading: { levels: [1, 2, 3, 4, 5, 6] },
@@ -2673,6 +2831,8 @@ const createEditorExtensions = (
     }
   }),
   TyporaAliases,
+  BlockIndent,
+  IdeographicSpaceInput.configure({ shouldUseIdeographicSpace }),
   Highlight,
   Underline,
   PastedTextStyle,
@@ -2721,7 +2881,7 @@ const createEditorExtensions = (
     }
   }),
   BracketTodoInput,
-  NotebookShortcuts.configure({ onShiftEnter, onMoveBlock, onDeleteBlock }),
+  NotebookShortcuts.configure({ onShiftEnter, onMoveBlock, onDeleteBlock, shouldUseIdeographicSpace }),
   LocalEmojiDecorations,
   Placeholder.configure({ placeholder: placeholder ?? '' })
 ];
@@ -2754,13 +2914,22 @@ function RichEditor({
   mathEditor,
   onMathChange,
   onMathClose,
+  useIdeographicSpace = false,
   editorRef
 }: RichEditorProps) {
   const externalHtmlRef = useRef(html ?? '');
   const editorHolderRef = useRef<Editor | null>(null);
   const hoverMediaRef = useRef<HTMLElement | null>(null);
+  const useIdeographicSpaceRef = useRef(useIdeographicSpace);
+  useIdeographicSpaceRef.current = useIdeographicSpace;
   const editor = useEditor({
-    extensions: createEditorExtensions(placeholder, onShiftEnter, onMoveBlock, onDeleteBlock),
+    extensions: createEditorExtensions(
+      placeholder,
+      onShiftEnter,
+      onMoveBlock,
+      onDeleteBlock,
+      () => useIdeographicSpaceRef.current
+    ),
     content: html || '',
     editorProps: {
       attributes: {
