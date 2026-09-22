@@ -5,6 +5,7 @@ import {
   useState,
   type CSSProperties,
   type ChangeEvent,
+  type DragEvent,
   type Dispatch,
   type KeyboardEvent,
   type MouseEvent,
@@ -13,7 +14,7 @@ import {
   type SetStateAction,
   type UIEvent
 } from 'react';
-import { Download, FilePlus, FileUp, Grid3X3, History, ListTree, NotebookTabs, PanelRight, Pin, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, FileUp, Grid3X3, History, ListTree, MoreHorizontal, NotebookTabs, PanelRight, Pin, Plus, Search, Trash2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { Block, ContentThemeId, Notebook, ShellId } from './types';
 import type { PageSearchResult, TrashItemPayload } from './state';
@@ -171,6 +172,7 @@ export type PageThumbnailItem = {
 
 type NotebookActions = {
   addNotebook: () => void;
+  addPage: (notebookId: string) => void;
   selectNotebook: (notebook: Notebook) => void;
   renameNotebook: (notebookId: string, name: string) => void;
   duplicateNotebook: (notebookId: string) => void;
@@ -528,19 +530,24 @@ function PageThumbnails({
 
 function NotebookList({
   notebooks,
-  activeNotebook,
+  selectedNotebookId,
   canDeleteNotebook,
   variant,
-  actions
+  actions,
+  pageTrees,
+  onRootPageDrop
 }: {
   notebooks: Notebook[];
-  activeNotebook: Notebook;
+  selectedNotebookId: string | null;
   canDeleteNotebook: boolean;
   variant: 'native' | 'typora';
   actions: NotebookActions;
+  pageTrees: Map<string, ReactNode>;
+  onRootPageDrop: (pageId: string) => void;
 }) {
   const [editingNotebookId, setEditingNotebookId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
+  const [collapsedNotebookIds, setCollapsedNotebookIds] = useState<Set<string>>(() => new Set());
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const cancelBlurCommitRef = useRef(false);
 
@@ -580,10 +587,21 @@ function NotebookList({
     setDraftName('');
   };
 
+  const toggleNotebookExpanded = (notebookId: string) => {
+    setCollapsedNotebookIds((current) => {
+      const next = new Set(current);
+      if (next.has(notebookId)) next.delete(notebookId);
+      else next.add(notebookId);
+      return next;
+    });
+  };
+
   const renderNotebookLabel = (notebook: Notebook) => {
     const isEditing = editingNotebookId === notebook.id;
-    const isActive = notebook.id === activeNotebook.id;
+    const isSelected = notebook.id === selectedNotebookId;
     const emoji = notebook.metadata.emoji;
+    const hasPages = notebook.pageIds.length > 0;
+    const expanded = !collapsedNotebookIds.has(notebook.id);
     const sharedInputProps = {
       ref: nameInputRef,
       className: 'notebook-name-input',
@@ -613,16 +631,42 @@ function NotebookList({
     const leadingIcon = emoji
       ? <EmojiImage emoji={emoji} className="node-emoji" decorative />
       : <NotebookTabs size={variant === 'typora' ? 13 : 15} />;
+    const notebookIcon = (
+      <span className={`notebook-icon-wrap ${hasPages ? '' : 'is-empty'}`}>
+        <span className="notebook-icon-glyph" aria-hidden="true">{leadingIcon}</span>
+        {hasPages ? (
+          <span
+            className="notebook-disclosure"
+            role="button"
+            tabIndex={0}
+            aria-label={`${expanded ? 'Collapse' : 'Expand'} notebook ${notebook.name}`}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleNotebookExpanded(notebook.id);
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') return;
+              event.preventDefault();
+              event.stopPropagation();
+              toggleNotebookExpanded(notebook.id);
+            }}
+          >
+            {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+          </span>
+        ) : null}
+      </span>
+    );
 
     if (variant === 'typora') {
       return isEditing ? (
-        <div className={`file-node-content notebook-node notebook-editing ${emoji ? 'has-node-icon' : ''} ${isActive ? 'is-active' : ''}`}>
-          <span className="file-node-open-state">{leadingIcon}</span>
+        <div className={`file-node-content notebook-node notebook-editing ${emoji ? 'has-node-icon' : ''} ${isSelected ? 'is-selected' : ''}`}>
+          {notebookIcon}
           <input {...sharedInputProps} />
         </div>
       ) : (
         <button
-          className={`file-node-content notebook-node ${emoji ? 'has-node-icon' : ''} ${isActive ? 'is-active' : ''}`}
+          className={`file-node-content notebook-node ${emoji ? 'has-node-icon' : ''} ${isSelected ? 'is-selected' : ''}`}
           type="button"
           data-notebook-id={notebook.id}
           onMouseDown={(event) => {
@@ -646,20 +690,20 @@ function NotebookList({
             actions.openNotebookEmojiMenu(notebook.id, event.clientX, event.clientY);
           }}
         >
-          <span className="file-node-open-state">{leadingIcon}</span>
+          {notebookIcon}
           <span className="file-node-title file-name notebook-label">{notebook.name}</span>
         </button>
       );
     }
 
     return isEditing ? (
-      <div className={`notebook-button notebook-editing ${emoji ? 'has-node-icon' : ''} ${isActive ? 'active' : ''}`}>
-        {leadingIcon}
+      <div className={`notebook-button notebook-editing ${emoji ? 'has-node-icon' : ''} ${isSelected ? 'active' : ''}`}>
+        {notebookIcon}
         <input {...sharedInputProps} />
       </div>
     ) : (
       <button
-        className={`notebook-button ${emoji ? 'has-node-icon' : ''} ${isActive ? 'active' : ''}`}
+        className={`notebook-button ${emoji ? 'has-node-icon' : ''} ${isSelected ? 'active' : ''}`}
         type="button"
         data-notebook-id={notebook.id}
         onMouseDown={(event) => {
@@ -683,27 +727,60 @@ function NotebookList({
           actions.openNotebookEmojiMenu(notebook.id, event.clientX, event.clientY);
         }}
       >
-        {leadingIcon}
+        {notebookIcon}
         <span className="notebook-label">{notebook.name}</span>
       </button>
     );
   };
 
+  const renderNotebookActions = (notebook: Notebook, className: string) => (
+    <div className={className}>
+      <button
+        className="mini-button row-action add-page-button"
+        type="button"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          actions.addPage(notebook.id);
+        }}
+        aria-label={`New page in ${notebook.name}`}
+      ><Plus size={13} /></button>
+      <button
+        className="mini-button row-action notebook-menu-button"
+        type="button"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          const rect = event.currentTarget.getBoundingClientRect();
+          actions.openNotebookEmojiMenu(notebook.id, rect.left, rect.bottom + 4);
+        }}
+        aria-label={`More actions for ${notebook.name}`}
+      ><MoreHorizontal size={13} /></button>
+    </div>
+  );
+
+  const rootDropProps = {
+    onDragOver: (event: DragEvent<HTMLElement>) => event.preventDefault(),
+    onDrop: (event: DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.page-row-shell, .file-node-row-shell')) return;
+      const draggedId = event.dataTransfer.getData('application/page-id');
+      if (draggedId) onRootPageDrop(draggedId);
+    }
+  };
+
   if (variant === 'typora') {
     return (
-      <div className="file-library">
+      <div className="file-library" {...rootDropProps}>
         {notebooks.map((notebook) => (
           <div className="file-library-node" data-is-directory="true" key={notebook.id}>
             <span className="file-node-background" aria-hidden="true" />
-            <div className={`file-node-row-shell ${notebook.id === activeNotebook.id ? 'active' : ''}`} data-notebook-id={notebook.id}>
+            <div className={`file-node-row-shell ${notebook.id === selectedNotebookId ? 'selected' : ''}`} data-notebook-id={notebook.id}>
               {renderNotebookLabel(notebook)}
-              <div className="row-actions file-node-actions">
-                <button className="mini-button row-action duplicate-notebook-button" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); actions.duplicateNotebook(notebook.id); }} aria-label={`Duplicate notebook ${notebook.name}`}><FilePlus size={13} /></button>
-                {canDeleteNotebook ? (
-                  <button className="mini-button row-action delete-notebook-button" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); actions.deleteNotebook(notebook.id); }} aria-label={`Delete notebook ${notebook.name}`}><Trash2 size={13} /></button>
-                ) : null}
-              </div>
+              {renderNotebookActions(notebook, 'row-actions file-node-actions')}
             </div>
+            {!collapsedNotebookIds.has(notebook.id) && pageTrees.get(notebook.id) ? <div className="file-node-children notebook-page-children">{pageTrees.get(notebook.id)}</div> : null}
           </div>
         ))}
       </div>
@@ -711,16 +788,14 @@ function NotebookList({
   }
 
   return (
-    <div className="notebook-list">
+    <div className="notebook-list" {...rootDropProps}>
       {notebooks.map((notebook) => (
-        <div className={`notebook-row-shell ${notebook.id === activeNotebook.id ? 'active' : ''}`} data-notebook-id={notebook.id} key={notebook.id}>
-          {renderNotebookLabel(notebook)}
-          <div className="row-actions notebook-row-actions">
-            <button className="mini-button row-action duplicate-notebook-button" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); actions.duplicateNotebook(notebook.id); }} aria-label={`Duplicate notebook ${notebook.name}`}><FilePlus size={13} /></button>
-            {canDeleteNotebook ? (
-              <button className="mini-button row-action delete-notebook-button" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); actions.deleteNotebook(notebook.id); }} aria-label={`Delete notebook ${notebook.name}`}><Trash2 size={13} /></button>
-            ) : null}
+        <div key={notebook.id} className="notebook-tree-node">
+          <div className={`notebook-row-shell ${notebook.id === selectedNotebookId ? 'selected' : ''}`} data-notebook-id={notebook.id}>
+            {renderNotebookLabel(notebook)}
+            {renderNotebookActions(notebook, 'row-actions notebook-row-actions')}
           </div>
+          {!collapsedNotebookIds.has(notebook.id) && pageTrees.get(notebook.id) ? <div className="notebook-page-children">{pageTrees.get(notebook.id)}</div> : null}
         </div>
       ))}
     </div>
@@ -894,6 +969,7 @@ type BaseShellProps = {
   outlineOpen: boolean;
   sidebarView: 'files' | 'thumbnails';
   activeNotebook: Notebook;
+  selectedNotebookId: string | null;
   notebooks: Notebook[];
   notebookActions: NotebookActions;
   query: string;
@@ -901,8 +977,7 @@ type BaseShellProps = {
   searchResults: PageSearchResult[];
   searchLoading: boolean;
   onSearchResultSelect: (pageId: string) => void;
-  pageTree: ReactNode;
-  typoraFileTree: ReactNode;
+  pageTrees: Map<string, ReactNode>;
   pageThumbnails: PageThumbnailItem[];
   hasMorePageThumbnails: boolean;
   workspaceContent: ReactNode;
@@ -915,7 +990,6 @@ type BaseShellProps = {
   onUnpinBlock: (blockId: string) => void;
   onCloseFloatingCard: () => void;
   onRootPageDrop: (pageId: string) => void;
-  onAddPage: () => void;
   onSelectPage: (pageId: string) => void;
   onSidebarViewChange: (view: 'files' | 'thumbnails') => void;
   gardenSidebarNote: string;
@@ -1134,11 +1208,13 @@ function NativeBrandBlock({
   brand,
   sidebarView,
   onSidebarViewChange,
+  onAddNotebook,
   onChange
 }: {
   brand: NativeBrandSettings;
   sidebarView: 'files' | 'thumbnails';
   onSidebarViewChange: (view: 'files' | 'thumbnails') => void;
+  onAddNotebook: () => void;
   onChange: Dispatch<SetStateAction<NativeBrandSettings>>;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -1216,6 +1292,15 @@ function NativeBrandBlock({
         >
           <Grid3X3 size={14} aria-hidden="true" />
         </button>
+        <button
+          className="native-sidebar-tab native-sidebar-add"
+          type="button"
+          title="New notebook"
+          aria-label="New notebook"
+          onClick={onAddNotebook}
+        >
+          <Plus size={14} aria-hidden="true" />
+        </button>
       </div>
     </div>
   );
@@ -1247,7 +1332,7 @@ export function NativeShell({
   sidebarCollapsed,
   outlineOpen,
   sidebarView,
-  activeNotebook,
+  selectedNotebookId,
   notebooks,
   notebookActions,
   query,
@@ -1255,7 +1340,7 @@ export function NativeShell({
   searchResults,
   searchLoading,
   onSearchResultSelect,
-  pageTree,
+  pageTrees,
   pageThumbnails,
   hasMorePageThumbnails,
   workspaceContent,
@@ -1268,7 +1353,6 @@ export function NativeShell({
   onUnpinBlock,
   onCloseFloatingCard,
   onRootPageDrop,
-  onAddPage,
   onSelectPage,
   onSidebarViewChange,
   onLoadMorePageThumbnails,
@@ -1282,36 +1366,12 @@ export function NativeShell({
   return (
     <div className={`app-shell typora-theme ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${outlineOpen ? 'outline-open' : 'outline-collapsed'}`} data-content-theme={contentTheme} data-shell={shell}>
       <aside className="sidebar">
-        <NativeBrandBlock brand={nativeBrand} sidebarView={sidebarView} onSidebarViewChange={onSidebarViewChange} onChange={onNativeBrandChange} />
+        <NativeBrandBlock brand={nativeBrand} sidebarView={sidebarView} onSidebarViewChange={onSidebarViewChange} onAddNotebook={notebookActions.addNotebook} onChange={onNativeBrandChange} />
 
         {sidebarView === 'files' ? (
           <>
             <section className="sidebar-section">
-              <div className="section-row">
-                <div className="section-label">Notebooks</div>
-                <button className="mini-button" type="button" onClick={notebookActions.addNotebook} aria-label="New notebook"><Plus size={14} /></button>
-              </div>
-              <NotebookList notebooks={notebooks} activeNotebook={activeNotebook} canDeleteNotebook={notebooks.length > 1} variant="native" actions={notebookActions} />
-            </section>
-
-            <section className="sidebar-section pages-section is-file-view">
-              <div className="section-row">
-                <div className="section-label">Pages</div>
-                <button className="mini-button" type="button" onClick={onAddPage} aria-label="New page"><FilePlus size={14} /></button>
-              </div>
-              <div
-                className="page-tree"
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  const target = event.target as HTMLElement | null;
-                  if (target?.closest('.page-row-shell')) return;
-                  const draggedId = event.dataTransfer.getData('application/page-id');
-                  if (draggedId) onRootPageDrop(draggedId);
-                }}
-              >
-                {pageTree}
-              </div>
+              <NotebookList notebooks={notebooks} selectedNotebookId={selectedNotebookId} canDeleteNotebook={notebooks.length > 1} variant="native" actions={notebookActions} pageTrees={pageTrees} onRootPageDrop={onRootPageDrop} />
             </section>
 
             <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} onOpenPinnedPage={onOpenPinnedPage} onUnpinBlock={onUnpinBlock} />
@@ -1432,7 +1492,7 @@ export function TyporaShell({
   sidebarCollapsed,
   outlineOpen,
   sidebarView,
-  activeNotebook,
+  selectedNotebookId,
   notebooks,
   notebookActions,
   query,
@@ -1440,7 +1500,7 @@ export function TyporaShell({
   searchResults,
   searchLoading,
   onSearchResultSelect,
-  typoraFileTree,
+  pageTrees,
   pageThumbnails,
   hasMorePageThumbnails,
   workspaceContent,
@@ -1453,7 +1513,6 @@ export function TyporaShell({
   onUnpinBlock,
   onCloseFloatingCard,
   onRootPageDrop,
-  onAddPage,
   onSelectPage,
   onSidebarViewChange,
   gardenSidebarNote,
@@ -1494,40 +1553,26 @@ export function TyporaShell({
           >
             {isGardenTypora ? <Grid3X3 size={14} aria-hidden="true" /> : 'Thumbnails'}
           </button>
+          <button
+            className="sidebar-tab sidebar-add-notebook"
+            type="button"
+            title="New notebook"
+            aria-label="New notebook"
+            onClick={notebookActions.addNotebook}
+          >
+            <Plus size={14} aria-hidden="true" />
+          </button>
         </div>
         <div id="sidebar-content" className="sidebar-content">
           <section className={`typora-sidebar-pane ${sidebarView === 'files' ? 'is-active' : ''}`}>
             {isGardenTypora ? null : typoraOutlineSearch(query, onQueryChange, searchResults, searchLoading, onSearchResultSelect)}
-            <div className="typora-sidebar-section-header">
-              <span>Notebooks</span>
-              <button className="mini-button" type="button" onClick={notebookActions.addNotebook} aria-label="New notebook"><Plus size={14} /></button>
-            </div>
-            <NotebookList notebooks={notebooks} activeNotebook={activeNotebook} canDeleteNotebook={notebooks.length > 1} variant="typora" actions={notebookActions} />
-
-            <div className="typora-sidebar-section-header">
-              <span>Pages</span>
-              <button className="mini-button" type="button" onClick={onAddPage} aria-label="New page"><FilePlus size={14} /></button>
-            </div>
-            <div
-              className="file-library"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                const target = event.target as HTMLElement | null;
-                if (target?.closest('.file-node-row-shell')) return;
-                const draggedId = event.dataTransfer.getData('application/page-id');
-                if (draggedId) onRootPageDrop(draggedId);
-              }}
-            >
-              {typoraFileTree}
-            </div>
+            <NotebookList notebooks={notebooks} selectedNotebookId={selectedNotebookId} canDeleteNotebook={notebooks.length > 1} variant="typora" actions={notebookActions} pageTrees={pageTrees} onRootPageDrop={onRootPageDrop} />
 
             <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} onOpenPinnedPage={onOpenPinnedPage} onUnpinBlock={onUnpinBlock} />
           </section>
           <section className={`typora-sidebar-pane is-thumbnail-pane ${sidebarView === 'thumbnails' ? 'is-active' : ''}`}>
             <div className="typora-sidebar-section-header">
               <span>Thumbnails</span>
-              <button className="mini-button" type="button" onClick={onAddPage} aria-label="New page"><FilePlus size={14} /></button>
             </div>
             <PageThumbnails pages={pageThumbnails} hasMorePages={hasMorePageThumbnails} onSelectPage={onSelectPage} onLoadMore={onLoadMorePageThumbnails} />
           </section>

@@ -442,7 +442,7 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               content_theme TEXT NOT NULL DEFAULT 'notebook',
               open_card_window_block_id TEXT,
               expanded_page_ids_json TEXT NOT NULL DEFAULT '[]',
-              show_page_metadata INTEGER NOT NULL DEFAULT 1,
+              show_page_metadata INTEGER NOT NULL DEFAULT 0,
               updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -559,7 +559,7 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
         connection,
         "workspace_preferences",
         "show_page_metadata",
-        "INTEGER NOT NULL DEFAULT 1",
+        "INTEGER NOT NULL DEFAULT 0",
     )?;
     ensure_page_block_index_backfilled(connection)?;
     Ok(())
@@ -2656,7 +2656,7 @@ fn read_workspace_preferences(
                 .as_ref()
                 .map(|state| state.expanded_page_ids.clone())
                 .unwrap_or_default(),
-            true,
+            false,
         )
     };
     let notebook_exists = if active_notebook_id.is_empty() {

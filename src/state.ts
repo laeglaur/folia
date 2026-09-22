@@ -97,7 +97,7 @@ export const createInitialState = (): AppState => ({
   openCardWindowBlockId: null,
   expandedPageIds: [starterPageId],
   operations: [],
-  showPageMetadata: true
+  showPageMetadata: false
 });
 
 const normalizeTheme = (theme?: string): ThemeId => {
@@ -251,7 +251,7 @@ const normalizeState = (state: AppState): AppState => {
     openCardWindowBlockId: state.openCardWindowBlockId ?? null,
     expandedPageIds: state.expandedPageIds ?? state.pages.map((page) => page.id),
     operations: state.operations ?? [],
-    showPageMetadata: state.showPageMetadata ?? true
+    showPageMetadata: state.showPageMetadata ?? false
   };
 };
 
@@ -777,7 +777,7 @@ export const loadWorkspacePreferences = async (): Promise<WorkspacePreferencesPa
     contentTheme: contentThemeIds.has(preferences.contentTheme) ? preferences.contentTheme : 'notebook',
     openCardWindowBlockId: preferences.openCardWindowBlockId ?? null,
     expandedPageIds: preferences.expandedPageIds ?? [],
-    showPageMetadata: preferences.showPageMetadata ?? true
+    showPageMetadata: preferences.showPageMetadata ?? false
   };
 };
 

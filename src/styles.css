@@ -288,7 +288,7 @@ input, select { color: var(--ink); }
 
 .native-sidebar-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
   margin: -1px auto 0;
   padding: 0;
@@ -319,6 +319,10 @@ input, select { color: var(--ink); }
   color: color-mix(in srgb, var(--accent) 70%, var(--muted));
 }
 
+.native-sidebar-add {
+  color: color-mix(in srgb, var(--muted) 56%, transparent);
+}
+
 .sidebar-section { margin-top: var(--nav-section-gap); }
 
 .section-row {
@@ -336,6 +340,16 @@ input, select { color: var(--ink); }
 
 .notebook-list,
 .page-tree { display: grid; gap: var(--nav-list-gap); margin-top: var(--nav-list-margin-top); }
+
+.notebook-tree-node,
+.notebook-page-children {
+  display: grid;
+  gap: var(--nav-tree-row-gap);
+}
+
+.notebook-page-children {
+  margin-left: var(--nav-depth-indent);
+}
 
 .notebook-row-shell,
 .page-row-shell {
@@ -362,8 +376,62 @@ input, select { color: var(--ink); }
   font-size: var(--nav-item-font-size);
 }
 
+.page-button.page-node-content {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.page-button.page-node-content.has-node-icon {
+  grid-template-columns: var(--nav-icon-column, 20px) minmax(0, 1fr);
+}
+
 .notebook-button {
   grid-template-columns: var(--nav-icon-column, 20px) minmax(0, 1fr);
+}
+
+.notebook-icon-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--nav-icon-column, 20px);
+  height: var(--nav-icon-column, 20px);
+  flex: 0 0 var(--nav-icon-column, 20px);
+  color: inherit;
+}
+
+.notebook-icon-glyph,
+.notebook-disclosure {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.notebook-icon-glyph {
+  transition: opacity 100ms ease;
+}
+
+.notebook-disclosure {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 100ms ease;
+}
+
+.notebook-icon-wrap:hover .notebook-icon-glyph,
+.notebook-icon-wrap:focus-within .notebook-icon-glyph {
+  opacity: 0;
+}
+
+.notebook-icon-wrap:hover .notebook-disclosure,
+.notebook-icon-wrap:focus-within .notebook-disclosure {
+  opacity: 1;
+}
+
+.notebook-disclosure:focus-visible {
+  outline: 2px solid color-mix(in srgb, currentColor 50%, transparent);
+  outline-offset: 1px;
+  border-radius: 4px;
 }
 
 .ProseMirror,
@@ -410,10 +478,6 @@ input, select { color: var(--ink); }
 
 .notebook-button.has-node-icon {
   grid-template-columns: var(--nav-icon-column, 20px) minmax(0, 1fr);
-}
-
-.page-button.has-node-icon {
-  grid-template-columns: var(--nav-icon-column, 20px) 18px minmax(0, 1fr);
 }
 
 .emoji-context-menu {
@@ -759,6 +823,49 @@ input, select { color: var(--ink); }
   height: var(--nav-disclosure-size);
 }
 
+.page-icon-slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--nav-icon-column, 20px);
+  height: var(--nav-icon-column, 20px);
+  flex: 0 0 var(--nav-icon-column, 20px);
+}
+
+.page-icon-glyph,
+.page-icon-disclosure {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.page-icon-glyph {
+  transition: opacity 100ms ease;
+}
+
+.page-icon-disclosure {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+
+.page-icon-slot.has-page-emoji.has-page-children .page-icon-disclosure {
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.page-icon-slot.has-page-emoji.has-page-children:hover .page-icon-glyph,
+.page-icon-slot.has-page-emoji.has-page-children:focus-within .page-icon-glyph {
+  opacity: 0;
+}
+
+.page-icon-slot.has-page-emoji.has-page-children:hover .page-icon-disclosure,
+.page-icon-slot.has-page-emoji.has-page-children:focus-within .page-icon-disclosure,
+.page-icon-slot.has-page-children:not(.has-page-emoji) .page-icon-disclosure {
+  opacity: 1;
+}
+
 .notebook-button:hover,
 .notebook-button.active,
 .page-button:hover,
@@ -768,6 +875,33 @@ input, select { color: var(--ink); }
   background: var(--theme-nav-active-background);
   color: var(--theme-nav-active-ink);
   box-shadow: var(--nav-active-shadow);
+}
+
+.notebook-row-shell:hover,
+.notebook-row-shell:focus-within,
+.notebook-row-shell.selected,
+.page-row-shell:hover,
+.page-row-shell:focus-within,
+.page-row-shell.selected {
+  background: var(--theme-nav-active-background);
+  color: var(--theme-nav-active-ink);
+  box-shadow: var(--nav-active-shadow);
+}
+
+.notebook-row-shell:hover > .notebook-button,
+.notebook-row-shell:focus-within > .notebook-button,
+.notebook-row-shell.selected > .notebook-button,
+.page-row-shell:hover > .page-button,
+.page-row-shell:focus-within > .page-button,
+.page-row-shell.selected > .page-button {
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+}
+
+.notebook-row-shell .row-actions,
+.page-row-shell .row-actions {
+  color: inherit;
 }
 
 .row-actions {
@@ -780,14 +914,19 @@ input, select { color: var(--ink); }
 
 .notebook-row-shell:hover .row-actions,
 .notebook-row-shell:focus-within .row-actions,
-.notebook-row-shell.active .row-actions,
+.notebook-row-shell.selected .row-actions,
 .page-row-shell:hover .row-actions,
 .page-row-shell:focus-within .row-actions,
-.page-row-shell.active .row-actions,
+.page-row-shell.selected .row-actions,
 .file-node-row-shell:hover .row-actions,
-.file-node-row-shell:focus-within .row-actions,
-.file-node-row-shell.active .row-actions {
+.file-node-row-shell:focus-within .row-actions {
   opacity: 1;
+}
+
+.notebook-row-shell .row-action,
+.page-row-shell .row-action {
+  background: transparent;
+  color: inherit;
 }
 
 .row-action {

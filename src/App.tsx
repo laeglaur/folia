@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
   ChevronRight,
-  Copy,
-  Trash2
+  MoreHorizontal,
+  Plus
 } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { AppState, Block, ContentThemeId, MetadataFieldType, Notebook, NotebookCalendarDateSource, NotebookCalendarViewConfig, OperationLogEntry, Page, PageMetadataField, ShellId } from './types';
@@ -1385,6 +1385,7 @@ export function App() {
     ?? null;
   const visibleBlocks = orderedPageBlocks;
   const showBlockDividers = state.shell.startsWith('typora-');
+  const activeNotebookHasCalendarView = Boolean(activeNotebook.metadata.calendarView?.enabled);
   const metadataFields = useMemo<PageMetadataField[]>(() => {
     if (!state.showPageMetadata) return [];
     const fields: PageMetadataField[] = [];
@@ -1432,10 +1433,11 @@ export function App() {
 
   useEffect(() => {
     if (!activePage?.id) return;
+    if (selectedNotebookId) return;
     if (selectedPageId !== activePage.id) setSelectedPageId(activePage.id);
     setSelectedPageIds((current) => current.includes(activePage.id) ? current : [activePage.id]);
     pageSelectionAnchorRef.current = activePage.id;
-  }, [activePage?.id]);
+  }, [activePage?.id, selectedNotebookId, selectedPageId]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -1570,14 +1572,16 @@ export function App() {
     ]);
   };
 
-  const childPages = useMemo(() => {
-    const map = new Map<string | null, Page[]>();
-    notebookPages.forEach((page) => {
+  const childPagesByNotebook = useMemo(() => {
+    const notebooks = new Map<string, Map<string | null, Page[]>>();
+    state.pages.forEach((page) => {
+      const childPages = notebooks.get(page.notebookId) ?? new Map<string | null, Page[]>();
       const key = page.parentId ?? null;
-      map.set(key, [...(map.get(key) ?? []), page]);
+      childPages.set(key, [...(childPages.get(key) ?? []), page]);
+      notebooks.set(page.notebookId, childPages);
     });
-    return map;
-  }, [notebookPages]);
+    return notebooks;
+  }, [state.pages]);
   type PageThumbnailPreview = {
     excerpt: string;
     imageSrcs: string[];
@@ -2863,9 +2867,13 @@ export function App() {
     return operation;
   };
 
-  const addPage = (parentId: string | null = null, metadataPatch: Partial<Page['metadata']> = {}) => {
+  const addPage = (
+    parentId: string | null = null,
+    metadataPatch: Partial<Page['metadata']> = {},
+    notebookId = stateRef.current.activeNotebookId
+  ) => {
     saveCurrentComposerDraft();
-    const page = createPage(state.activeNotebookId, parentId ? 'Nested page' : 'Untitled page', parentId);
+    const page = createPage(notebookId, parentId ? 'Nested page' : 'Untitled page', parentId);
     page.metadata = {
       ...page.metadata,
       ...metadataPatch,
@@ -2882,7 +2890,12 @@ export function App() {
     setSelectedPageId(page.id);
     setSelectedPageIds([page.id]);
     pageSelectionAnchorRef.current = page.id;
-    setState((current) => applyPageCreateToViewState(current, page, current.activeNotebookId, operation));
+    setState((current) => {
+      const next = applyPageCreateToViewState(current, page, notebookId, operation);
+      return parentId && !next.expandedPageIds.includes(parentId)
+        ? { ...next, expandedPageIds: [...next.expandedPageIds, parentId] }
+        : next;
+    });
   };
 
   const addCalendarPage = (date: string) => {
@@ -2980,7 +2993,7 @@ export function App() {
     setSelectedNotebookId(null);
     setSelectedPageId(pageId);
     setWorkspaceView('write');
-    setState((current) => applyActivePageToViewState(current, pageId));
+    setState((current) => applyPageNavigationToViewState(current, pageId));
   };
 
   const movePageByKeyboard = (pageId: string, outdent: boolean) => {
@@ -4111,12 +4124,49 @@ export function App() {
     };
   }, [roundPinnedCards, glowPinnedCards]);
 
-  const renderPageTree = (parentId: string | null = null, depth = 0): React.ReactNode =>
-    (childPages.get(parentId) ?? []).map((page) => {
-      const hasChildren = Boolean(childPages.get(page.id)?.length);
+  const renderPageIconSlots = (page: Page, hasChildren: boolean, expanded: boolean) => {
+    const pageEmoji = page.metadata.emoji;
+    if (!pageEmoji && !hasChildren) return null;
+    const toggleProps = hasChildren ? {
+      role: 'button' as const,
+      tabIndex: 0,
+      onClick: (event: React.MouseEvent<HTMLElement>) => {
+        event.stopPropagation();
+        togglePageExpanded(page.id);
+      },
+      onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        event.stopPropagation();
+        togglePageExpanded(page.id);
+      }
+    } : {};
+    return (
+      <span
+        className={`page-icon-slot ${pageEmoji ? 'has-page-emoji' : ''} ${hasChildren ? 'has-page-children' : ''}`}
+        {...toggleProps}
+      >
+          {pageEmoji ? (
+            <span className="page-icon-glyph">
+              <EmojiImage emoji={pageEmoji} className="node-emoji" decorative />
+            </span>
+          ) : null}
+          {hasChildren ? (
+            <span className="page-icon-disclosure" aria-hidden={!pageEmoji}>
+              {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            </span>
+          ) : null}
+      </span>
+    );
+  };
+
+  const renderPageTree = (notebookId: string, parentId: string | null = null, depth = 0): React.ReactNode => {
+    const childPages = childPagesByNotebook.get(notebookId);
+    return (childPages?.get(parentId) ?? []).map((page) => {
+      const hasChildren = Boolean(childPages?.get(page.id)?.length);
       const expanded = state.expandedPageIds.includes(page.id);
-      const selected = selectedPageIds.includes(page.id);
-      const active = page.id === activePage.id;
+      const selected = !selectedNotebookId && selectedPageIds.includes(page.id);
+      const active = !selectedNotebookId && page.id === activePage.id;
       const editing = editingPageId === page.id;
       const pageEmoji = page.metadata.emoji;
       return (
@@ -4136,21 +4186,13 @@ export function App() {
             }}
           >
             {editing ? (
-              <div className={`page-button page-editing ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}>
-                <span
-                  className="page-disclosure"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (hasChildren) togglePageExpanded(page.id);
-                  }}
-                >
-                  {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
-                </span>
+              <div className={`page-button page-node-content page-editing ${pageEmoji || hasChildren ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}>
+                {renderPageIconSlots(page, hasChildren, expanded)}
                 <input {...pageRenameInputProps(page)} />
               </div>
             ) : (
               <button
-                className={`page-button ${pageEmoji ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
+                className={`page-button page-node-content ${pageEmoji || hasChildren ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
                 draggable
                 onDragStart={(event) => {
                   setSelectedNotebookId(null);
@@ -4177,35 +4219,52 @@ export function App() {
                 }}
                 type="button"
               >
-                <span
-                  className="page-disclosure"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (hasChildren) togglePageExpanded(page.id);
-                  }}
-                >
-                  {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
-                </span>
-                {pageEmoji ? <EmojiImage emoji={pageEmoji} className="node-emoji" decorative /> : null}
+                {renderPageIconSlots(page, hasChildren, expanded)}
                 <span>{page.title}</span>
               </button>
             )}
             <div className="row-actions page-row-actions">
-              <button className="mini-button row-action duplicate-page-button" type="button" draggable={false} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setPageSelection([page.id], page.id); void duplicatePageTree(page.id); }} aria-label={`Duplicate page ${page.title}`}><Copy size={13} /></button>
-              <button className="mini-button row-action delete-page-button" type="button" draggable={false} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setPageSelection([page.id], page.id); deletePageTree(page.id); }} aria-label={`Delete page ${page.title}`}><Trash2 size={13} /></button>
+              <button
+                className="mini-button row-action add-page-button"
+                type="button"
+                draggable={false}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  addPage(page.id, {}, page.notebookId);
+                }}
+                aria-label={`New page under ${page.title}`}
+              ><Plus size={13} /></button>
+              <button
+                className="mini-button row-action page-menu-button"
+                type="button"
+                draggable={false}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  const pageIds = pageIdsForContextMenu(page.id);
+                  selectPage(page.id);
+                  setPageSelection(pageIds, page.id);
+                  const row = event.currentTarget.closest<HTMLElement>('.page-row-shell[data-page-id]');
+                  openPageContextMenu(page.id, pageIds, row ?? event.currentTarget);
+                }}
+                aria-label={`More actions for ${page.title}`}
+              ><MoreHorizontal size={13} /></button>
             </div>
           </div>
-          {hasChildren && expanded && <div className="page-tree-children">{renderPageTree(page.id, depth + 1)}</div>}
+          {hasChildren && expanded && <div className="page-tree-children">{renderPageTree(notebookId, page.id, depth + 1)}</div>}
         </div>
       );
     });
+  };
 
-  const renderTyporaFileTree = (parentId: string | null = null, depth = 0): React.ReactNode =>
-    (childPages.get(parentId) ?? []).map((page) => {
-      const hasChildren = Boolean(childPages.get(page.id)?.length);
+  const renderTyporaFileTree = (notebookId: string, parentId: string | null = null, depth = 0): React.ReactNode => {
+    const childPages = childPagesByNotebook.get(notebookId);
+    return (childPages?.get(parentId) ?? []).map((page) => {
+      const hasChildren = Boolean(childPages?.get(page.id)?.length);
       const expanded = state.expandedPageIds.includes(page.id);
-      const selected = selectedPageIds.includes(page.id);
-      const active = page.id === activePage.id;
+      const selected = !selectedNotebookId && selectedPageIds.includes(page.id);
+      const active = !selectedNotebookId && page.id === activePage.id;
       const editing = editingPageId === page.id;
       const pageEmoji = page.metadata.emoji;
       return (
@@ -4231,21 +4290,13 @@ export function App() {
             }}
           >
             {editing ? (
-              <div className={`file-node-content page-editing ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}>
-                <span
-                  className="file-node-open-state"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (hasChildren) togglePageExpanded(page.id);
-                  }}
-                >
-                  {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
-                </span>
+              <div className={`file-node-content page-node-content page-editing ${pageEmoji || hasChildren ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}>
+                {renderPageIconSlots(page, hasChildren, expanded)}
                 <input {...pageRenameInputProps(page)} />
               </div>
             ) : (
               <button
-                className={`file-node-content ${pageEmoji ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
+                className={`file-node-content page-node-content ${pageEmoji || hasChildren ? 'has-node-icon' : ''} ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
                 draggable
                 onDragStart={(event) => {
                   setSelectedNotebookId(null);
@@ -4272,28 +4323,44 @@ export function App() {
                 }}
                 type="button"
               >
-                <span
-                  className="file-node-open-state"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (hasChildren) togglePageExpanded(page.id);
-                  }}
-                >
-                  {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span />}
-                </span>
-                {pageEmoji ? <EmojiImage emoji={pageEmoji} className="node-emoji" decorative /> : null}
+                {renderPageIconSlots(page, hasChildren, expanded)}
                 <span className="file-node-title file-name">{page.title}</span>
               </button>
             )}
             <div className="row-actions file-node-actions">
-              <button className="mini-button row-action duplicate-page-button" type="button" draggable={false} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setPageSelection([page.id], page.id); void duplicatePageTree(page.id); }} aria-label={`Duplicate page ${page.title}`}><Copy size={13} /></button>
-              <button className="mini-button row-action delete-page-button" type="button" draggable={false} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setPageSelection([page.id], page.id); deletePageTree(page.id); }} aria-label={`Delete page ${page.title}`}><Trash2 size={13} /></button>
+              <button
+                className="mini-button row-action add-page-button"
+                type="button"
+                draggable={false}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  addPage(page.id, {}, page.notebookId);
+                }}
+                aria-label={`New page under ${page.title}`}
+              ><Plus size={13} /></button>
+              <button
+                className="mini-button row-action page-menu-button"
+                type="button"
+                draggable={false}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  const pageIds = pageIdsForContextMenu(page.id);
+                  selectPage(page.id);
+                  setPageSelection(pageIds, page.id);
+                  const row = event.currentTarget.closest<HTMLElement>('.file-node-row-shell[data-page-id]');
+                  openPageContextMenu(page.id, pageIds, row ?? event.currentTarget);
+                }}
+                aria-label={`More actions for ${page.title}`}
+              ><MoreHorizontal size={13} /></button>
             </div>
           </div>
-          {hasChildren && expanded && <div className="file-node-children">{renderTyporaFileTree(page.id, depth + 1)}</div>}
+          {hasChildren && expanded && <div className="file-node-children">{renderTyporaFileTree(notebookId, page.id, depth + 1)}</div>}
         </div>
       );
     });
+  };
 
   const isTyporaShell = state.shell.startsWith('typora-');
   const effectiveContentTheme: ContentThemeId = isTyporaShell ? state.contentTheme : 'notebook';
@@ -4308,6 +4375,7 @@ export function App() {
         metadataFields,
         metadataFieldOptions,
         showMetadata: state.showPageMetadata,
+        canAddMetadataField: activeNotebookHasCalendarView,
         blockOrder: pageBlockOrder,
         blocks: visibleBlocks,
         draggingBlockId,
@@ -4410,8 +4478,11 @@ export function App() {
   const selectNotebook = (notebook: Notebook) => {
     saveCurrentComposerDraft();
     setSelectedNotebookId(notebook.id);
+    setSelectedPageId(null);
+    setSelectedPageIds([]);
+    pageSelectionAnchorRef.current = null;
     setWorkspaceView(notebook.metadata.calendarView?.enabled ? 'calendar' : 'write');
-    setState((current) => applyActiveNotebookToViewState(current, notebook.id, notebook.pageIds[0] ?? null));
+    setState((current) => applyActiveNotebookToViewState(current, notebook.id, null));
   };
 
   const selectSearchResult = (pageId: string) => {
@@ -4427,6 +4498,7 @@ export function App() {
 
   const notebookActions = {
     addNotebook,
+    addPage: (notebookId: string) => addPage(null, {}, notebookId),
     selectNotebook,
     renameNotebook,
     duplicateNotebook,
@@ -4520,8 +4592,10 @@ export function App() {
     trashBusy
   };
 
-  const pageTree = isTyporaShell ? null : renderPageTree(null);
-  const typoraFileTree = isTyporaShell ? renderTyporaFileTree(null) : null;
+  const pageTrees = new Map<string, React.ReactNode>(state.notebooks.map((notebook) => [
+    notebook.id,
+    isTyporaShell ? renderTyporaFileTree(notebook.id) : renderPageTree(notebook.id)
+  ]));
   const workspaceContent = renderWorkspaceContent();
 
   const sharedShellProps = {
@@ -4531,6 +4605,7 @@ export function App() {
     outlineOpen: outlineDrawerOpen,
     sidebarView: isTyporaShell ? typoraSidebarView : nativeSidebarView,
     activeNotebook,
+    selectedNotebookId,
     notebooks: state.notebooks,
     notebookActions,
     query,
@@ -4538,8 +4613,7 @@ export function App() {
     searchResults,
     searchLoading,
     onSearchResultSelect: selectSearchResult,
-    pageTree,
-    typoraFileTree,
+    pageTrees,
     pageThumbnails,
     hasMorePageThumbnails,
     workspaceContent,
@@ -4562,7 +4636,6 @@ export function App() {
       setSelectedPageId(pageId);
       movePageUnder(pageId, null);
     },
-    onAddPage: () => addPage(null),
     controls: shellControls,
     outlineEntries,
     onJumpToOutlineEntry: jumpToOutlineEntry,
@@ -4602,6 +4675,9 @@ export function App() {
       }
     }
   }
+  const emojiMenuNotebookId = emojiContextMenu?.target.kind === 'notebook'
+    ? emojiContextMenu.target.notebookId
+    : null;
 
   return (
     <>
@@ -4662,6 +4738,32 @@ export function App() {
           >
             Clear emoji
           </button>
+          {emojiMenuNotebookId ? (
+            <>
+              <div className="context-menu-divider" role="separator" />
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  void duplicateNotebook(emojiMenuNotebookId);
+                  closeEmojiContextMenu();
+                }}
+              >
+                Duplicate notebook
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={state.notebooks.length <= 1}
+                onClick={() => {
+                  deleteNotebook(emojiMenuNotebookId);
+                  closeEmojiContextMenu();
+                }}
+              >
+                Delete notebook
+              </button>
+            </>
+          ) : null}
           {notebookCalendarMenu ? (
             <>
               <div className="context-menu-divider" role="separator" />
@@ -4798,6 +4900,28 @@ export function App() {
                   }}
                 >
                   Set Icon
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="page-move-action"
+                  onClick={() => {
+                    void Promise.all(menuPageIds.map((pageId) => duplicatePageTree(pageId)));
+                    closePageContextMenu();
+                  }}
+                >
+                  {multiPageMenu ? 'Duplicate Pages' : 'Duplicate Page'}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="page-move-action"
+                  onClick={() => {
+                    menuPageIds.forEach((pageId) => deletePageTree(pageId));
+                    closePageContextMenu();
+                  }}
+                >
+                  {multiPageMenu ? 'Delete Pages' : 'Delete Page'}
                 </button>
                 <button
                   type="button"

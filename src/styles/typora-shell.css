@@ -72,7 +72,7 @@
 .typora-app-shell .sidebar-tabs {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 0;
   min-height: 38px;
   border-bottom: 1px solid var(--typora-shell-divider);
@@ -94,6 +94,11 @@
 .typora-app-shell .sidebar-tab-active {
   background: color-mix(in srgb, currentColor 7%, transparent);
   color: var(--typora-shell-ink);
+}
+
+.typora-app-shell .sidebar-add-notebook {
+  display: grid;
+  place-items: center;
 }
 
 .typora-app-shell #sidebar-content {
@@ -291,6 +296,26 @@
   grid-template-columns: 18px minmax(0, 1fr);
 }
 
+.typora-app-shell .file-node-content.page-node-content {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.typora-app-shell .file-node-content.page-node-content.has-node-icon {
+  grid-template-columns: 18px minmax(0, 1fr);
+}
+
+.typora-app-shell .page-node-content .page-icon-slot {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+}
+
+.typora-app-shell .notebook-icon-wrap {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+}
+
 .typora-app-shell .file-node-content:hover,
 .typora-app-shell .file-node-content.active,
 .typora-app-shell .notebook-node.is-active,
@@ -321,6 +346,12 @@
 .typora-app-shell .file-node-children {
   display: grid;
   gap: 1px;
+}
+
+.typora-app-shell .notebook-page-children {
+  display: grid;
+  gap: 1px;
+  margin-left: 14px;
 }
 
 .typora-app-shell .outline-content {
@@ -414,12 +445,38 @@
   gap: 4px;
 }
 
+.typora-app-shell .file-node-row-shell:hover,
+.typora-app-shell .file-node-row-shell:focus-within,
+.typora-app-shell .file-node-row-shell.selected {
+  border-radius: 3px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  color: var(--typora-shell-ink);
+}
+
+.typora-app-shell .file-node-row-shell:hover > .file-node-content,
+.typora-app-shell .file-node-row-shell:focus-within > .file-node-content,
+.typora-app-shell .file-node-row-shell.selected > .file-node-content {
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+}
+
 .typora-app-shell .file-node-row-shell .file-node-content {
   min-width: 0;
 }
 
 .typora-app-shell .file-node-actions {
   padding-right: 4px;
+}
+
+.typora-app-shell .file-node-row-shell.selected .row-actions {
+  opacity: 1;
+}
+
+.typora-app-shell .file-node-row-shell .row-action {
+  background: transparent;
+  color: inherit;
 }
 
 .typora-app-shell .row-action {
@@ -604,7 +661,7 @@
 
 .typora-app-shell[data-shell="typora-garden"] .sidebar-tabs {
   min-height: 0;
-  grid-template-columns: minmax(0, 1fr) 26px 26px;
+  grid-template-columns: minmax(0, 1fr) 26px 26px 26px;
   align-items: center;
   margin: 10px 10px 2px;
   padding: 0;

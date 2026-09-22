@@ -400,6 +400,7 @@ export const applyPageCreateToViewState = (
   notebooks: current.notebooks.map((notebook) =>
     notebook.id === parentNotebookId ? { ...notebook, pageIds: [...notebook.pageIds, page.id] } : notebook
   ),
+  activeNotebookId: parentNotebookId,
   activePageId: page.id,
   operations: [...current.operations, operation]
 });

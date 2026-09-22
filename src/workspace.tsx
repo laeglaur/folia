@@ -302,6 +302,7 @@ type WriteSurfaceProps = {
   metadataFields: PageMetadataField[];
   metadataFieldOptions: Record<string, string[]>;
   showMetadata: boolean;
+  canAddMetadataField: boolean;
   blockOrder: 'asc' | 'desc';
   blocks: Block[];
   draggingBlockId: string | null;
@@ -458,6 +459,7 @@ function WriteSurface({
   metadataFields,
   metadataFieldOptions,
   showMetadata,
+  canAddMetadataField,
   blockOrder,
   blocks,
   draggingBlockId,
@@ -498,6 +500,7 @@ function WriteSurface({
   const composerCard = <ComposerCard {...composer} />;
   const shortMetadataFields = metadataFields.filter((field) => !isLongMetadataField(field));
   const longMetadataFields = metadataFields.filter(isLongMetadataField);
+  const showMetadataStrip = metadataFields.length > 0 || canAddMetadataField;
   const [metadataTypeMenu, setMetadataTypeMenu] = useState<{ field: PageMetadataField; x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -528,9 +531,9 @@ function WriteSurface({
           </div>
         ) : null}
       </div>
-      {showMetadata ? (
+      {showMetadataStrip ? (
         <div className="page-metadata" aria-label="Page metadata">
-          {shortMetadataFields.map((field) => (
+          {showMetadata ? shortMetadataFields.map((field) => (
             <PageMetadataFieldEditor
               key={`${field.source}:${field.key}`}
               field={field}
@@ -538,11 +541,13 @@ function WriteSurface({
               onUpdate={onUpdateMetadataField}
               onOpenTypeMenu={(field, x, y) => setMetadataTypeMenu({ field, x, y })}
             />
-          ))}
-          <button className="page-metadata-add" type="button" onClick={onAddMetadataField} aria-label="Add metadata field">
-            <Plus size={14} />
-          </button>
-          {longMetadataFields.map((field) => (
+          )) : null}
+          {canAddMetadataField ? (
+            <button className="page-metadata-add" type="button" onClick={onAddMetadataField} aria-label="Add metadata field">
+              <Plus size={14} />
+            </button>
+          ) : null}
+          {showMetadata ? longMetadataFields.map((field) => (
             <PageMetadataFieldEditor
               key={`${field.source}:${field.key}`}
               field={field}
@@ -550,7 +555,7 @@ function WriteSurface({
               onUpdate={onUpdateMetadataField}
               onOpenTypeMenu={(field, x, y) => setMetadataTypeMenu({ field, x, y })}
             />
-          ))}
+          )) : null}
           {metadataTypeMenu ? (
             <div
               className="page-metadata-type-menu"
