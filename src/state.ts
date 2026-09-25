@@ -106,7 +106,7 @@ const normalizeTheme = (theme?: string): ThemeId => {
   return 'garden';
 };
 
-const shellIds = new Set<ShellId>(['native-garden', 'typora-base', 'typora-garden']);
+const shellIds = new Set<ShellId>(['native-garden', 'typora-base', 'typora-garden', 'typora-tilted', 'typora-collage']);
 
 const shellFromLegacyState = (theme: ThemeId, contentTheme: ContentThemeId): ShellId => {
   if (contentTheme.startsWith('typora-') && contentTheme !== 'typora-base') return 'typora-base';

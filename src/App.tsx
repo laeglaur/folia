@@ -147,7 +147,9 @@ import { inferNotebookMetadataFieldsForPages, metadataFieldTypeFor, metadataSele
 const shellThemes: Array<{ id: ShellId; label: string }> = [
   { id: 'native-garden', label: 'Native Garden' },
   { id: 'typora-base', label: 'Typora Base' },
-  { id: 'typora-garden', label: 'Garden Typora' }
+  { id: 'typora-garden', label: 'Garden Typora' },
+  { id: 'typora-tilted', label: 'Tilted Paper' },
+  { id: 'typora-collage', label: 'Paper Collage' }
 ];
 
 const fishIconUrl = '/app-assets/blue_red_fish.png';

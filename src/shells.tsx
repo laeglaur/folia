@@ -26,6 +26,8 @@ import { emojiAssetFor } from './emoji-assets';
 import { renderAnnotatedImagesInHtml } from './image-annotations';
 import { contentThemes } from './typora-theme-registry';
 
+import { usePaperShell, PaperSettings, PaperCard, PaperLeaves, PaperSprite, PaperBackdrop, PaperBrand, PaperSidebarNote } from './paper-shell';
+
 const appLogoUrl = '/app-assets/notebook-logo.jpg';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -253,7 +255,7 @@ function ToolControls({
       </label>
       {compact && (
         <>
-          <label className="view-toggle"><input type="checkbox" checked={outlineOpen} onChange={onOutlineToggle} /> Outline</label>
+          <label className="view-toggle"><input type="checkbox" checked={outlineOpen} onChange={onOutlineToggle} /> Contents</label>
           <label className="view-toggle"><input type="checkbox" checked={!sidebarCollapsed} onChange={onSidebarToggle} /> Sidebar</label>
         </>
       )}
@@ -306,7 +308,7 @@ function ToolControls({
             onClick={onOutlineToggle}
             aria-pressed={outlineOpen}
           >
-            <PanelRight size={15} /> Outline
+            <PanelRight size={15} /> Contents
           </button>
           <button
             className={`secondary-button ${sidebarCollapsed ? 'active' : ''}`}
@@ -344,7 +346,7 @@ function ToolControls({
 
 type ShellControlsProps = Omit<ToolControlsProps, 'compact'>;
 
-function FishDesk({ fishIconUrl, controls }: { fishIconUrl: string; controls: ShellControlsProps }) {
+function FishDesk({ fishIconUrl, controls, appearance }: { fishIconUrl: string; controls: ShellControlsProps; appearance?: ReactNode }) {
   return (
     <aside className="fish-desk" aria-label="Desk controls">
       <button className="fish-desk-trigger" type="button" aria-label="Open Desk controls">
@@ -353,6 +355,7 @@ function FishDesk({ fishIconUrl, controls }: { fishIconUrl: string; controls: Sh
       <div className="fish-desk-panel">
         <div className="fish-desk-title">Desk</div>
         <ToolControls compact {...controls} />
+        {appearance}
       </div>
     </aside>
   );
@@ -668,6 +671,9 @@ function NotebookList({
         <button
           className={`file-node-content notebook-node ${emoji ? 'has-node-icon' : ''} ${isSelected ? 'is-selected' : ''}`}
           type="button"
+          data-generic-name={/^(notebooks?)$/i.test(notebook.name.trim()) || undefined}
+          aria-label={notebook.name}
+          title={notebook.name}
           data-notebook-id={notebook.id}
           onMouseDown={(event) => {
             event.currentTarget.focus({ preventScroll: true });
@@ -863,7 +869,7 @@ function CollapsibleOutline({
       >
         <span
           className="outline-expander"
-          aria-label={hasChildren ? (isCollapsed ? 'Expand outline entry' : 'Collapse outline entry') : undefined}
+          aria-label={hasChildren ? (isCollapsed ? 'Expand contents entry' : 'Collapse contents entry') : undefined}
           aria-hidden={hasChildren ? undefined : 'true'}
           role={hasChildren ? 'button' : undefined}
           tabIndex={hasChildren ? 0 : undefined}
@@ -898,18 +904,28 @@ export function OutlineDrawer({
   open,
   content,
   extraContent,
+  decoration,
+  heading = 'Contents',
+  showClose = true,
+  headerContent,
   onClose
 }: {
   open: boolean;
   content: ReactNode;
   extraContent?: ReactNode;
+  decoration?: ReactNode;
+  heading?: string;
+  showClose?: boolean;
+  headerContent?: ReactNode;
   onClose: () => void;
 }) {
   return (
-    <aside className={`outline-drawer ${open ? 'is-open' : ''}`} aria-hidden={!open}>
+    <aside className={`outline-drawer ${open ? 'is-open' : ''} ${headerContent ? 'has-header-note' : ''}`} aria-hidden={!open}>
+      {decoration}
+      {headerContent}
       <header className="outline-drawer-head">
-        <div className="panel-title"><PanelRight size={16} /> Outline</div>
-        <button className="mini-button" type="button" onClick={onClose} aria-label="Close outline">×</button>
+        <div className="panel-title"><PanelRight size={16} /> {heading}</div>
+        {showClose ? <button className="mini-button" type="button" onClick={onClose} aria-label="Close contents">×</button> : null}
       </header>
       <div className="outline-drawer-body">
         {extraContent}
@@ -1398,7 +1414,7 @@ export function NativeShell({
           className="right-panel-search-box"
         />
         <section className="panel-card">
-          <div className="panel-title"><PanelRight size={16} /> Outline</div>
+          <div className="panel-title"><PanelRight size={16} /> Contents</div>
           <NativeOutline entries={outlineEntries} onJump={onJumpToOutlineEntry} />
         </section>
       </aside>
@@ -1524,13 +1540,21 @@ export function TyporaShell({
   fishIconUrl
 }: BaseShellProps) {
   const isGardenTypora = shell === 'typora-garden';
+  const isPaperTypora = shell === 'typora-tilted' || shell === 'typora-collage';
+  const paper = usePaperShell(shell);
+  const showSidebarSearch = shell === 'typora-tilted' || shell === 'typora-base';
   const shellRef = useBlockFoldAlignment(shell, contentTheme);
 
   return (
-    <div ref={shellRef} className={`typora-app-shell typora-theme ${outlineOpen ? 'outline-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
+    <div ref={shellRef} style={isPaperTypora ? paper.style : undefined} className={`typora-app-shell typora-theme ${isPaperTypora ? 'paper-shell' : ''} ${outlineOpen ? 'outline-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
+      {isPaperTypora ? <PaperBackdrop collage={shell === 'typora-collage'} custom={Boolean(paper.settings.image.trim())} /> : null}
       <aside id="typora-sidebar" className="typora-sidebar active-tab-files">
+        {shell === 'typora-collage' ? <PaperBrand /> : null}
+        <div className="typora-sidebar-tools">
+        {shell === 'typora-collage' ? typoraOutlineSearch(query, onQueryChange, searchResults, searchLoading, onSearchResultSelect) : null}
         <div className="sidebar-tabs" role="tablist" aria-label="Sidebar view">
           {isGardenTypora ? <GardenSidebarNote value={gardenSidebarNote} onChange={onGardenSidebarNoteChange} /> : null}
+          {shell === 'typora-tilted' ? <PaperSidebarNote value={paper.settings.rightText} onChange={rightText => paper.update({ rightText })} /> : null}
           <button
             className={`sidebar-tab ${sidebarView === 'files' ? 'active sidebar-tab-active' : ''}`}
             type="button"
@@ -1540,7 +1564,7 @@ export function TyporaShell({
             aria-label="Files"
             onClick={() => onSidebarViewChange('files')}
           >
-            {isGardenTypora ? <ListTree size={14} aria-hidden="true" /> : 'Files'}
+            {isGardenTypora || isPaperTypora ? <ListTree size={14} aria-hidden="true" /> : 'Files'}
           </button>
           <button
             className={`sidebar-tab ${sidebarView === 'thumbnails' ? 'active sidebar-tab-active' : ''}`}
@@ -1551,7 +1575,7 @@ export function TyporaShell({
             aria-label="Thumbnails"
             onClick={() => onSidebarViewChange('thumbnails')}
           >
-            {isGardenTypora ? <Grid3X3 size={14} aria-hidden="true" /> : 'Thumbnails'}
+            {isGardenTypora || isPaperTypora ? <Grid3X3 size={14} aria-hidden="true" /> : 'Thumbnails'}
           </button>
           <button
             className="sidebar-tab sidebar-add-notebook"
@@ -1563,9 +1587,11 @@ export function TyporaShell({
             <Plus size={14} aria-hidden="true" />
           </button>
         </div>
+        </div>
+        {isGardenTypora ? <div className="garden-sidebar-search">{typoraOutlineSearch(query, onQueryChange, searchResults, searchLoading, onSearchResultSelect)}</div> : null}
         <div id="sidebar-content" className="sidebar-content">
           <section className={`typora-sidebar-pane ${sidebarView === 'files' ? 'is-active' : ''}`}>
-            {isGardenTypora ? null : typoraOutlineSearch(query, onQueryChange, searchResults, searchLoading, onSearchResultSelect)}
+            {showSidebarSearch ? typoraOutlineSearch(query, onQueryChange, searchResults, searchLoading, onSearchResultSelect) : null}
             <NotebookList notebooks={notebooks} selectedNotebookId={selectedNotebookId} canDeleteNotebook={notebooks.length > 1} variant="typora" actions={notebookActions} pageTrees={pageTrees} onRootPageDrop={onRootPageDrop} />
 
             <SidebarPins pinnedBlocks={pinnedBlocks} onOpenPinnedWindow={onOpenPinnedWindow} onOpenPinnedPage={onOpenPinnedPage} onUnpinBlock={onUnpinBlock} />
@@ -1577,20 +1603,30 @@ export function TyporaShell({
             <PageThumbnails pages={pageThumbnails} hasMorePages={hasMorePageThumbnails} onSelectPage={onSelectPage} onLoadMore={onLoadMorePageThumbnails} />
           </section>
         </div>
+        {isPaperTypora ? (
+          <>
+            <PaperCard settings={paper.settings} />
+          </>
+        ) : null}
       </aside>
 
-      <main className="typora-workspace">
+      <div className="typora-workspace-frame"><main className="typora-workspace">
         {workspaceContent}
-      </main>
+      </main></div>
 
+      {shell === 'typora-tilted' && outlineOpen ? <div className="paper-desk-note"><p>{paper.settings.cardText}</p><span>— folia</span></div> : null}
+      {shell === 'typora-collage' && outlineOpen ? <><PaperCard settings={paper.settings} pinned /><p className="paper-collage-caption">{paper.settings.cardText}</p></> : null}
+      {shell === 'typora-collage' && paper.settings.leaves && outlineOpen ? <PaperLeaves /> : null}
       <OutlineDrawer
+        heading="Contents"
+        showClose={false}
+        decoration={shell === 'typora-collage' ? <><span className="paper-outline-scraps" aria-hidden="true"><i /><i /></span><PaperSprite name="tape" className="paper-real-tape" /></> : undefined}
         open={outlineOpen}
         content={<TyporaOutline entries={outlineEntries} onJump={onJumpToOutlineEntry} />}
-        extraContent={isGardenTypora ? typoraOutlineSearch(query, onQueryChange, searchResults, searchLoading, onSearchResultSelect) : undefined}
         onClose={controls.onOutlineToggle}
       />
 
-      <FishDesk fishIconUrl={fishIconUrl} controls={controls} />
+      <FishDesk fishIconUrl={fishIconUrl} controls={controls} appearance={isPaperTypora ? <PaperSettings settings={paper.settings} update={paper.update} /> : undefined} />
 
       <FloatingCardWindow block={openCardBlock} roundPinnedCards={roundPinnedCards} glowPinnedCards={glowPinnedCards} onClose={onCloseFloatingCard} />
     </div>

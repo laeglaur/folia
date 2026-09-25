@@ -164,7 +164,7 @@ checks.typoraNarrowViewportHidesRightPanelSecond = await page.evaluate(() => {
 });
 await page.setViewportSize({ width: 1440, height: 720 });
 await page.locator('.fish-desk-trigger').hover();
-await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Outline' }).click();
+await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Contents' }).click();
 await page.waitForTimeout(220);
 
 const composer = page.locator('.typora-write .composer');
@@ -604,7 +604,7 @@ checks.ravelEditorChromeKeepsPillIconsCentered = await page.evaluate(() => {
 });
 
 await page.locator('.fish-desk-trigger').hover();
-await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Outline' }).click();
+await page.locator('.fish-desk .view-toggle').filter({ hasText: 'Contents' }).click();
 checks.typoraOutlineDoesNotUseContentTocCard = await page.evaluate(() => {
   const drawer = document.querySelector('.outline-drawer.is-open');
   const outline = drawer?.querySelector('.outline-content.md-toc-content');

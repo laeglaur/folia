@@ -783,10 +783,11 @@
 
 .typora-app-shell[data-shell="typora-garden"] .outline-drawer {
   position: sticky;
-  top: var(--layout-sidebar-top, 18px);
+  top: 24vh;
+  margin-top: calc(24vh - 22px);
   align-self: start;
   height: auto;
-  max-height: calc(100vh - var(--layout-sidebar-max-offset, 36px));
+  max-height: 65vh;
   border: var(--typora-garden-card-border);
   border-radius: var(--typora-garden-card-radius);
   background: var(--typora-garden-card-bg);
@@ -794,10 +795,13 @@
   backdrop-filter: var(--panel-backdrop-filter, blur(18px));
 }
 
+.typora-app-shell[data-shell="typora-garden"] .outline-drawer-head { padding: 10px 16px 2px; min-height: 39px; }
+.typora-app-shell[data-shell="typora-garden"] .outline-drawer-head .panel-title { min-height: 26px; line-height: 26px; letter-spacing: .045em; }
+
 .typora-app-shell[data-shell="typora-garden"] .outline-drawer-body {
   display: grid;
   gap: 10px;
-  max-height: min(58vh, 620px);
+  max-height: min(52vh, 560px);
 }
 
 .typora-app-shell[data-shell="typora-garden"] .typora-outline-search {
@@ -860,5 +864,255 @@
   .typora-app-shell .page-surface,
   .typora-app-shell .import-notice {
     width: 100%;
+  }
+}
+
+/* Paper shells share the existing editor chrome; only sheets and navigation change. */
+.typora-workspace-frame { min-width: 0; }
+.typora-app-shell.paper-shell {
+  --typora-shell-sidebar-width: clamp(208px, 20vw, 306px);
+  --typora-shell-outline-width: clamp(180px, 17vw, 264px);
+  --typora-shell-divider: color-mix(in srgb, var(--typora-shell-ink) 9%, transparent);
+  --paper-sheet-shadow: 0 16px 32px rgb(57 47 31 / var(--paper-shadow-alpha)), 0 1px 3px #51472d0d;
+  --paper-edge: url('/app-assets/paper/torn-edge.svg');
+  --paper-raster: url('/app-assets/paper/rough-paper.png');
+  position: relative;
+  isolation: isolate;
+  column-gap: clamp(24px, 3.2vw, 50px);
+  padding: 48px clamp(24px, 3vw, 48px) 28px;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--paper-desk);
+}
+.paper-shell::before {
+  content: ''; position: absolute; inset: 0; z-index: -2; pointer-events: none;
+  background: var(--paper-image) center / cover no-repeat;
+  opacity: var(--paper-image-opacity);
+}
+.paper-sprite { display: block; position: relative; overflow: hidden; pointer-events: none; }
+.paper-sprite > svg { display: block; width: 100%; height: 100%; overflow: hidden; }
+.paper-shell .paper-scenery { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; z-index: -3; opacity: var(--paper-image-opacity); pointer-events: none; }
+.paper-shell .paper-fabric { position: absolute; inset: 0; z-index: -3; opacity: calc(var(--paper-image-opacity) * .55); pointer-events: none; }
+.paper-shell #typora-sidebar,
+.paper-shell .typora-workspace-frame,
+.paper-shell .outline-drawer {
+  position: relative; top: auto; isolation: isolate; grid-row: 1;
+  background: transparent; border: 0; box-shadow: none; overflow: visible;
+}
+.paper-shell #typora-sidebar { grid-column: 1; height: calc(100dvh - 76px); padding: 12px; }
+.paper-shell .typora-workspace-frame { grid-column: 2; margin-top: 24px; height: calc(100dvh - 72px); }
+.paper-shell .outline-drawer { grid-column: 3; margin-top: 28vh; height: clamp(220px, 32vh, 340px); width: 100%; }
+.paper-shell #typora-sidebar::before,
+.paper-shell .typora-workspace-frame::before,
+.paper-shell .outline-drawer::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  border-radius: 20px; background: var(--paper-color); box-shadow: var(--paper-sheet-shadow);
+}
+.paper-shell[data-shell="typora-tilted"] #typora-sidebar::before { transform: skewY(var(--paper-left-angle)); }
+.paper-shell[data-shell="typora-tilted"] .typora-workspace-frame::before { transform: skewY(var(--paper-page-angle)); border-radius: 24px 24px 0 0; bottom: -100px; }
+.paper-shell[data-shell="typora-tilted"] .outline-drawer::before { transform: skewY(var(--paper-right-angle)); border-radius: 16px; }
+.paper-shell .typora-workspace { height: 100%; padding: 32px clamp(22px, 3vw, 48px) 80px; border-radius: 20px; }
+.paper-shell .page-surface { margin-bottom: 0; }
+.paper-shell .outline-drawer-body { overflow: auto; min-height: 0; }
+.paper-shell .outline-drawer-head { border-bottom: 0; padding: 18px 16px 10px; }
+.paper-shell .outline-drawer .outline-content { font-size: 13px; }
+.paper-shell .sidebar-tabs { display: flex; gap: 6px; padding: 2px 2px 10px; border: 0; background: transparent; }
+.paper-shell .sidebar-tab { width: 32px; height: 30px; border-radius: 7px; display: grid; place-items: center; }
+.paper-shell .sidebar-add-notebook { margin-left: auto; }
+.paper-shell #sidebar-content { padding: 10px 2px; background: transparent; }
+.paper-shell :is(.file-node-content, .notebook-button, .page-button, .outline-item) { border-radius: 7px; }
+.paper-shell #typora-sidebar :is(.file-node-content, .notebook-button, .page-button) { min-height: 32px; }
+.typora-app-shell.paper-shell #typora-sidebar .sidebar-pin-card { box-shadow: none; border-color: transparent; background: transparent; padding: 6px 8px; }
+.paper-shell[data-shell="typora-tilted"] .notebook-node[data-generic-name="true"] .notebook-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.paper-sidebar-footer { display: flex; min-height: 106px; flex-shrink: 0; overflow: hidden; border-radius: 9px; background: color-mix(in srgb, var(--paper-color) 88%, #8a8f76); color: var(--typora-shell-muted); }
+.paper-card-image { position: relative; overflow: hidden; flex: 0 0 45%; background-size: cover; background-position: center; }
+.paper-card-image > .paper-sprite { position: absolute; inset: 0; filter: saturate(.55) sepia(.14); }
+.paper-sidebar-footer p { margin: auto; padding: 12px; font: 15px/1.5 Georgia, serif; white-space: pre-wrap; overflow-wrap: anywhere; }
+.paper-footer-leaf { display: none; }
+.paper-settings { margin: 4px 2px; font-size: 11px; color: var(--typora-shell-muted); background: transparent; }
+.paper-settings summary { cursor: pointer; padding: 6px; opacity: .55; }
+.paper-settings summary:hover, .paper-settings[open] summary { opacity: 1; }
+.paper-settings[open] { overflow: auto; min-height: 130px; max-height: 45vh; }
+.paper-settings-fields { display: grid; gap: 10px; padding: 8px; }
+.paper-settings-fields label { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 5px; }
+.paper-settings-fields input:not([type="color"]):not([type="checkbox"]) { width: 100%; min-width: 0; }
+.paper-settings-fields input { color: inherit; background: transparent; border: 1px solid #8884; border-radius: 4px; padding: 4px; }
+.paper-desk-note { position: absolute; right: clamp(24px, 3vw, 48px); width: var(--typora-shell-outline-width); top: calc(48px + 28vh + clamp(220px, 32vh, 340px) + 38px); padding: 0 24px; color: var(--typora-shell-muted); font: 16px/1.9 Georgia, serif; letter-spacing: .14em; }
+.paper-desk-note p { margin: 0 0 18px; white-space: pre-wrap; }
+.paper-desk-note span { font-size: 20px; letter-spacing: .02em; }
+.paper-shell.sidebar-collapsed { column-gap: 16px; }
+
+/* target/1: almost full-height navigation, smooth main sheet, small photo behind contents. */
+.typora-app-shell.paper-shell[data-shell="typora-collage"] {
+  --typora-shell-sidebar-width: clamp(204px, 20vw, 310px);
+  --typora-shell-outline-width: clamp(184px, 18vw, 280px);
+  --paper-tint: color-mix(in srgb, var(--paper-color) 92%, transparent);
+  --contents-edge: url('/app-assets/paper/contents-torn-edge.svg');
+  --contents-color: color-mix(in srgb, var(--paper-color) 82%, #ad9065);
+  gap: 0; padding: 8px 10px 8px 0;
+}
+.paper-shell[data-shell="typora-collage"] #typora-sidebar { z-index: 3; height: calc(100dvh - 16px); padding: 22px 16px 14px; }
+.paper-shell[data-shell="typora-collage"] #typora-sidebar::before { border-radius: 0 25px 25px 0; box-shadow: 10px 4px 24px rgb(57 47 31 / calc(var(--paper-shadow-alpha) * .6)); }
+.paper-brand { display: flex; align-items: center; gap: 14px; height: clamp(76px, 12vh, 125px); padding: 4px 10px 16px; flex-shrink: 0; }
+.paper-brand > .paper-sprite { width: 35px; height: 60px; transform: rotate(18deg); }
+.paper-brand > span:last-child { font: 600 30px/1 Georgia, serif; color: var(--typora-shell-ink); }
+.paper-shell[data-shell="typora-collage"] .sidebar-tabs { justify-content: flex-end; padding-bottom: 4px; }
+.paper-shell[data-shell="typora-collage"] .sidebar-add-notebook { margin-left: 0; }
+.paper-shell[data-shell="typora-collage"] .typora-workspace-frame { margin: 26px -26px 0 -26px; height: calc(100dvh - 34px); z-index: 1; }
+.paper-shell[data-shell="typora-collage"] .typora-workspace { padding: 44px clamp(36px, 4vw, 64px) 80px clamp(48px, 5vw, 80px); }
+.paper-shell[data-shell="typora-collage"] .typora-workspace-frame::before {
+  border-radius: 36px 36px 8px 8px;
+  background-color: var(--paper-color);
+  background-image: linear-gradient(var(--paper-tint), var(--paper-tint)), var(--paper-raster);
+  mask: var(--paper-edge) center / 100% 100% no-repeat;
+  background-size: 100% 100%, 125% 125%; background-position: center; background-repeat: no-repeat;
+  transform: rotate(calc(var(--paper-page-angle) - 1.5deg));
+  box-shadow: 0 3px 14px #57452912;
+}
+.paper-shell[data-shell="typora-collage"] .typora-workspace-frame::after {
+  content: ''; position: absolute; inset: -4px 8px 0 -4px; z-index: -2; border-radius: 34px;
+  background: color-mix(in srgb, var(--paper-color) 96%, #af9c7e); transform: rotate(-.25deg); pointer-events: none;
+}
+.paper-shell[data-shell="typora-collage"] .outline-drawer {
+  z-index: 4; margin: 26vh 0 0 -12px; width: calc(100% + 12px);
+  height: calc(74dvh - 16px); padding: 24px 10px 0;
+  filter: drop-shadow(-3px 3px 3px #4b3d2914);
+}
+.paper-shell[data-shell="typora-collage"] .outline-drawer::before {
+  border-radius: 8px 12px 4px 4px;
+  transform: rotate(calc(var(--paper-right-angle) + 2deg));
+  background-color: var(--contents-color);
+  background-image: linear-gradient(color-mix(in srgb, var(--contents-color) 90%, transparent), color-mix(in srgb, var(--contents-color) 90%, transparent)), var(--paper-raster);
+  background-size: 100% 100%, 109% 104%; background-position: center; background-repeat: no-repeat;
+  mask: var(--contents-edge) center / 100% 100% no-repeat;
+  box-shadow: none;
+}
+.paper-shell[data-shell="typora-collage"] .outline-drawer-head { padding: 26px 20px 16px; }
+.paper-shell[data-shell="typora-collage"] .outline-drawer-head .panel-title { font: 19px/1.3 Georgia, serif; }
+.paper-shell[data-shell="typora-collage"] .outline-drawer-head .panel-title svg { display: none; }
+.paper-shell[data-shell="typora-collage"] .outline-drawer-body { padding: 4px 18px; max-height: max(100px, calc(45vh - 100px)); align-self: start; }
+.paper-outline-scraps { position: absolute; inset: 0; z-index: -2; pointer-events: none; }
+.paper-outline-scraps i { position: absolute; inset: 7px -3px 5px -3px; transform: rotate(.8deg); background: color-mix(in srgb, var(--paper-color) 88%, #b49b72); mask: var(--contents-edge) center / 100% 100% no-repeat; }
+.paper-outline-scraps i + i { inset: 10px 1px -2px 5px; transform: rotate(-1deg); background: color-mix(in srgb, var(--paper-color) 94%, #ac9a7c); }
+.paper-pinned-card { position: absolute; right: -66px; top: 5vh; width: calc(var(--typora-shell-outline-width) - 26px); height: 24vh; min-height: 150px; padding: 13px 13px 22px; background: var(--paper-color); box-shadow: -5px 5px 12px #493f341c; transform: rotate(2deg); z-index: 2; display: flex; flex-direction: column; }
+.paper-pinned-card .paper-card-image { flex: 1; min-height: 0; }
+.paper-collage-caption { position: absolute; right: 24px; bottom: 27px; width: calc(var(--typora-shell-outline-width) - 40px); margin: 0; z-index: 5; color: var(--typora-shell-muted); font: italic 13px/1.7 Georgia, serif; text-align: right; white-space: pre-wrap; pointer-events: none; }
+.paper-pinned-card .paper-photo-under-tape { position: absolute; top: 53%; left: -45px; width: 98px; height: 36px; z-index: -1; transform: rotate(82deg); filter: brightness(.7) saturate(.8) drop-shadow(1px 1px 1px #55473125); }
+.paper-pinned-card::after { content: ""; position: absolute; inset: 0; background: var(--paper-color); z-index: -1; pointer-events: none; }
+.paper-pinned-card .paper-real-clip { position: absolute; top: -24px; right: 94px; width: 24px; height: 69px; transform: rotate(9deg); z-index: 3; filter: drop-shadow(1px 2px 1px #30281930); }
+.paper-shell .paper-real-tape { position: absolute; top: 5px; left: 28px; width: 128px; height: 44px; transform: rotate(8deg); z-index: 2; filter: sepia(.22) saturate(1.15) brightness(1.08) drop-shadow(0 1px 1px #30281925); }
+.paper-shell .paper-leaves { position: absolute; right: 44px; bottom: 9vh; width: clamp(118px, 11vw, 170px); height: clamp(196px, 29vh, 300px); opacity: .87; transform: rotate(-8deg); z-index: 5; filter: drop-shadow(1px 2px 1px #30281912); }
+.paper-brand > .paper-sprite { clip-path: polygon(0 0, 50% 0, 70% 20%, 70% 32%, 92% 38%, 92% 75%, 100% 100%, 0 100%); }
+.paper-shell[data-shell="typora-collage"] .paper-sidebar-footer { position: relative; min-height: 102px; background: transparent; overflow: visible; border-radius: 0; }
+.paper-shell[data-shell="typora-collage"] .paper-sidebar-footer:not(.has-custom-image) > .paper-card-image { display: none; }
+.paper-shell[data-shell="typora-collage"] .paper-sidebar-footer p { margin: auto auto 0 4px; max-width: 65%; padding: 12px 0; font-style: italic; }
+.paper-shell[data-shell="typora-collage"] .paper-footer-leaf { display: block; position: absolute; right: 8px; bottom: 0; width: 37px; height: 88px; transform: rotate(24deg); opacity: .75; }
+.paper-shell.sidebar-collapsed[data-shell="typora-collage"] .typora-workspace-frame { margin-left: 8px; }
+.paper-shell[data-shell="typora-collage"]:not(.outline-open) .typora-workspace-frame { margin-right: 0; }
+.paper-shell[data-shell="typora-collage"] .paper-sidebar-footer.has-custom-image .paper-footer-leaf { display: none; }
+.paper-shell[data-shell="typora-collage"] .paper-sidebar-footer.has-custom-image p { padding-left: 10px; }
+
+@media (max-width: 1080px) {
+  .typora-app-shell.paper-shell { column-gap: 24px; }
+  .paper-shell .outline-drawer, .paper-pinned-card, .paper-shell .paper-leaves, .paper-desk-note, .paper-collage-caption { display: none; }
+  .paper-shell[data-shell="typora-collage"] .typora-workspace-frame { margin-right: 0; }
+  .paper-shell[data-shell="typora-collage"] .typora-workspace { padding-right: 36px; }
+}
+@media (max-width: 760px) {
+  .typora-app-shell.paper-shell, .typora-app-shell.paper-shell[data-shell="typora-collage"] { padding: 20px 14px; gap: 0; }
+  .paper-shell #typora-sidebar { display: none; }
+  .paper-shell .typora-workspace-frame, .paper-shell[data-shell="typora-collage"] .typora-workspace-frame { margin: 0; height: calc(100dvh - 40px); }
+  .paper-shell .typora-workspace, .paper-shell[data-shell="typora-collage"] .typora-workspace { height: 100%; overflow: auto; padding: 22px 18px 70px; }
+  .paper-shell[data-shell="typora-tilted"] .typora-workspace-frame::before { transform: none; }
+}
+
+/* Compact search and tools, with a real text field above the tilted contents. */
+.typora-sidebar-tools { display: contents; }
+.paper-shell[data-shell="typora-collage"] .typora-sidebar-tools { display: flex; align-items: center; gap: 5px; flex-shrink: 0; min-width: 0; }
+.paper-shell[data-shell="typora-collage"] .typora-sidebar-tools > .typora-outline-search { flex: 1; min-width: 0; margin: 0; }
+.paper-shell[data-shell="typora-collage"] .typora-sidebar-tools .sidebar-tabs { padding: 0; gap: 1px; flex-shrink: 0; }
+.paper-shell[data-shell="typora-collage"] .typora-sidebar-tools .sidebar-tab { width: 25px; height: 30px; }
+.paper-shell[data-shell="typora-collage"] .typora-sidebar-tools input { min-width: 0; width: 100%; }
+.paper-shell[data-shell="typora-collage"] .typora-search-box { gap: 4px; padding: 5px; }
+.paper-shell .outline-drawer.has-header-note { grid-template-rows: auto auto minmax(0, 1fr); }
+.paper-sidebar-note { display: block; flex: 1 1 0; min-width: 0; width: 0; height: 30px; margin: 0; padding: 5px 4px; resize: none; overflow: hidden; border: 0; border-radius: 4px; background: transparent; color: var(--typora-shell-muted); font: italic 13px/20px Georgia, serif; }
+.paper-sidebar-note::placeholder { opacity: .45; }
+.paper-sidebar-note:focus { outline: 1px solid var(--typora-shell-divider); }
+.paper-shell[data-shell="typora-tilted"] .sidebar-tabs { align-items: center; gap: 3px; }
+.paper-shell[data-shell="typora-tilted"] .sidebar-tab { flex-shrink: 0; width: 27px; }
+.paper-shell[data-shell="typora-tilted"] .sidebar-add-notebook { margin-left: 0; }
+.paper-shell[data-shell="typora-tilted"] .outline-drawer-head { padding-top: 30px; }
+.paper-shell .paper-photo-tape { position: absolute; bottom: -18px; left: -60px; width: 124px; height: 42px; transform: rotate(-8deg); z-index: 2; }
+@media (max-width: 760px) { .paper-shell[data-shell="typora-tilted"] .typora-workspace-frame::before { bottom: -100px; } }
+
+/* Garden toolbar treatment shared by the two paper shells. */
+.typora-app-shell.paper-shell .sidebar-tab {
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: color-mix(in srgb, var(--typora-shell-ink) 54%, transparent);
+}
+
+.typora-app-shell.paper-shell .sidebar-tab:hover {
+  border-color: color-mix(in srgb, var(--typora-shell-divider) 48%, transparent);
+  background: color-mix(in srgb, var(--typora-shell-ink) 6%, transparent);
+  color: var(--typora-shell-ink);
+}
+
+.typora-app-shell.paper-shell .sidebar-tab.active,
+.typora-app-shell.paper-shell .sidebar-tab-active {
+  border-color: color-mix(in srgb, var(--typora-base-tab-accent, var(--typora-shell-ink)) 46%, transparent);
+  background: color-mix(in srgb, var(--typora-shell-panel) 82%, var(--typora-base-tab-accent, var(--typora-shell-ink)) 18%);
+  color: var(--typora-shell-ink);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--typora-base-tab-accent, var(--typora-shell-ink)) 12%, transparent);
+}
+
+.typora-app-shell.paper-shell .sidebar-tab svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
+}
+
+
+.typora-app-shell.paper-shell .sidebar-tabs { gap: 4px; align-items: center; }
+.typora-app-shell.paper-shell .sidebar-tab::after { display: none; }
+.typora-app-shell.paper-shell .fish-desk-panel { max-height: calc(100dvh - 90px); overflow-y: auto; }
+.typora-app-shell.paper-shell .fish-desk-panel .paper-settings { margin: 12px 0 0; border-top: 1px solid var(--typora-shell-divider); padding-top: 8px; }
+.typora-app-shell.paper-shell .fish-desk-panel .paper-settings[open] { max-height: none; overflow: visible; }
+.typora-app-shell.paper-shell .fish-desk-panel .paper-settings summary { font-size: 13px; opacity: 1; }
+
+.garden-sidebar-search { padding: 8px 12px 0; flex-shrink: 0; }
+
+/* Keep scroll viewports inside the irregular sheets; decorations remain outside. */
+.typora-app-shell.paper-shell .typora-workspace {
+  width: calc(100% - 32px);
+  height: calc(100% - 32px);
+  margin: 32px 18px 0 14px;
+  padding-top: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border-radius: 8px 8px 0 0;
+}
+.typora-app-shell.paper-shell .outline-drawer-body {
+  min-width: 0;
+  margin: 0 12px 28px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.typora-app-shell.paper-shell[data-shell="typora-collage"] .typora-workspace { padding-top: 12px; }
+.typora-app-shell.paper-shell[data-shell="typora-collage"] .outline-drawer-body { padding-left: 6px; padding-right: 6px; }
+@media (max-width: 760px) {
+  .typora-app-shell.paper-shell .typora-workspace {
+    margin: 18px 12px 0;
+    width: calc(100% - 24px);
+    height: calc(100% - 18px);
+    padding: 4px 10px 70px;
   }
 }
