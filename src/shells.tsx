@@ -26,7 +26,7 @@ import { emojiAssetFor } from './emoji-assets';
 import { renderAnnotatedImagesInHtml } from './image-annotations';
 import { contentThemes } from './typora-theme-registry';
 
-import { usePaperShell, PaperSettings, PaperCard, PaperLeaves, PaperSprite, PaperBackdrop, PaperBrand, PaperSidebarNote } from './paper-shell';
+import { usePaperShell, GardenAppearance, PaperSettings, PaperCard, PaperLeaves, PaperSprite, PaperBackdrop, PaperBrand, PaperSidebarNote } from './paper-shell';
 
 const appLogoUrl = '/app-assets/notebook-logo.jpg';
 
@@ -1379,8 +1379,9 @@ export function NativeShell({
   onJumpToOutlineEntry,
   fishIconUrl
 }: BaseShellProps) {
+  const gardenAppearance = usePaperShell(shell);
   return (
-    <div className={`app-shell typora-theme ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${outlineOpen ? 'outline-open' : 'outline-collapsed'}`} data-content-theme={contentTheme} data-shell={shell}>
+    <div style={gardenAppearance.gardenStyle} className={`app-shell garden-background typora-theme ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${outlineOpen ? 'outline-open' : 'outline-collapsed'}`} data-content-theme={contentTheme} data-shell={shell}>
       <aside className="sidebar">
         <NativeBrandBlock brand={nativeBrand} sidebarView={sidebarView} onSidebarViewChange={onSidebarViewChange} onAddNotebook={notebookActions.addNotebook} onChange={onNativeBrandChange} />
 
@@ -1419,7 +1420,7 @@ export function NativeShell({
         </section>
       </aside>
 
-      <FishDesk fishIconUrl={fishIconUrl} controls={controls} />
+      <FishDesk fishIconUrl={fishIconUrl} controls={controls} appearance={<GardenAppearance settings={gardenAppearance.settings} update={gardenAppearance.update} />} />
 
       <FloatingCardWindow block={openCardBlock} roundPinnedCards={roundPinnedCards} glowPinnedCards={glowPinnedCards} onClose={onCloseFloatingCard} />
     </div>
@@ -1546,7 +1547,7 @@ export function TyporaShell({
   const shellRef = useBlockFoldAlignment(shell, contentTheme);
 
   return (
-    <div ref={shellRef} style={isPaperTypora ? paper.style : undefined} className={`typora-app-shell typora-theme ${isPaperTypora ? 'paper-shell' : ''} ${outlineOpen ? 'outline-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
+    <div ref={shellRef} style={isPaperTypora ? paper.style : isGardenTypora ? paper.gardenStyle : undefined} className={`typora-app-shell typora-theme ${isPaperTypora ? 'paper-shell' : isGardenTypora ? 'garden-background' : ''} ${outlineOpen ? 'outline-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
       {isPaperTypora ? <PaperBackdrop collage={shell === 'typora-collage'} custom={Boolean(paper.settings.image.trim())} /> : null}
       <aside id="typora-sidebar" className="typora-sidebar active-tab-files">
         {shell === 'typora-collage' ? <PaperBrand /> : null}
@@ -1620,13 +1621,13 @@ export function TyporaShell({
       <OutlineDrawer
         heading="Contents"
         showClose={false}
-        decoration={shell === 'typora-collage' ? <><span className="paper-outline-scraps" aria-hidden="true"><i /><i /></span><PaperSprite name="tape" className="paper-real-tape" /></> : undefined}
+        decoration={shell === 'typora-collage' ? <><span className="paper-outline-scraps" aria-hidden="true"><i /><i /></span><img src="/app-assets/paper/thing1.png" className="paper-real-tape" alt="" aria-hidden="true" /></> : undefined}
         open={outlineOpen}
         content={<TyporaOutline entries={outlineEntries} onJump={onJumpToOutlineEntry} />}
         onClose={controls.onOutlineToggle}
       />
 
-      <FishDesk fishIconUrl={fishIconUrl} controls={controls} appearance={isPaperTypora ? <PaperSettings settings={paper.settings} update={paper.update} /> : undefined} />
+      <FishDesk fishIconUrl={fishIconUrl} controls={controls} appearance={isPaperTypora ? <PaperSettings settings={paper.settings} update={paper.update} /> : isGardenTypora ? <GardenAppearance settings={paper.settings} update={paper.update} /> : undefined} />
 
       <FloatingCardWindow block={openCardBlock} roundPinnedCards={roundPinnedCards} glowPinnedCards={glowPinnedCards} onClose={onCloseFloatingCard} />
     </div>

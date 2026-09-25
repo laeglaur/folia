@@ -1,7 +1,8 @@
-import { useId, useState, type CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 
+const decorationLayout = { leafX: -48, leafY: 93, leafSize: 50, leafRotation: -8, captionX: -35, captionY: 39, captionWidth: 48, captionSize: 13 };
 const defaults = {
-  background: '#e5e3da', image: '', opacity: 0.65, paper: '#faf7ef', autoPaper: true,
+  customDesk: false, background: '#e5e3da', image: '', opacity: 0.65, paper: '#faf7ef', autoPaper: true,
   footerImage: '', footerText: 'Little by little, a lot.', cardImage: '', cardText: '把想法，停在更安静的地方。',
   rightText: '', leaves: true, shadow: 0.18, leftAngle: 0.6, pageAngle: 1.5, rightAngle: -3
 };
@@ -17,11 +18,11 @@ function load(shell: string): Settings {
 const backgroundImage = (url: string) => url.trim() ? `url(${JSON.stringify(url.trim())})` : 'none';
 export function usePaperShell(shell: string) {
   const [all, setAll] = useState<Record<string, Settings>>(() => ({
-    'typora-tilted': load('typora-tilted'), 'typora-collage': load('typora-collage')
+    'native-garden': load('native-garden'), 'typora-garden': load('typora-garden'), 'typora-tilted': load('typora-tilted'), 'typora-collage': load('typora-collage')
   }));
-  const settings = all[shell] || defaults;
+  const settings = { ...defaults, ...all[shell] };
   const update = (patch: Partial<Settings>) => setAll(current => {
-    const next = { ...(current[shell] || defaults), ...patch };
+    const next = { ...defaults, ...current[shell], ...patch };
     localStorage.setItem(`folia.paperShell.${shell}`, JSON.stringify(next));
     return { ...current, [shell]: next };
   });
@@ -30,9 +31,15 @@ export function usePaperShell(shell: string) {
     '--paper-image-opacity': settings.opacity,
     '--paper-color': settings.autoPaper ? 'color-mix(in srgb, var(--typora-shell-panel) 94%, var(--typora-shell-bg) 6%)' : settings.paper,
     '--paper-shadow-alpha': settings.shadow, '--paper-left-angle': `${settings.leftAngle}deg`,
+    '--leaf-x': `${decorationLayout.leafX}px`, '--leaf-y': `${decorationLayout.leafY}px`, '--leaf-scale': decorationLayout.leafSize / 100, '--leaf-rotation': `${decorationLayout.leafRotation}deg`,
+    '--caption-x': `${decorationLayout.captionX}px`, '--caption-y': `${decorationLayout.captionY}px`, '--caption-width': decorationLayout.captionWidth / 100, '--caption-size': `${decorationLayout.captionSize}px`,
     '--paper-page-angle': `${settings.pageAngle}deg`, '--paper-right-angle': `${settings.rightAngle}deg`
   } as CSSProperties;
-  return { settings, update, style };
+  const gardenStyle = {
+    '--garden-desk-color': settings.customDesk ? settings.background : 'transparent',
+    '--garden-desk-image': backgroundImage(settings.image), '--garden-desk-opacity': settings.opacity
+  } as CSSProperties;
+  return { settings, update, style, gardenStyle };
 }
 export function PaperSettings({ settings, update }: { settings: Settings; update: (patch: Partial<Settings>) => void }) {
   return <details className="paper-settings"><summary>纸张外观</summary><div className="paper-settings-fields">
@@ -47,8 +54,20 @@ export function PaperSettings({ settings, update }: { settings: Settings; update
     <button type="button" onClick={() => update(defaults)}>恢复默认</button>
   </div></details>;
 }
+export function GardenAppearance({ settings, update }: { settings: Settings; update: (patch: Partial<Settings>) => void }) {
+  return <details className="paper-settings"><summary>背景外观</summary><div className="paper-settings-fields">
+    <label>自定义背景颜色<input type="checkbox" checked={settings.customDesk} onChange={e => update({ customDesk: e.target.checked })} /></label>
+    <label>背景颜色<input type="color" value={settings.background} onChange={e => update({ background: e.target.value, customDesk: true })} /></label>
+    <label>背景图片<input value={settings.image} placeholder="图片 URL / 应用资源路径" onChange={e => update({ image: e.target.value })} /></label>
+    <label>背景图片透明度<input type="range" min="0" max="1" step="0.05" value={settings.opacity} onChange={e => update({ opacity: Number(e.target.value) })} /></label>
+    <button type="button" onClick={() => update({ customDesk: false, image: '', opacity: defaults.opacity })}>恢复默认背景</button>
+  </div></details>;
+}
 // Sprite windows preserve the supplied pixels and alpha without resampling the source.
 const spriteRegions = {
+  newSprig: [200, 0, 345, 590],
+  newFlowers: [410, 432, 310, 590],
+  newBranch: [823, 42, 660, 943],
   linen: [32, 26, 492, 469],
   landscape: [37, 795, 397, 186],
   lake: [750, 781, 174, 201],
@@ -63,26 +82,21 @@ const spriteRegions = {
 export function PaperSprite({ name, className = '' }: { name: keyof typeof spriteRegions; className?: string }) {
   const [x, y, width, height] = spriteRegions[name];
   return <span aria-hidden="true" className={`paper-sprite ${className}`}>
-    <svg viewBox={`${x} ${y} ${width} ${height}`} preserveAspectRatio={['leaves', 'branch', 'broadLeaf'].includes(name) ? 'none' : 'xMidYMid slice'} focusable="false">
-      <image href={name === 'branch' ? '/app-assets/paper/material-sheet-2.png' : '/app-assets/paper/material-sheet.png'} width="1536" height="1024" />
+    <svg viewBox={`${x} ${y} ${width} ${height}`} preserveAspectRatio={name.startsWith('new') ? 'xMidYMid meet' : ['leaves', 'branch', 'broadLeaf'].includes(name) ? 'none' : 'xMidYMid slice'} focusable="false">
+      <image href={name.startsWith('new') ? '/app-assets/paper/flower.png' : name === 'branch' ? '/app-assets/paper/material-sheet-2.png' : '/app-assets/paper/material-sheet.png'} width="1536" height="1024" />
     </svg>
   </span>;
 }
 export function PaperBackdrop({ collage, custom }: { collage: boolean; custom: boolean }) {
-  const patternId = useId();
   if (custom) return null;
   if (!collage) return <img className="paper-scenery" src="/app-assets/paper/background2.png" alt="" aria-hidden="true" />;
   return <svg className="paper-fabric" aria-hidden="true" width="100%" height="100%">
-    <defs><pattern id={patternId} width="246" height="234.5" patternUnits="userSpaceOnUse">
-      <svg width="246" height="234.5" viewBox="32 26 492 469" overflow="hidden">
-        <image href="/app-assets/paper/material-sheet.png" width="1536" height="1024" />
-      </svg>
-    </pattern></defs>
-    <rect width="100%" height="100%" fill={`url(#${patternId})`} />
+    <defs><pattern id="paper-linen-tile" width="460" height="460" patternUnits="userSpaceOnUse"><svg width="460" height="460" viewBox="12 12 586 586" overflow="hidden"><image href="/app-assets/paper/bg.png" width="610" height="610" /></svg></pattern></defs>
+    <rect width="100%" height="100%" fill="url(#paper-linen-tile)" />
   </svg>;
 }
 export function PaperBrand() {
-  return <div className="paper-brand"><PaperSprite name="leaves" /><span>folia</span></div>;
+  return <div className="paper-brand"><PaperSprite name="newSprig" /><span>folia</span></div>;
 }
 export function PaperCard({ settings, pinned = false }: { settings: Settings; pinned?: boolean }) {
   const customImage = (pinned ? settings.cardImage : settings.footerImage).trim();
@@ -91,11 +105,11 @@ export function PaperCard({ settings, pinned = false }: { settings: Settings; pi
       {!customImage ? <PaperSprite name={pinned ? 'mountains' : 'landscape'} /> : null}
     </div>
     {!pinned ? <p>{settings.footerText}</p> : null}
-    {pinned ? <><PaperSprite name="brownTape" className="paper-photo-under-tape" /><PaperSprite name="clip" className="paper-real-clip" /></> : settings.leaves ? <PaperSprite name="broadLeaf" className="paper-footer-leaf" /> : null}
+    {pinned ? <><PaperSprite name="brownTape" className="paper-photo-under-tape" /><PaperSprite name="clip" className="paper-real-clip" /></> : settings.leaves ? <PaperSprite name="newFlowers" className="paper-footer-leaf" /> : null}
   </div>;
 }
 export function PaperLeaves() {
-  return <PaperSprite name="branch" className="paper-leaves" />;
+  return <PaperSprite name="newBranch" className="paper-leaves" />;
 }
 
 export function PaperSidebarNote({ value, onChange }: { value: string; onChange: (value: string) => void }) {
