@@ -1153,11 +1153,13 @@
   background: transparent; box-shadow: none; color: var(--desk-muted); font: inherit;
 }
 .fish-desk .typora-tool-controls :is(.theme-select, .secondary-button),
+.fish-desk .desk-guide .secondary-button,
 .fish-desk .paper-settings-fields :is(input:not([type="checkbox"]):not([type="range"]), button),
 .fish-desk .fish-trash-item {
   min-height: 32px; border: 1px solid var(--desk-line); border-radius: 6px;
   padding: 6px 8px; background: transparent; color: var(--desk-ink); box-shadow: none; font-size: 12px;
 }
+.fish-desk .desk-guide .secondary-button,
 .fish-desk .typora-tool-controls .secondary-button { justify-content: flex-start; gap: 8px; font-weight: 400; }
 .fish-desk .desk-file-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .fish-desk .desk-file-actions .desk-section-title { grid-column: 1 / -1; }
@@ -1170,4 +1172,16 @@
 .fish-desk .paper-settings-fields { padding: 12px 0 0; gap: 12px; }
 .fish-desk .paper-settings[open] { max-height: none; overflow: visible; }
 .fish-desk :is(button, select, input):focus-visible { outline: 2px solid var(--desk-muted); outline-offset: 2px; }
+.fish-desk .desk-guide .secondary-button:hover,
 .fish-desk .typora-tool-controls .secondary-button:hover, .fish-desk .paper-settings-fields button:hover { background: color-mix(in srgb, var(--desk-ink) 6%, transparent); }
+
+.fish-desk .desk-guide > .secondary-button { width: 100%; }
+.fish-desk .desk-guide-dialog { border: 1px solid var(--desk-line); border-radius: 12px; color: var(--desk-ink); font-size: 13px; }
+.fish-desk .desk-guide-dialog header { padding: 14px 20px; border-color: var(--desk-line); }
+.fish-desk .desk-guide-dialog header strong { font-size: 13px; font-weight: 500; }
+.fish-desk .desk-guide-dialog article { padding: 8px 24px 24px; }
+.fish-desk .desk-guide-dialog h1 { font-size: 21px; font-weight: 500; }
+.fish-desk .desk-guide-dialog h2 { font-size: 15px; font-weight: 500; padding-top: 16px; border-top: 1px solid var(--desk-line); }
+.fish-desk .desk-guide-dialog :is(td, th) { border: 0; border-bottom: 1px solid var(--desk-line); padding: 8px; }
+.fish-desk .desk-guide-dialog th { color: var(--desk-muted); font-weight: 500; background: color-mix(in srgb, var(--desk-ink) 4%, transparent); }
+.fish-desk .desk-guide-dialog code { background: color-mix(in srgb, var(--desk-ink) 6%, transparent); border-radius: 4px; }

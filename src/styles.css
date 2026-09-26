@@ -3951,11 +3951,18 @@ body.notebook-table-column-resizing * {
 
 /* Shared help follows the desk palette in every shell, including dark themes. */
 .fish-desk-panel .desk-guide { display: block; }
-.desk-guide summary { cursor: pointer; font-size: 12px; font-weight: 600; line-height: 1.6; }
-.desk-guide summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 3px; }
-.desk-guide-intro { margin: 10px 0; font-size: 11px; line-height: 1.7; opacity: .8; }
-.desk-guide-chapter { padding: 8px 0; border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent); }
-.desk-guide dl { margin: 10px 0 0; font-size: 12px; line-height: 1.75; }
-.desk-guide dl > div + div { margin-top: 12px; }
-.desk-guide dt { font-weight: 600; }
-.desk-guide dd { margin: 3px 0 0; opacity: .85; overflow-wrap: anywhere; }
+.desk-guide-dialog {
+  visibility: visible; width: min(860px, calc(100vw - 40px));
+  max-height: calc(100vh - 64px); padding: 0; border: var(--overlay-border);
+  border-radius: 14px; background: var(--overlay-background); color: var(--overlay-ink);
+  box-shadow: var(--overlay-shadow); overflow: auto; font: 14px/1.8 system-ui, sans-serif;
+}
+.desk-guide-dialog::backdrop { background: #0006; }
+.desk-guide-dialog header { position: sticky; top: 0; display:flex; justify-content:space-between; align-items:center; padding:12px 24px; background:var(--overlay-background); border-bottom:1px solid color-mix(in srgb, currentColor 18%, transparent); }
+.desk-guide-dialog article { padding: 12px 28px 28px; }
+.desk-guide-dialog h1 { font-size:24px; }
+.desk-guide-dialog h2 { font-size:18px; margin-top:28px; }
+.desk-guide-dialog table { width:100%; border-collapse:collapse; font-size:13px; }
+.desk-guide-dialog th, .desk-guide-dialog td { padding:8px 10px; text-align:left; border:1px solid color-mix(in srgb, currentColor 18%, transparent); }
+.desk-guide-dialog code { font-size:.92em; background:color-mix(in srgb, currentColor 8%, transparent); padding:2px 4px; border-radius:4px; }
+.desk-guide-dialog li { margin:8px 0; }

@@ -726,6 +726,7 @@ export function App() {
   useEffect(() => {
     if (cardModeBlockId) return;
     const handlePageFindShortcut = (event: KeyboardEvent) => {
+      if ((event.target as HTMLElement)?.closest?.('.desk-guide-dialog')) return;
       const key = event.key.toLowerCase();
       const commandKey = event.metaKey || event.ctrlKey;
       if (commandKey && key === 'f') {
