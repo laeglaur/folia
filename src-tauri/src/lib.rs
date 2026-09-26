@@ -3655,6 +3655,41 @@ fn cleanup_orphan_attachments(
     cleanup_orphan_attachments_in_store(&connection, app_data_dir(&app)?, referenced_asset_ids)
 }
 
+#[derive(serde::Serialize)]
+struct TerminalClipboard { html: String, text: String }
+
+#[tauri::command]
+fn read_terminal_clipboard() -> Result<TerminalClipboard, String> {
+    #[cfg(target_os = "macos")]
+    {
+        use objc2_app_kit::{NSPasteboard, NSPasteboardTypeHTML, NSPasteboardTypeRTF, NSPasteboardTypeString};
+        use std::io::Write;
+        use std::process::{Command, Stdio};
+        let board = NSPasteboard::generalPasteboard();
+        let text = unsafe { board.stringForType(NSPasteboardTypeString) }.map(|s| s.to_string()).unwrap_or_default();
+        let html = unsafe { board.stringForType(NSPasteboardTypeHTML) }.map(|s| s.to_string()).unwrap_or_default();
+        if html.len() > 2_000_000 || text.len() > 2_000_000 { return Err("Clipboard is too large (2 MB limit)".into()); }
+        if !html.is_empty() { return Ok(TerminalClipboard { html, text }); }
+        if let Some(rtf) = unsafe { board.dataForType(NSPasteboardTypeRTF) } {
+            let bytes = unsafe { rtf.as_bytes_unchecked() };
+            if bytes.len() > 2_000_000 { return Err("Clipboard is too large (2 MB limit)".into()); }
+            let mut child = Command::new("/usr/bin/textutil").args(["-convert", "html", "-format", "rtf", "-stdin", "-stdout"])
+                .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| e.to_string())?;
+            let mut stdin = child.stdin.take().ok_or("No converter input")?;
+            let input = bytes.to_vec();
+            let writer = std::thread::spawn(move || stdin.write_all(&input));
+            let output = child.wait_with_output().map_err(|e| e.to_string())?;
+            writer.join().map_err(|_| "RTF writer failed")?.map_err(|e| e.to_string())?;
+            if !output.status.success() { return Err("Could not convert clipboard RTF".into()); }
+            let html = String::from_utf8(output.stdout).map_err(|e| e.to_string())?;
+            return Ok(TerminalClipboard { html, text });
+        }
+        Ok(TerminalClipboard { html, text })
+    }
+    #[cfg(not(target_os = "macos"))]
+    { Err("Original terminal paste is currently supported on macOS".into()) }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -3663,6 +3698,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_widgets::init())
         .invoke_handler(tauri::generate_handler![
+            read_terminal_clipboard,
             load_normalized_state,
             current_input_source,
             load_workspace_preferences,

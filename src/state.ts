@@ -1644,7 +1644,8 @@ export const htmlToMarkdown = (html: string) => {
     if (tag === 'code' && node.parentElement?.tagName.toLowerCase() !== 'pre') return `\`${node.textContent ?? ''}\``;
     if (tag === 'pre') {
       const codeText = node.querySelector('code')?.textContent ?? node.textContent ?? '';
-      return `\n\`\`\`${codeLanguageFor(node)}\n${codeText.replace(/\n$/, '')}\n\`\`\`\n`;
+      const fence = '`'.repeat(Math.max(3, ...Array.from(codeText.matchAll(/`+/g), match => match[0].length + 1)));
+      return `\n${fence}${codeLanguageFor(node)}\n${codeText.replace(/\n$/, '')}\n${fence}\n`;
     }
     if (/^h[1-6]$/.test(tag)) return `${'#'.repeat(Number(tag.slice(1)))} ${textForChildren(node, depth).trim()}\n\n`;
     if (tag === 'p') return `${textForChildren(node, depth).trim()}\n\n`;

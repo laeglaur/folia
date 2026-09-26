@@ -25,6 +25,7 @@ import { marked } from 'marked';
 import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import { htmlToMarkdown } from './state';
 import { escapeHtml } from './html-utils';
+import { TerminalSnippet, pasteOriginalTerminal } from './terminal-paste';
 import { emojiAssetFor } from './emoji-assets';
 import { ImageAnnotationSvg, ImageAnnotationTextLayer, parseImageAnnotations, type ImageAnnotationDocument } from './image-annotations';
 
@@ -2079,6 +2080,19 @@ const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
   }
 
   const html = clipboard.getData('text/html');
+  // WKWebView may expose iTerm2's rich copy only as RTF. Reuse normal HTML
+  // normalization for plain Cmd+V rather than creating a preserved fragment.
+  if (!html && isTauri() && Array.from(clipboard.types).some(type => /rtf/i.test(type))) {
+    event.preventDefault();
+    const originalDoc = editor.state.doc;
+    const { from, to } = editor.state.selection;
+    void invoke<{ html: string; text: string }>('read_terminal_clipboard').then(data => {
+      if (editor.isDestroyed || !editor.state.doc.eq(originalDoc)) return;
+      if (data.html) editor.chain().focus().insertContentAt({ from, to }, normalizePastedHtml(data.html)).run();
+      else if (data.text) editor.chain().focus().insertContentAt({ from, to }, { type: 'text', text: data.text }).run();
+    }).catch(error => window.alert(`读取终端富文本失败：${String(error)}`));
+    return true;
+  }
   const markdown = normalizePastedText(clipboard.getData('text/markdown') || clipboard.getData('text/x-markdown'));
   const text = normalizePastedText(clipboard.getData('text/plain'));
 
@@ -2836,6 +2850,7 @@ const createEditorExtensions = (
   Highlight,
   Underline,
   PastedTextStyle,
+  TerminalSnippet,
   KeyboardKey,
   Link.configure({
     autolink: true,
@@ -2934,6 +2949,15 @@ function RichEditor({
     editorProps: {
       attributes: {
         class: `${className} tiptap-editor typora-block-doc`
+      },
+      handleKeyDown: (_view, event) => {
+        if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.code === 'KeyV') {
+          event.preventDefault();
+          const active = editorHolderRef.current;
+          if (active) void pasteOriginalTerminal(active);
+          return true;
+        }
+        return false;
       },
       handlePaste: (_view, event) => handleRichPaste(editorHolderRef.current, event),
       handleDOMEvents: {
@@ -3177,6 +3201,7 @@ function RichEditor({
   };
 
   const handleBlockMoveKeyDownCapture = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.nativeEvent.composedPath().some(target => target instanceof HTMLElement && target.classList.contains('terminal-snippet'))) return;
     if (!event.metaKey && !event.ctrlKey) return;
     if (event.altKey || event.shiftKey) return;
     if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;

@@ -1,0 +1,36 @@
+<!doctype html><html><meta charset="utf-8"><title>Terminal paste regression</title><body><pre id="results">Running</pre><div id="editor"></div><script type="module">
+import { Editor } from '@tiptap/core';
+import StarterKit from '@tiptap/starter-kit';
+import { TerminalSnippet, cleanTerminalHtml } from '/src/terminal-paste.ts';
+import { htmlToMarkdown } from '/src/state.ts';
+const results = [];
+const check = (name, condition) => { results.push(`${condition ? 'PASS' : 'FAIL'} ${name}`); if (!condition) throw new Error(name); };
+try {
+ const raw = '<style>.red{color:rgb(255, 80, 60);font-weight:bold} body{background-color:#102030;color:#eeeeee;font-family:Menlo}</style><body><pre><span class="red" onclick="alert(1)">ERROR</span>  aligned\n```code```</pre><script>alert(1)<\/script><img src="https://invalid.example/a"></body>';
+ const text = 'ERROR  aligned\n```code```';
+ const fragment = cleanTerminalHtml(raw, text);
+ check('keeps source colors', fragment.html.includes('rgb(255, 80, 60)'));
+ check('keeps background', fragment.html.includes('rgb(16, 32, 48)'));
+ check('removes active content and external resources', !/script|onclick|https:|<img|<style/.test(fragment.html));
+ const editor = new Editor({element:document.querySelector('#editor'), extensions:[StarterKit, TerminalSnippet], content:'<p>before</p>'});
+ editor.commands.insertContent({type:'terminalSnippet',attrs:{fragment}});
+ check('plain text indexes terminal content', editor.getText().includes(text));
+ const saved = editor.getHTML();
+ check('versioned HTML payload', saved.includes('data-terminal-version="1"'));
+ editor.commands.setContent(saved);
+ check('reload parses as terminal node, not normal code', editor.state.doc.firstChild.type.name === 'terminalSnippet');
+ check('reload retains source colors', editor.state.doc.firstChild.attrs.fragment.html.includes('rgb(255, 80, 60)'));
+ check('shadow isolation renders', Boolean(document.querySelector('.terminal-snippet').shadowRoot.querySelector('.terminal')));
+ check('Markdown uses safe fence around embedded backticks', htmlToMarkdown(saved).includes('````\nERROR  aligned\n```code```\n````'));
+ let rejected = false; try { cleanTerminalHtml('x'.repeat(2000001)); } catch { rejected = true; }
+ check('oversized fragment rejected', rejected);
+ Array.from(document.querySelector('.terminal-snippet').shadowRoot.querySelectorAll('button')).find(b => b.textContent === '转为普通文本').click();
+ check('convert to editable paragraphs', editor.state.doc.firstChild.type.name === 'paragraph' && editor.getText().includes('ERROR  aligned'));
+ const persisted = document.createElement('pre'); persisted.id = 'persisted'; document.body.append(persisted);
+ editor.commands.setContent(saved);
+ editor.on('update', () => { persisted.textContent = editor.getText(); });
+ const reload = document.createElement('button'); reload.textContent = 'Reload saved fragment';
+ reload.onclick = () => { const html = editor.getHTML(); editor.commands.setContent(html); persisted.textContent = editor.getText(); }; document.body.append(reload);
+} catch (error) { results.push('ERROR '+error.message); }
+document.querySelector('#results').textContent = results.join('\n');
+</script></body></html>
