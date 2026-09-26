@@ -3948,3 +3948,14 @@ body.notebook-table-column-resizing * {
   .block { grid-template-columns: minmax(0, 1fr); }
   .block-rail { flex-direction: row; justify-content: flex-start; }
 }
+
+/* Shared help follows the desk palette in every shell, including dark themes. */
+.fish-desk-panel .desk-guide { display: block; }
+.desk-guide summary { cursor: pointer; font-size: 12px; font-weight: 600; line-height: 1.6; }
+.desk-guide summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 3px; }
+.desk-guide-intro { margin: 10px 0; font-size: 11px; line-height: 1.7; opacity: .8; }
+.desk-guide-chapter { padding: 8px 0; border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent); }
+.desk-guide dl { margin: 10px 0 0; font-size: 12px; line-height: 1.75; }
+.desk-guide dl > div + div { margin-top: 12px; }
+.desk-guide dt { font-weight: 600; }
+.desk-guide dd { margin: 3px 0 0; opacity: .85; overflow-wrap: anywhere; }

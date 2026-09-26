@@ -1,3 +1,4 @@
+import { DeskGuide } from './DeskGuide';
 import {
   useEffect,
   useLayoutEffect,
@@ -369,6 +370,7 @@ function FishDesk({ fishIconUrl, controls, appearance }: { fishIconUrl: string; 
       </button>
       <div className="fish-desk-panel">
         <div className="fish-desk-title">Desk</div>
+        <DeskGuide />
         <ToolControls compact {...controls} />
         {appearance}
       </div>
