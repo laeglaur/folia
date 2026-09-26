@@ -1299,3 +1299,8 @@ body[data-shell^="typora-"] :is(.primary-button, .temporary-markdown-save) {
 .typora-theme:is([data-content-theme="typora-gruvbox-dark"], [data-content-theme="typora-everforest-dark"], [data-content-theme="typora-blackout"], [data-content-theme="typora-zeus"], [data-content-theme="typora-bonne-nouvelle"], [data-content-theme="typora-chocolate-box"], [data-content-theme="typora-salamander"]) .fish-desk :is(select, .secondary-button, .paper-settings input, .paper-settings button) { color: var(--desk-ink); background-color: var(--bg-color); }
 .paper-shell[data-shell="typora-collage"]:is([data-content-theme="typora-gruvbox-dark"], [data-content-theme="typora-everforest-dark"], [data-content-theme="typora-blackout"], [data-content-theme="typora-zeus"], [data-content-theme="typora-bonne-nouvelle"], [data-content-theme="typora-chocolate-box"], [data-content-theme="typora-salamander"]) .outline-drawer { color: var(--text-color); }
 .paper-shell[data-shell="typora-collage"]:is([data-content-theme="typora-gruvbox-dark"], [data-content-theme="typora-everforest-dark"], [data-content-theme="typora-blackout"], [data-content-theme="typora-zeus"], [data-content-theme="typora-bonne-nouvelle"], [data-content-theme="typora-chocolate-box"], [data-content-theme="typora-salamander"]) .outline-drawer :is(.panel-title, .outline-item, .outline-label) { color: var(--text-color); }
+
+/* Draft placeholders follow the content palette rather than the garden UI muted color. */
+.typora-theme .composer-card .tiptap-editor p.is-editor-empty:first-child::before {
+  color: var(--text-color, var(--theme-ink, var(--ink)));
+}
