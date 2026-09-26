@@ -819,31 +819,31 @@
   box-shadow: none;
 }
 
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-folio"] .page-surface.typora-write,
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-paperglow"] .page-surface.typora-write,
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-torillic"] .page-surface.typora-write,
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-law"] .page-surface.typora-write,
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-eloquent"] .page-surface.typora-write {
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-folio"] .page-surface.typora-write,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-paperglow"] .page-surface.typora-write,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-torillic"] .page-surface.typora-write,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-law"] .page-surface.typora-write,
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-eloquent"] .page-surface.typora-write {
   width: min(var(--layout-page-width), calc(100% - 28px));
   margin: 0 auto 80px;
   padding: clamp(34px, 5.4vw, 92px) clamp(28px, 4.8vw, 76px) clamp(42px, 5.8vw, 98px);
   border-radius: 0 !important;
 }
 
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-folio"] .page-surface.typora-write {
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-folio"] .page-surface.typora-write {
   background: var(--folio-paper, #fffdfa) !important;
   border: 1px solid var(--folio-border, rgba(116, 93, 74, 0.16)) !important;
   box-shadow: 0 14px 42px var(--folio-shadow, rgba(74, 59, 47, 0.12)) !important;
 }
 
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-paperglow"] .page-surface.typora-write {
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-paperglow"] .page-surface.typora-write {
   background: var(--card-bg, var(--bg-color, #fcfaf6)) !important;
   border: 1px solid var(--card-border-color, rgba(96, 78, 63, 0.1)) !important;
   border-radius: 16px !important;
   box-shadow: var(--card-shadow, 0 10px 22px rgba(70, 52, 38, 0.05)) !important;
 }
 
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-torillic"] .page-surface.typora-write {
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-torillic"] .page-surface.typora-write {
   background: var(--offwhite, var(--bg-color, #f7f0dd)) !important;
   background-image: url("/typora-assets/typora-torillic/assets/paper-texture.png") !important;
   border: 1px solid color-mix(in srgb, var(--yellow, var(--text-color, #000)) 30%, rgba(0, 0, 0, 0.08)) !important;
@@ -852,26 +852,26 @@
     0.42cm 0.42cm 0.55cm 0.12cm rgba(0, 0, 0, 0.42) !important;
 }
 
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-law"] {
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-law"] {
   --typora-shell-bg: #f1f4f5;
 }
 
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-law"] .page-surface.typora-write {
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-law"] .page-surface.typora-write {
   background: #fff !important;
   border: 1px solid color-mix(in srgb, var(--text-color, #222) 12%, transparent) !important;
   box-shadow: 0 12px 30px rgba(40, 46, 52, 0.08) !important;
 }
 
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-eloquent"] {
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-eloquent"] {
   --typora-shell-bg: #f0f0ee;
 }
 
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-eloquent"] .page-surface.typora-write {
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-eloquent"] .page-surface.typora-write {
   background: #fff !important;
   color: #404040;
 }
 
-.typora-app-shell.typora-theme:is([data-shell="typora-base"], [data-shell="typora-tilted"], [data-shell="typora-collage"])[data-content-theme="typora-eloquent"] .typora-block-doc {
+.typora-app-shell.typora-theme[data-shell="typora-base"][data-content-theme="typora-eloquent"] .typora-block-doc {
   color: #404040;
 }
 
@@ -1244,3 +1244,58 @@ body[data-shell^="typora-"] :is(.primary-button, .temporary-markdown-save) {
     --typora-editor-page-padding: 4px 0 72px;
   }
 }
+
+/* Paper shells own the sheet; imported themes only style the document. */
+.typora-app-shell.typora-theme.paper-shell .page-surface.typora-write {
+  width: min(var(--layout-page-width), 100%);
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.typora-app-shell.typora-theme.paper-shell .page-surface.typora-write::before,
+.typora-app-shell.typora-theme.paper-shell .page-surface.typora-write::after { display: none !important; }
+.typora-app-shell.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content {
+  display: grid;
+  padding: 5px 7px 5px calc(7px + (var(--depth, 0) * 14px));
+}
+.typora-app-shell.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content .file-node-title {
+  display: block; width: auto; min-width: 0; max-width: 100%;
+  padding: 0; margin: 0; border: 0; box-shadow: none; background: transparent; color: inherit;
+}
+/* Match menu colors to the active content palette, including dark themes. */
+.typora-theme .fish-desk .fish-desk-panel {
+  --desk-ink: var(--text-color, var(--theme-ink));
+  --desk-muted: color-mix(in srgb, var(--desk-ink) 72%, var(--bg-color, var(--bg, var(--theme-surface-solid))));
+  --desk-accent: var(--typora-base-tab-accent, var(--accent, var(--theme-accent)));
+  background: var(--bg-panel, var(--side-bar-bg-color, var(--bg-color, var(--bg, var(--theme-surface-solid)))));
+  color: var(--desk-ink);
+  scrollbar-width: thin;
+  scrollbar-color: var(--desk-accent) transparent;
+}
+.fish-desk-panel::-webkit-scrollbar { width: 6px; height: 6px; }
+.fish-desk-panel::-webkit-scrollbar-track { background: transparent; }
+.fish-desk-panel::-webkit-scrollbar-thumb { background: var(--desk-accent); border-radius: 999px; }
+.typora-theme:is([data-content-theme="typora-gruvbox-dark"], [data-content-theme="typora-everforest-dark"], [data-content-theme="typora-blackout"], [data-content-theme="typora-zeus"], [data-content-theme="typora-bonne-nouvelle"], [data-content-theme="typora-chocolate-box"], [data-content-theme="typora-salamander"]) { color-scheme: dark; }
+.paper-shell[data-shell="typora-collage"]:is([data-content-theme="typora-gruvbox-dark"], [data-content-theme="typora-everforest-dark"], [data-content-theme="typora-blackout"], [data-content-theme="typora-zeus"], [data-content-theme="typora-bonne-nouvelle"], [data-content-theme="typora-chocolate-box"], [data-content-theme="typora-salamander"]) .outline-drawer::before {
+  background-color: var(--paper-color);
+  background-image: linear-gradient(color-mix(in srgb, var(--paper-color) 95%, transparent), color-mix(in srgb, var(--paper-color) 95%, transparent)), url('/app-assets/paper/right.png');
+  mask: url('/app-assets/paper/right.png') center / 100% 100% no-repeat;
+  filter: none;
+}
+.typora-app-shell.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content.page-node-content { grid-template-columns: minmax(0, 1fr); }
+.typora-app-shell.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content.page-node-content.has-node-icon { grid-template-columns: 18px minmax(0, 1fr); }
+.typora-app-shell.typora-theme[data-content-theme="typora-konayuki"] #typora-sidebar .file-node-content.notebook-node.has-node-icon { grid-template-columns: 18px minmax(0, 1fr); }
+
+/* Imported theme widget styles must not override the desk's dark palette. */
+.typora-theme:is([data-content-theme="typora-gruvbox-dark"], [data-content-theme="typora-everforest-dark"], [data-content-theme="typora-blackout"], [data-content-theme="typora-zeus"], [data-content-theme="typora-bonne-nouvelle"], [data-content-theme="typora-chocolate-box"], [data-content-theme="typora-salamander"]) .fish-desk .fish-desk-panel {
+  --desk-ink: var(--text-color);
+  --desk-muted: color-mix(in srgb, var(--text-color) 80%, var(--bg-color));
+  background: var(--bg-color);
+  color: var(--text-color);
+}
+.typora-theme:is([data-content-theme="typora-gruvbox-dark"], [data-content-theme="typora-everforest-dark"], [data-content-theme="typora-blackout"], [data-content-theme="typora-zeus"], [data-content-theme="typora-bonne-nouvelle"], [data-content-theme="typora-chocolate-box"], [data-content-theme="typora-salamander"]) .fish-desk :is(.view-toggle, .desk-field-label, .paper-settings, .paper-settings-fields label, .fish-trash-empty) { color: var(--desk-muted); }
+.typora-theme:is([data-content-theme="typora-gruvbox-dark"], [data-content-theme="typora-everforest-dark"], [data-content-theme="typora-blackout"], [data-content-theme="typora-zeus"], [data-content-theme="typora-bonne-nouvelle"], [data-content-theme="typora-chocolate-box"], [data-content-theme="typora-salamander"]) .fish-desk :is(select, .secondary-button, .paper-settings input, .paper-settings button) { color: var(--desk-ink); background-color: var(--bg-color); }
+.paper-shell[data-shell="typora-collage"]:is([data-content-theme="typora-gruvbox-dark"], [data-content-theme="typora-everforest-dark"], [data-content-theme="typora-blackout"], [data-content-theme="typora-zeus"], [data-content-theme="typora-bonne-nouvelle"], [data-content-theme="typora-chocolate-box"], [data-content-theme="typora-salamander"]) .outline-drawer { color: var(--text-color); }
+.paper-shell[data-shell="typora-collage"]:is([data-content-theme="typora-gruvbox-dark"], [data-content-theme="typora-everforest-dark"], [data-content-theme="typora-blackout"], [data-content-theme="typora-zeus"], [data-content-theme="typora-bonne-nouvelle"], [data-content-theme="typora-chocolate-box"], [data-content-theme="typora-salamander"]) .outline-drawer :is(.panel-title, .outline-item, .outline-label) { color: var(--text-color); }

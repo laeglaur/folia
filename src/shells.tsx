@@ -243,6 +243,8 @@ function ToolControls({
 }: ToolControlsProps) {
   return (
     <div className={compact ? 'typora-tool-controls' : 'topbar-actions'}>
+      <div className={compact ? 'desk-settings-section' : 'tool-controls-group'}>
+      {compact ? <div className="desk-section-title">视图</div> : null}
       <label className="view-toggle"><input type="checkbox" checked={showToolbar} onChange={(event) => onShowToolbarChange(event.target.checked)} /> Toolbar</label>
       <label className="view-toggle"><input type="checkbox" checked={showPageMetadata} onChange={(event) => onShowPageMetadataChange(event.target.checked)} /> Metadata</label>
       <label className="view-toggle">
@@ -259,7 +261,12 @@ function ToolControls({
           <label className="view-toggle"><input type="checkbox" checked={!sidebarCollapsed} onChange={onSidebarToggle} /> Sidebar</label>
         </>
       )}
+      </div>
+      <div className={compact ? 'desk-settings-section' : 'tool-controls-group'}>
+      {compact ? <div className="desk-section-title">主题</div> : null}
+      {compact ? <label className="desk-field-label" htmlFor="desk-shell-theme">外壳主题</label> : null}
       <select
+        id={compact ? 'desk-shell-theme' : undefined}
         className="theme-select shell-theme-select"
         value={shell}
         onChange={(event) => onShellChange(event.target.value as ShellId)}
@@ -268,7 +275,10 @@ function ToolControls({
         {shellThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
       </select>
       {shell.startsWith('typora-') ? (
+        <>
+        {compact ? <label className="desk-field-label" htmlFor="desk-content-theme">正文主题</label> : null}
         <select
+          id={compact ? 'desk-content-theme' : undefined}
           className="theme-select content-theme-select"
           value={contentTheme}
           onChange={(event) => onContentThemeChange(event.target.value as ContentThemeId)}
@@ -276,7 +286,11 @@ function ToolControls({
         >
           {contentThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
         </select>
+        </>
       ) : null}
+      </div>
+      <div className={compact ? 'desk-settings-section desk-file-actions' : 'tool-controls-group'}>
+      {compact ? <div className="desk-section-title">导入与备份</div> : null}
       <input
         ref={markdownInputRef}
         hidden
@@ -326,6 +340,7 @@ function ToolControls({
       <button className="secondary-button" type="button" onClick={onExportJson}><Upload size={15} /> Backup</button>
       <button className="secondary-button" type="button" onClick={onRestorePageVersion}><History size={15} /> Restore page</button>
       <button className="secondary-button" type="button" onClick={onEmptyTrash} disabled={trashBusy}><Trash2 size={15} /> {trashBusy ? 'Emptying trash' : 'Empty trash'}</button>
+      </div>
       {compact ? (
         <section className="fish-trash">
           <div className="fish-trash-head">

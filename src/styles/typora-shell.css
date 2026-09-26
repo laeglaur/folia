@@ -1127,3 +1127,47 @@
 /* Exclude neighboring plants at the edges of the shared botanical atlas. */
 .paper-brand > .paper-sprite { clip-path: polygon(0 0, 100% 0, 100% 72%, 60% 77%, 55% 100%, 0 100%); }
 .paper-shell[data-shell="typora-collage"] .paper-footer-leaf { clip-path: polygon(45% 0, 100% 0, 100% 100%, 0 100%, 0 30%, 28% 30%, 30% 16%, 45% 16%); }
+
+/* A shared desk settings language for every shell and content palette. */
+.tool-controls-group { display: contents; }
+.fish-desk .fish-desk-panel {
+  --desk-ink: var(--overlay-ink, var(--ink));
+  --desk-muted: var(--overlay-muted, var(--muted));
+  --desk-line: color-mix(in srgb, var(--desk-ink) 14%, transparent);
+  width: min(290px, calc(100vw - 32px));
+  padding: 16px;
+  gap: 14px;
+  border: 1px solid var(--desk-line);
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--desk-ink);
+}
+.fish-desk .fish-desk-title { font-size: 12px; color: var(--desk-muted); letter-spacing: .06em; }
+.fish-desk .typora-tool-controls { gap: 14px; }
+.fish-desk .desk-settings-section { display: grid; gap: 8px; min-width: 0; padding-top: 12px; border-top: 1px solid var(--desk-line); }
+.fish-desk .desk-section-title { color: var(--desk-ink); font-weight: 500; font-size: 13px; margin-bottom: 3px; }
+.fish-desk .desk-field-label { font-size: 11px; color: var(--desk-muted); margin-top: 3px; }
+.fish-desk .typora-tool-controls .view-toggle {
+  display: flex; flex-direction: row-reverse; justify-content: space-between;
+  min-height: 28px; padding: 3px 0; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none; color: var(--desk-muted); font: inherit;
+}
+.fish-desk .typora-tool-controls :is(.theme-select, .secondary-button),
+.fish-desk .paper-settings-fields :is(input:not([type="checkbox"]):not([type="range"]), button),
+.fish-desk .fish-trash-item {
+  min-height: 32px; border: 1px solid var(--desk-line); border-radius: 6px;
+  padding: 6px 8px; background: transparent; color: var(--desk-ink); box-shadow: none; font-size: 12px;
+}
+.fish-desk .typora-tool-controls .secondary-button { justify-content: flex-start; gap: 8px; font-weight: 400; }
+.fish-desk .desk-file-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fish-desk .desk-file-actions .desk-section-title { grid-column: 1 / -1; }
+.fish-desk .fish-trash { padding-top: 12px; border-top: 1px solid var(--desk-line); }
+.fish-desk .fish-trash-head, .fish-desk .fish-trash-item strong { color: var(--desk-ink); }
+.fish-desk .fish-trash-empty, .fish-desk .fish-trash-item span { color: var(--desk-muted); }
+.fish-desk input[type="checkbox"], .fish-desk input[type="range"] { accent-color: var(--typora-base-tab-accent, var(--accent, var(--theme-accent))); }
+.fish-desk .paper-settings { margin: 0; padding-top: 12px; border-top: 1px solid var(--desk-line); color: var(--desk-muted); font-size: 12px; }
+.fish-desk .paper-settings summary { padding: 0; font-size: 13px; color: var(--desk-ink); opacity: 1; }
+.fish-desk .paper-settings-fields { padding: 12px 0 0; gap: 12px; }
+.fish-desk .paper-settings[open] { max-height: none; overflow: visible; }
+.fish-desk :is(button, select, input):focus-visible { outline: 2px solid var(--desk-muted); outline-offset: 2px; }
+.fish-desk .typora-tool-controls .secondary-button:hover, .fish-desk .paper-settings-fields button:hover { background: color-mix(in srgb, var(--desk-ink) 6%, transparent); }
