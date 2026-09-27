@@ -1197,3 +1197,30 @@
   .paper-shell[data-shell="typora-collage"]:not(.sidebar-collapsed) .typora-workspace-frame::before { left: -36px; }
   .paper-shell[data-shell="typora-collage"]:not(.sidebar-collapsed) .typora-workspace-frame::after { left: -40px; }
 }
+
+.fish-desk .appearance-panel { position: fixed; right: auto; bottom: auto; z-index: 1200; visibility: visible; transform: none; transition: none; max-height: calc(100dvh - 90px); }
+.fish-desk .appearance-panel header { display: flex; align-items: center; gap: 8px; cursor: move; touch-action: none; user-select: none; }
+.fish-desk .appearance-panel header span { flex: 1; font-size: 11px; color: var(--desk-muted); }
+.fish-desk .appearance-panel header button { border: 0; background: transparent; color: inherit; font-size: 20px; cursor: pointer; }
+.paper-editable-text { white-space: pre-wrap; cursor: text; }
+.paper-editable-text:focus-visible { outline: 1px dashed currentColor; outline-offset: 3px; }
+.paper-shell .paper-collage-caption { pointer-events: auto; }
+
+.paper-text-placement { display: inline-block; position: relative; max-width: 100%; vertical-align: top; }
+.paper-text-placement.is-editing { z-index: 30; }
+.paper-desk-note > span { font-size: 20px; letter-spacing: .02em; }
+.paper-desk-note p span { font: inherit; letter-spacing: inherit; }
+
+.paper-sidebar-note .paper-text-placement { width: 100%; }
+.paper-sidebar-note .paper-editable-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.paper-text-placement { transform-origin: center; }
+.paper-editable-text { display: block; min-width: 1ch; min-height: 1em; padding: 0; margin: 0; border: 0; outline: none; font: inherit; line-height: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.paper-editable-text:empty::before { content: attr(data-placeholder); opacity: .45; pointer-events: none; }
+.paper-text-placement.is-editing::after { content: ''; position: absolute; inset: -5px; border: 1px dashed var(--typora-base-tab-accent, #748776); pointer-events: none; }
+.paper-text-handles { position: absolute; inset: 0; pointer-events: none; }
+.paper-text-handles .paper-text-handle { position: absolute; min-width: 0; min-height: 0; padding: 0; margin: 0; box-shadow: none; pointer-events: auto; touch-action: none; border: 1px solid var(--typora-base-tab-accent, #748776); background: var(--typora-shell-panel); }
+.paper-text-handles .handle-move { top: -9px; left: -5px; width: calc(100% + 10px); height: 8px; border: 0; background: transparent; cursor: move; }
+.paper-text-handles .handle-scale { right: -9px; bottom: -9px; width: 9px; height: 9px; border-radius: 1px; cursor: nwse-resize; }
+.paper-text-handles .handle-rotate { left: calc(50% - 5px); top: -25px; width: 10px; height: 10px; border-radius: 50%; cursor: grab; }
+.paper-text-handles .handle-rotate::after { content: ''; position: absolute; top: 9px; left: 3px; width: 1px; height: 10px; background: var(--typora-base-tab-accent, #748776); pointer-events: none; }

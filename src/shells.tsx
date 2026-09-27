@@ -15,7 +15,7 @@ import {
   type SetStateAction,
   type UIEvent
 } from 'react';
-import { ChevronDown, ChevronRight, Download, FileUp, Grid3X3, History, ListTree, MoreHorizontal, NotebookTabs, PanelRight, Pin, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, FileUp, Grid3X3, History, ListTree, MoreHorizontal, NotebookTabs, PanelRight, Pin, Plus, Search, SlidersHorizontal, Trash2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { Block, ContentThemeId, Notebook, ShellId } from './types';
 import type { PageSearchResult, TrashItemPayload } from './state';
@@ -27,7 +27,7 @@ import { emojiAssetFor } from './emoji-assets';
 import { renderAnnotatedImagesInHtml } from './image-annotations';
 import { contentThemes } from './typora-theme-registry';
 
-import { usePaperShell, GardenAppearance, PaperSettings, PaperCard, PaperLeaves, PaperSprite, PaperBackdrop, PaperBrand, PaperSidebarNote } from './paper-shell';
+import { usePaperShell, GardenAppearance, PaperSettings, PaperCard, PaperLeaves, PaperSprite, PaperBackdrop, PaperBrand, PaperSidebarNote, PaperEditableText } from './paper-shell';
 
 const appLogoUrl = '/app-assets/notebook-logo.jpg';
 
@@ -222,9 +222,6 @@ function ToolControls({
   showToolbar,
   showPageMetadata,
   newestFirst,
-  shell,
-  contentTheme,
-  shellThemes,
   markdownInputRef,
   markdownFolderInputRef,
   outlineOpen,
@@ -232,8 +229,6 @@ function ToolControls({
   onShowToolbarChange,
   onShowPageMetadataChange,
   onNewestFirstChange,
-  onShellChange,
-  onContentThemeChange,
   onOutlineToggle,
   onSidebarToggle,
   onMarkdownFilesChange,
@@ -267,33 +262,6 @@ function ToolControls({
           <label className="view-toggle"><input type="checkbox" checked={!sidebarCollapsed} onChange={onSidebarToggle} /> Sidebar</label>
         </>
       )}
-      </div>
-      <div className={compact ? 'desk-settings-section' : 'tool-controls-group'}>
-      {compact ? <div className="desk-section-title">主题</div> : null}
-      {compact ? <label className="desk-field-label" htmlFor="desk-shell-theme">外壳主题</label> : null}
-      <select
-        id={compact ? 'desk-shell-theme' : undefined}
-        className="theme-select shell-theme-select"
-        value={shell}
-        onChange={(event) => onShellChange(event.target.value as ShellId)}
-        aria-label="Shell theme"
-      >
-        {shellThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
-      </select>
-      {shell.startsWith('typora-') ? (
-        <>
-        {compact ? <label className="desk-field-label" htmlFor="desk-content-theme">正文主题</label> : null}
-        <select
-          id={compact ? 'desk-content-theme' : undefined}
-          className="theme-select content-theme-select"
-          value={contentTheme}
-          onChange={(event) => onContentThemeChange(event.target.value as ContentThemeId)}
-          aria-label="Content theme"
-        >
-          {contentThemes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
-        </select>
-        </>
-      ) : null}
       </div>
       <div className={compact ? 'desk-settings-section desk-file-actions' : 'tool-controls-group'}>
       {compact ? <div className="desk-section-title">导入与备份</div> : null}
@@ -367,18 +335,48 @@ function ToolControls({
 
 type ShellControlsProps = Omit<ToolControlsProps, 'compact'>;
 
+function DeskThemes({ controls }: { controls: ShellControlsProps }) {
+  return <section className="desk-settings-section">
+    <div className="desk-section-title">主题</div>
+          <label className="desk-field-label">外壳主题</label>
+          <select className="theme-select shell-theme-select" aria-label="Shell theme" value={controls.shell} onChange={event => controls.onShellChange(event.target.value as ShellId)}>{controls.shellThemes.map(theme => <option key={theme.id} value={theme.id}>{theme.label}</option>)}</select>
+          {controls.shell.startsWith('typora-') && <><label className="desk-field-label">正文主题</label><select className="theme-select content-theme-select" aria-label="Content theme" value={controls.contentTheme} onChange={event => controls.onContentThemeChange(event.target.value as ContentThemeId)}>{contentThemes.map(theme => <option key={theme.id} value={theme.id}>{theme.label}</option>)}</select></>}
+  </section>;
+}
+
 function FishDesk({ fishIconUrl, controls, appearance }: { fishIconUrl: string; controls: ShellControlsProps; appearance?: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ x: 24, y: 70 });
+  const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   return (
     <aside className="fish-desk" aria-label="Desk controls">
-      <button className="fish-desk-trigger" type="button" aria-label="Open Desk controls">
-        <img src={fishIconUrl} alt="" aria-hidden="true" />
-      </button>
+      <div className="fish-desk-menu">
+      <button className="fish-desk-trigger" type="button" aria-label="Open Desk controls"><img src={fishIconUrl} alt="" aria-hidden="true" /></button>
       <div className="fish-desk-panel">
         <div className="fish-desk-title">Desk</div>
         <DeskGuide />
+        <div className="typora-tool-controls">
+          <button className="secondary-button" type="button" onClick={event => { event.currentTarget.blur(); setOpen(true); }}><SlidersHorizontal size={15} aria-hidden="true" />外观调整</button>
+        </div>
         <ToolControls compact {...controls} />
-        {appearance}
       </div>
+      </div>
+      {open && <section className="fish-desk-panel appearance-panel" role="dialog" aria-label="外观调整" style={{ left: position.x, top: position.y }} onKeyDown={event => { if (event.key === 'Escape') setOpen(false); }}>
+        <header onPointerDown={event => {
+          if ((event.target as HTMLElement).closest('button')) return;
+          drag.current = { x: event.clientX, y: event.clientY, left: position.x, top: position.y };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }} onPointerMove={event => {
+          if (!drag.current) return;
+          setPosition({ x: Math.max(0, Math.min((window.innerWidth - (event.currentTarget.parentElement?.offsetWidth ?? 290)), drag.current.left + event.clientX - drag.current.x)), y: Math.max(0, Math.min((window.innerHeight - (event.currentTarget.parentElement?.offsetHeight ?? 70)), drag.current.top + event.clientY - drag.current.y)) });
+        }} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
+          <strong>外观调整</strong><span>拖动面板，实时预览</span><button type="button" aria-label="关闭外观调整" onClick={() => setOpen(false)}>×</button>
+        </header>
+        <div className="appearance-fields typora-tool-controls">
+          <DeskThemes controls={controls} />
+          {appearance}
+        </div>
+      </section>}
     </aside>
   );
 }
@@ -573,6 +571,14 @@ function NotebookList({
   const [editingNotebookId, setEditingNotebookId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const [expandedNotebookIds, setExpandedNotebookIds] = useState<Set<string>>(() => new Set());
+  useEffect(() => {
+    const expand = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      if (typeof id === 'string') setExpandedNotebookIds(current => new Set([...current, id]));
+    };
+    window.addEventListener('folia:expand-notebook', expand);
+    return () => window.removeEventListener('folia:expand-notebook', expand);
+  }, []);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const cancelBlurCommitRef = useRef(false);
 
@@ -1572,7 +1578,7 @@ export function TyporaShell({
     <div ref={shellRef} style={isPaperTypora ? paper.style : isGardenTypora ? paper.gardenStyle : undefined} className={`typora-app-shell typora-theme ${isPaperTypora ? 'paper-shell' : isGardenTypora ? 'garden-background' : ''} ${outlineOpen ? 'outline-open' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-content-theme={contentTheme} data-shell={shell}>
       {isPaperTypora ? <PaperBackdrop collage={shell === 'typora-collage'} custom={Boolean(paper.settings.image.trim())} /> : null}
       <aside id="typora-sidebar" className="typora-sidebar active-tab-files">
-        {shell === 'typora-collage' ? <PaperBrand /> : null}
+        {shell === 'typora-collage' ? <PaperBrand value={paper.settings.brandText} onChange={brandText => paper.update({ brandText })} /> : null}
         <div className="typora-sidebar-tools">
         {shell === 'typora-collage' ? typoraOutlineSearch(query, onQueryChange, searchResults, searchLoading, onSearchResultSelect) : null}
         <div className="sidebar-tabs" role="tablist" aria-label="Sidebar view">
@@ -1628,7 +1634,7 @@ export function TyporaShell({
         </div>
         {isPaperTypora ? (
           <>
-            <PaperCard settings={paper.settings} />
+            <PaperCard settings={paper.settings} footerLayout={{ x: paper.settings.footerX, y: paper.settings.footerY, rotation: paper.settings.footerRotation, scale: paper.settings.footerScale }} onFooterLayoutChange={layout => paper.update({ footerX: layout.x, footerY: layout.y, footerRotation: layout.rotation, footerScale: layout.scale ?? 1 })} onFooterChange={footerText => paper.update({ footerText })} />
           </>
         ) : null}
       </aside>
@@ -1637,8 +1643,8 @@ export function TyporaShell({
         {workspaceContent}
       </main></div>
 
-      {shell === 'typora-tilted' && outlineOpen ? <div className="paper-desk-note"><p>{paper.settings.cardText}</p><span>— folia</span></div> : null}
-      {shell === 'typora-collage' && outlineOpen ? <><PaperCard settings={paper.settings} pinned /><p className="paper-collage-caption">{paper.settings.cardText}</p></> : null}
+      {shell === 'typora-tilted' && outlineOpen ? <div className="paper-desk-note"><p><PaperEditableText key={shell} layout={{ x: paper.settings.captionX, y: paper.settings.captionY, rotation: paper.settings.captionRotation, scale: paper.settings.captionScale }} onLayoutChange={layout => paper.update({ captionX: layout.x, captionY: layout.y, captionRotation: layout.rotation, captionScale: layout.scale ?? 1 })} value={paper.settings.cardText} onChange={cardText => paper.update({ cardText })} label="背景题字" /></p></div> : null}
+      {shell === 'typora-collage' && outlineOpen ? <><PaperCard settings={paper.settings} pinned /><p className="paper-collage-caption"><PaperEditableText layout={{ x: paper.settings.captionX, y: paper.settings.captionY, rotation: paper.settings.captionRotation, scale: paper.settings.captionScale }} onLayoutChange={layout => paper.update({ captionX: layout.x, captionY: layout.y, captionRotation: layout.rotation, captionScale: layout.scale ?? 1 })} value={paper.settings.cardText} onChange={cardText => paper.update({ cardText })} label="右栏下方题字" /></p></> : null}
       {shell === 'typora-collage' && paper.settings.leaves && outlineOpen ? <PaperLeaves /> : null}
       <OutlineDrawer
         heading="Contents"
@@ -1649,7 +1655,7 @@ export function TyporaShell({
         onClose={controls.onOutlineToggle}
       />
 
-      <FishDesk fishIconUrl={fishIconUrl} controls={controls} appearance={isPaperTypora ? <PaperSettings settings={paper.settings} update={paper.update} /> : isGardenTypora ? <GardenAppearance settings={paper.settings} update={paper.update} /> : undefined} />
+      <FishDesk fishIconUrl={fishIconUrl} controls={controls} appearance={isPaperTypora ? <PaperSettings key={shell} shell={shell} settings={paper.settings} update={paper.update} /> : isGardenTypora ? <GardenAppearance settings={paper.settings} update={paper.update} /> : undefined} />
 
       <FloatingCardWindow block={openCardBlock} roundPinnedCards={roundPinnedCards} glowPinnedCards={glowPinnedCards} onClose={onCloseFloatingCard} />
     </div>

@@ -1,8 +1,9 @@
-import { useState, type CSSProperties } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 
 const decorationLayout = { leafX: -48, leafY: 93, leafSize: 50, leafRotation: -8, captionX: -35, captionY: 39, captionWidth: 48, captionSize: 13 };
 const defaults = {
-  customDesk: false, background: '#e5e3da', image: '', opacity: 0.65, paper: '#faf7ef', autoPaper: true,
+  footerScale: 1, captionScale: 1, captionIncludesSignature: false, footerX: 0, footerY: 0, footerRotation: 0, captionX: 0, captionY: 0, captionRotation: 0,
+  brandText: 'folia', customDesk: false, background: '#e5e3da', image: '', opacity: 0.65, paper: '#faf7ef', autoPaper: true,
   footerImage: '', footerText: 'Little by little, a lot.', cardImage: '', cardText: '把想法，停在更安静的地方。',
   rightText: '', leaves: true, shadow: 0.18, leftAngle: 0.6, pageAngle: 1.5, rightAngle: -3
 };
@@ -10,6 +11,7 @@ type Settings = typeof defaults;
 function load(shell: string): Settings {
   try {
     const saved = JSON.parse(localStorage.getItem(`folia.paperShell.${shell}`) || '{}');
+    if (shell === 'typora-tilted' && !saved.captionIncludesSignature) { saved.cardText = `${typeof saved.cardText === 'string' ? saved.cardText : defaults.cardText}\n\n— folia`; saved.captionIncludesSignature = true; }
     if (typeof saved.autoPaper !== 'boolean') saved.autoPaper = !saved.paper || saved.paper === defaults.paper;
     return Object.fromEntries(Object.entries(defaults).map(([key, value]) => [key,
       typeof saved[key] === typeof value ? saved[key] : value])) as Settings;
@@ -41,17 +43,19 @@ export function usePaperShell(shell: string) {
   } as CSSProperties;
   return { settings, update, style, gardenStyle };
 }
-export function PaperSettings({ settings, update }: { settings: Settings; update: (patch: Partial<Settings>) => void }) {
-  return <details className="paper-settings"><summary>纸张外观</summary><div className="paper-settings-fields">
+export function PaperSettings({ shell, settings, update }: { shell: string; settings: Settings; update: (patch: Partial<Settings>) => void }) {
+  const collage = shell === 'typora-collage';
+  return <details className="paper-settings"><summary>{collage ? '拼贴纸张与装饰' : '倾斜纸张与装饰'}</summary><div className="paper-settings-fields">
     <label>纸色跟随正文主题<input type="checkbox" checked={settings.autoPaper} onChange={e => update({ autoPaper: e.target.checked })} /></label>
     {([['background', '桌面颜色'], ['paper', '纸张颜色']] as const).map(([key, label]) =>
       <label key={key}>{label}<input type="color" value={settings[key]} onChange={e => update({ [key]: e.target.value, ...(key === 'paper' ? { autoPaper: false } : {}) })} /></label>)}
-    {([['image', '桌面背景图片'], ['footerImage', '左下背景图片'], ['footerText', '左下文字'], ['cardImage', '右上卡片图片'], ['cardText', '右侧题字'], ['rightText', '左栏顶部文字']] as const).map(([key, label]) =>
+    {([['image', '桌面背景图片'], ['footerImage', '左下背景图片'], ['cardImage', '右侧挂画图片'], ['cardText', '右栏下方文字'], ['rightText', '左栏顶部文字']] as const).filter(([key]) => collage ? key !== 'cardText' && key !== 'rightText' : key !== 'cardImage').map(([key, label]) =>
       <label key={key}>{label}<input value={settings[key]} placeholder={key.includes('Image') || key === 'image' ? '图片 URL / 应用资源路径' : ''} onChange={e => update({ [key]: e.target.value })} /></label>)}
-    {([['opacity', '背景透明度', 0, 1, 0.05], ['shadow', '阴影强度', 0, 0.4, 0.02], ['leftAngle', '左框角度', -4, 4, 0.1], ['pageAngle', '正文外框角度', -3, 3, 0.1], ['rightAngle', '右框角度', -5, 5, 0.1]] as const).map(([key, label, min, max, step]) =>
+    {([['opacity', '背景透明度', 0, 1, 0.05], ['shadow', '阴影强度', 0, 0.4, 0.02], ['leftAngle', '左框上沿倾斜', -4, 4, 0.1], ['pageAngle', '正文外框角度', -3, 3, 0.1], ['rightAngle', '右框上沿倾斜', -5, 5, 0.1]] as const).filter(([key]) => !collage || (key !== 'leftAngle' && key !== 'rightAngle')).map(([key, label, min, max, step]) =>
       <label key={key}>{label} · {settings[key]}<input type="range" min={min} max={max} step={step} value={settings[key]} onChange={e => update({ [key]: Number(e.target.value) })} /></label>)}
-    <label>树叶装饰<input type="checkbox" checked={settings.leaves} onChange={e => update({ leaves: e.target.checked })} /></label>
-    <button type="button" onClick={() => update(defaults)}>恢复默认</button>
+    {collage && <label>树叶装饰<input type="checkbox" checked={settings.leaves} onChange={e => update({ leaves: e.target.checked })} /></label>}
+    <p>{collage ? '双击文字可编辑；左下文字和右侧题字还可拖动、旋转，顶部品牌位置固定。' : '左栏顶部文字、左下文字和背景题字均可双击修改。'}</p>
+    <button type="button" onClick={() => update({ background: defaults.background, image: '', opacity: defaults.opacity, paper: defaults.paper, autoPaper: true, footerImage: '', leaves: true, shadow: defaults.shadow, ...(collage ? { cardImage: '', pageAngle: defaults.pageAngle } : { leftAngle: defaults.leftAngle, pageAngle: defaults.pageAngle, rightAngle: defaults.rightAngle }) })}>恢复默认外观</button>
   </div></details>;
 }
 export function GardenAppearance({ settings, update }: { settings: Settings; update: (patch: Partial<Settings>) => void }) {
@@ -95,16 +99,16 @@ export function PaperBackdrop({ collage, custom }: { collage: boolean; custom: b
     <rect width="100%" height="100%" fill="url(#paper-linen-tile)" />
   </svg>;
 }
-export function PaperBrand() {
-  return <div className="paper-brand"><PaperSprite name="newSprig" /><span>folia</span></div>;
+export function PaperBrand({ value, onChange }: EditableTextProps) {
+  return <div className="paper-brand"><PaperSprite name="newSprig" /><PaperEditableText value={value} onChange={onChange} label="左栏品牌文字" /></div>;
 }
-export function PaperCard({ settings, pinned = false }: { settings: Settings; pinned?: boolean }) {
+export function PaperCard({ settings, pinned = false, onFooterChange, footerLayout, onFooterLayoutChange }: { settings: Settings; pinned?: boolean; onFooterChange?: (text: string) => void; footerLayout?: TextLayout; onFooterLayoutChange?: (layout: TextLayout) => void }) {
   const customImage = (pinned ? settings.cardImage : settings.footerImage).trim();
   return <div className={pinned ? 'paper-pinned-card' : `paper-sidebar-footer ${customImage ? 'has-custom-image' : ''}`}>
     <div className="paper-card-image" style={{ backgroundImage: customImage ? backgroundImage(customImage) : undefined }}>
       {!customImage ? <PaperSprite name={pinned ? 'mountains' : 'landscape'} /> : null}
     </div>
-    {!pinned ? <p>{settings.footerText}</p> : null}
+    {!pinned ? <p>{onFooterChange ? <PaperEditableText value={settings.footerText} onChange={onFooterChange} label="左栏下方文字" layout={footerLayout} onLayoutChange={onFooterLayoutChange} /> : settings.footerText}</p> : null}
     {pinned ? <><PaperSprite name="brownTape" className="paper-photo-under-tape" /><PaperSprite name="clip" className="paper-real-clip" /></> : settings.leaves ? <PaperSprite name="newFlowers" className="paper-footer-leaf" /> : null}
   </div>;
 }
@@ -113,5 +117,45 @@ export function PaperLeaves() {
 }
 
 export function PaperSidebarNote({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return <textarea className="paper-sidebar-note" aria-label="左栏顶部文字" placeholder="写一句话…" rows={1} maxLength={160} value={value} onChange={event => onChange(event.target.value)} />;
+  return <div className="paper-sidebar-note"><PaperEditableText value={value} onChange={text => onChange(text.replace(/[\r\n]+/g, ' ').slice(0, 160))} label="左栏顶部文字" /></div>;
+}
+
+type TextLayout = { x: number; y: number; rotation: number; scale?: number };
+type EditableTextProps = { value: string; onChange: (text: string) => void; label?: string; layout?: TextLayout; onLayoutChange?: (layout: TextLayout) => void };
+
+export function PaperEditableText({ value, onChange, label = '文字', layout, onLayoutChange }: EditableTextProps) {
+  const [editing, setEditing] = useState(false);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const frameRef = useRef<HTMLSpanElement>(null);
+  const original = useRef(value);
+  const gesture = useRef<{ kind: string; x: number; y: number; cx: number; cy: number; distance: number; angle: number; layout: TextLayout } | null>(null);
+  useLayoutEffect(() => { if (!editing && textRef.current) textRef.current.textContent = value; }, [value, editing]);
+  const begin = () => { original.current = value; setEditing(true); };
+  useLayoutEffect(() => { if (editing) textRef.current?.focus(); }, [editing]);
+  const save = () => { onChange(textRef.current?.innerText.replace(/\r/g, '') ?? value); setEditing(false); };
+  return <span ref={frameRef} className={`paper-text-placement ${editing ? 'is-editing' : ''}`} style={layout ? { transform: `translate(${layout.x}px, ${layout.y}px) rotate(${layout.rotation}deg) scale(${layout.scale ?? 1})` } : undefined}
+    onBlur={event => { if (editing && !event.currentTarget.contains(event.relatedTarget as Node | null)) save(); }}
+    onKeyDown={event => {
+      if (!editing) return;
+      event.stopPropagation();
+      if (event.key === 'Escape') { event.preventDefault(); if (textRef.current) textRef.current.textContent = original.current; setEditing(false); }
+      if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); save(); }
+    }}>
+    <span ref={textRef} className="paper-editable-text" contentEditable={editing ? 'plaintext-only' : false} suppressContentEditableWarning role={editing ? 'textbox' : 'button'} aria-multiline={editing || undefined} tabIndex={0} aria-label={editing ? label : `编辑${label}`} data-placeholder="双击写点什么…" title="双击编辑；Enter 保存，Shift+Enter 换行" onDoubleClick={begin} onKeyDown={event => { if (!editing && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); begin(); } }} />
+    {editing && layout && onLayoutChange ? <span className="paper-text-handles" aria-label={`${label}位置调整`}>
+      {['move', 'scale', 'rotate'].map(kind => <button key={kind} type="button" className={`paper-text-handle handle-${kind}`} aria-label={`${kind === 'move' ? '移动' : kind === 'scale' ? '缩放' : '旋转'}${label}`} title={kind === 'move' ? '拖动边框移动' : kind === 'scale' ? '拖动缩放' : '拖动旋转'} onPointerDown={event => {
+        event.preventDefault();
+        const rect = frameRef.current!.getBoundingClientRect();
+        const cx = rect.x + rect.width / 2, cy = rect.y + rect.height / 2;
+        gesture.current = { kind, x: event.clientX, y: event.clientY, cx, cy, distance: Math.max(1, Math.hypot(event.clientX - cx, event.clientY - cy)), angle: Math.atan2(event.clientY - cy, event.clientX - cx), layout: { ...layout } };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }} onPointerMove={event => {
+        const g = gesture.current;
+        if (!g) return;
+        if (g.kind === 'move') onLayoutChange({ ...g.layout, x: g.layout.x + event.clientX - g.x, y: g.layout.y + event.clientY - g.y });
+        if (g.kind === 'scale') onLayoutChange({ ...g.layout, scale: Math.max(.4, Math.min(3, (g.layout.scale ?? 1) * Math.hypot(event.clientX - g.cx, event.clientY - g.cy) / g.distance)) });
+        if (g.kind === 'rotate') onLayoutChange({ ...g.layout, rotation: Math.round(g.layout.rotation + (Math.atan2(event.clientY - g.cy, event.clientX - g.cx) - g.angle) * 180 / Math.PI) });
+      }} onPointerUp={() => { gesture.current = null; }} onPointerCancel={() => { gesture.current = null; }} />)}
+    </span> : null}
+  </span>;
 }

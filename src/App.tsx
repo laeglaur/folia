@@ -2970,6 +2970,8 @@ export function App() {
     return operation;
   };
 
+  const newPageTitleFocusRef = useRef<string | null>(null);
+
   const addPage = (
     parentId: string | null = null,
     metadataPatch: Partial<Page['metadata']> = {},
@@ -2999,7 +3001,42 @@ export function App() {
         ? { ...next, expandedPageIds: [...next.expandedPageIds, parentId] }
         : next;
     });
+    return page.id;
   };
+
+  useEffect(() => {
+    if (cardModeBlockId) return;
+    const onNewPage = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'n' || event.repeat || event.isComposing) return;
+      if (document.querySelector('dialog[open]')) return;
+      const current = stateRef.current;
+      const notebookId = current.notebooks.find(notebook => notebook.id === selectedNotebookId)?.id
+        ?? current.pages.find(page => page.id === current.activePageId)?.notebookId
+        ?? current.activeNotebookId;
+      if (!current.notebooks.some(notebook => notebook.id === notebookId)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      newPageTitleFocusRef.current = addPage(null, {}, notebookId);
+      setSelectedNotebookId(null);
+      setWorkspaceView('write');
+      setSidebarCollapsed(false);
+      window.dispatchEvent(new CustomEvent('folia:expand-notebook', { detail: notebookId }));
+    };
+    window.addEventListener('keydown', onNewPage, true);
+    return () => window.removeEventListener('keydown', onNewPage, true);
+  });
+
+  useEffect(() => {
+    if (!newPageTitleFocusRef.current || state.activePageId !== newPageTitleFocusRef.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const title = document.querySelector<HTMLInputElement>('input.page-title');
+      if (!title) return;
+      title.focus();
+      title.select();
+      newPageTitleFocusRef.current = null;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [state.activePageId, workspaceView]);
 
   const addCalendarPage = (date: string) => {
     if (!activeNotebookCalendarConfig) return;

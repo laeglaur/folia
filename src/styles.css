@@ -3411,8 +3411,8 @@ body.notebook-table-column-resizing * {
   visibility: hidden;
 }
 
-.fish-desk:hover .fish-desk-panel,
-.fish-desk:focus-within .fish-desk-panel {
+.fish-desk-menu:hover > .fish-desk-panel,
+.fish-desk-menu:focus-within > .fish-desk-panel {
   transform: translateY(0) scale(1);
   visibility: visible;
 }
