@@ -924,6 +924,12 @@
 .paper-shell :is(.file-node-content, .notebook-button, .page-button, .outline-item) { border-radius: 7px; }
 .paper-shell #typora-sidebar :is(.file-node-content, .notebook-button, .page-button) { min-height: 32px; }
 .typora-app-shell.paper-shell #typora-sidebar .sidebar-pin-card { box-shadow: none; border-color: transparent; background: transparent; padding: 6px 8px; }
+.typora-app-shell.paper-shell #typora-sidebar .sidebar-pin-card + .sidebar-pin-card {
+  border-top: 1px solid color-mix(in srgb, var(--typora-shell-muted, var(--muted)) 28%, transparent);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  padding-top: 10px;
+}
 .paper-shell[data-shell="typora-tilted"] .notebook-node[data-generic-name="true"] .notebook-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .paper-sidebar-footer { display: flex; min-height: 106px; flex-shrink: 0; overflow: hidden; border-radius: 9px; background: color-mix(in srgb, var(--paper-color) 88%, #8a8f76); color: var(--typora-shell-muted); }
 .paper-card-image { position: relative; overflow: hidden; flex: 0 0 45%; background-size: cover; background-position: center; }
@@ -950,9 +956,9 @@
   --paper-tint: color-mix(in srgb, var(--paper-color) 92%, transparent);
   --contents-edge: url('/app-assets/paper/contents-torn-edge.svg');
   --contents-color: color-mix(in srgb, var(--paper-color) 82%, #ad9065);
-  gap: 0; padding: 8px 10px 8px 0;
+  gap: 0; padding: 8px 10px 0 0;
 }
-.paper-shell[data-shell="typora-collage"] #typora-sidebar { z-index: 3; height: calc(100dvh - 16px); padding: 22px 16px 14px; }
+.paper-shell[data-shell="typora-collage"] #typora-sidebar { z-index: 3; height: calc(100dvh - 8px); padding: 22px 16px 14px; }
 .paper-shell[data-shell="typora-collage"] #typora-sidebar::before { border-radius: 0 25px 25px 0; box-shadow: 10px 4px 24px rgb(57 47 31 / calc(var(--paper-shadow-alpha) * .6)); }
 .paper-brand { display: flex; align-items: center; gap: 14px; height: clamp(76px, 12vh, 125px); padding: 4px 10px 16px; flex-shrink: 0; }
 .paper-brand > .paper-sprite { width: 35px; height: 60px; transform: rotate(-12deg); }
@@ -1185,3 +1191,9 @@
 .fish-desk .desk-guide-dialog :is(td, th) { border: 0; border-bottom: 1px solid var(--desk-line); padding: 8px; }
 .fish-desk .desk-guide-dialog th { color: var(--desk-muted); font-weight: 500; background: color-mix(in srgb, var(--desk-ink) 4%, transparent); }
 .fish-desk .desk-guide-dialog code { background: color-mix(in srgb, var(--desk-ink) 6%, transparent); border-radius: 4px; }
+
+/* Extend only the paper layers under the navigation, keeping text in place. */
+@media (min-width: 761px) {
+  .paper-shell[data-shell="typora-collage"]:not(.sidebar-collapsed) .typora-workspace-frame::before { left: -36px; }
+  .paper-shell[data-shell="typora-collage"]:not(.sidebar-collapsed) .typora-workspace-frame::after { left: -40px; }
+}
