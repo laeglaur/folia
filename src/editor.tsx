@@ -1,3 +1,4 @@
+import { MixedListInput, sinkAcrossListTypes, liftAcrossListTypes } from './mixed-lists';
 import { useEffect, useRef } from 'react';
 import { Bold, Braces, CheckSquare, ChevronRight, Highlighter, Indent, Italic, Keyboard, List, ListOrdered, Outdent, Paperclip, Quote, Sigma, Strikethrough, Table2, Type, Underline as UnderlineIcon } from 'lucide-react';
 import { EditorContent, NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, type Editor } from '@tiptap/react';
@@ -348,9 +349,11 @@ export const runListIndentCommand = (editor: Editor, direction: 'in' | 'out') =>
   syncDomSelectionToEditor(editor);
   if (runCodeBlockIndentCommand(editor, direction)) return true;
 
+  if (direction === 'out' && liftAcrossListTypes(editor)) return true;
   const command = direction === 'in' ? 'sinkListItem' : 'liftListItem';
   if (editor.commands[command]('taskItem') || editor.commands[command]('listItem')) return true;
 
+  if (direction === 'in' && sinkAcrossListTypes(editor)) return true;
   if (runTextBlockIndentCommand(editor, direction)) return true;
 
   return runMediaIndentCommand(editor, direction);
@@ -2845,6 +2848,7 @@ const createEditorExtensions = (
     }
   }),
   TyporaAliases,
+  MixedListInput,
   BlockIndent,
   IdeographicSpaceInput.configure({ shouldUseIdeographicSpace }),
   Highlight,

@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><title>Mixed lists regression</title><pre id="results"></pre><div id="editor"></div>
+<script type="module">
+import { Editor } from '@tiptap/core';
+import StarterKit from '@tiptap/starter-kit';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import {setMixedListType,sinkAcrossListTypes,liftAcrossListTypes,MixedListInput} from '/src/mixed-lists.ts';
+const editor = new Editor({element:document.querySelector('#editor'),extensions:[MixedListInput,StarterKit,TaskList,TaskItem.configure({nested:true})],content:'<ul><li><p>one</p></li><li><p><strong>two</strong></p><ul><li><p>child</p></li></ul></li><li><p>three</p></li></ul>'});
+const results=[];
+function check(name,ok){results.push(`${ok?'PASS':'FAIL'} ${name}`);document.querySelector('#results').textContent=results.join('\n');if(!ok)throw Error(name);}
+function select(text){let pos;editor.state.doc.descendants((n,p)=>{if(n.isText&&n.text===text)pos=p;});editor.commands.setTextSelection(pos);}
+select('two'); check('convert selected item',setMixedListType(editor,'taskList'));
+check('preserve sibling bullet lists',editor.state.doc.childCount>=3&&editor.state.doc.child(0).type.name==='bulletList'&&editor.state.doc.child(2).type.name==='bulletList');
+check('preserve nested child and bold',editor.getHTML().includes('<strong>two</strong>')&&editor.getText().includes('child'));
+check('sink task under preceding bullet',sinkAcrossListTypes(editor));
+check('mixed subtree',editor.state.doc.firstChild.firstChild.lastChild.type.name==='taskList');
+check('lift task back out',liftAcrossListTypes(editor));
+select('two');check('convert to numbered item',setMixedListType(editor,'orderedList'));
+const saved=editor.getHTML();editor.commands.setContent(saved);check('reload retains task/number nesting',editor.getHTML()===saved);
+select('two'); check('sink numbered item',editor.commands.sinkListItem('listItem')||sinkAcrossListTypes(editor));
+check('schema valid',editor.state.doc.type.validContent(editor.state.doc.content));
+select('child');check('checkbox inside numbered inside bullet',setMixedListType(editor,'taskList'));
+const mixed=editor.getHTML();check('all three wrappers coexist',mixed.includes('<ol')&&mixed.includes('data-type="taskList"')&&mixed.includes('<ul'));
+editor.commands.undo();check('undo restores child bullet',!editor.getHTML().includes('data-type="taskList"'));
+editor.commands.redo();check('redo restores mixed tree',editor.getHTML()===mixed);
+editor.commands.setContent(mixed);check('mixed save reload stable',editor.getHTML()===mixed);
+
+editor.commands.setContent('<ul><li><p>parent</p><ul><li><p>alpha</p><ul><li><p>child</p></li></ul></li><li><p>beta</p></li></ul></li></ul>'); select('alpha');
+</script>

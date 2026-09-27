@@ -1,3 +1,4 @@
+import { setMixedListType } from './mixed-lists';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
@@ -2271,8 +2272,8 @@ export function App() {
     }
     if (command === 'footnote') insertFootnote();
     if (command === 'attachment') insertLocalMedia('attachment');
-    if (command === 'bulletList') chain.toggleBulletList().run();
-    if (command === 'orderedList') chain.toggleOrderedList().run();
+    if (command === 'bulletList') { editor.commands.focus(); setMixedListType(editor, 'bulletList'); }
+    if (command === 'orderedList') { editor.commands.focus(); setMixedListType(editor, 'orderedList'); }
     if (command === 'indent') {
       editor.commands.focus();
       runListIndentCommand(editor, 'in');
@@ -2284,7 +2285,8 @@ export function App() {
   };
 
   const insertTodo = () => {
-    getActiveTiptapEditor()?.chain().focus().toggleTaskList().run();
+    const editor = getActiveTiptapEditor();
+    if (editor) { editor.commands.focus(); setMixedListType(editor, 'taskList'); }
   };
 
   const applyHighlight = () => {
