@@ -333,7 +333,9 @@ type FoliaWidgetRun = {
 };
 
 type FoliaWidgetLine = {
-  kind: 'text' | 'heading' | 'task' | 'bullet' | 'numbered' | 'quote' | 'code';
+  imageData?: string;
+  imageSource?: string;
+  kind: 'text' | 'heading' | 'task' | 'bullet' | 'numbered' | 'quote' | 'code' | 'image';
   text: string;
   runs?: FoliaWidgetRun[];
   indent?: number;
@@ -520,6 +522,38 @@ const blockWidgetLines = (block: Block) => {
 
   const visit = (element: Element, indent = 0) => {
     const tag = element.tagName.toLowerCase();
+    if (element.matches('pre[data-terminal-fragment]')) {
+      try {
+        const fragment = JSON.parse(element.getAttribute('data-terminal-fragment') || '{}');
+        const parsed = new DOMParser().parseFromString(fragment.html, 'text/html');
+        const runs: FoliaWidgetRun[] = [];
+        const walk = (node: Node, inherited: Omit<FoliaWidgetRun, 'text'>) => {
+          if (node.nodeType === Node.TEXT_NODE) { runs.push({ ...inherited, text: node.textContent || '', code: true }); return; }
+          if (!(node instanceof Element)) return;
+          if (node.tagName === 'BR') { runs.push({ text: '\n', code: true }); return; }
+          const style = widgetStyleFromElement(node, inherited);
+          node.childNodes.forEach(child => walk(child, style));
+          if (['DIV', 'P', 'PRE'].includes(node.tagName) && runs.length && !runs[runs.length - 1].text.endsWith('\n')) runs.push({ text: '\n', code: true });
+        };
+        walk(parsed.body, { code: true });
+        const rows: FoliaWidgetRun[][] = [[]];
+        runs.forEach(run => run.text.split('\n').forEach((text, i) => { if (i) rows.push([]); if (text) rows[rows.length - 1].push({ ...run, text: text.replace(/\t/g, '    ') }); }));
+        if (!rows[rows.length - 1].length) rows.pop();
+        rows.forEach(row => lines.push({ kind: 'code', text: row.map(r => r.text).join('') || ' ', runs: row, indent }));
+        return;
+      } catch { /* Legacy or invalid payload falls back to readable code. */ }
+    }
+    if (tag === 'img') {
+      lines.push({ kind: 'image', text: element.getAttribute('alt') || '图片', imageSource: element.getAttribute('src') || '' });
+      return;
+    }
+    if ((tag === 'p' || tag === 'div') && element.querySelector('img, pre[data-terminal-fragment]')) {
+      Array.from(element.childNodes).forEach(child => {
+        if (child instanceof Element) visit(child, indent);
+        else if (child.textContent?.trim()) pushWidgetLine(lines, 'text', [{ text: child.textContent }]);
+      });
+      return;
+    }
     if (tag === 'ul' || tag === 'ol') {
       parseWidgetList(element, indent, lines);
       return;
@@ -557,7 +591,33 @@ const blockWidgetLines = (block: Block) => {
   return lines.slice(0, 48);
 };
 
-const foliaWidgetSnapshot = (block: Block, page: Page | null): FoliaWidgetBlockSnapshot => {
+const widgetImageCache = new Map<string, Promise<string | undefined>>();
+export const widgetImageData = (source: string): Promise<string | undefined> => {
+  if (widgetImageCache.has(source)) return widgetImageCache.get(source)!;
+  const task = new Promise<string | undefined>(resolve => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    const timer = window.setTimeout(() => resolve(undefined), 4000);
+    image.onload = () => {
+      window.clearTimeout(timer);
+      try {
+        const scale = Math.min(1, 640 / Math.max(image.naturalWidth, image.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/png').split(',')[1]);
+      } catch { resolve(undefined); }
+    };
+    image.onerror = () => { window.clearTimeout(timer); resolve(undefined); };
+    image.src = source;
+  });
+  if (widgetImageCache.size >= 80) widgetImageCache.delete(widgetImageCache.keys().next().value!);
+  widgetImageCache.set(source, task);
+  return task;
+};
+
+export const foliaWidgetSnapshot = (block: Block, page: Page | null): FoliaWidgetBlockSnapshot => {
   const lines = blockWidgetLines(block);
   const previewSource = lines.find((line) => line.text.trim())?.text || block.content.plainText || page?.title || 'folia block';
   return {
@@ -626,7 +686,17 @@ export function App() {
   const [selectedNotebookId, setSelectedNotebookId] = useState<string | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedPageIds, setSelectedPageIds] = useState<string[]>([]);
-  const [desktopWidgetBlockId, setDesktopWidgetBlockId] = useState<string | null>(null);
+  const [desktopWidgetBlockId, setDesktopWidgetBlockId] = useState<string | null>(() => {
+    try { return window.localStorage.getItem('folia:desktop-widget-block'); } catch { return null; }
+  });
+  useEffect(() => {
+    if (!isTauri()) return;
+    const cleanup = listen<string>('folia:widget-selected', event => {
+      setDesktopWidgetBlockId(event.payload);
+      window.localStorage.setItem('folia:desktop-widget-block', event.payload);
+    });
+    return () => { void cleanup.then(unlisten => unlisten()); };
+  }, []);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [trashBusy, setTrashBusy] = useState(false);
   const [temporaryMarkdownPages, setTemporaryMarkdownPages] = useState<TemporaryMarkdownPage[]>([]);
@@ -635,6 +705,14 @@ export function App() {
   const [deletedBlockSnapshot, setDeletedBlockSnapshot] = useState<DeletedBlockSnapshot | null>(null);
   const [pageDraftName, setPageDraftName] = useState('');
   const [outlineDrawerOpen, setOutlineDrawerOpen] = useState(true);
+  const [outlineShowLists, setOutlineShowLists] = useState(() => {
+    try { return window.localStorage.getItem('folia:outline-show-lists') === 'true'; }
+    catch { return false; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('folia:outline-show-lists', String(outlineShowLists)); }
+    catch { /* Keep the current session usable when storage is unavailable. */ }
+  }, [outlineShowLists]);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('write');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [importNotice, setImportNotice] = useState<ImportNotice>({ kind: 'idle', message: '' });
@@ -1221,7 +1299,7 @@ export function App() {
     };
   }, [activePage?.id]);
 
-  const outlineEntries = useMemo(() => extractOutlineEntries(activePage, orderedPageBlocks), [activePage, orderedPageBlocks]);
+  const outlineEntries = useMemo(() => extractOutlineEntries(activePage, orderedPageBlocks).filter(entry => outlineShowLists || entry.kind !== 'list'), [activePage, orderedPageBlocks, outlineShowLists]);
   const normalizePageSelection = (pageIds: string[]) => {
     const existing = new Set(stateRef.current.pages.map((page) => page.id));
     return [...new Set(pageIds.filter((pageId) => existing.has(pageId)))];
@@ -2386,10 +2464,25 @@ export function App() {
       ?? activePageBlocksRef.current.find((block) => !isEditorContentEmpty(block.content.html, block.content.plainText))?.id
       ?? blocks[0]?.id
       ?? null;
+    // Keep the chosen block available even when the recent-block index is full.
+    let preferred = selectedBlockId ? findBlockForWidget(selectedBlockId).block : null;
+    if (!preferred && selectedBlockId) {
+      const document = await invoke<{ page: Page; content: { blocks: Block[] } } | null>('load_block_document', { blockId: selectedBlockId });
+      preferred = document?.content.blocks.find(block => block.id === selectedBlockId) ?? null;
+      if (document) pageById.set(document.page.id, document.page);
+    }
+    if (preferred && !blocks.some(block => block.id === preferred.id)) blocks.unshift(preferred);
     const payload = {
       version: 1,
       selectedBlockId,
-      blocks: blocks.map((block) => foliaWidgetSnapshot(block, pageById.get(block.pageId) ?? null))
+      blocks: await Promise.all(blocks.map(async block => {
+        const snapshot = foliaWidgetSnapshot(block, pageById.get(block.pageId) ?? null);
+        for (const line of snapshot.lines) if (line.imageSource) {
+          line.imageData = await widgetImageData(line.imageSource);
+          delete line.imageSource;
+        }
+        return snapshot;
+      }))
     };
     await setItems(foliaWidgetBlocksKey, JSON.stringify(payload), foliaWidgetGroup);
     await setItems('__widget_config__', '', foliaWidgetGroup);
@@ -2400,12 +2493,17 @@ export function App() {
   };
 
   const showBlockInMacWidget = async (blockId: string) => {
+    if (!isTauri()) {
+      setImportNotice({ kind: 'warning', message: '请在 folia 桌面版中使用 macOS 小组件；浏览器预览无法更新桌面小组件。' });
+      return;
+    }
     const { block } = findBlockForWidget(blockId);
     if (!block) return;
     try {
       await publishFoliaWidgetBlocks(block.id);
       setDesktopWidgetBlockId(block.id);
-      setImportNotice({ kind: 'success', message: 'Updated the folia Block desktop widget.' });
+      try { window.localStorage.setItem('folia:desktop-widget-block', block.id); } catch { /* Session selection still works. */ }
+      setImportNotice({ kind: 'success', message: '已发送到 folia Block 小组件。首次使用请在桌面右键 → 编辑小组件中添加 folia；如小组件指定了其他 Block，请清除该选择以跟随本次钉选。' });
     } catch (error) {
       setImportNotice({
         kind: 'error',
@@ -4563,6 +4661,8 @@ export function App() {
   }
 
   const shellControls = {
+    outlineShowLists,
+    onOutlineShowListsChange: setOutlineShowLists,
     showToolbar,
     showPageMetadata: state.showPageMetadata,
     newestFirst: pageBlockOrder === 'desc',

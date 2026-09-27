@@ -1304,3 +1304,6 @@ body[data-shell^="typora-"] :is(.primary-button, .temporary-markdown-save) {
 .typora-theme .composer-card .tiptap-editor p.is-editor-empty:first-child::before {
   color: var(--text-color, var(--theme-ink, var(--ink)));
 }
+
+/* Metadata spacing belongs to the shared row, not the date button. */
+.typora-app-shell .block-meta-actions .block-created-at { margin: 0; min-height: 20px; line-height: 20px; }

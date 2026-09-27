@@ -18,9 +18,9 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleDisplayName: TauriWidgetExtension
+        CFBundleDisplayName: folia Block
         CFBundleShortVersionString: "1.2"
-        CFBundleVersion: "3"
+        CFBundleVersion: "4"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
@@ -30,7 +30,7 @@ targets:
         SWIFT_VERSION: "5.9"
         CODE_SIGN_ENTITLEMENTS: TauriWidgetExtension.entitlements
         MARKETING_VERSION: "1.2"
-        CURRENT_PROJECT_VERSION: "3"
+        CURRENT_PROJECT_VERSION: "4"
         SKIP_INSTALL: YES
     dependencies:
       - package: TauriWidgets

@@ -3135,6 +3135,38 @@ fn list_calendar_blocks_from_database(
 }
 
 #[tauri::command]
+fn search_widget_blocks(app: AppHandle, query: String) -> Result<Vec<serde_json::Value>, String> {
+    let connection = open_database(&app)?;
+    let mut statement = connection.prepare("SELECT b.block_json, p.title FROM page_block_index b JOIN pages p ON p.id = b.page_id WHERE ?1 = '' OR instr(lower(b.plain_text), lower(?1)) > 0 OR instr(lower(p.title), lower(?1)) > 0 ORDER BY b.updated_at DESC LIMIT 80").map_err(|e| e.to_string())?;
+    let rows = statement.query_map([query.trim()], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))).map_err(|e| e.to_string())?;
+    rows.map(|row| {
+        let (raw, title) = row.map_err(|e| e.to_string())?;
+        let block: serde_json::Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+        Ok(serde_json::json!({ "block": block, "pageTitle": title }))
+    }).collect()
+}
+
+#[tauri::command]
+fn open_widget_block(app: AppHandle, block_id: String) -> Result<(), String> {
+    let connection = open_database(&app)?;
+    if load_block_document_from_database(&connection, &block_id)?.is_none() { return Err("Block no longer exists".into()); }
+    let label = format!("widget_edit_{}", block_id.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '_').collect::<String>());
+    if let Some(window) = app.get_webview_window(&label) { let _ = window.show(); return window.set_focus().map_err(|e| e.to_string()); }
+    let mut url = tauri::Url::parse("https://folia.local/index.html").map_err(|e| e.to_string())?;
+    url.query_pairs_mut().append_pair("card", &block_id);
+    WebviewWindowBuilder::new(&app, label, WebviewUrl::App(format!("index.html?{}", url.query().unwrap_or("")).into()))
+        .title("folia · Block").inner_size(760.0, 640.0).focused(true).resizable(true).build().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn open_widget_picker(app: &AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("widget_picker") { let _ = window.show(); return window.set_focus().map_err(|e| e.to_string()); }
+    WebviewWindowBuilder::new(app, "widget_picker", WebviewUrl::App("index.html?widgetPicker=1".into()))
+        .title("folia · 选择小组件内容").inner_size(640.0, 580.0).focused(true).resizable(true).build().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 fn load_block_document(
     app: AppHandle,
     block_id: String,
@@ -3707,6 +3739,8 @@ pub fn run() {
             load_page_document,
             load_page_documents,
             load_block_document,
+            search_widget_blocks,
+            open_widget_block,
             list_pinned_blocks,
             list_calendar_blocks,
             search_pages,
@@ -3748,6 +3782,22 @@ pub fn run() {
             #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
             if let RunEvent::Opened { urls } = event {
                 for url in urls {
+                    if url.scheme() == "folia" {
+                        if url.host_str() == Some("widget") {
+                            let block = url.query_pairs().find(|(key, _)| key == "block").map(|(_, value)| value.into_owned());
+                            let opened = if url.path() == "/edit" {
+                                block.map(|id| open_widget_block(app.clone(), id)).unwrap_or_else(|| Err("Missing block".into()))
+                            } else { open_widget_picker(app) };
+                            if opened.is_ok() {
+                                // Launch Services also brings forward the app's default window.
+                                // Widget links should leave only their requested window visible.
+                                if let Some(main) = app.get_webview_window("main") { let _ = main.hide(); }
+                            } else if let Err(error) = opened {
+                                eprintln!("Could not open widget destination: {error}");
+                            }
+                        }
+                        continue;
+                    }
                     if url.scheme() != "file" {
                         continue;
                     }

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState, type CSSProperties, type MouseEvent } from 'react';
-import { ChevronRight, MonitorUp, Plus } from 'lucide-react';
+import { ChevronRight, Pin, Plus } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import type { Block, ContentThemeId, MetadataFieldType, NotebookCalendarDateSource, NotebookCalendarViewConfig, Page, PageMetadataField } from './types';
 import type { PageCalendarEntry, PageCalendarFieldCandidate } from './page-calendar';
@@ -258,9 +258,9 @@ function BlockItem({
             type="button"
             onClick={() => onShowBlockInMacWidget(block.id)}
             aria-label="Show block in macOS desktop widget"
-            title="Show in macOS widget"
+            title="显示到 macOS 桌面小组件"
           >
-            <MonitorUp size={13} />
+            <Pin size={12} strokeWidth={1.5} aria-hidden="true" />
           </button>
         </div>
         {!block.collapsed ? (
@@ -286,6 +286,7 @@ function BlockItem({
               editor.commands.blur();
               return true;
             }}
+            onUpdate={(html, plainText) => onUpdateBlock(block.id, html, plainText)}
             onBlur={(html, plainText) => onUpdateBlock(block.id, html, plainText)}
           />
         ) : (

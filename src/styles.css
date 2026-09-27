@@ -3966,3 +3966,15 @@ body.notebook-table-column-resizing * {
 .desk-guide-dialog th, .desk-guide-dialog td { padding:8px 10px; text-align:left; border:1px solid color-mix(in srgb, currentColor 18%, transparent); }
 .desk-guide-dialog code { font-size:.92em; background:color-mix(in srgb, currentColor 8%, transparent); padding:2px 4px; border-radius:4px; }
 .desk-guide-dialog li { margin:8px 0; }
+
+.block-meta-actions .block-widget-button { flex: 0 0 20px; min-height: 20px; margin: 0; line-height: 1; box-shadow: none; vertical-align: middle; }
+.block-widget-button svg { display: block; transform: rotate(18deg); transform-origin: center; }
+.block-widget-button:focus-visible { outline: 1px solid currentColor; outline-offset: 2px; }
+
+.widget-picker { max-width: 820px; margin: auto; padding: 24px; height: 100vh; overflow: auto; background: var(--surface, #faf8f2); color: var(--ink, #25372d); font: 14px/1.6 system-ui; }
+.widget-picker h1 { font-size: 20px; }
+.widget-picker > input { width: 100%; padding: 10px 12px; border: 1px solid #8885; border-radius: 8px; background: transparent; color: inherit; }
+.widget-picker article { padding: 14px 0; border-top: 1px solid #8883; }
+.widget-picker article p { margin: 6px 0 10px; font-size: 13px; line-height: 1.55; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.widget-picker article div { display: flex; gap: 10px; }
+.widget-picker button { padding: 6px 10px; border: 1px solid #8885; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }

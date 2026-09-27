@@ -1,3 +1,4 @@
+import AppKit
 import AppIntents
 import SwiftUI
 import TauriWidgets
@@ -25,6 +26,7 @@ struct FoliaBlockSnapshot: Decodable, Identifiable, Hashable {
 }
 
 struct FoliaWidgetLine: Decodable, Hashable {
+    var imageData: String? = nil
     let kind: String
     let text: String
     let runs: [FoliaWidgetRun]?
@@ -139,13 +141,10 @@ struct FoliaBlockProvider: AppIntentTimelineProvider {
         return Timeline(entries: [entry], policy: .after(next))
     }
 
+    // The gallery must not depend on saved user content to discover this widget.
+    // Blocks remain selectable through the configuration's options provider.
     func recommendations() -> [AppIntentRecommendation<FoliaBlockConfigurationIntent>] {
-        FoliaWidgetData.store().blocks.prefix(6).map {
-            AppIntentRecommendation(
-                intent: FoliaBlockConfigurationIntent(blockId: $0.id),
-                description: "\($0.preview.isEmpty ? "Untitled block" : $0.preview)"
-            )
-        }
+        []
     }
 
     private var sampleBlock: FoliaBlockSnapshot {
@@ -221,6 +220,7 @@ private struct FoliaBlockWidgetView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .widgetAccentable(false)
+        .widgetURL(URL(string: "folia://widget/search"))
         .containerBackground(for: .widget) {
             Color(red: 0.98, green: 0.965, blue: 0.925)
         }
@@ -247,14 +247,19 @@ private struct FoliaBlockWidgetView: View {
     }
 
     private func card(_ block: FoliaBlockSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: entry.family == .systemSmall ? 8 : 10) {
+        VStack(alignment: .leading, spacing: 8) {
             header(block)
-            VStack(alignment: .leading, spacing: entry.family == .systemLarge ? 7 : 6) {
-                ForEach(Array(block.lines.prefix(maxLines).enumerated()), id: \.offset) { _, line in
-                    lineView(line)
+            GeometryReader { geometry in
+                VStack(alignment: .leading, spacing: entry.family == .systemLarge ? 7 : 6) {
+                    ForEach(Array(block.lines.prefix(maxLines).enumerated()), id: \.offset) { _, line in
+                        lineView(line)
+                    }
                 }
+                .frame(width: geometry.size.width, alignment: .topLeading)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+                .clipped()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .padding(padding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -273,10 +278,37 @@ private struct FoliaBlockWidgetView: View {
                 .foregroundStyle(usesFullColor ? Color(red: 0.34, green: 0.39, blue: 0.33) : Color.secondary)
                 .lineLimit(1)
             Spacer(minLength: 0)
+            Link(destination: URL(string: "folia://widget/search")!) {
+                Image(systemName: "magnifyingglass").font(.system(size: 12))
+            }.accessibilityLabel("搜索并选择 block")
+            Link(destination: editURL(block.id)) {
+                Image(systemName: "arrow.up.right.square").font(.system(size: 12))
+            }.accessibilityLabel("打开完整窗口")
         }
     }
 
+    private func editURL(_ blockId: String) -> URL {
+        var components = URLComponents(string: "folia://widget/edit")!
+        components.queryItems = [URLQueryItem(name: "block", value: blockId)]
+        return components.url!
+    }
+
+    @ViewBuilder
     private func lineView(_ line: FoliaWidgetLine) -> some View {
+        if line.kind == "image" {
+            if let encoded = line.imageData, let data = Data(base64Encoded: encoded), let image = NSImage(data: data) {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: min(entry.family == .systemSmall ? 84 : 130,
+                        (entry.family == .systemSmall ? 136 : 312) * image.size.height / max(image.size.width, 1)), alignment: .topLeading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                Label(line.text.isEmpty ? "图片暂不可用" : line.text, systemImage: "photo")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        } else {
         HStack(alignment: .firstTextBaseline, spacing: 7) {
             if let indent = line.indent, indent > 0 {
                 Spacer().frame(width: CGFloat(min(indent, 4)) * 14)
@@ -290,6 +322,7 @@ private struct FoliaBlockWidgetView: View {
                 .background(lineBackground(for: line))
                 .clipShape(RoundedRectangle(cornerRadius: line.kind == "code" ? 6 : 4, style: .continuous))
                 .frame(maxWidth: .infinity, alignment: .leading)
+        }
         }
     }
 
@@ -363,7 +396,7 @@ private struct FoliaBlockWidgetView: View {
     private func lineBackground(for line: FoliaWidgetLine) -> some View {
         if line.kind == "code" {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(usesFullColor ? Color.white.opacity(0.48) : Color.primary.opacity(0.10))
+                .fill(line.runs?.compactMap { $0.backgroundColor.flatMap { color(hex: $0) } }.first ?? (usesFullColor ? Color.white.opacity(0.48) : Color.primary.opacity(0.10)))
         } else if hasHighlight(line) {
             RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .fill(usesFullColor ? highlightColor(for: line).opacity(0.56) : Color.primary.opacity(0.12))
@@ -444,6 +477,7 @@ private struct FoliaBlockWidgetView: View {
                 .lineLimit(4)
         }
         .padding(padding)
+        .clipped()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }

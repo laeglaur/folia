@@ -184,6 +184,8 @@ type NotebookActions = {
 };
 
 type ToolControlsProps = {
+  outlineShowLists: boolean;
+  onOutlineShowListsChange: (show: boolean) => void;
   compact?: boolean;
   showToolbar: boolean;
   showPageMetadata: boolean;
@@ -214,6 +216,8 @@ type ToolControlsProps = {
 };
 
 function ToolControls({
+  outlineShowLists,
+  onOutlineShowListsChange,
   compact = false,
   showToolbar,
   showPageMetadata,
@@ -259,6 +263,7 @@ function ToolControls({
       {compact && (
         <>
           <label className="view-toggle"><input type="checkbox" checked={outlineOpen} onChange={onOutlineToggle} /> Contents</label>
+          <label className="view-toggle"><input type="checkbox" checked={outlineShowLists} onChange={event => onOutlineShowListsChange(event.target.checked)} /> Contents 显示列表项</label>
           <label className="view-toggle"><input type="checkbox" checked={!sidebarCollapsed} onChange={onSidebarToggle} /> Sidebar</label>
         </>
       )}
@@ -567,7 +572,7 @@ function NotebookList({
 }) {
   const [editingNotebookId, setEditingNotebookId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
-  const [collapsedNotebookIds, setCollapsedNotebookIds] = useState<Set<string>>(() => new Set());
+  const [expandedNotebookIds, setExpandedNotebookIds] = useState<Set<string>>(() => new Set());
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const cancelBlurCommitRef = useRef(false);
 
@@ -608,7 +613,7 @@ function NotebookList({
   };
 
   const toggleNotebookExpanded = (notebookId: string) => {
-    setCollapsedNotebookIds((current) => {
+    setExpandedNotebookIds((current) => {
       const next = new Set(current);
       if (next.has(notebookId)) next.delete(notebookId);
       else next.add(notebookId);
@@ -621,7 +626,7 @@ function NotebookList({
     const isSelected = notebook.id === selectedNotebookId;
     const emoji = notebook.metadata.emoji;
     const hasPages = notebook.pageIds.length > 0;
-    const expanded = !collapsedNotebookIds.has(notebook.id);
+    const expanded = expandedNotebookIds.has(notebook.id);
     const sharedInputProps = {
       ref: nameInputRef,
       className: 'notebook-name-input',
@@ -803,7 +808,7 @@ function NotebookList({
               {renderNotebookLabel(notebook)}
               {renderNotebookActions(notebook, 'row-actions file-node-actions')}
             </div>
-            {!collapsedNotebookIds.has(notebook.id) && pageTrees.get(notebook.id) ? <div className="file-node-children notebook-page-children">{pageTrees.get(notebook.id)}</div> : null}
+            {expandedNotebookIds.has(notebook.id) && pageTrees.get(notebook.id) ? <div className="file-node-children notebook-page-children">{pageTrees.get(notebook.id)}</div> : null}
           </div>
         ))}
       </div>
@@ -818,7 +823,7 @@ function NotebookList({
             {renderNotebookLabel(notebook)}
             {renderNotebookActions(notebook, 'row-actions notebook-row-actions')}
           </div>
-          {!collapsedNotebookIds.has(notebook.id) && pageTrees.get(notebook.id) ? <div className="notebook-page-children">{pageTrees.get(notebook.id)}</div> : null}
+          {expandedNotebookIds.has(notebook.id) && pageTrees.get(notebook.id) ? <div className="notebook-page-children">{pageTrees.get(notebook.id)}</div> : null}
         </div>
       ))}
     </div>
