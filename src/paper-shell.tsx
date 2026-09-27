@@ -1,4 +1,6 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { importAttachmentFile } from './editor';
+import { isTauri } from '@tauri-apps/api/core';
 
 const decorationLayout = { leafX: -48, leafY: 93, leafSize: 50, leafRotation: -8, captionX: -35, captionY: 39, captionWidth: 48, captionSize: 13 };
 const defaults = {
@@ -43,6 +45,39 @@ export function usePaperShell(shell: string) {
   } as CSSProperties;
   return { settings, update, style, gardenStyle };
 }
+function AppearanceImage({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const local = /^(data:|asset:|https?:\/\/asset\.localhost)/.test(value);
+  return <div className="appearance-image-field">
+    <label>{label}<input aria-label={`${label} URL`} value={local ? '' : value} placeholder={local ? '已选择本地图片，可输入 URL 替换' : '粘贴图片 URL'} onChange={event => onChange(event.target.value)} /></label>
+    <input ref={input} hidden type="file" accept="image/*" onChange={async event => {
+      const file = event.target.files?.[0]; event.target.value = '';
+      if (!file) return;
+      setError(''); setBusy(true);
+      try {
+        let imageFile = file;
+        if (!isTauri()) {
+          const bitmap = await createImageBitmap(file);
+          const ratio = Math.min(1, 1920 / Math.max(bitmap.width, bitmap.height));
+          const canvas = document.createElement('canvas'); canvas.width = Math.round(bitmap.width * ratio); canvas.height = Math.round(bitmap.height * ratio);
+          canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
+          const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error()), 'image/webp', .85));
+          imageFile = new File([blob], 'background.webp', { type: blob.type });
+        }
+        const imported = await importAttachmentFile(imageFile);
+        // Check capacity before applying a browser-stored image.
+        if (!isTauri()) { localStorage.setItem('folia.imageImportCheck', imported.src); localStorage.removeItem('folia.imageImportCheck'); }
+        onChange(imported.src);
+      } catch { setError('图片未能保存，请尝试较小的图片或使用图片 URL。'); }
+      finally { setBusy(false); }
+    }} />
+    <div className="appearance-image-actions"><button type="button" disabled={busy} onClick={() => input.current?.click()}>{busy ? '正在导入…' : '选择本地图片'}</button>{value && <button type="button" onClick={() => onChange('')}>清除图片</button>}</div>
+    {error && <span role="alert">{error}</span>}
+  </div>;
+}
+
 export function PaperSettings({ shell, settings, update }: { shell: string; settings: Settings; update: (patch: Partial<Settings>) => void }) {
   const collage = shell === 'typora-collage';
   return <details className="paper-settings"><summary>{collage ? '拼贴纸张与装饰' : '倾斜纸张与装饰'}</summary><div className="paper-settings-fields">
@@ -50,7 +85,7 @@ export function PaperSettings({ shell, settings, update }: { shell: string; sett
     {([['background', '桌面颜色'], ['paper', '纸张颜色']] as const).map(([key, label]) =>
       <label key={key}>{label}<input type="color" value={settings[key]} onChange={e => update({ [key]: e.target.value, ...(key === 'paper' ? { autoPaper: false } : {}) })} /></label>)}
     {([['image', '桌面背景图片'], ['footerImage', '左下背景图片'], ['cardImage', '右侧挂画图片'], ['cardText', '右栏下方文字'], ['rightText', '左栏顶部文字']] as const).filter(([key]) => collage ? key !== 'cardText' && key !== 'rightText' : key !== 'cardImage').map(([key, label]) =>
-      <label key={key}>{label}<input value={settings[key]} placeholder={key.includes('Image') || key === 'image' ? '图片 URL / 应用资源路径' : ''} onChange={e => update({ [key]: e.target.value })} /></label>)}
+      key.includes('Image') || key === 'image' ? <AppearanceImage key={key} label={label} value={settings[key]} onChange={value => update({ [key]: value })} /> : <label key={key}>{label}<input value={settings[key]} onChange={e => update({ [key]: e.target.value })} /></label>)}
     {([['opacity', '背景透明度', 0, 1, 0.05], ['shadow', '阴影强度', 0, 0.4, 0.02], ['leftAngle', '左框上沿倾斜', -4, 4, 0.1], ['pageAngle', '正文外框角度', -3, 3, 0.1], ['rightAngle', '右框上沿倾斜', -5, 5, 0.1]] as const).filter(([key]) => !collage || (key !== 'leftAngle' && key !== 'rightAngle')).map(([key, label, min, max, step]) =>
       <label key={key}>{label} · {settings[key]}<input type="range" min={min} max={max} step={step} value={settings[key]} onChange={e => update({ [key]: Number(e.target.value) })} /></label>)}
     {collage && <label>树叶装饰<input type="checkbox" checked={settings.leaves} onChange={e => update({ leaves: e.target.checked })} /></label>}
@@ -62,7 +97,7 @@ export function GardenAppearance({ settings, update }: { settings: Settings; upd
   return <details className="paper-settings"><summary>背景外观</summary><div className="paper-settings-fields">
     <label>自定义背景颜色<input type="checkbox" checked={settings.customDesk} onChange={e => update({ customDesk: e.target.checked })} /></label>
     <label>背景颜色<input type="color" value={settings.background} onChange={e => update({ background: e.target.value, customDesk: true })} /></label>
-    <label>背景图片<input value={settings.image} placeholder="图片 URL / 应用资源路径" onChange={e => update({ image: e.target.value })} /></label>
+    <AppearanceImage label="背景图片" value={settings.image} onChange={image => update({ image })} />
     <label>背景图片透明度<input type="range" min="0" max="1" step="0.05" value={settings.opacity} onChange={e => update({ opacity: Number(e.target.value) })} /></label>
     <button type="button" onClick={() => update({ customDesk: false, image: '', opacity: defaults.opacity })}>恢复默认背景</button>
   </div></details>;
