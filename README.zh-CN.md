@@ -15,15 +15,19 @@ folia 是一个本地优先的块状笔记应用，基于 Tauri、React 和 TipT
 
 ## 主题与外观
 
+推荐先试 **Tilted Paper** 和 **Paper Collage**：前者用留白和倾斜纸框营造轻松的书写空间，后者突出亚麻、毛边纸张与拼贴装饰。两者都能搭配不同的正文主题。
+
+**Typora Base** 是最基础、简洁的商务风；**Garden Typora** 仅在基础布局上做轻度变化，适合偏好克制外观的用户。
+
 小鱼 → **外观调整** 打开可拖动面板，设置时可查看页面变化。
 
 | Shell | 外观与设置 |
 | --- | --- |
+| Tilted Paper（推荐） | 三个上沿倾斜的纸框、独立纸色和阴影、背景与左下图片 |
+| Paper Collage（推荐） | 亚麻背景、叠层毛边纸、挂画、胶带与树叶装饰 |
+| Typora Base | 基础商务风，简洁的 Typora 外壳 |
+| Garden Typora | 基础布局的轻度变化，支持背景设置 |
 | Native Garden | 原生笔记布局，全画面背景颜色、图片与透明度 |
-| Typora Base | 基础 Typora 外壳，配合独立正文主题 |
-| Garden Typora | Garden 侧栏布局，支持背景设置 |
-| Tilted Paper | 三个上沿倾斜的纸框、独立纸色和阴影、背景与左下图片 |
-| Paper Collage | 亚麻背景、叠层毛边纸、挂画、胶带与树叶装饰 |
 
 Typora 系列可独立选择正文主题，如 Proof、Swiss、Folio、Everforest、Torillic、Paperglow 等。两款纸张外壳保留自己的纸面；正文主题负责文字排版。纸色可跟随正文主题，包括暗色主题。
 

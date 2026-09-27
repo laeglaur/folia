@@ -14,15 +14,17 @@ Writing tools include tables, math, footnotes, quotes, code, attachments, audio/
 
 ## Appearance
 
+Start with **Tilted Paper** or **Paper Collage**: Tilted offers generous spacing and slanted paper frames; Collage adds linen, torn paper, and layered decorations. Both support independent content themes. **Typora Base** is the minimal business-style option, while **Garden Typora** offers a modest variation on the basic layout.
+
 Open **外观调整 (Appearance)** from the fish menu for a draggable live-preview panel.
 
 | Shell | Appearance |
 | --- | --- |
+| Tilted Paper (recommended) | Three skewed-top paper frames, paper color, shadows, background and footer image |
+| Paper Collage (recommended) | Linen, overlapping torn paper, framed picture, tape, and leaves |
+| Typora Base | Minimal business-style shell |
+| Garden Typora | A modest variation on the basic layout, with configurable backgrounds |
 | Native Garden | Native notebook layout with full background color, image, and opacity settings |
-| Typora Base | Basic Typora shell with an independent content theme |
-| Garden Typora | Garden navigation with configurable backgrounds |
-| Tilted Paper | Three skewed-top paper frames, paper color, shadows, background and footer image |
-| Paper Collage | Linen, overlapping torn paper, framed picture, tape, and leaves |
 
 Typora shells support independent content themes such as Proof, Swiss, Folio, Everforest, Torillic, and Paperglow. The two paper shells keep their own paper surface while content themes control typography. Automatic paper colors also respond to dark themes.
 

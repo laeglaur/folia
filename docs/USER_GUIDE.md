@@ -157,6 +157,8 @@
 
 ## 按外壳调整外观
 
+推荐先试 **Tilted Paper**（留白、倾斜纸框）和 **Paper Collage**（亚麻、毛边纸张与拼贴）。若需要基础商务风，可选 **Typora Base**；**Garden Typora** 是基础布局的轻度变化。正文主题仍可独立搭配。
+
 小鱼菜单中的「外观调整」打开可拖动面板，Shell、正文主题及对应外观细节统一在面板中设置，调整时可以查看页面变化。设置项随当前 Shell 切换，各个 Shell 分别保存：
 
 - Native Garden / Garden Typora：背景颜色、背景图片和图片透明度。
