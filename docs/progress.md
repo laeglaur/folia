@@ -1,5 +1,7 @@
 # Notebook Progress
 
+> Historical engineering log (June 2026), not the current feature list. See [README](../README.md) and [user guide](USER_GUIDE.md) for current behavior.
+
 Updated: 2026-06-13
 
 ## Done
