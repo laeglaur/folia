@@ -1,6 +1,10 @@
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
-const browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
+let browser;
+for (let attempt = 0; attempt < 30; attempt++) {
+  try { browser = await chromium.connectOverCDP('http://localhost:9222'); break; } catch { await new Promise(r => setTimeout(r,1000)); }
+}
+if (!browser) throw Error('WebView2 debugging endpoint never became available');
 try {
   const context = browser.contexts()[0];
   const page = context.pages()[0];

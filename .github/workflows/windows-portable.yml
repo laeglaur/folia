@@ -28,6 +28,9 @@ jobs:
           New-Item -ItemType Directory -Path $testDir -Force
           Copy-Item src-tauri/target/release/block_first_notebook.exe "$testDir/folia.exe"
           $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=9222"
+          $debugKey = "HKCU:\Software\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments"
+          New-Item -Path $debugKey -Force | Out-Null
+          New-ItemProperty -Path $debugKey -Name "folia.exe" -Value "--remote-debugging-port=9222" -PropertyType String -Force | Out-Null
           $app = Start-Process "$testDir/folia.exe" -PassThru
           try {
             Start-Sleep -Seconds 15
@@ -37,6 +40,7 @@ jobs:
             node scripts/windows-window-smoke.mjs
             if ($LASTEXITCODE -ne 0) { throw "Window interaction checks failed" }
           } finally {
+            Get-CimInstance Win32_Process | Where-Object { $_.Name -like '*webview*' -or $_.Name -eq 'folia.exe' } | Select-Object Name,CommandLine | Format-List
             if (!$app.HasExited) { Stop-Process -Id $app.Id -Force }
           }
       - shell: pwsh
