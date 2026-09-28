@@ -1,3 +1,4 @@
+import { portableAssetUrl } from './portable';
 import type { AppState, Block, ContentThemeId, Notebook, NotebookMetadata, OperationLogEntry, Page, PageMetadata, ShellId, ThemeId } from './types';
 import { contentThemeIds } from './typora-theme-registry';
 import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
@@ -180,6 +181,8 @@ const assetIdFromStoredMediaSrc = (src: string) => {
 };
 
 const convertStoredMediaSrc = (src: string) => {
+  const relocated = portableAssetUrl(src);
+  if (relocated !== src) return relocated;
   if (!isTauri() || !shouldConvertStoredMediaSrc(src)) return src;
   const path = pathFromStoredMediaSrc(src);
   return path ? convertFileSrc(path) : src;
@@ -189,6 +192,12 @@ const normalizeStoredMediaUrls = (html: string) => {
   if (!isTauri()) return html;
   const container = document.createElement('div');
   container.innerHTML = html;
+  container.querySelectorAll<HTMLElement>('[src], [href], [poster]').forEach(element => {
+    for (const attr of ['src', 'href', 'poster']) {
+      const value = element.getAttribute(attr);
+      if (value) element.setAttribute(attr, portableAssetUrl(value));
+    }
+  });
   container.querySelectorAll<HTMLImageElement | HTMLVideoElement | HTMLAudioElement>('img[src], video[src], audio[src]').forEach((element) => {
     const src = element.getAttribute('src');
     if (!src) return;

@@ -16,7 +16,25 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
       - run: pnpm tauri build --no-bundle --config src-tauri/tauri.windows.conf.json
+      - name: Test portable startup
+        shell: pwsh
+        run: |
+          $testDir = Join-Path $env:RUNNER_TEMP "folia-portable-smoke"
+          New-Item -ItemType Directory -Path $testDir -Force
+          Copy-Item src-tauri/target/release/block_first_notebook.exe "$testDir/folia.exe"
+          $app = Start-Process "$testDir/folia.exe" -PassThru
+          try {
+            Start-Sleep -Seconds 15
+            if ($app.HasExited) { throw "App exited during startup: $($app.ExitCode)" }
+            if (!(Test-Path "$testDir/data/notebook.sqlite3")) { throw "Portable database was not created" }
+            if (!(Test-Path "$testDir/data/webview")) { throw "Portable WebView profile was not created" }
+          } finally {
+            if (!$app.HasExited) { Stop-Process -Id $app.Id -Force }
+          }
       - shell: pwsh
         run: |
           New-Item -ItemType Directory -Path portable/data -Force

@@ -410,6 +410,26 @@ fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
 fn open_database(app: &AppHandle) -> Result<Connection, String> {
     let connection = Connection::open(database_path(app)?).map_err(|error| error.to_string())?;
     initialize_database(&connection)?;
+    #[cfg(target_os = "windows")]
+    {
+        let root = app_data_dir(app)?;
+        let mut statement = connection.prepare("SELECT id, stored_path FROM attachments").map_err(|e| e.to_string())?;
+        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))).map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())?;
+        drop(statement);
+        for (id, old_path) in rows {
+            let normalized = old_path.replace('\\', "/");
+            if let Some((_, suffix)) = normalized.rsplit_once("/attachments/") {
+                let relative = std::path::Path::new(suffix);
+                if relative.components().all(|part| matches!(part, std::path::Component::Normal(_))) {
+                    let new_path = root.join(ATTACHMENTS_DIR).join(relative);
+                    if new_path.is_file() {
+                        connection.execute("UPDATE attachments SET stored_path = ?1 WHERE id = ?2 AND stored_path != ?1", params![new_path.to_string_lossy(), id]).map_err(|e| e.to_string())?;
+                    }
+                }
+            }
+        }
+    }
     Ok(connection)
 }
 
@@ -3725,6 +3745,14 @@ fn read_terminal_clipboard() -> Result<TerminalClipboard, String> {
     { Err("Original terminal paste is currently supported on macOS".into()) }
 }
 
+#[tauri::command]
+fn portable_storage_root() -> Result<Option<String>, String> {
+    #[cfg(target_os = "windows")]
+    { return Ok(Some(portable_data_dir()?.to_string_lossy().replace('\\', "/"))); }
+    #[cfg(not(target_os = "windows"))]
+    Ok(None)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[allow(unused_mut)]
@@ -3732,6 +3760,7 @@ pub fn run() {
     #[cfg(target_os = "windows")]
     {
         let data = portable_data_dir().expect("Place folia in a writable folder");
+        std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", data.join("webview"));
         for window in &mut context.config_mut().app.windows {
             window.data_directory = Some(data.join("webview"));
         }
@@ -3742,6 +3771,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_widgets::init())
         .invoke_handler(tauri::generate_handler![
+            portable_storage_root,
             read_terminal_clipboard,
             load_normalized_state,
             current_input_source,
