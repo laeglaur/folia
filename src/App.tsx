@@ -2495,8 +2495,8 @@ export function App() {
   };
 
   const showBlockInMacWidget = async (blockId: string) => {
-    if (!isTauri()) {
-      setImportNotice({ kind: 'warning', message: '请在 folia 桌面版中使用 macOS 小组件；浏览器预览无法更新桌面小组件。' });
+    if (!isTauri() || !/Mac/i.test(navigator.platform)) {
+      setImportNotice({ kind: 'warning', message: '请在 macOS 上的 folia 桌面版中使用 macOS 小组件；浏览器预览无法更新桌面小组件。' });
       return;
     }
     const { block } = findBlockForWidget(blockId);
@@ -2516,7 +2516,7 @@ export function App() {
   };
 
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauri() || !/Mac/i.test(navigator.platform)) return;
     if (widgetIndexSaveTimerRef.current) window.clearTimeout(widgetIndexSaveTimerRef.current);
     widgetIndexSaveTimerRef.current = window.setTimeout(() => {
       widgetIndexSaveTimerRef.current = null;

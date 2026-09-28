@@ -253,7 +253,7 @@ function BlockItem({
           >
             <time dateTime={block.createdAt}>{blockTimestampLabel(block.createdAt)}</time>
           </button>
-          <button
+          {/Mac/i.test(navigator.platform) && <button
             className="block-widget-button"
             type="button"
             onClick={() => onShowBlockInMacWidget(block.id)}
@@ -261,7 +261,7 @@ function BlockItem({
             title="显示到 macOS 桌面小组件"
           >
             <Pin size={12} strokeWidth={1.5} aria-hidden="true" />
-          </button>
+          </button>}
         </div>
         {!block.collapsed ? (
           <RichEditor

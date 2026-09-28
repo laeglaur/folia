@@ -1,0 +1,29 @@
+name: Windows portable
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/windows-portable]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm tauri build --no-bundle --config src-tauri/tauri.windows.conf.json
+      - shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path portable/data -Force
+          Copy-Item src-tauri/target/release/block_first_notebook.exe portable/folia.exe
+          Copy-Item docs/windows-portable.md portable/README.md
+          Compress-Archive -Path portable/* -DestinationPath folia-windows-x64-portable.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: folia-windows-x64-portable
+          path: folia-windows-x64-portable.zip

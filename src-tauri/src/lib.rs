@@ -404,12 +404,7 @@ fn default_true() -> bool {
 }
 
 fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?;
-    fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
-    Ok(dir.join(DATABASE_FILE))
+    Ok(app_data_dir(app)?.join(DATABASE_FILE))
 }
 
 fn open_database(app: &AppHandle) -> Result<Connection, String> {
@@ -592,11 +587,19 @@ fn ensure_column(
     Ok(())
 }
 
+#[cfg(target_os = "windows")]
+fn portable_data_dir() -> Result<PathBuf, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let dir = exe.parent().ok_or("Cannot locate executable directory")?.join("data");
+    fs::create_dir_all(&dir).map_err(|e| format!("Cannot write portable data directory {}: {e}", dir.display()))?;
+    Ok(dir)
+}
+
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?;
+    #[cfg(target_os = "windows")]
+    let dir = { let _ = app; portable_data_dir()? };
+    #[cfg(not(target_os = "windows"))]
+    let dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
     Ok(dir)
 }
@@ -3724,6 +3727,15 @@ fn read_terminal_clipboard() -> Result<TerminalClipboard, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[allow(unused_mut)]
+    let mut context = tauri::generate_context!();
+    #[cfg(target_os = "windows")]
+    {
+        let data = portable_data_dir().expect("Place folia in a writable folder");
+        for window in &mut context.config_mut().app.windows {
+            window.data_directory = Some(data.join("webview"));
+        }
+    }
     tauri::Builder::default()
         .manage(PendingMarkdownOpens::default())
         .manage(PendingCardOpens::default())
@@ -3773,10 +3785,12 @@ pub fn run() {
             cleanup_orphan_attachments
         ])
         .setup(|app| {
+            #[cfg(target_os = "windows")]
+            app.asset_protocol_scope().allow_directory(portable_data_dir().map_err(std::io::Error::other)?, true)?;
             start_external_card_request_watcher(app.handle().clone());
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building tauri application")
         .run(|app, event| {
             #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
