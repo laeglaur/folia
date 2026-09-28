@@ -92,7 +92,7 @@ export const createInitialState = (): AppState => ({
   ],
   activeNotebookId: starterNotebookId,
   activePageId: starterPageId,
-  shell: 'native-garden',
+  shell: 'typora-tilted',
   theme: 'garden',
   contentTheme: 'notebook',
   openCardWindowBlockId: null,
@@ -778,7 +778,7 @@ export const loadDatabaseBootstrap = async (): Promise<DatabaseBootstrapPayload 
 export const loadWorkspacePreferences = async (): Promise<WorkspacePreferencesPayload | null> => {
   if (!isTauri()) return null;
   const preferences = await invoke<WorkspacePreferencesPayload>('load_workspace_preferences');
-  const shell = shellIds.has(preferences.shell as ShellId) ? preferences.shell as ShellId : 'native-garden';
+  const shell = shellIds.has(preferences.shell as ShellId) ? preferences.shell as ShellId : 'typora-tilted';
   return {
     ...preferences,
     shell,

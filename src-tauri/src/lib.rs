@@ -452,7 +452,7 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
               id INTEGER PRIMARY KEY CHECK (id = 1),
               active_notebook_id TEXT NOT NULL DEFAULT '',
               active_page_id TEXT NOT NULL DEFAULT '',
-              shell TEXT NOT NULL DEFAULT 'native-garden',
+              shell TEXT NOT NULL DEFAULT 'typora-tilted',
               theme TEXT NOT NULL DEFAULT 'garden',
               content_theme TEXT NOT NULL DEFAULT 'notebook',
               open_card_window_block_id TEXT,
@@ -2663,7 +2663,7 @@ fn read_workspace_preferences(
             snapshot
                 .as_ref()
                 .map(|state| state.shell.clone())
-                .unwrap_or_else(|| "native-garden".to_string()),
+                .unwrap_or_else(|| "typora-tilted".to_string()),
             snapshot
                 .as_ref()
                 .map(|state| state.theme.clone())
