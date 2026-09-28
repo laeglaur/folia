@@ -15,6 +15,7 @@ folia is a local-first, block-based notebook built with Tauri, React, and TipTap
 - 推荐外壳 / Recommended shells: **Tilted Paper**（留白与倾斜纸框 / airy, tilted paper）和 **Paper Collage**（亚麻与纸张拼贴 / linen and paper collage）。
 - 基础选择 / Other shells: Typora Base（基础商务风 / minimal business style）、Garden Typora（基础布局的轻度变化 / a modest layout variation）及 Native Garden。
 - 小鱼 → 外观调整：独立切换主题、设置背景 URL 或本地图片，双击编辑纸张题字。Fish → Appearance: theme selection, URL/local backgrounds, and editable captions.
+- 日历视图、点击日期收藏、图片插入与标注、表格增删行列及列宽调整 / Calendar views, date-click pinning, image annotation, and table editing.
 - 同一缩进树混用待办、编号和普通列表 / Mixed task, ordered, and bullet lists.
 - iTerm2 普通粘贴或保留颜色粘贴，并可继续编辑 / Normal or styled iTerm2 paste with editable text and formatting.
 - SQLite 本地笔记、Markdown 导入导出、JSON 备份、页面历史和回收站 / Local SQLite notes, Markdown import/export, JSON backup, history, and trash.

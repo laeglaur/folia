@@ -12,6 +12,10 @@ Cmd+N creates a root page in the selected notebook, falling back to the current 
 
 Writing tools include tables, math, footnotes, quotes, code, attachments, audio/video, and image resizing and annotation. Sidebar search finds notes; Cmd+F searches the current page. The right panel is called Contents, with an optional list-item display toggle in the fish menu.
 
+## Calendar, pins, images, and tables
+
+Enable Calendar view from a notebook context menu to arrange pages by date or date range, select visible fields, and color entries by a field. Click a block’s date to toggle sidebar pinning; the adjacent pin icon sends it to the system widget instead. Insert images with `/at `, resize from the bottom-right corner, and double-click to annotate. Insert tables with `/table `, then add/delete rows or columns and drag column boundaries to resize. Detailed behavior and limits are in the [user guide](docs/USER_GUIDE.md).
+
 ## Appearance
 
 Start with **Tilted Paper** or **Paper Collage**: Tilted offers generous spacing and slanted paper frames; Collage adds linen, torn paper, and layered decorations. Both support independent content themes. **Typora Base** is the minimal business-style option, while **Garden Typora** offers a modest variation on the basic layout.
