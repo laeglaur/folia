@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import ts from 'typescript';
+import assert from 'node:assert/strict';
+const source = fs.readFileSync('src/portable.ts', 'utf8').replace(/import .*?from '@tauri-apps\/api\/core';/, `const isTauri = () => true; const invoke = async () => 'D:/新位置/folia/data'; const convertFileSrc = p => 'asset:' + p;`);
+const js = ts.transpileModule(source, {compilerOptions: {module: ts.ModuleKind.ESNext}}).outputText;
+const mod = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+await mod.initializePortableStorage();
+const hash='a'.repeat(64);
+const expected=`asset:D:/新位置/folia/data/attachments/aa/${hash}.png`;
+for(const old of [`C:\\old\\data\\attachments\\aa\\${hash}.png`, `http://asset.localhost/C%3A%5Cold%5Cdata%5Cattachments%5Caa%5C${hash}.png`, `asset://localhost/Users/old/attachments/aa/${hash}.png`]) assert.equal(mod.portableAssetUrl(old),expected);
+for(const safe of ['https://example.com/photo.png','data:image/png;base64,abc',`http://asset.localhost/C:/attachments/aa/../../secret.png`]) assert.equal(mod.portableAssetUrl(safe),safe);
+console.log('Portable media relocation: PASS');

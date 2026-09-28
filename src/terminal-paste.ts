@@ -348,7 +348,7 @@ export async function pasteOriginalTerminal(editor: Editor) {
   const { from, to } = editor.state.selection;
   try {
     let html = '', text = '';
-    if (isTauri()) {
+    if (isTauri() && /Mac/i.test(navigator.platform)) {
       const data = await invoke<{ html: string; text: string }>('read_terminal_clipboard');
       html = data.html; text = data.text;
     } else {
@@ -358,7 +358,7 @@ export async function pasteOriginalTerminal(editor: Editor) {
         if (html || text) break;
       }
     }
-    if (!html) throw new Error('剪贴板没有可读取的格式化内容。请在 iTerm2 中使用 Copy with Styles；若浏览器只能读取纯文本，请使用桌面版，或按 ⌘V 普通粘贴。');
+    if (!html) throw new Error('剪贴板没有可读取的 HTML 格式内容。请在来源应用中复制带样式的文本，或使用 Cmd/Ctrl+V 普通粘贴。仅 RTF 格式的转换目前只支持 macOS 桌面版。');
     const fragment = cleanTerminalHtml(html, text);
     if (editor.isDestroyed || !editor.state.doc.eq(doc)) throw new Error('读取剪贴板期间正文已变化，请重新粘贴。');
     editor.chain().focus().insertContentAt({ from, to }, { type: 'terminalSnippet', attrs: { fragment } }).run();
