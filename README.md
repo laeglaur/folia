@@ -27,6 +27,16 @@ Create a notebook and page, write, then Shift+Enter to save a block. Double-clic
 - SQLite 本地笔记、Markdown 导入导出、JSON 备份、页面历史和回收站 / Local SQLite notes, Markdown import/export, JSON backup, history, and trash.
 - 桌面浮窗与 macOS 只读小组件 / Floating editor windows and read-only macOS widgets.
 
+## 首次安装后无法打开？
+
+当前安装包尚未经过 Apple 公证。若出现 **Apple 无法验证“folia”是否包含可能危害 Mac 安全或泄漏隐私的恶意软件**：
+
+1. 将 folia 拖入 **Applications（应用程序）**，先尝试打开一次。
+2. 出现上述弹窗后，点击 **问号**，在帮助中选择 **为我打开“隐私与安全性”设置**。
+3. 在 **安全性** 区域找到 folia 的拦截提示，点击 **仍要打开**（或对应的允许按钮），按提示确认身份并打开。
+
+也可手动进入 **系统设置 → 隐私与安全性** 完成第 3 步；不同 macOS 版本的按钮文字可能略有不同。仅对从本仓库下载、且你信任的安装包这样操作。若提示明确为“包含恶意软件”“将损坏电脑”或“已损坏”，请先反馈具体提示，不要按此流程绕过。
+
 ## 文档 / Documentation
 
 - [完整使用说明与快捷键（中文）](docs/USER_GUIDE.md)

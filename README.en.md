@@ -59,6 +59,16 @@ Open Markdown from Finder or use Import MD / Import folder in the fish menu. Fol
 
 Appearance preferences are stored separately on the device. A JSON note export is not a full application-environment backup; preserve the database and media directories when migrating desktop data.
 
+## First launch on macOS
+
+This build is not notarized by Apple. If macOS says **Apple cannot verify that folia is free of malware**:
+
+1. Move folia to **Applications** and try opening it once.
+2. Click the alert’s **question mark**, then the help link to open **Privacy & Security**.
+3. In the **Security** section, find the folia notice and click **Open Anyway**, then authenticate and confirm.
+
+Alternatively, open **System Settings → Privacy & Security** manually. Wording varies by macOS version. Only do this for a trusted download from this repository. Explicit malware, “will damage your computer,” or damaged-app warnings require investigation instead.
+
 ## Development and packaging
 
 Requirements: Node.js, pnpm, Rust, and Tauri 2 platform prerequisites. Building the macOS widget additionally requires full Xcode, its command-line tools, and XcodeGen.
