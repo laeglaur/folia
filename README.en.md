@@ -6,11 +6,20 @@ folia is a local-first block notebook built with Tauri, React, and TipTap. Deskt
 
 ## Writing and organization
 
-Write in the top composer and press Shift+Enter to save a block. Saved blocks support editing, reordering, folding, and pinning. Notebooks start collapsed; pages support nesting, icons, multi-selection, moving, duplication, and separate windows.
+Write in the composer and press Shift+Enter to save a block. Saved blocks support editing, reordering, folding, and pinning. Notebooks start collapsed; pages support nesting, icons, multi-selection, moving, duplication, and separate windows.
 
 Cmd+N creates a root page in the selected notebook, falling back to the current page's notebook. Mixed list trees support task, bullet, and numbered items: type `[] `, `- `, or `1. ` at the beginning of an item to convert it, and use Tab / Shift+Tab to change nesting.
 
 Writing tools include tables, math, footnotes, quotes, code, attachments, audio/video, and image resizing and annotation. Sidebar search finds notes; Cmd+F searches the current page. The right panel is called Contents, with an optional list-item display toggle in the fish menu.
+
+## Getting started
+
+1. Create a notebook and page, write in the composer, and press Shift+Enter.
+2. Double-click a name to rename it. Right-click a notebook for **Set emoji**, or a page for **Set Icon**. Browse categories and recent choices, search English names or emoji, or clear the icon.
+3. Click a block’s date to pin it; click the sidebar card to open a floating window.
+4. Open **外观调整 (Appearance)** from the fish menu to choose a theme; enable Toolbar for formatting tools.
+
+The bundled [user guide](docs/USER_GUIDE.md) covers page selection and movement, batch icons, metadata, temporary Markdown, recovery, and shortcuts by editing context. The fish menu opens this same guide.
 
 ## Calendar, pins, images, and tables
 

@@ -10,6 +10,12 @@ folia is a local-first, block-based notebook built with Tauri, React, and TipTap
 
 视频展示较早版本；当前操作以随应用提供的[使用说明](docs/USER_GUIDE.md)为准。The video shows an earlier version; the bundled guide describes current behavior.
 
+## 快速上手 / Quick start
+
+创建笔记本和页面 → 输入文字 → Shift+Enter 保存为块。双击名称重命名；右键笔记本 **Set emoji**、右键页面 **Set Icon** 设置图标；点击块日期收藏。小鱼 → **外观调整** 选择主题。
+
+Create a notebook and page, write, then Shift+Enter to save a block. Double-click names to rename; right-click notebooks/pages to set emoji or icons. Click a block date to pin it. Open Appearance from the fish menu to choose a theme.
+
 ## 当前功能 / Current features
 
 - 推荐外壳 / Recommended shells: **Tilted Paper**（留白与倾斜纸框 / airy, tilted paper）和 **Paper Collage**（亚麻与纸张拼贴 / linen and paper collage）。
