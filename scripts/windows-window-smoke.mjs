@@ -1,0 +1,34 @@
+import { chromium } from '@playwright/test';
+import assert from 'node:assert/strict';
+const browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
+try {
+  const context = browser.contexts()[0];
+  const page = context.pages()[0];
+  page.setDefaultTimeout(20000);
+  await page.locator('.composer-card [contenteditable=true]').waitFor();
+  await page.keyboard.press('Control+n');
+  await page.getByLabel('Page title', {exact:true}).fill('Windows window test');
+  const composer = page.locator('.composer-card [contenteditable=true]').first();
+  await composer.fill('Portable window content');
+  await composer.press('Shift+Enter');
+  const pin = page.getByRole('button', {name:'Pin block',exact:true}).last();
+  await pin.click();
+  await page.locator('.sidebar-pin-card').last().click();
+  async function findWindow(param) {
+    for(let n=0;n<40;n++) {
+      const found = context.pages().find(p => new URL(p.url()).searchParams.has(param));
+      if(found) return found;
+      await new Promise(r=>setTimeout(r,500));
+    }
+    throw Error(`Missing ${param} window. Main UI: ${await page.locator('body').innerText()}`);
+  }
+  const card = await findWindow('card');
+  await card.getByText('Portable window content',{exact:true}).first().waitFor();
+  await page.locator('.page-node-content').filter({hasText:'Windows window test'}).first().click({button:'right'});
+  await page.getByRole('menuitem',{name:'Open in Window',exact:true}).click();
+  const single = await findWindow('page');
+  await single.getByLabel('Page title',{exact:true}).waitFor();
+  assert.equal(await single.getByLabel('Page title',{exact:true}).inputValue(),'Windows window test');
+  await single.getByText('Portable window content',{exact:true}).first().waitFor();
+  console.log('Windows pinned and page windows render saved content: PASS');
+} finally {await browser.close();}

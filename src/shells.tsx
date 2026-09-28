@@ -716,7 +716,7 @@ function NotebookList({
               actions.deleteNotebook(notebook.id);
             }
           }}
-          onClick={() => actions.selectNotebook(notebook)}
+          onClick={() => { setExpandedNotebookIds(current => new Set([...current, notebook.id])); actions.selectNotebook(notebook); }}
           onDoubleClick={() => beginRename(notebook)}
           onContextMenu={(event) => {
             event.preventDefault();
@@ -753,7 +753,7 @@ function NotebookList({
             actions.deleteNotebook(notebook.id);
           }
         }}
-        onClick={() => actions.selectNotebook(notebook)}
+        onClick={() => { setExpandedNotebookIds(current => new Set([...current, notebook.id])); actions.selectNotebook(notebook); }}
         onDoubleClick={() => beginRename(notebook)}
         onContextMenu={(event) => {
           event.preventDefault();
@@ -775,6 +775,7 @@ function NotebookList({
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => {
           event.stopPropagation();
+          setExpandedNotebookIds(current => new Set([...current, notebook.id]));
           actions.addPage(notebook.id);
         }}
         aria-label={`New page in ${notebook.name}`}

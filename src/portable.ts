@@ -20,3 +20,7 @@ export function relocatePortableAppearance() {
     } catch { /* Leave unrelated or invalid preferences intact. */ }
   }
 }
+
+export function portableWebviewDirectory(): string | undefined {
+  return portableRoot ? `${portableRoot}/webview` : undefined;
+}

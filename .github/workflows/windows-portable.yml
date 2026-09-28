@@ -27,12 +27,15 @@ jobs:
           $testDir = Join-Path $env:RUNNER_TEMP "folia-portable-smoke"
           New-Item -ItemType Directory -Path $testDir -Force
           Copy-Item src-tauri/target/release/block_first_notebook.exe "$testDir/folia.exe"
+          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=9222"
           $app = Start-Process "$testDir/folia.exe" -PassThru
           try {
             Start-Sleep -Seconds 15
             if ($app.HasExited) { throw "App exited during startup: $($app.ExitCode)" }
             if (!(Test-Path "$testDir/data/notebook.sqlite3")) { throw "Portable database was not created" }
             if (!(Test-Path "$testDir/data/webview")) { throw "Portable WebView profile was not created" }
+            node scripts/windows-window-smoke.mjs
+            if ($LASTEXITCODE -ne 0) { throw "Window interaction checks failed" }
           } finally {
             if (!$app.HasExited) { Stop-Process -Id $app.Id -Force }
           }

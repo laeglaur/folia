@@ -1,3 +1,4 @@
+import { portableWebviewDirectory } from './portable';
 import { setMixedListType } from './mixed-lists';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -4083,14 +4084,15 @@ export function App() {
     if (!roundPinnedCards) cardParams.set('roundPinnedCards', '0');
     cardParams.set('glowPinnedCards', glowPinnedCards ? '1' : '0');
     const cardWindow = new WebviewWindow(label, {
-      url: `${window.location.pathname}?${cardParams.toString()}`,
+      url: `index.html?${cardParams.toString()}`,
+      dataDirectory: portableWebviewDirectory(),
       title: 'Notebook card',
       width: 340,
       height: 220,
       minWidth: 240,
       minHeight: 140,
       decorations: false,
-      transparent: true,
+      transparent: /Mac/i.test(navigator.platform),
       shadow: false,
       alwaysOnTop: true,
       visibleOnAllWorkspaces: true,
@@ -4105,6 +4107,7 @@ export function App() {
     });
     void cardWindow.once('tauri://error', (event) => {
       console.warn('Could not create pinned card window.', event.payload);
+      setImportNotice({ kind: 'warning', message: `无法打开卡片窗口：${String(event.payload)}` });
     });
     window.setTimeout(() => {
       void configurePinnedCardWindow(cardWindow);
@@ -4128,7 +4131,8 @@ export function App() {
     }
     const params = new URLSearchParams({ page: pageId });
     const pageWindow = new WebviewWindow(label, {
-      url: `${window.location.pathname}?${params.toString()}`,
+      url: `index.html?${params.toString()}`,
+      dataDirectory: portableWebviewDirectory(),
       title: targetPage.title || 'Folia page',
       width: 980,
       height: 760,
@@ -4141,6 +4145,7 @@ export function App() {
     });
     void pageWindow.once('tauri://error', (event) => {
       console.warn('Could not create page window.', event.payload);
+      setImportNotice({ kind: 'warning', message: `无法打开页面窗口：${String(event.payload)}` });
     });
   };
 
