@@ -31,7 +31,7 @@ jobs:
           $debugKey = "HKCU:\Software\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments"
           New-Item -Path $debugKey -Force | Out-Null
           New-ItemProperty -Path $debugKey -Name "folia.exe" -Value "--remote-debugging-port=9222" -PropertyType String -Force | Out-Null
-          $app = Start-Process "$testDir/folia.exe" -PassThru
+          $app = Start-Process "$testDir/folia.exe" -PassThru -NoNewWindow
           try {
             Start-Sleep -Seconds 15
             if ($app.HasExited) { throw "App exited during startup: $($app.ExitCode)" }
