@@ -29,7 +29,11 @@ try {
   await composer.press('Shift+Enter');
   const pin = page.getByRole('button', {name:'Pin block',exact:true}).last();
   await pin.click();
-  await page.locator('.sidebar-pin-card').last().click();
+  // Pin persistence and the sidebar query are asynchronous on the desktop app.
+  // Wait for the card to be rendered before asking the app to create its window.
+  const sidebarCard = page.locator('.sidebar-pin-card').last();
+  await sidebarCard.waitFor({ state: 'visible', timeout: 20000 });
+  await sidebarCard.click();
   async function findWindow(param) {
     for(let n=0;n<40;n++) {
       const found = browser.contexts().flatMap(c => c.pages()).find(p => new URL(p.url()).searchParams.has(param));
