@@ -6,4 +6,6 @@
 
 升级前退出所有窗口并备份整个文件夹；保留 data，只替换程序。已通过 Windows 构建与启动检查，以及媒体路径迁移测试；完整交互仍需 Windows 用户试用。请先用副本验证图片、桌面卡片与导入导出，再迁移重要数据。
 
+新建工作区默认使用 Tilted Paper；外观列表依次为 Tilted Paper、Paper Collage、Native Garden、Typora Base、Garden Typora。升级会保留已有主题选择。点击笔记本名称或增加页面时，该笔记本会自动展开。
+
 Ctrl 对应 macOS 的 Cmd，Alt 对应 Option。HTML 富文本可使用 Ctrl+Alt+V 原样粘贴；仅 RTF 的转换暂限 macOS。便携包不注册文件关联，不修改系统默认打开方式。未购买代码签名证书，Windows 可能显示未知发布者提示。

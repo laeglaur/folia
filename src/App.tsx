@@ -663,6 +663,8 @@ export function App() {
   const [pinnedBlockPayloads, setPinnedBlockPayloads] = useState<PinnedBlockPayload[]>([]);
   const [calendarBlockPayloads, setCalendarBlockPayloads] = useState<CalendarBlockPayload[]>([]);
   const [cardDocument, setCardDocument] = useState<PageDocumentPayload | null>(null);
+  const [cardLoadError, setCardLoadError] = useState<string | null>(null);
+  const [cardLoadAttempt, setCardLoadAttempt] = useState(0);
   const [searchLoading, setSearchLoading] = useState(false);
   const [activeEditor, setActiveEditor] = useState<EditorTarget>({ kind: 'composer' });
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
@@ -1014,6 +1016,10 @@ export function App() {
       let preferences = null;
       let pinned: PinnedBlockPayload[] = [];
       try {
+        const existing = await loadDatabaseBootstrap();
+        if (!existing?.notebooks.length) {
+          await invoke('initialize_workspace', { state: fallbackState });
+        }
         [bootstrap, preferences, pinned] = await Promise.all([
           loadDatabaseBootstrap(),
           loadWorkspacePreferences(),
@@ -1592,8 +1598,13 @@ export function App() {
     if (!cardModeBlockId || !isTauri()) return;
     const requestId = cardDocumentRequestRef.current + 1;
     cardDocumentRequestRef.current = requestId;
+    setCardLoadError(null);
     loadBlockDocument(cardModeBlockId).then((document) => {
-      if (cancelled || cardDocumentRequestRef.current !== requestId || !document) return;
+      if (cancelled || cardDocumentRequestRef.current !== requestId) return;
+      if (!document) {
+        setCardLoadError('未找到这条内容。请回到笔记确认内容已保存，然后重试。');
+        return;
+      }
       const pendingEdit = pendingCardEditRef.current?.blockId === cardModeBlockId ? pendingCardEditRef.current : null;
       if (!pendingEdit) {
         setCardDocument(document);
@@ -1638,11 +1649,12 @@ export function App() {
       schedulePageDocumentSave(nextPage, nextBlocks, operation, 0);
     }).catch((error) => {
       console.warn('Could not load pinned card block document.', error);
+      if (!cancelled && cardDocumentRequestRef.current === requestId) setCardLoadError(String(error));
     });
     return () => {
       cancelled = true;
     };
-  }, [cardModeBlockId]);
+  }, [cardModeBlockId, cardLoadAttempt]);
 
   const configurePinnedCardWindow = async (cardWindow: WebviewWindow) => {
     await Promise.allSettled([
@@ -4699,7 +4711,13 @@ export function App() {
         data-content-theme={state.shell.startsWith('typora-') ? state.contentTheme : 'notebook'}
         data-shell={state.shell}
       >
-        <div className="floating-card-body card-mode" />
+        <div className="floating-card-body card-mode" style={{ padding: 20 }}>
+          <p role={cardLoadError ? 'alert' : 'status'}>{cardLoadError ? '暂时无法读取卡片内容' : '正在读取卡片…'}</p>
+          {cardLoadError && <>
+            <p style={{ fontSize: 12, overflowWrap: 'anywhere' }}>{cardLoadError}</p>
+            <button type="button" onClick={() => setCardLoadAttempt((attempt) => attempt + 1)}>重试</button>
+          </>}
+        </div>
       </main>
     );
   }

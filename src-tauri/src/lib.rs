@@ -2924,6 +2924,27 @@ fn save_workspace_preferences(
     save_workspace_preferences_in_transaction(&mut connection, &request)
 }
 
+// Seed a fresh workspace atomically; never replace an existing notebook database.
+fn initialize_workspace_in_transaction(connection: &mut Connection, state: &NormalizedAppState) -> Result<(), String> {
+    let transaction = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|error| error.to_string())?;
+    let count: i64 = transaction.query_row("SELECT COUNT(*) FROM notebooks", [], |row| row.get(0))
+        .map_err(|error| error.to_string())?;
+    if count == 0 {
+        for notebook in &state.notebooks { upsert_notebook(&transaction, notebook)?; }
+        for page in &state.pages {
+            let blocks: Vec<_> = state.blocks.iter().filter(|block| block.page_id == page.id).cloned().collect();
+            upsert_page_document(&transaction, page, &blocks)?;
+        }
+    }
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn initialize_workspace(app: AppHandle, state: NormalizedAppState) -> Result<(), String> {
+    initialize_workspace_in_transaction(&mut open_database(&app)?, &state)
+}
+
 #[tauri::command]
 fn list_notebook_tree(app: AppHandle) -> Result<NotebookTreePayload, String> {
     let connection = open_database(&app)?;
@@ -3778,6 +3799,7 @@ pub fn run() {
             load_workspace_preferences,
             save_workspace_preferences,
             list_notebook_tree,
+            initialize_workspace,
             load_page_document,
             load_page_documents,
             load_block_document,
@@ -5838,6 +5860,18 @@ mod tests {
             fts_query_from_search_text("中文"),
             Some("\"中文\"".to_string())
         );
+    }
+
+    #[test]
+    fn fresh_workspace_is_persisted_once_without_overwriting_edits() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        initialize_database(&connection).unwrap();
+        let state = demo_normalized_state();
+        initialize_workspace_in_transaction(&mut connection, &state).unwrap();
+        assert!(load_block_document_from_database(&connection, "block_b").unwrap().is_some());
+        connection.execute("UPDATE notebooks SET name = 'User edit'", []).unwrap();
+        initialize_workspace_in_transaction(&mut connection, &state).unwrap();
+        assert_eq!(list_notebooks_from_database(&connection).unwrap()[0].name, "User edit");
     }
 
     #[test]

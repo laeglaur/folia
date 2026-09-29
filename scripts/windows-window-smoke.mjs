@@ -32,11 +32,11 @@ try {
   await page.locator('.sidebar-pin-card').last().click();
   async function findWindow(param) {
     for(let n=0;n<40;n++) {
-      const found = context.pages().find(p => new URL(p.url()).searchParams.has(param));
+      const found = browser.contexts().flatMap(c => c.pages()).find(p => new URL(p.url()).searchParams.has(param));
       if(found) return found;
       await new Promise(r=>setTimeout(r,500));
     }
-    throw Error(`Missing ${param} window. Main UI: ${await page.locator('body').innerText()}`);
+    throw Error(`Missing ${param} window. URLs: ${browser.contexts().flatMap(c => c.pages()).map(p => p.url()).join(", ")}. Main UI: ${await page.locator('body').innerText()}`);
   }
   const card = await findWindow('card');
   await card.getByText('Portable window content',{exact:true}).first().waitFor();
