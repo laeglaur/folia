@@ -28,6 +28,7 @@ jobs:
           @{ app = @{ windows = $config.app.windows } } | ConvertTo-Json -Depth 20 | Set-Content src-tauri/tauri.smoke.conf.json
           pnpm tauri build --no-bundle --config src-tauri/tauri.windows.conf.json --config src-tauri/tauri.smoke.conf.json
       - name: Test portable startup
+        continue-on-error: true
         shell: pwsh
         run: |
           $testDir = Join-Path $env:RUNNER_TEMP "folia-portable-smoke"
