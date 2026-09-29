@@ -3199,7 +3199,16 @@ fn open_widget_block(app: AppHandle, block_id: String) -> Result<(), String> {
     let mut url = tauri::Url::parse("https://folia.local/index.html").map_err(|e| e.to_string())?;
     url.query_pairs_mut().append_pair("card", &block_id);
     WebviewWindowBuilder::new(&app, label, WebviewUrl::App(format!("index.html?{}", url.query().unwrap_or("")).into()))
-        .title("folia · Block").inner_size(760.0, 640.0).focused(true).resizable(true).build().map_err(|e| e.to_string())?;
+        .title("folia · Block")
+        .inner_size(340.0, 220.0)
+        .min_inner_size(240.0, 140.0)
+        .decorations(false)
+        .shadow(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(true)
+        .resizable(true)
+        .build().map_err(|e| e.to_string())?;
     Ok(())
 }
 
