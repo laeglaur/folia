@@ -4086,19 +4086,6 @@ export function App() {
       return;
     }
 
-    // WebView2 is unreliable when a child window is created through the
-    // frontend WebviewWindow constructor. Let the native command create it
-    // on Windows; it uses the app's configured WebView profile and lifecycle.
-    if (/Win/i.test(navigator.platform)) {
-      try {
-        await invoke('open_widget_block', { blockId });
-      } catch (error) {
-        console.warn('Could not create pinned card window.', error);
-        setImportNotice({ kind: 'warning', message: `无法打开卡片窗口：${String(error)}` });
-      }
-      return;
-    }
-
     const label = `card_${blockId.replace(/[^a-zA-Z0-9_:-]/g, '_')}`;
     const existing = await WebviewWindow.getByLabel(label);
     if (existing) {

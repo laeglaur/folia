@@ -2191,6 +2191,10 @@ const handleRichPaste = (editor: Editor | null, event: ClipboardEvent) => {
 
 const handleRichCopy = (editor: Editor | null, event: ClipboardEvent) => {
   if (!editor) return false;
+  // WebView2 can ignore clipboardData.setData() after preventDefault().
+  // Let Windows perform the native copy; the browser still preserves the
+  // selected rich content in the clipboard.
+  if (isTauri() && /Win/i.test(navigator.platform)) return false;
   const clipboard = event.clipboardData;
   if (!clipboard || editor.state.selection.empty) return false;
   const selection = window.getSelection();
