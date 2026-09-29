@@ -20,7 +20,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
-      - run: pnpm tauri build --no-bundle --config src-tauri/tauri.windows.conf.json
+      - name: Build window test executable
+        shell: pwsh
+        run: |
+          $config = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
+          $config.app.windows[0] | Add-Member -NotePropertyName additionalBrowserArgs -NotePropertyValue "--remote-debugging-port=9222" -Force
+          @{ app = @{ windows = $config.app.windows } } | ConvertTo-Json -Depth 20 | Set-Content src-tauri/tauri.smoke.conf.json
+          pnpm tauri build --no-bundle --config src-tauri/tauri.windows.conf.json --config src-tauri/tauri.smoke.conf.json
       - name: Test portable startup
         shell: pwsh
         run: |
@@ -43,6 +49,8 @@ jobs:
             Get-CimInstance Win32_Process | Where-Object { $_.Name -like '*webview*' -or $_.Name -eq 'folia.exe' } | Select-Object Name,CommandLine | Format-List
             if (!$app.HasExited) { Stop-Process -Id $app.Id -Force }
           }
+      - name: Build distributable without diagnostic port
+        run: pnpm tauri build --no-bundle --config src-tauri/tauri.windows.conf.json
       - shell: pwsh
         run: |
           New-Item -ItemType Directory -Path portable/data -Force

@@ -9,6 +9,18 @@ try {
   const context = browser.contexts()[0];
   const page = context.pages()[0];
   page.setDefaultTimeout(20000);
+  // Match the test-only main WebView environment when the UI creates child windows.
+  await page.evaluate(() => {
+    const original = window.__TAURI_INTERNALS__.invoke;
+    window.__TAURI_INTERNALS__.invoke = (command, args, options) => {
+      if (command === 'plugin:webview|create_webview_window') {
+        args.options.additionalBrowserArgs = '--remote-debugging-port=9222';
+      }
+      return original(command, args, options);
+    };
+  });
+  page.on('console', message => console.log('App:', message.text()));
+  page.on('pageerror', error => console.log('App error:', error.message));
   await page.locator('.composer-card [contenteditable=true]').waitFor();
   await page.keyboard.press('Control+n');
   await page.getByLabel('Page title', {exact:true}).fill('Windows window test');
