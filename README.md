@@ -10,11 +10,41 @@ folia is a local-first, block-based notebook built with Tauri, React, and TipTap
 
 视频展示较早版本；当前操作以随应用提供的[使用说明](docs/USER_GUIDE.md)为准。The video shows an earlier version; the bundled guide describes current behavior.
 
-## 快速上手 / Quick start
+## 开始使用 / Get started
 
-创建笔记本和页面 → 输入文字 → Shift+Enter 保存为块。双击名称重命名；右键笔记本 **Set emoji**、右键页面 **Set Icon** 设置图标；点击块日期收藏。小鱼 → **外观调整** 选择主题。
+打开 folia 后：
 
-Create a notebook and page, write, then Shift+Enter to save a block. Double-click names to rename; right-click notebooks/pages to set emoji or icons. Click a block date to pin it. Open Appearance from the fish menu to choose a theme.
+1. 在左侧选择或新建一个 Notebook。
+2. 按 `Ctrl/Cmd+N` 新建页面。
+3. 在正文中输入文字，按 `Shift+Enter` 保存为一个 block。
+4. 双击页面标题重命名；点击 block 日期，将它固定到 Pinned。
+5. 点击左下角的小鱼，切换主题、背景和装饰。
+
+最常用的输入语法：
+
+```text
+**粗体**       ==高亮==       `行内代码`       ~~删除线~~
+- 无序列表    1. 编号列表    [] 待办列表       > 引用
+```
+
+页面、Notebook 和 Pinned 卡片都可以右键操作。图片、表格、任务列表、日历、Markdown 导入导出、页面历史和回收站等功能按需使用；完整快捷键见[使用说明](docs/USER_GUIDE.md)。
+
+After opening folia:
+
+1. Select or create a Notebook in the sidebar.
+2. Press `Ctrl/Cmd+N` to create a page.
+3. Type in the editor and press `Shift+Enter` to save a block.
+4. Double-click the page title to rename it; click a block date to pin it.
+5. Open the fish menu to change themes, backgrounds, and decorations.
+
+Common inline and block syntax:
+
+```text
+**bold**       ==highlight==       `inline code`       ~~strikethrough~~
+- bullet list  1. ordered list    [] task list        > quote
+```
+
+Use the context menu on pages, Notebooks, and Pinned cards for more actions. The [user guide](docs/USER_GUIDE.md) contains the complete shortcut reference.
 
 ## 当前功能 / Current features
 
