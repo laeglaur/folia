@@ -66,7 +66,10 @@ Pinned is a place for blocks you want close at hand. Click a block date to save 
 
 浮窗里的修改会同步回原页面；它适合放正在处理的草稿、提醒或需要反复查看的 block。
 
-[![观看 Pinned 浮窗演示 / Watch the Pinned card demo](docs/assets/pinned_block_introduction.png)](docs/assets/pinned_block_introduction.mp4)
+<video controls preload="metadata" poster="docs/assets/pinned_block_introduction.png" width="720">
+  <source src="https://github.com/laeglaur/folia/raw/refs/heads/codex/windows-portable/docs/assets/pinned_block_introduction.mp4" type="video/mp4">
+  [观看 Pinned 浮窗演示 / Watch the Pinned card demo](https://github.com/laeglaur/folia/raw/refs/heads/codex/windows-portable/docs/assets/pinned_block_introduction.mp4)
+</video>
 
 On macOS, a block can also be sent to a read-only desktop widget. Pinned cards and system widgets are separate: one is for editing close at hand, the other is for a glance from the desktop.
 
