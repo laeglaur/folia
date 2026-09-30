@@ -1,3 +1,5 @@
+ 
+
 # folia
 
 [中文介绍与开发说明](README.zh-CN.md) · [English overview and development](README.en.md) · [使用说明 / User guide](docs/USER_GUIDE.md)
@@ -6,9 +8,13 @@ folia 是一个本地优先的块状笔记应用，基于 Tauri、React 和 TipT
 
 folia is a local-first, block-based notebook built with Tauri, React, and TipTap, with nested pages, mixed lists, styled terminal snippets, desktop cards, and macOS widgets. Shell and content themes are configured separately.
 
-[![观看介绍视频 / Watch the demo](docs/assets/demo-cover.png)](https://www.bilibili.com/video/BV1sZMA6zELk/)
+## 你的工作区 / Your workspace
 
-视频展示较早版本；当前操作以随应用提供的[使用说明](docs/USER_GUIDE.md)为准。The video shows an earlier version; the bundled guide describes current behavior.
+folia 的界面分成三块：左边整理 Notebook 和页面，中间写作，右边查看 Contents。左右栏可以用 `Cmd/Ctrl + [` 和 `Cmd/Ctrl + ]` 随时隐藏或重新打开；页面层级用 `Tab` 和 `Shift+Tab` 调整。
+
+![folia workspace](docs/assets/paper_collage_workspace-overview.png)
+
+这张图里，左栏放 Notebook 和页面树，中间是正在编辑的页面，右侧 Contents 显示当前页面的结构。左栏搜索可以同时查找页面标题和正文内容。
 
 ## 开始使用 / Get started
 
@@ -25,9 +31,13 @@ folia is a local-first, block-based notebook built with Tauri, React, and TipTap
 ```text
 **粗体**       ==高亮==       `行内代码`       ~~删除线~~
 - 无序列表    1. 编号列表    [] 待办列表       > 引用
+/at 添加附件  /math 添加 LaTeX 公式  /table 添加表格  /link 链接到其他页面
+$2^3$ 行内公式
 ```
 
-页面、Notebook 和 Pinned 卡片都可以右键操作。图片、表格、任务列表、日历、Markdown 导入导出、页面历史和回收站等功能按需使用；完整快捷键见[使用说明](docs/USER_GUIDE.md)。
+输入三个反引号可以插入代码块；带语言名的代码块可以折叠。终端用户还可以用 `Cmd/Ctrl+Option+C` 从 iTerm2 复制内容，用 `Cmd/Ctrl+Option+V` 保留终端格式粘贴，普通的 `Cmd/Ctrl+V` 则粘贴为可编辑文本。
+
+第一次打开时，初始页面里会有一个 `theme-demo` 示例页面，可以直接看到标题、列表、代码、公式、表格等格式。页面和 Notebook 都可以右键操作；完整快捷键见[使用说明](docs/USER_GUIDE.md)。
 
 After opening folia:
 
@@ -42,20 +52,47 @@ Common inline and block syntax:
 ```text
 **bold**       ==highlight==       `inline code`       ~~strikethrough~~
 - bullet list  1. ordered list    [] task list        > quote
+/at attachment  /math LaTeX        /table table        /link page link
+$2^3$ inline math
 ```
 
-Use the context menu on pages, Notebooks, and Pinned cards for more actions. The [user guide](docs/USER_GUIDE.md) contains the complete shortcut reference.
+Type three backticks to insert a code block; code blocks with a language name can be folded. In iTerm2, use `Cmd/Ctrl+Option+C` to copy, `Cmd/Ctrl+Option+V` to preserve terminal formatting, or regular `Cmd/Ctrl+V` to paste editable text.
 
-## 当前功能 / Current features
+## Pinned 浮窗 / Pinned windows
 
-- 推荐外壳 / Recommended shells: **Tilted Paper**（留白与倾斜纸框 / airy, tilted paper）和 **Paper Collage**（亚麻与纸张拼贴 / linen and paper collage）。
-- 基础选择 / Other shells: Typora Base（基础商务风 / minimal business style）、Garden Typora（基础布局的轻度变化 / a modest layout variation）及 Native Garden。
-- 小鱼 → 外观调整：独立切换主题、设置背景 URL 或本地图片，双击编辑纸张题字。Fish → Appearance: theme selection, URL/local backgrounds, and editable captions.
-- 日历视图、点击日期收藏、图片插入与标注、表格增删行列及列宽调整 / Calendar views, date-click pinning, image annotation, and table editing.
-- 同一缩进树混用待办、编号和普通列表 / Mixed task, ordered, and bullet lists.
-- iTerm2 普通粘贴或保留颜色粘贴，并可继续编辑 / Normal or styled iTerm2 paste with editable text and formatting.
-- SQLite 本地笔记、Markdown 导入导出、JSON 备份、页面历史和回收站 / Local SQLite notes, Markdown import/export, JSON backup, history, and trash.
-- 桌面浮窗与 macOS 只读小组件 / Floating editor windows and read-only macOS widgets.
+Pinned 是 block 的收藏区。点击“block 日期”即可收藏；在左栏 Pinned 卡片上，右键可以快速打开原页面，单击则打开一个可以拖动、折叠和编辑的浮窗。
+
+Pinned is a place for blocks you want close at hand. Click a block date to save it there, right-click a Pinned card to open its page, or click the card to open an editable floating window.
+
+浮窗里的修改会同步回原页面；它适合放正在处理的草稿、提醒或需要反复查看的 block。
+
+[![观看 Pinned 浮窗演示 / Watch the Pinned card demo](docs/assets/pinned_block_introduction.png)](docs/assets/pinned_block_introduction.mp4)
+
+On macOS, a block can also be sent to a read-only desktop widget. Pinned cards and system widgets are separate: one is for editing close at hand, the other is for a glance from the desktop.
+
+## 外观 / Make it yours
+
+右下角的小鱼是外观入口。你可以先选一个工作区外壳，再选一套正文主题，两者可以自由搭配。比如，**Tilted Paper + Swiss** 会得到清爽、留白较多的纸张工作区；**Tilted Paper + Gruvbox Dark** 则会把正文换成深色、对比更强的编辑风格。也可以试试 **Paper Collage** 搭配 Swiss，或者用 Native Garden 保留更像笔记本的布局。
+
+背景颜色、背景图片、纸张颜色、透明度、阴影、纸张角度和装饰文字都可以在这里调整。图片和装饰支持双击更换，设置会保存在当前设备。正文主题包括 Swiss、Gruvbox Dark、Proof、Folio、Inkwell、Everforest 等多种风格。
+
+小鱼菜单把常用设置放在一起：可以打开使用说明、切换外壳和正文主题、控制 Toolbar、Metadata、Contents 和 Sidebar，也可以导入 Markdown、备份和恢复页面。
+
+![Fish appearance menu](docs/assets/xiaoyu.png)
+
+**Tilted Paper + Swiss**：浅色纸张、留白充足，适合日常写作和阅读。
+
+![Tilted Paper + Swiss](docs/assets/tiled_paper_theme_demo_light.png)
+
+**Tilted Paper + Gruvbox Dark**：工作区保持纸张和装饰，正文换成深色高对比主题，适合代码和长时间编辑。
+
+![Tilted Paper + Gruvbox Dark](docs/assets/tiled_paper_theme_demo_dark.png)
+
+## 日历和 Metadata / Calendar and metadata
+
+给 Notebook 添加 Metadata 后，可以把它切换成日历模式。页面可以按创建日期或自定义日期字段排列，也可以用状态、标签等字段给日历内容分类。适合项目计划、读书记录、旅行安排和按日期回顾的笔记。
+
+![Calendar view](docs/assets/calendar.png)
 
 ## 首次安装后无法打开？
 
@@ -71,8 +108,12 @@ Use the context menu on pages, Notebooks, and Pinned cards for more actions. The
 
 - [完整使用说明与快捷键（中文）](docs/USER_GUIDE.md)
 - [终端片段保存格式与兼容性](docs/terminal-paste.md)
-- [默认素材与构建资产](docs/theme-assets.md)
 - [开发、打包及发布（中文）](README.zh-CN.md#开发与打包) / [Development and packaging](README.en.md#development-and-packaging)
-- [演示数据库切换](docs/demo-database.md)
 
 源码推送不会自动发布安装包。当前主要支持 macOS；WidgetKit 小组件需要桌面版及包含扩展的安装包。Pushing source does not publish an installer; WidgetKit requires the macOS desktop bundle with its extension embedded.
+
+## 视频 / Video
+
+[![观看介绍视频 / Watch the demo](docs/assets/demo-cover.png)](https://www.bilibili.com/video/BV1sZMA6zELk/)
+
+视频展示较早版本；当前操作以随应用提供的[使用说明](docs/USER_GUIDE.md)为准。The video shows an earlier version; the bundled guide describes current behavior.

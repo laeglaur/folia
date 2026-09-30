@@ -338,6 +338,10 @@ input, select { color: var(--ink); }
   font-size: var(--nav-section-label-size);
 }
 
+.pinned-sidebar-section .section-label {
+  color: var(--theme-ink, var(--ink, var(--muted)));
+}
+
 .notebook-list,
 .page-tree { display: grid; gap: var(--nav-list-gap); margin-top: var(--nav-list-margin-top); }
 
@@ -1040,6 +1044,8 @@ button.delete-notebook-button {
   border: 0;
   outline: 0;
   background: transparent;
+  color: var(--theme-ink, var(--ink, #263934));
+  caret-color: currentColor;
 }
 
 .search-results {

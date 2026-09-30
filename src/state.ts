@@ -3,6 +3,7 @@ import type { AppState, Block, ContentThemeId, Notebook, NotebookMetadata, Opera
 import { contentThemeIds } from './typora-theme-registry';
 import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import { marked } from 'marked';
+import themeDemoMarkdown from '../theme-demo.md?raw';
 
 const STORAGE_KEY = 'block-first-notebook.state.v1';
 
@@ -39,8 +40,10 @@ const extractFrontmatterRaw = (markdown: string) => {
 };
 
 const starterPageId = createId('page');
+const themeDemoPageId = createId('page');
 const starterBlockOne = createId('block');
 const starterBlockTwo = createId('block');
+const themeDemoBlockId = createId('block');
 const starterNotebookId = createId('notebook');
 
 export const createInitialState = (): AppState => ({
@@ -48,7 +51,7 @@ export const createInitialState = (): AppState => ({
     {
       id: starterNotebookId,
       name: 'Notebook',
-      pageIds: [starterPageId],
+      pageIds: [starterPageId, themeDemoPageId],
       metadata: createEmptyNotebookMetadata()
     }
   ],
@@ -60,6 +63,16 @@ export const createInitialState = (): AppState => ({
       title: 'Inbox',
       blockIds: [starterBlockOne, starterBlockTwo],
       metadata: createEmptyPageMetadata(),
+      createdAt: now(),
+      updatedAt: now()
+    },
+    {
+      id: themeDemoPageId,
+      notebookId: starterNotebookId,
+      parentId: null,
+      title: 'theme-demo',
+      blockIds: [themeDemoBlockId],
+      metadata: createEmptyPageMetadata('theme-demo.md'),
       createdAt: now(),
       updatedAt: now()
     }
@@ -83,6 +96,18 @@ export const createInitialState = (): AppState => ({
       content: {
         html: '<ul><li>Every bullet should be collapsible by default.</li><li>Blocks can be pinned into desktop cards later.</li></ul>',
         plainText: 'Every bullet should be collapsible by default. Blocks can be pinned into desktop cards later.'
+      },
+      collapsed: false,
+      pinned: false,
+      createdAt: now(),
+      updatedAt: now()
+    },
+    {
+      id: themeDemoBlockId,
+      pageId: themeDemoPageId,
+      content: {
+        html: String(marked.parse(themeDemoMarkdown)),
+        plainText: themeDemoMarkdown
       },
       collapsed: false,
       pinned: false,

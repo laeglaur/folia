@@ -400,6 +400,11 @@
   width: 100%;
 }
 
+.typora-app-shell .typora-search-box input {
+  color: var(--typora-shell-ink);
+  caret-color: var(--typora-shell-ink);
+}
+
 .typora-app-shell .typora-tool-controls .view-toggle,
 .typora-app-shell .typora-tool-controls .theme-select,
 .typora-app-shell .typora-tool-controls .secondary-button,
@@ -930,6 +935,7 @@
   border-top-right-radius: 0;
   padding-top: 10px;
 }
+.typora-app-shell .pinned-sidebar-section .section-label { color: var(--typora-shell-ink); }
 .paper-shell[data-shell="typora-tilted"] .notebook-node[data-generic-name="true"] .notebook-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .paper-sidebar-footer { display: flex; min-height: 106px; flex-shrink: 0; overflow: hidden; border-radius: 9px; background: color-mix(in srgb, var(--paper-color) 88%, #8a8f76); color: var(--typora-shell-muted); }
 .paper-card-image { position: relative; overflow: hidden; flex: 0 0 45%; background-size: cover; background-position: center; }
