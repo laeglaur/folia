@@ -3592,6 +3592,10 @@ body.notebook-table-column-resizing * {
   overflow: hidden;
 }
 
+.card-window-page.is-collapsed .floating-card-body.card-mode {
+  display: none;
+}
+
 .card-window-grip {
   position: sticky;
   top: 0;

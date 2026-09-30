@@ -94,7 +94,7 @@ export const createInitialState = (): AppState => ({
   activePageId: starterPageId,
   shell: 'typora-tilted',
   theme: 'garden',
-  contentTheme: 'notebook',
+  contentTheme: 'typora-swiss',
   openCardWindowBlockId: null,
   expandedPageIds: [starterPageId],
   operations: [],
@@ -121,7 +121,7 @@ const normalizeShell = (shell: string | undefined, theme: ThemeId, contentTheme:
 
 const normalizeContentTheme = (contentTheme?: string): ContentThemeId => {
   if (contentThemeIds.has(contentTheme as ContentThemeId)) return contentTheme as ContentThemeId;
-  return 'notebook';
+  return 'typora-swiss';
 };
 
 const shouldConvertStoredMediaSrc = (src: string) => {
@@ -783,7 +783,7 @@ export const loadWorkspacePreferences = async (): Promise<WorkspacePreferencesPa
     ...preferences,
     shell,
     theme: 'garden',
-    contentTheme: contentThemeIds.has(preferences.contentTheme) ? preferences.contentTheme : 'notebook',
+    contentTheme: contentThemeIds.has(preferences.contentTheme) ? preferences.contentTheme : 'typora-swiss',
     openCardWindowBlockId: preferences.openCardWindowBlockId ?? null,
     expandedPageIds: preferences.expandedPageIds ?? [],
     showPageMetadata: preferences.showPageMetadata ?? false

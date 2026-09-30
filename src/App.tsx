@@ -2964,7 +2964,6 @@ export function App() {
   };
 
   const persistPageTitle = (pageId: string, title: string) => {
-    if (!title.trim()) return null;
     if (temporaryMarkdownPagesRef.current.some((item) => item.id === pageId)) {
       return createOperation({
         entity: 'page',

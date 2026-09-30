@@ -1183,9 +1183,10 @@ fn list_notebooks_from_database(
             let page_ids_json: String = row.get(2)?;
             let metadata_json: String = row.get(3)?;
             let page_ids = serde_json::from_str::<Vec<String>>(&page_ids_json).unwrap_or_default();
+            let name: String = row.get(1)?;
             Ok(NormalizedNotebook {
                 id: row.get(0)?,
-                name: row.get(1)?,
+                name: if name.trim().is_empty() { "Notebook".to_string() } else { name },
                 page_ids,
                 metadata: serde_json::from_str::<serde_json::Value>(&metadata_json)
                     .unwrap_or_else(|_| serde_json::json!({})),

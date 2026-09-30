@@ -50,7 +50,7 @@ function AppearanceImage({ label, value, onChange }: { label: string; value: str
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const local = /^(data:|asset:|https?:\/\/asset\.localhost)/.test(value);
-  return <div className="appearance-image-field">
+  return <div className="appearance-image-field" onDoubleClick={() => input.current?.click()} title="双击更换图片">
     <label>{label}<input aria-label={`${label} URL`} value={local ? '' : value} placeholder={local ? '已选择本地图片，可输入 URL 替换' : '粘贴图片 URL'} onChange={event => onChange(event.target.value)} /></label>
     <input ref={input} hidden type="file" accept="image/*" onChange={async event => {
       const file = event.target.files?.[0]; event.target.value = '';
